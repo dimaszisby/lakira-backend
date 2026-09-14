@@ -5,6 +5,7 @@ import {
   createMetricLog,
   createTestUser,
 } from "../helpers/test-utils.js";
+import { models } from "@/infrastructure/db/models.js";
 
 const UNKNOWN_LOG_ID = "00000000-0000-4000-8000-000000000077";
 
@@ -196,8 +197,12 @@ describe("Metric Log API", () => {
     );
   });
 
+  // These run the synchronous fallback: RABBITMQ_ENABLED is false in test, so the API is
+  // wired with NoopMessageQueue. The response is identical on the queued path, which is
+  // why the first test asserts on rows, not just the 202. The queued path is covered by
+  // __tests__/integration/features/metric-log/GenerateDummyMetricLogsQueue.integration.test.ts.
   describe("POST /api/v1/metric-logs/:metricId/dummy", () => {
-    it("returns 202 with a jobId and inserts logs synchronously (queue disabled)", async () => {
+    it("returns 202 with a jobId and writes the logs synchronously when the queue is disabled", async () => {
       const res = await api
         .post(`/api/v1/metric-logs/${metricId}/dummy`)
         .set("Authorization", authHeader(token))
@@ -208,6 +213,8 @@ describe("Metric Log API", () => {
       expect(res.body.data).toHaveProperty("jobId");
       expect(typeof res.body.data.jobId).toBe("string");
       expect(res.body.data.jobId.length).toBeGreaterThan(0);
+      // No polling: the fallback writes before responding, so the rows must already exist.
+      expect(await models.MetricLog.count({ where: { metricId } })).toBe(5);
     });
 
     it("rejects generation for a metric the user does not own", async () => {

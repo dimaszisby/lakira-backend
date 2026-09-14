@@ -107,6 +107,16 @@ Disabled by default; the app substitutes a no-op queue so nothing else has to ch
 | `RABBITMQ_PREFETCH`                   | number  | `10`                                    |
 | `RABBITMQ_MAX_RETRIES`                | number  | `5`                                     |
 
+`src/worker.ts` consumes the queue and exits at startup unless `RABBITMQ_ENABLED=true`. Locally
+it is an opt-in Compose service (`docker compose --profile worker up -d`) that sets the flag in its
+own `environment:`, so the `app` service keeps the synchronous fallback. Only the worker enables
+the queue.
+
+The integration suite needs a reachable broker at the default address even though
+`RABBITMQ_ENABLED` stays `false`. The queued-path test runs the consumer in-process and turns
+the queue on for itself. CI supplies RabbitMQ as a service container. Locally, stop the Compose
+worker before `npm test`, because it would consume the test's messages.
+
 ## Rate limiting
 
 | Variable                                  | Type    | Default | Window           |

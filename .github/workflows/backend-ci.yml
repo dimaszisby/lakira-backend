@@ -149,6 +149,21 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
+      # For the queue integration test, which runs RabbitMQConsumer in-process. The
+      # RABBITMQ_* defaults (127.0.0.1:5672, guest/guest, vhost /) already match, and this
+      # image allows guest from non-loopback addresses. RABBITMQ_ENABLED stays false: the
+      # API keeps its synchronous fallback, and the test enables the queue path itself.
+      rabbitmq:
+        image: rabbitmq:3.13-management-alpine # match docker-compose.yml
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd="rabbitmq-diagnostics -q ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+          --health-start-period=20s
+
     env:
       NODE_ENV: test
       DATABASE_URL: postgres://postgres:${{ secrets.POSTGRES_PASSWORD_TEST }}@localhost:5432/lakira_ci

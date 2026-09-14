@@ -125,6 +125,47 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  worker: # RabbitMQ consumer process (src/worker.ts)
+    # Opt-in: `docker compose --profile worker up -d`. Two reasons it does not start with a
+    # plain `up`. The app service keeps RABBITMQ_ENABLED=false, so locally nothing publishes
+    # and a default-on worker would sit idle. And it shares this broker, vhost and queue
+    # with the integration tests: a running worker consumes the test's message and looks
+    # the metric up in the development database, so the queue test fails fast while one
+    # is attached. Stop it (`docker compose stop worker`) before `npm test`.
+    profiles: ["worker"]
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: node_worker
+    restart: always
+    command: ["npm", "run", "worker:dev"]
+    # Same single-.env reasoning as the app service above.
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      DB_HOST: db
+      DEVELOPMENT_DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      REDIS_HOST: redis
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+      # worker.ts exits immediately when this is false. Set here, not in .env, so the
+      # app service keeps its synchronous fallback.
+      RABBITMQ_ENABLED: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks: # Define a dedicated Docker network
   backend:
     name: backend_network # Name the network

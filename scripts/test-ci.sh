@@ -18,7 +18,7 @@ echo "[PROCESS] Building app image..."
 $COMPOSE build app
 
 echo "[PROCESS] Starting test dependencies..."
-$COMPOSE up -d db redis
+$COMPOSE up -d db redis rabbitmq
 
 echo "[PROCESS] Waiting for database to be ready..."
 $COMPOSE run --rm db /bin/sh -c 'while ! pg_isready -h db -p 5432 -U lakira_user -d lakira_test_db; do sleep 1; done'

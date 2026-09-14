@@ -29,11 +29,16 @@ services:
       - .env.test
     environment: # Set environment variables
       NODE_ENV: test # Run in test mode
+      # The queued-path integration test runs RabbitMQConsumer in-process and needs the
+      # broker; .env.test's 127.0.0.1 does not resolve to it inside the container network.
+      RABBITMQ_HOST: rabbitmq
     depends_on: # Ensure dependencies are running before starting the app
       db:
         condition: service_healthy
       redis:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks: # Connect to the backend network
       - backend
 
