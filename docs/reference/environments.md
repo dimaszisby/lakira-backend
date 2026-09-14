@@ -1,5 +1,12 @@
 # Lakira Backend – Environments Matrix
 
+> **This document describes the Render-based topology, which is now superseded in principle.**
+> [ADR-0042](../explanation/decisions/adr-0042-vps-compose-deployment-topology.md) was **Accepted on
+> 2026-09-15**: production and staging will both run as Docker Compose stacks on a self-managed VPS,
+> and Render leaves the promotion path. Nothing has migrated yet, so everything below remains
+> accurate for the environments that exist **today** — treat it as current state, not as the target.
+> It should be rewritten as the migration lands, not before.
+
 ## 1. Purpose
 
 This matrix documents **all environments** that touch the Lakira backend and how they are configured:
