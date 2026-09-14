@@ -157,3 +157,98 @@ longer timeout.
 Also confirm the negative: with the worker stopped, the same published message must leave the rows
 absent. A test that passes whether or not the consumer is running proves nothing — this is the
 queue-path equivalent of the error components that validated `{}`.
+
+---
+
+## Review — 2026-09-15
+
+**Status:** Done on `feat/worker-queue-coverage` (off `origin/dev` 91fbdc9). Not committed. The
+three infrastructure files are handed over as a patch; see _Protected files_ below.
+
+### The trap: the existing tests stay on the fallback path
+
+The four tests at `metric-log.test.ts:199-240` keep running the synchronous fallback. In test
+`RABBITMQ_ENABLED=false`, so `server.ts:55` wires `NoopMessageQueue`. Test 1's name claimed
+"inserts logs synchronously" but it asserted only the 202. It is now
+`returns 202 with a jobId and writes the logs synchronously when the queue is disabled` and
+asserts `MetricLog.count === 5` straight after the response, with no polling. The other three
+(404 ownership, 401, 400) fail before the branch at `GenerateDummyMetricLogs.ts:41`, so they are
+path-independent and their names stay.
+
+### The queued path: `GenerateDummyMetricLogsQueue.integration.test.ts`
+
+The consumer runs in-process (option 1), built exactly as `worker.ts:37-46` builds it, against a
+real broker. It is driven through the real `POST /metric-logs/:metricId/dummy` route via
+`overrideMetricLogFeatureForTest`. The only test seam is a `MessageQueuePort` whose
+`isEnabled()` returns `true` and whose `publish`/`close` delegate to the real `RabbitMQPublisher`.
+`env` cannot be mutated in tests, and exchange, routing key, payload and messageId all still come
+from the use case.
+
+- **Test A** asserts, in order:
+  1. no foreign consumers;
+  2. after the 202, the job is routed to the queue (depth 1) with **0 rows**, which is the
+     built-in negative;
+  3. starting the consumer produces 5 rows;
+  4. after `close()` drains, the main queue and the parking lot both have depth 0, which proves an
+     ack (a nack would dead-letter, and a missing ack would requeue).
+- **Test B** publishes a job naming a non-owner. The handler rejects it, the message reaches the
+  parking lot, and there are 0 rows. This exercises the DLX binding for the first time.
+- **Flakiness controls:**
+  - every wait is a bounded poll (10s timeout, 50ms interval);
+  - `connect({ timeout })` fails fast when there is no broker;
+  - both queues are purged before each test;
+  - broker lifecycle is owned by the file, so `jest.setup.ts` is unchanged.
+
+### Verification (exit codes captured into a variable, never through a pipe)
+
+| Check                                                | Result                                                                                                                 |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| lint / typecheck / format:check / docs:openapi:check | 0 / 0 / 0 / 0; 46 operations validated                                                                                 |
+| `npm test`                                           | 0. Unit 556/556; integration 184 passed, 5 skipped (existing `ENABLE_REDIS_INTEGRATION` guards)                        |
+| New file, 5 consecutive runs                         | 5× exit 0, 2/2 each, 436–502 ms per test. No flake                                                                     |
+| Mutation M1: consumer never started                  | exit 1: `Timed out … waiting for the consumer to write 5 rows; last observed: 0`                                       |
+| Mutation M3: port reports disabled (sync fallback)   | exit 1: `Timed out … waiting for the job to be routed to the queue`. The test cannot pass via the fallback             |
+| Compose worker (`--profile worker up -d --no-deps`)  | Up, 0 restarts, `[RABBITMQ] Consumer registered.` after ~6s; queue carries `x-dead-letter-exchange`                    |
+| Queue test with the worker attached                  | exit 1 in ~0.2s: `1 other consumer(s) are attached … docker compose stop worker`                                       |
+| Worker stopped and removed, test rerun               | 0 consumers, 0 messages; exit 0, 2/2                                                                                   |
+| Patched Compose files / CI YAML                      | `docker compose config` 0 for both; worker absent from default services; CI `tests` job parses with `rabbitmq` service |
+
+One reading was falsely green along the way, from my own mistake: `echo "… $(basename $M) exit=$?"`
+reports `basename`'s status, not Jest's. That first mutation round printed `exit=0` over a FAIL.
+It was re-run with `rc=$?` captured immediately, which gives the results above. M3's first attempt
+also did not compile, because a `//` comment swallowed a comma. It showed "0 total", which proves
+nothing, and was redone.
+
+### Decisions and divergences
+
+- **The worker is opt-in** (`profiles: ["worker"]`, user's decision), so the brief's
+  `docker compose up -d` becomes `docker compose --profile worker up -d`. Locally nothing publishes,
+  since `app` keeps `RABBITMQ_ENABLED=false`. A default-on worker would also share the broker,
+  vhost and queue with the integration test and consume its messages. The precondition turns that
+  collision into an immediate, explained failure.
+- **The real log line** is `[RABBITMQ] Consumer registered.`; the brief says `[WORKER] …`.
+- **CI:** a `rabbitmq:3.13-management-alpine` service container in `tests` only, with no env
+  changes. The defaults match, and the image sets `loopback_users.guest = false` (verified).
+  `contract_local` is untouched, so operation count 46 and the Schemathesis selection are
+  unaffected.
+- **`test:ci`:** `scripts/test-ci.sh` starts `rabbitmq`, and `docker-compose.test.yml` points the
+  test app at it. **Not run**: its `down -v` combines both Compose files, so it would also delete
+  the development-named volumes (`db_data_volume`, `rabbitmq_data_volume`). That hazard predates
+  this work and deserves its own ticket.
+
+### Protected files
+
+`.claude/hooks/protect-files.sh` blocks Edit/Write on `docker-compose*.yml` and
+`.github/workflows/*.yml` unconditionally. The changes to `docker-compose.yml`,
+`docker-compose.test.yml` and `backend-ci.yml` were approved, then built and verified as scratch
+copies (`config`, image build, the worker run above). They are handed over as a patch that passes
+`git apply --check`, so the user applies them.
+
+### Found, not fixed (out of scope)
+
+- **ADR-0007 is Accepted but not implemented.** There is no `processed_messages` table, and
+  `GenerateDummyMetricLogsHandler` is not idempotent, so a redelivery duplicates rows.
+- **`RABBITMQ_MAX_RETRIES` is unused.** The consumer reads `x-retry-count` only to log it, and every
+  failure goes straight to the parking lot.
+- Production deployment (ADR-0040), queue-depth observability (ADR-0038) and parking-lot
+  monitoring remain open, as the brief scoped.
