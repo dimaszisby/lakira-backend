@@ -71,7 +71,7 @@ constrain how the system is built, so none of them belonged in a kit.
 | [ADR-0039](./adr-0039-release-identity-and-immutable-artifacts.md)               | Every deploy carries a release identity; the built artefact ships      | **Proposed** | 2026-08-17 | twelve-factor        |
 | [ADR-0040](./adr-0040-worker-process-deployment-topology.md)                     | The worker is a first-class process type with its own deployment       | **Proposed** | 2026-08-17 | twelve-factor        |
 | [ADR-0041](./adr-0041-logs-as-event-streams-on-stdout.md)                        | Logs are an event stream on stdout; the app manages no log files       | Accepted     | 2026-08-17 | twelve-factor        |
-| [ADR-0042](./adr-0042-vps-compose-deployment-topology.md)                        | Production and staging run as Compose stacks on a self-managed VPS     | **Proposed** | 2026-09-01 | twelve-factor        |
+| [ADR-0042](./adr-0042-vps-compose-deployment-topology.md)                        | Production and staging run as Compose stacks on a self-managed VPS     | Accepted     | 2026-09-01 | twelve-factor        |
 
 ## Adding one
 

@@ -1,6 +1,6 @@
 # ADR-0042 — Production and staging run as Docker Compose stacks on a self-managed VPS
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-09-15)
 - **Date:** 2026-09-01
 - **Related:** Changes the deployment target assumed by
   [ADR-0039](./adr-0039-release-identity-and-immutable-artifacts.md) and
@@ -126,16 +126,38 @@ compose down -v` can take both environments. Mitigated by separate Compose proje
 - **ADR-0039 and ADR-0040 should be revised before implementation.** Both are Proposed and both
   assume Render. Writing them against this target avoids writing them twice.
 
-## Open questions that would change this
+## Open questions, resolved on acceptance (2026-09-15)
 
-Recorded because they were not resolvable when this was written, and either could reasonably reverse
-it:
+Both were recorded as able to reverse this decision. Both were answered in favour of it:
 
-- **Traffic and uptime expectations.** A hobby-scale API and one with paying customers justify
-  different answers. This decision assumes the former, moving toward the latter.
-- **Appetite for being on call.** Paying a managed platform's premium to avoid owning a host is a
-  legitimate preference, not a wrong one. This decision assumes the cost saving is worth the
-  operational ownership.
+- **Traffic and uptime expectations.** Confirmed hobby-scale for now, moving toward paying
+  customers. The assumption the decision was written under holds.
+- **Appetite for being on call.** Confirmed: the cost saving is worth the operational ownership.
+
+Neither is permanent. If the project acquires paying customers with uptime commitments, the honest
+re-read is a second host and a managed database — the Compose stacks are portable by construction,
+so that migration is a copy rather than a rewrite.
+
+## What acceptance unblocks
+
+Four findings in the twelve-factor audit were parked on this decision and now have a concrete
+target:
+
+| Finding | Was blocked because                                  | Now                                            |
+| ------- | ---------------------------------------------------- | ---------------------------------------------- |
+| TF-2    | no artefact destination — Render rebuilt from source | build once, push to a registry, deploy the tag |
+| TF-3    | release identity had nowhere to live without TF-2    | bake the SHA into the image                    |
+| TF-4    | `src/worker.ts` had no deployment target             | a first-class Compose service                  |
+| TF-5    | observability meant paid add-ons                     | co-located containers                          |
+
+**TF-4's local and CI halves were never actually blocked by this** and should not wait for the VPS
+to exist. `src/worker.ts` has never run in any environment: `RABBITMQ_ENABLED` defaults to `false`
+(`zodEnv.ts:228`), `.env.example` sets it to `false`, and the worker exits immediately when it is
+(`worker.ts:16-21`). Giving it a Compose service and a CI job is independent of where production
+lands, and is the prerequisite for trusting it once production exists.
+
+**ADR-0039 and ADR-0040 should be rewritten against this target before implementation.** Both are
+still Proposed and both assume Render.
 
 ## Links
 
