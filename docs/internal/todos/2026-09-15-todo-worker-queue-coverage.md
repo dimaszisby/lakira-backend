@@ -1,6 +1,6 @@
 # Todo — give the worker a home locally and in CI
 
-- **Status:** Ready to start — this is the brief, not a plan
+- **Status:** Complete (2026-09-15) — delivered by `85b4e77` (#86)
 - **Created:** 2026-09-15
 - **Owner:** unassigned
 - **Prepared for:** a fresh Claude Code session — **Opus, high effort, plan mode**

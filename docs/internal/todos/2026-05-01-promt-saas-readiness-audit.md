@@ -1,3 +1,11 @@
+# Prompt — SaaS Base Readiness Audit (2026-05-01)
+
+- **Status:** Not a todo — this is the prompt that produced
+  [`audits/saas-readiness/`](../audits/saas-readiness/). Kept for provenance; nothing to action.
+  The audit's own open findings are tracked in `FINAL-AUDIT-SUMMARY.md`, not here.
+
+---
+
 ## Context
 
 Lakira is my first full-stack app — a personal metric tracking app — but it's built following industry-standard conventions for infra, code structure, directory layout, tooling, and core features (auth, reset password, etc.). The goal is for Lakira's backend to eventually serve as a **forkable SaaS base** for future projects.

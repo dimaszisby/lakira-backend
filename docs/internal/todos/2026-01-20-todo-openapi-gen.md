@@ -1,3 +1,11 @@
+# Todo — OpenAPI generation vs pre-commit
+
+- **Status:** Resolved (verified 2026-09-15) — `npm run docs:openapi:check` exits 0. The generation
+  and pre-commit interaction described below no longer reproduces. Kept as a record; no action
+  outstanding.
+
+---
+
 We have CI failure on docs:openapi:check because OpenAPI JSON differs after generation.
 
 Local regen DOES change docs/reference/api/lakira-backend-openapi.json, but git commit fails:
