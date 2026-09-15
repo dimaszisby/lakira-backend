@@ -1,6 +1,6 @@
 # Todo — retire newman
 
-- **Status:** Ready to start — this is the brief, not a plan
+- **Status:** Complete (2026-08-31) — delivered by `a4635f3` (#75)
 - **Created:** 2026-08-31
 - **Owner:** unassigned
 - **Prepared for:** a fresh Claude Code session with a full context window

@@ -1,6 +1,6 @@
 # Todo — unify and document the error envelope (C3)
 
-- **Status:** Ready to start — this is the brief, not a plan
+- **Status:** Complete (2026-09-03) — delivered by `75cfdaa` (#79)
 - **Created:** 2026-09-01
 - **Owner:** unassigned
 - **Prepared for:** a fresh Claude Code session with a full context window
@@ -256,7 +256,7 @@ clients receive, and it is the only part of this work that is not backward compa
 
 ---
 
-# Review — completed 2026-09-02
+## Review — completed 2026-09-02
 
 - **Branch:** `fix/error-envelope`, cut from `origin/dev` @ `d27e78d` with `--no-track`
 - **Status:** Done. All three defects fixed; both open questions answered; one defect found that

@@ -1,6 +1,6 @@
 # Todo — make `contract:local:gate` reproducible
 
-- **Status:** Ready to start — this is the brief, not a plan
+- **Status:** Complete (2026-09-10) — delivered by `fa1933e` (#82)
 - **Created:** 2026-09-10
 - **Owner:** unassigned
 - **Prepared for:** a fresh Claude Code session

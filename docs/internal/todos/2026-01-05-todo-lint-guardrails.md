@@ -1,5 +1,8 @@
 # Findings
 
+- **Status:** Superseded (verified 2026-09-15) — the `no-restricted-properties` env guardrail this
+  asked for now exists at `eslint.config.mjs:128`. Kept as a record; no action outstanding.
+
 - ESLint now lint checks `__tests__/**`, but documentation under `docs/internal/initiatives/env-config/**` still claims a `no-restricted-properties`/`no-process-env` guardrail exists even though `eslint.config.mjs` never enforces it. This gap can confuse reviewers and weakens the “industry-standard” story in interviews.
 - Husky + lint-staged are configured, yet the lack of an env guardrail means suites may continue mutating `process.env` directly, contradicting the published workflow and risking flaky tests.
 - Static-checks and unit-test docs already describe expectations (metrics tracking, CI order), so updating the tooling/docs combo is a contained, portfolio-friendly enhancement rather than a new project.
