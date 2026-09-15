@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import type { ChannelWrapper } from "amqp-connection-manager";
 import type { Channel } from "amqplib";
 import {
@@ -20,6 +21,7 @@ import {
 } from "@/shared/infrastructure/queue/RabbitMQConnection.js";
 import { RabbitMQConsumer } from "@/shared/infrastructure/queue/RabbitMQConsumer.js";
 import { RabbitMQPublisher } from "@/shared/infrastructure/queue/RabbitMQPublisher.js";
+import { SequelizeMessageIdempotency } from "@/shared/infrastructure/queue/SequelizeMessageIdempotency.js";
 import {
   EXCHANGES,
   QUEUES,
@@ -70,10 +72,11 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
     const handler = new GenerateDummyMetricLogsHandler(
       new MetricAccessSequelize(),
       new MetricLogCacheRedis(new NoopVisualizationInvalidation()),
+      new SequelizeMessageIdempotency(),
     );
     consumer = new RabbitMQConsumer({
       queue: QUEUES.METRIC_LOG_GENERATE_DUMMY,
-      handler: (msg) => handler.handle(msg),
+      handler: (msg, context) => handler.handle(msg, context),
     });
     return consumer;
   };
@@ -91,6 +94,31 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
 
   const rowCount = (metricId: string) =>
     models.MetricLog.count({ where: { metricId } });
+
+  /** A valid job for a metric the user owns, published with an explicit messageId. */
+  const ownedJob = async (count: number) => {
+    const { token, user } = await createTestUser();
+    const { metric } = await createMetric(token);
+    const metricRow = await models.Metric.findByPk(metric.id);
+    const messageId = randomUUID();
+    return {
+      metricId: metric.id,
+      messageId,
+      payload: {
+        jobId: messageId,
+        userId: user.id,
+        organizationId: metricRow!.get("organizationId"),
+        metricId: metric.id,
+        count,
+      },
+    };
+  };
+
+  const publishJob = (payload: Record<string, unknown>, messageId: string) =>
+    publisher.publish(EXCHANGES.JOBS, payload, {
+      routingKey: ROUTING_KEYS.METRIC_LOG_GENERATE_DUMMY,
+      messageId,
+    });
 
   beforeAll(async () => {
     try {
@@ -227,5 +255,129 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
       0,
     );
     expect(await rowCount(metric.id)).toBe(0);
+  });
+
+  describe("idempotency (ADR-0007)", () => {
+    it("acks and skips a redelivered message with the same messageId", async () => {
+      const { metricId, messageId, payload } = await ownedJob(4);
+
+      // Two deliveries of one message, as a redelivery after a lost ack would produce.
+      await publishJob(payload, messageId);
+      await publishJob(payload, messageId);
+      await pollUntil(
+        "both deliveries to be routed to the queue",
+        () => depth(QUEUES.METRIC_LOG_GENERATE_DUMMY),
+        (d) => d.messageCount === 2,
+      );
+
+      startConsumer();
+      await pollUntil(
+        "both deliveries to be taken by the consumer",
+        () => depth(QUEUES.METRIC_LOG_GENERATE_DUMMY),
+        (d) => d.messageCount === 0,
+      );
+      await pollUntil(
+        "the consumer to write the first job's rows",
+        () => rowCount(metricId),
+        (n) => n >= 4,
+      );
+
+      // close() drains both deliveries. A skip must be an ack: an empty parking lot
+      // means the duplicate was not nacked, an empty main queue that it was not requeued.
+      await stopConsumer();
+      expect((await depth(QUEUES.METRIC_LOG_GENERATE_DUMMY)).messageCount).toBe(
+        0,
+      );
+      expect((await depth(QUEUES.PARKING)).messageCount).toBe(0);
+      expect(await rowCount(metricId)).toBe(4);
+
+      const records = await models.ProcessedMessage.findAll({
+        where: { messageId },
+      });
+      expect(records).toHaveLength(1);
+      expect(records[0].queue).toBe(QUEUES.METRIC_LOG_GENERATE_DUMMY);
+    });
+
+    it("rolls back the dedup record when the handler fails, so a replay does the work", async () => {
+      const { metricId, messageId, payload } = await ownedJob(5);
+
+      // Fail partway through the side effect, after the dedup insert has run.
+      const realCreate = models.MetricLog.create.bind(models.MetricLog);
+      let calls = 0;
+      const createSpy = jest
+        .spyOn(models.MetricLog, "create")
+        .mockImplementation((async (...args: any[]) => {
+          calls++;
+          if (calls === 3) throw new Error("injected failure mid-write");
+          return (realCreate as any)(...args);
+        }) as any);
+
+      try {
+        await publishJob(payload, messageId);
+        startConsumer();
+        await pollUntil(
+          "the failed job to reach the parking lot",
+          () => depth(QUEUES.PARKING),
+          (d) => d.messageCount === 1,
+        );
+        await stopConsumer();
+      } finally {
+        createSpy.mockRestore();
+      }
+
+      // Nothing committed: neither the two rows written before the failure nor the
+      // record that would mark the message processed.
+      expect(await rowCount(metricId)).toBe(0);
+      expect(
+        await models.ProcessedMessage.count({ where: { messageId } }),
+      ).toBe(0);
+
+      // Replay the same message, as an operator would from the parking lot. It must do
+      // its work rather than be skipped as already processed.
+      await publishJob(payload, messageId);
+      startConsumer();
+      await pollUntil(
+        "the replayed job to write 5 rows",
+        () => rowCount(metricId),
+        (n) => n >= 5,
+      );
+      await stopConsumer();
+
+      expect(await rowCount(metricId)).toBe(5);
+      expect((await depth(QUEUES.METRIC_LOG_GENERATE_DUMMY)).messageCount).toBe(
+        0,
+      );
+      // Still only the original failed copy; the replay was acked.
+      expect((await depth(QUEUES.PARKING)).messageCount).toBe(1);
+      expect(
+        await models.ProcessedMessage.count({ where: { messageId } }),
+      ).toBe(1);
+    });
+
+    it("parks a message that carries no messageId", async () => {
+      const { metricId, payload } = await ownedJob(3);
+
+      // RabbitMQPublisher always sets a messageId, so publish around it.
+      await inspector.publish(
+        EXCHANGES.JOBS,
+        ROUTING_KEYS.METRIC_LOG_GENERATE_DUMMY,
+        Buffer.from(JSON.stringify(payload)),
+        { persistent: true, contentType: "application/json" },
+      );
+
+      startConsumer();
+      await pollUntil(
+        "the unidentifiable job to reach the parking lot",
+        () => depth(QUEUES.PARKING),
+        (d) => d.messageCount === 1,
+      );
+      await stopConsumer();
+
+      expect((await depth(QUEUES.METRIC_LOG_GENERATE_DUMMY)).messageCount).toBe(
+        0,
+      );
+      expect(await rowCount(metricId)).toBe(0);
+      expect(await models.ProcessedMessage.count()).toBe(0);
+    });
   });
 });

@@ -5,7 +5,15 @@ import { assertTopology } from "./topology.js";
 import { env } from "@/config/envManager.js";
 import logger from "@/utils/logger.js";
 
-export type MessageHandler = (msg: ConsumeMessage) => Promise<void>;
+export interface MessageContext {
+  /** The queue this consumer reads; handlers need it to record processed messages. */
+  queue: string;
+}
+
+export type MessageHandler = (
+  msg: ConsumeMessage,
+  context: MessageContext,
+) => Promise<void>;
 
 export interface ConsumerOptions {
   queue: string;
@@ -57,7 +65,7 @@ export class RabbitMQConsumer {
     );
 
     this.options
-      .handler(msg)
+      .handler(msg, { queue: this.options.queue })
       .then(() => {
         ch.ack(msg);
         logger.info("[RABBITMQ] Message acked.", {

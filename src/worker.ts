@@ -6,6 +6,7 @@ import {
 } from "./shared/infrastructure/queue/RabbitMQConnection.js";
 import { RabbitMQConsumer } from "./shared/infrastructure/queue/RabbitMQConsumer.js";
 import { QUEUES } from "./shared/infrastructure/queue/topology.js";
+import { SequelizeMessageIdempotency } from "./shared/infrastructure/queue/SequelizeMessageIdempotency.js";
 import { loadModels } from "./infrastructure/db/models.js";
 import sequelize from "./config/db.js";
 import { MetricAccessSequelize } from "@/features/metric/infrastructure/providers/MetricAccessSequelize.js";
@@ -36,12 +37,17 @@ const startWorker = async (): Promise<void> => {
 
   const access = new MetricAccessSequelize();
   const cache = new MetricLogCacheRedis(new NoopVisualizationInvalidation());
-  const dummyLogsHandler = new GenerateDummyMetricLogsHandler(access, cache);
+  const idempotency = new SequelizeMessageIdempotency();
+  const dummyLogsHandler = new GenerateDummyMetricLogsHandler(
+    access,
+    cache,
+    idempotency,
+  );
 
   workers.push(
     new RabbitMQConsumer({
       queue: QUEUES.METRIC_LOG_GENERATE_DUMMY,
-      handler: (msg) => dummyLogsHandler.handle(msg),
+      handler: (msg, context) => dummyLogsHandler.handle(msg, context),
     }),
   );
 

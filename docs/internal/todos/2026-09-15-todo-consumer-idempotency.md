@@ -150,3 +150,81 @@ recent sessions, the second one during PR #86 itself.
   with `git commit -F`. No `Co-Authored-By` or Claude references
 - The user opens PRs and merges — do not commit, push, or open PRs
 - Record the outcome as a Review section appended to this file
+
+---
+
+## Review — 2026-09-15
+
+**Status:** Done on `feat/consumer-idempotency`, branched from `origin/dev` at `c0efebc`. Not yet
+committed.
+
+### A second correction to carry forward
+
+The table has **four** columns, not three. `20260510000005` added `organization_id UUID NULL →
+organizations(id) ON DELETE SET NULL`, and `20260510000006` indexed it and deliberately left it
+nullable. The model declares it, and the handler fills it from the job payload. No migration was
+needed.
+
+### Decisions
+
+- **The check lives in the handler, through a shared guard, not in `RabbitMQConsumer.dispatch`.**
+  Two reasons. Opening the transaction in the consumer would push Sequelize into the transport
+  layer and wrap every handler in a transaction whether it needs one or not. It would also run
+  non-DB side effects before commit: the handler's cache invalidation would let a reader re-cache
+  pre-commit state. The mechanics are written once, in
+  `MessageIdempotencyPort.runOnce(key, work)`, implemented by `SequelizeMessageIdempotency`. It
+  inserts the `processed_messages` row and runs `work(tx)` in **one** transaction. The handler
+  invalidates the cache only after `runOnce` resolves `"processed"`.
+- **Only the dedup insert can signal a duplicate.** Its `UniqueConstraintError` becomes a private
+  sentinel that rolls back the transaction and resolves `"duplicate"`. A unique violation raised
+  inside `work` fails the message instead, so it can't be mistaken for a skip. With concurrent
+  deliveries of one id, the second insert blocks on the first. If the first commits, the second
+  skips. If the first rolls back, the second does the work.
+- **A skip is an ack.** `runOnce` resolves on a duplicate, so `dispatch` takes its ordinary ack
+  path. `dispatch` itself is unchanged apart from passing context.
+- **The queue name comes from the consumer.** `MessageHandler` is now
+  `(msg, { queue }) => Promise<void>`, and `options.queue` remains the single source.
+- **A missing or unusable `messageId` is rejected**, meaning parked, not processed without dedup.
+  Processing it unguarded would reintroduce the bug ADR-0007 prevents. Parking makes the publisher
+  visible. The adapter requires a string of 1–36 characters, so `undefined` never reaches the PK.
+- **The model lives in `src/shared/infrastructure/queue/persistence/`.** It's shared queue
+  infrastructure. It has `tableName: "processed_messages"` and `timestamps: false`, and is
+  registered in `models.ts`. It has no associations, so there is no `associate` function.
+- **The handler is now transactional.** A mid-loop failure rolls back its partial rows, which it
+  previously left behind.
+- The architecture guard (`__tests__/unit/architecture.test.ts`) forbids `from "sequelize"` in
+  application code. The handler therefore derives its transaction type from
+  `models.MetricLog.create`'s signature instead of importing `Transaction`.
+
+### Verification
+
+The harness from PR #86 was extended. No second harness.
+
+| Test (real broker, real consumer)                                             | Proves                                                                                                    |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| acks and skips a redelivered message with the same messageId                  | 4 rows, not 8; parking empty (duplicate acked); one `processed_messages` row with the right queue         |
+| rolls back the dedup record when the handler fails, so a replay does the work | failure on the 3rd insert → parked, 0 rows, **0** dedup rows; replaying the same id writes all 5 and acks |
+| parks a message that carries no messageId                                     | parked, 0 rows, 0 dedup rows                                                                              |
+
+Every exit code below was captured directly (`cmd > log; code=$?`), with no pipes.
+
+- `lint` 0 · `typecheck` 0 · `format:check` 0 · `docs:openapi:check` 0. Still 46 operations and
+  no spec diff, so the Schemathesis selection (37/46) is unaffected.
+- `test:unit`: 556 passed, exit 0. `test:integration`: 187 passed, 5 skipped, exit 0.
+- New tests, five consecutive runs: exit 0 ×5, 3 passed each.
+
+**Negative proofs.** Each was a temporary edit, confirmed reverted by grep:
+
+1. **Dedup defeated** (a unique key per delivery, transaction kept): the redelivery test failed
+   with `Expected: 4, Received: 8`, exit 1.
+2. **Dedup insert moved outside the transaction** (autocommits, the brief's trap): the rollback
+   test failed with `Expected: 0, Received: 1` on the `processed_messages` count, exit 1. A
+   handler failure left the message marked processed.
+
+### Follow-ups
+
+- Periodic cleanup of `processed_messages`, raised as
+  [`2026-09-15-todo-processed-messages-cleanup.md`](./2026-09-15-todo-processed-messages-cleanup.md).
+  Not built.
+- Still out of scope and unchanged: the retry policy (`RABBITMQ_MAX_RETRIES` is read nowhere),
+  parking-lot monitoring, and ADR-0038 queue observability.

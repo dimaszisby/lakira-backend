@@ -21,6 +21,7 @@ import {
   registerMetricLogModels,
   associateMetricLogModels,
 } from "@/features/metric-log/infrastructure/persistence/models/metric-log.sequelize.js";
+import { registerProcessedMessageModels } from "@/shared/infrastructure/queue/persistence/processed-message.sequelize.js";
 
 const registerFns = [
   registerAuthModels,
@@ -28,6 +29,7 @@ const registerFns = [
   registerMetricModels,
   registerMetricSettingsModels,
   registerMetricLogModels,
+  registerProcessedMessageModels,
 ] as const;
 
 const associateFns = [
