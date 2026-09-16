@@ -1,9 +1,13 @@
 # ADR-0039 — Every deploy carries a release identity; the built artefact is what ships
 
-- **Status:** Proposed
+- **Status:** Proposed — Part 1 (release identity) implemented 2026-09-16 on
+  `feat/release-identity`; Part 2 (immutable build artefact) is written against Render, which
+  [ADR-0042](./adr-0042-vps-compose-deployment-topology.md) retires, and awaits a rewrite as its
+  own ADR before it can be adopted.
 - **Date:** 2026-08-17
 - **Related:** Pairs with [ADR-0040](./adr-0040-worker-process-deployment-topology.md) — both concern
-  what a Lakira release consists of and what runs it.
+  what a Lakira release consists of and what runs it. Part 2 is written against Render, which
+  [ADR-0042](./adr-0042-vps-compose-deployment-topology.md) retires; see this record's Status.
 - **Origin:** `TF-2`, `TF-3` in the twelve-factor audit kit — [`twelve-factor`](../../internal/audits/twelve-factor/audit-2026-08-17.md)
 
 ---
@@ -94,8 +98,11 @@ still lands and still answers the attribution question.
 ## Consequences
 
 - **From Part 1:** `/api/v1/health` gains a field. Anything asserting on its exact response shape
-  needs updating — the contract tests under `tests/contract/` and the generated OpenAPI spec, which
-  is CI-drift-gated, so `npm run docs:openapi:generate` must run in the same change.
+  needs updating — ~~the contract tests under `tests/contract/` and the generated OpenAPI spec,
+  which is CI-drift-gated, so `npm run docs:openapi:generate` must run in the same change~~.
+  **Correction (2026-09-16):** `/api/v1/health` is not in the OpenAPI spec, so no regeneration is
+  triggered. The Newman contract tests referenced here were retired in PR #75; what remains is
+  Schemathesis, spec-driven, and it never touches `/health`. Actual blast radius is near zero.
 - Sentry issues become attributable to a commit, and Sentry's release-tracking features (regression
   detection, suspect commits) start working. This is the single largest practical gain and it comes
   from Part 1.

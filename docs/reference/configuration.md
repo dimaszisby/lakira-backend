@@ -174,14 +174,15 @@ of sending it.
 
 ## Observability & operations
 
-| Variable                    | Type    | Default                                  |
-| --------------------------- | ------- | ---------------------------------------- |
-| `SENTRY_DSN`                | string  | optional — Sentry is off when unset      |
-| `SENTRY_TRACES_SAMPLE_RATE` | number  | `0`                                      |
-| `SWAGGER_REQUIRE_AUTH`      | boolean | `true`                                   |
-| `ENABLE_DUMMY_ENDPOINTS`    | boolean | `true` in development/test, else `false` |
-| `ALLOW_TEST_HTTP_SERVER`    | boolean | `false`                                  |
-| `JEST_TIMEOUT`              | number  | `30000`                                  |
+| Variable                    | Type    | Default                                         |
+| --------------------------- | ------- | ----------------------------------------------- |
+| `SENTRY_DSN`                | string  | optional — Sentry is off when unset             |
+| `SENTRY_TRACES_SAMPLE_RATE` | number  | `0`                                             |
+| `APP_RELEASE`               | string  | `"unknown"` (falls back to `RENDER_GIT_COMMIT`) |
+| `SWAGGER_REQUIRE_AUTH`      | boolean | `true`                                          |
+| `ENABLE_DUMMY_ENDPOINTS`    | boolean | `true` in development/test, else `false`        |
+| `ALLOW_TEST_HTTP_SERVER`    | boolean | `false`                                         |
+| `JEST_TIMEOUT`              | number  | `30000`                                         |
 
 ## Branding
 

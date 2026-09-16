@@ -45,7 +45,7 @@ consult it before creating any document.
 Frequently needed:
 
 - `docs/reference/commands.md` — canonical npm scripts (do not keep a second copy elsewhere)
-- `docs/reference/configuration.md` — all 68 env vars
+- `docs/reference/configuration.md` — all 69 env vars
 - `docs/explanation/decisions/` — 41 ADRs, one per file; check **Status** before trusting one
 - `docs/reference/api/lakira-backend-openapi.json` — generated, CI-drift-gated, never hand-edited
 

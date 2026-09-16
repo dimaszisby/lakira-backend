@@ -61,6 +61,7 @@ if (env.SENTRY_DSN) {
     dsn: env.SENTRY_DSN,
     tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE,
     environment: env.NODE_ENV,
+    release: env.APP_RELEASE,
   });
 }
 
@@ -151,6 +152,7 @@ app.get("/api/v1/health", (_req, res) => {
   res.json({
     status: "ok",
     environment: env.NODE_ENV,
+    release: env.APP_RELEASE,
     timestamp: new Date().toISOString(),
   });
 });
