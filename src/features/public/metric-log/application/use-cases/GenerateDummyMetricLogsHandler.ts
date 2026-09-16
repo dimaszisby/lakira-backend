@@ -1,6 +1,8 @@
 import type { ConsumeMessage } from "amqplib";
 import { models } from "@/infrastructure/db/models.js";
+import AppError from "@/utils/AppError.js";
 import logger from "@/utils/logger.js";
+import { TerminalMessageError } from "@/shared/application/errors/TerminalMessageError.js";
 import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
 import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import type { MessageContext } from "@/shared/infrastructure/queue/RabbitMQConsumer.js";
@@ -16,6 +18,9 @@ type JobPayload = {
 
 const TYPES: Array<"manual" | "automatic"> = ["manual", "automatic"];
 
+/** Access rejections that will not change on retry; any other failure may be transient. */
+const TERMINAL_ACCESS_STATUSES = new Set([401, 403, 404]);
+
 /** The ORM transaction type, without importing the ORM into the application layer. */
 type DbTransaction = NonNullable<
   Parameters<typeof models.MetricLog.create>[1]
@@ -29,11 +34,28 @@ export class GenerateDummyMetricLogsHandler {
   ) {}
 
   async handle(msg: ConsumeMessage, { queue }: MessageContext): Promise<void> {
-    const payload = JSON.parse(msg.content.toString()) as JobPayload;
+    let payload: JobPayload;
+    try {
+      payload = JSON.parse(msg.content.toString()) as JobPayload;
+    } catch (error) {
+      throw new TerminalMessageError("Refusing message with malformed JSON.", {
+        cause: error,
+      });
+    }
     const { userId, organizationId, metricId, count } = payload;
     const messageId = msg.properties.messageId as unknown;
 
-    await this.access.ensureMetricOwnership(userId, organizationId, metricId);
+    try {
+      await this.access.ensureMetricOwnership(userId, organizationId, metricId);
+    } catch (error) {
+      if (
+        error instanceof AppError &&
+        TERMINAL_ACCESS_STATUSES.has(error.statusCode)
+      ) {
+        throw new TerminalMessageError(error.message, { cause: error });
+      }
+      throw error;
+    }
 
     // The dedup record and the rows share one transaction (ADR-0007).
     const outcome = await this.idempotency.runOnce(

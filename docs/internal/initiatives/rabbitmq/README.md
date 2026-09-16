@@ -67,17 +67,18 @@ npm run worker:dev      # Start worker in development (tsx watch)
 npm run worker          # Start worker in production (dist/worker.js)
 ```
 
-| Variable               | Default     | Description                                         |
-| ---------------------- | ----------- | --------------------------------------------------- |
-| `RABBITMQ_ENABLED`     | `false`     | Master switch — must be `true` to connect           |
-| `RABBITMQ_URL`         | —           | Full AMQP URL (overrides host/port/user/pass/vhost) |
-| `RABBITMQ_HOST`        | `127.0.0.1` | Broker host                                         |
-| `RABBITMQ_PORT`        | `5672`      | AMQP port (use `5671` for AMQPS in prod)            |
-| `RABBITMQ_USER`        | `guest`     | Broker username                                     |
-| `RABBITMQ_PASSWORD`    | `guest`     | Broker password                                     |
-| `RABBITMQ_VHOST`       | `/`         | Virtual host                                        |
-| `RABBITMQ_PREFETCH`    | `10`        | Consumer QoS prefetch count                         |
-| `RABBITMQ_MAX_RETRIES` | `5`         | Max handler failures before parking                 |
+| Variable                       | Default     | Description                                         |
+| ------------------------------ | ----------- | --------------------------------------------------- |
+| `RABBITMQ_ENABLED`             | `false`     | Master switch — must be `true` to connect           |
+| `RABBITMQ_URL`                 | —           | Full AMQP URL (overrides host/port/user/pass/vhost) |
+| `RABBITMQ_HOST`                | `127.0.0.1` | Broker host                                         |
+| `RABBITMQ_PORT`                | `5672`      | AMQP port (use `5671` for AMQPS in prod)            |
+| `RABBITMQ_USER`                | `guest`     | Broker username                                     |
+| `RABBITMQ_PASSWORD`            | `guest`     | Broker password                                     |
+| `RABBITMQ_VHOST`               | `/`         | Virtual host                                        |
+| `RABBITMQ_PREFETCH`            | `10`        | Consumer QoS prefetch count                         |
+| `RABBITMQ_MAX_RETRIES`         | `5`         | Retries before parking (`0` parks on first failure) |
+| `RABBITMQ_RETRY_BASE_DELAY_MS` | `2000`      | First retry delay; doubles per retry, 5 min cap     |
 
 ## Verification
 

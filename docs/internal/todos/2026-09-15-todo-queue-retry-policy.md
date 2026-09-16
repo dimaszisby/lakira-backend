@@ -1,6 +1,6 @@
 # Todo — implement the retry policy the config already promises
 
-- **Status:** Ready to start — this is the brief, not a plan
+- **Status:** Done 2026-09-15 on `feat/queue-retry-policy` — see [Review](#review)
 - **Created:** 2026-09-15
 - **Owner:** unassigned
 - **Prepared for:** a fresh Claude Code session — **Opus, high effort, plan mode**
@@ -177,3 +177,65 @@ the set that is allowed to.
   with `git commit -F`. No `Co-Authored-By` or Claude references
 - The user opens PRs and merges — do not commit, push, or open PRs
 - Record the outcome as a Review section appended to this file, heading level `##`
+
+## Review
+
+Completed 2026-09-15 on `feat/queue-retry-policy`, branched `--no-track` from `origin/dev` @ `3eb5b23`.
+
+### What was chosen, and why
+
+**Option 3 — the TTL retry queue.** It is ADR-0005's own deferred design, so ADR-0005 was updated and no new ADR was needed. The other three options were rejected:
+
+- **Option 1 (no delay)** spends every retry in milliseconds against the same broken dependency.
+- **Option 2 (`setTimeout`)** loses pending retries on shutdown and holds `drain()` open.
+- **Option 4 (delayed-message plugin)** needs a custom image, against ADR-0042.
+
+Design details:
+
+- **Topology.**
+  - Each work queue gets `<queue>.retry`, which has no consumer.
+  - An expired message dead-letters through the default exchange, so it goes straight back to the queue that failed it and not through `lakira.jobs`.
+- **Delay.**
+  - The delay is a per-message `expiration`, not `x-message-ttl`. A queue argument cannot be tuned later without `PRECONDITION_FAILED` on every deployed broker.
+  - Backoff is `RABBITMQ_RETRY_BASE_DELAY_MS × 2^n`, capped at 5 minutes. That variable is new, with a default of 2000, giving 2, 4, 8, 16 and 32 s.
+  - Accepted trade-off, recorded in ADR-0005: per-message TTL can stretch a delay (head-of-line blocking). It never shortens a delay and never loses a message.
+- **Ordering.**
+  - The consumer publishes the retry, waits for the broker confirm, then acks the original.
+  - If the republish fails, the message is parked. Nothing ever uses `requeue=true`.
+- **How the consumer publishes.** `MessageQueuePort` is injected through `ConsumerOptions.publisher` (required). The only port change is the additive, optional `PublishOptions.expirationMs`.
+- **Terminal errors.**
+  - New `TerminalMessageError`. `InvalidMessageIdError` now extends it.
+  - The handler wraps a `JSON.parse` failure, and `AppError` 401/403/404 from `ensureMetricOwnership`. A DB error from that same call stays retryable.
+  - Anything unrecognised is retried.
+- **Decision logic** is a pure function (`retryPolicy.ts`) with its own unit tests.
+
+### Found during verification
+
+A mutation run with terminal classification disabled exposed a real hole. A message with **no messageId** that failed _before_ the dedup guard would be republished, and `RabbitMQPublisher` would mint it a fresh UUID. The retry would then process under an identity the original never had, bypassing ADR-0007's refusal of unidentifiable messages.
+
+- **Fix:** the consumer parks such a message rather than retrying it.
+- **Test:** a dedicated test that fails without the guard; second mutation run below.
+
+### Evidence
+
+Every exit code below was captured directly (`cmd > log; ec=$?`), never through a pipe or a command substitution.
+
+| Check                                                                           | Result                                                                                                                                                |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lint`, `typecheck`, `format:check`, `docs:openapi:check`                       | all exit 0; the OpenAPI check validated 46 operations                                                                                                 |
+| `npm test`                                                                      | exit 0 — unit 563/563, integration 192 passed + 5 skipped (197)                                                                                       |
+| New retry tests, five consecutive runs (`--runTestsByPath … -t "retry policy"`) | 5/5 exit 0, 5 passed each time                                                                                                                        |
+| New tests against the **pre-change** consumer (worktree at `origin/dev`)        | fails before the change: fails-once-then-succeeds, always-fails. Passes before the change: `RABBITMQ_MAX_RETRIES=0` and the terminal test (see below) |
+| Mutation: terminal classification disabled                                      | fails: the terminal test (retried instead of parked) and "parks a message that carries no messageId"                                                  |
+| Mutation: no-messageId guard disabled                                           | fails: the new no-messageId test times out; the message is retried and processed instead of parked                                                    |
+
+**Deviation from the brief.** The terminal-failure test also passes against the pre-change consumer. That cannot be designed away: the old code parks _every_ failure at once. What the test guards against is the new failure mode, a terminal error being retried, and the first mutation row proves it catches that.
+
+The existing "rolls back the dedup record" test injects a retryable error, so it now pins `maxRetries: 0` to keep its operator-replay semantics.
+
+### Not done / for the user
+
+- **`.env.test.example` was not edited.** The protect-files hook blocked it; the same hook allowed `.env.example`. Add `RABBITMQ_RETRY_BASE_DELAY_MS=2000` after `RABBITMQ_MAX_RETRIES` by hand. The schema default is the same value, so nothing breaks without it.
+- **Schemathesis 37/46 was not run locally.** No routes changed and the operation count is still 46.
+- **Still out of scope:** parking-lot depth monitoring, ADR-0038 observability, and the `processed_messages` cleanup job.
+- **Brief fact correction:** `RABBITMQ_MAX_RETRIES` also appeared in `.env.test.example` and three docs. The claim "read nowhere" was true of code.

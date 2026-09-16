@@ -7,6 +7,7 @@ import {
   createMetric,
   createTestUser,
 } from "../../helpers/test-utils.js";
+import { env } from "@/config/envManager.js";
 import { models } from "@/infrastructure/db/models.js";
 import { buildMetricLogFeature } from "@/features/metric-log/feature.js";
 import { overrideMetricLogFeatureForTest } from "@/features/metric-log/infrastructure/http/controller.js";
@@ -27,6 +28,7 @@ import {
   QUEUES,
   ROUTING_KEYS,
   assertTopology,
+  retryQueueFor,
 } from "@/shared/infrastructure/queue/topology.js";
 
 /**
@@ -43,6 +45,10 @@ import {
 
 const POLL_TIMEOUT_MS = 10_000;
 const POLL_INTERVAL_MS = 50;
+// Short, so a full retry cycle fits inside POLL_TIMEOUT_MS. The backoff arithmetic is
+// unit-tested; these tests prove the loop against the broker.
+const RETRY_BASE_DELAY_MS = 50;
+const RETRY_QUEUE = retryQueueFor(QUEUES.METRIC_LOG_GENERATE_DUMMY);
 
 const pollUntil = async <T>(
   what: string,
@@ -67,8 +73,13 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
   let publisher: RabbitMQPublisher;
   let inspector: ChannelWrapper;
   let consumer: RabbitMQConsumer | null = null;
+  /** Handler invocations since the test began — one per delivery, retries included. */
+  let invocations = 0;
 
-  const startConsumer = (): RabbitMQConsumer => {
+  /** maxRetries defaults to RABBITMQ_MAX_RETRIES, exactly as the worker reads it. */
+  const startConsumer = (
+    retry: { maxRetries?: number } = {},
+  ): RabbitMQConsumer => {
     const handler = new GenerateDummyMetricLogsHandler(
       new MetricAccessSequelize(),
       new MetricLogCacheRedis(new NoopVisualizationInvalidation()),
@@ -76,7 +87,13 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
     );
     consumer = new RabbitMQConsumer({
       queue: QUEUES.METRIC_LOG_GENERATE_DUMMY,
-      handler: (msg, context) => handler.handle(msg, context),
+      handler: (msg, context) => {
+        invocations++;
+        return handler.handle(msg, context);
+      },
+      publisher,
+      retryBaseDelayMs: RETRY_BASE_DELAY_MS,
+      ...retry,
     });
     return consumer;
   };
@@ -120,6 +137,28 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
       messageId,
     });
 
+  /** Takes the message off the parking lot so its headers can be inspected. */
+  const takeParked = async () => {
+    const parked = await inspector.get(QUEUES.PARKING, { noAck: true });
+    if (!parked) throw new Error("Expected a message in the parking lot.");
+    return parked;
+  };
+
+  /** Makes every MetricLog.create fail, or only the listed calls (1-based). */
+  const failCreates = (which: "always" | number[]) => {
+    const realCreate = models.MetricLog.create.bind(models.MetricLog);
+    let calls = 0;
+    return jest.spyOn(models.MetricLog, "create").mockImplementation((async (
+      ...args: any[]
+    ) => {
+      calls++;
+      if (which === "always" || which.includes(calls)) {
+        throw new Error(`injected transient failure on create #${calls}`);
+      }
+      return (realCreate as any)(...args);
+    }) as any);
+  };
+
   beforeAll(async () => {
     try {
       // Fail fast when no broker is reachable. connect() alone would leave
@@ -157,6 +196,8 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
     // A message left behind by an aborted earlier run must not leak into this one.
     await inspector.purgeQueue(QUEUES.METRIC_LOG_GENERATE_DUMMY);
     await inspector.purgeQueue(QUEUES.PARKING);
+    await inspector.purgeQueue(RETRY_QUEUE);
+    invocations = 0;
 
     const { consumerCount } = await depth(QUEUES.METRIC_LOG_GENERATE_DUMMY);
     if (consumerCount !== 0) {
@@ -314,7 +355,8 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
 
       try {
         await publishJob(payload, messageId);
-        startConsumer();
+        // Park on the first failure, so the operator replay below is what re-runs the work.
+        startConsumer({ maxRetries: 0 });
         await pollUntil(
           "the failed job to reach the parking lot",
           () => depth(QUEUES.PARKING),
@@ -378,6 +420,166 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
       );
       expect(await rowCount(metricId)).toBe(0);
       expect(await models.ProcessedMessage.count()).toBe(0);
+    });
+  });
+
+  describe("retry policy (ADR-0005)", () => {
+    it("retries a failure that clears and writes exactly one set of rows", async () => {
+      const { metricId, messageId, payload } = await ownedJob(4);
+
+      // Fail the first attempt after one row is written, so a retry that did not roll
+      // back — or that the dedup guard skipped — would show up in the row count.
+      const createSpy = failCreates([2]);
+      try {
+        await publishJob(payload, messageId);
+        startConsumer();
+        await pollUntil(
+          "the retried job to write 4 rows",
+          () => rowCount(metricId),
+          (n) => n >= 4,
+        );
+        await stopConsumer();
+      } finally {
+        createSpy.mockRestore();
+      }
+
+      expect(invocations).toBe(2);
+      expect(await rowCount(metricId)).toBe(4);
+      expect(
+        await models.ProcessedMessage.count({ where: { messageId } }),
+      ).toBe(1);
+      expect((await depth(QUEUES.METRIC_LOG_GENERATE_DUMMY)).messageCount).toBe(
+        0,
+      );
+      expect((await depth(RETRY_QUEUE)).messageCount).toBe(0);
+      expect((await depth(QUEUES.PARKING)).messageCount).toBe(0);
+    });
+
+    it("retries RABBITMQ_MAX_RETRIES times, then parks with the count in the header", async () => {
+      const maxRetries = env.RABBITMQ_MAX_RETRIES;
+      expect(maxRetries).toBeGreaterThan(0);
+      const { metricId, messageId, payload } = await ownedJob(3);
+
+      const createSpy = failCreates("always");
+      try {
+        await publishJob(payload, messageId);
+        startConsumer();
+        await pollUntil(
+          "the exhausted job to reach the parking lot",
+          () => depth(QUEUES.PARKING),
+          (d) => d.messageCount === 1,
+        );
+        await stopConsumer();
+      } finally {
+        createSpy.mockRestore();
+      }
+
+      // The first attempt plus maxRetries retries, and the header — not the clock — says so.
+      expect(invocations).toBe(maxRetries + 1);
+      const parked = await takeParked();
+      expect(parked.properties.headers?.["x-retry-count"]).toBe(maxRetries);
+      expect(parked.properties.messageId).toBe(messageId);
+
+      expect((await depth(QUEUES.METRIC_LOG_GENERATE_DUMMY)).messageCount).toBe(
+        0,
+      );
+      expect((await depth(RETRY_QUEUE)).messageCount).toBe(0);
+      expect(await rowCount(metricId)).toBe(0);
+      expect(
+        await models.ProcessedMessage.count({ where: { messageId } }),
+      ).toBe(0);
+    });
+
+    it("parks a terminal failure at once, without spending a retry", async () => {
+      const owner = await createTestUser();
+      const intruder = await createTestUser();
+      const { metric } = await createMetric(owner.token);
+      const metricRow = await models.Metric.findByPk(metric.id);
+      const messageId = randomUUID();
+
+      // Ownership will not change on retry. Retries are enabled; none may be used.
+      await publishJob(
+        {
+          jobId: messageId,
+          userId: intruder.user.id,
+          organizationId: metricRow!.get("organizationId"),
+          metricId: metric.id,
+          count: 3,
+        },
+        messageId,
+      );
+      startConsumer();
+      await pollUntil(
+        "the terminal job to reach the parking lot",
+        () => depth(QUEUES.PARKING),
+        (d) => d.messageCount === 1,
+      );
+      await stopConsumer();
+
+      expect(invocations).toBe(1);
+      const parked = await takeParked();
+      expect(parked.properties.headers?.["x-retry-count"] ?? 0).toBe(0);
+      expect((await depth(RETRY_QUEUE)).messageCount).toBe(0);
+      expect(await rowCount(metric.id)).toBe(0);
+    });
+
+    it("parks a failed message with no messageId rather than retrying it under a new one", async () => {
+      const { metricId, payload } = await ownedJob(3);
+
+      // A transient failure before the dedup guard, so InvalidMessageIdError never fires.
+      // Retrying would mint a messageId and the second attempt would write the rows.
+      const accessSpy = jest
+        .spyOn(MetricAccessSequelize.prototype, "ensureMetricOwnership")
+        .mockRejectedValueOnce(new Error("injected transient failure"));
+      try {
+        await inspector.publish(
+          EXCHANGES.JOBS,
+          ROUTING_KEYS.METRIC_LOG_GENERATE_DUMMY,
+          Buffer.from(JSON.stringify(payload)),
+          { persistent: true, contentType: "application/json" },
+        );
+        startConsumer();
+        await pollUntil(
+          "the unidentifiable job to reach the parking lot",
+          () => depth(QUEUES.PARKING),
+          (d) => d.messageCount === 1,
+        );
+        await stopConsumer();
+      } finally {
+        accessSpy.mockRestore();
+      }
+
+      expect(invocations).toBe(1);
+      expect((await depth(RETRY_QUEUE)).messageCount).toBe(0);
+      expect(await rowCount(metricId)).toBe(0);
+      expect(await models.ProcessedMessage.count()).toBe(0);
+    });
+
+    it("with RABBITMQ_MAX_RETRIES=0, parks a transient failure on the first attempt, as before", async () => {
+      const { metricId, messageId, payload } = await ownedJob(3);
+
+      const createSpy = failCreates("always");
+      try {
+        await publishJob(payload, messageId);
+        startConsumer({ maxRetries: 0 });
+        await pollUntil(
+          "the failed job to reach the parking lot",
+          () => depth(QUEUES.PARKING),
+          (d) => d.messageCount === 1,
+        );
+        await stopConsumer();
+      } finally {
+        createSpy.mockRestore();
+      }
+
+      expect(invocations).toBe(1);
+      const parked = await takeParked();
+      expect(parked.properties.headers?.["x-retry-count"]).toBeUndefined();
+      expect((await depth(RETRY_QUEUE)).messageCount).toBe(0);
+      expect((await depth(QUEUES.METRIC_LOG_GENERATE_DUMMY)).messageCount).toBe(
+        0,
+      );
+      expect(await rowCount(metricId)).toBe(0);
     });
   });
 });

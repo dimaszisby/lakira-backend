@@ -1,6 +1,7 @@
 import { Transaction, UniqueConstraintError } from "sequelize";
 import sequelize from "@/config/db.js";
 import { ProcessedMessage } from "./persistence/processed-message.sequelize.js";
+import { TerminalMessageError } from "@/shared/application/errors/TerminalMessageError.js";
 import type {
   IdempotencyKey,
   IdempotencyOutcome,
@@ -14,9 +15,10 @@ const MAX_MESSAGE_ID_LENGTH = 36;
 /**
  * A message that cannot be deduplicated is refused rather than processed unguarded:
  * processing it would reintroduce the duplicate writes ADR-0007 exists to prevent, and
- * the parking lot makes the misbehaving publisher visible.
+ * the parking lot makes the misbehaving publisher visible. Terminal: a message never
+ * acquires a messageId, so retrying it is pointless.
  */
-export class InvalidMessageIdError extends Error {
+export class InvalidMessageIdError extends TerminalMessageError {
   constructor(messageId: unknown) {
     super(
       `Refusing message with unusable messageId (${String(messageId)}): ` +

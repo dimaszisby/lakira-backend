@@ -86,8 +86,9 @@ carries the same correlation id. It uses `AsyncLocalStorage` rather than a libra
 
 ## Queue topology
 
-A topic exchange with a parking-lot dead-letter exchange: a message that fails past
-`RABBITMQ_MAX_RETRIES` is parked rather than dropped or infinitely redelivered.
+A topic exchange with a parking-lot dead-letter exchange: a failed message waits out an
+exponential backoff in a per-queue retry queue, and one that fails past `RABBITMQ_MAX_RETRIES` —
+or fails terminally — is parked rather than dropped or infinitely redelivered.
 Publisher and consumer hold separate connections, so a blocked consumer cannot stall publishing
 ([ADR-0006](../decisions/adr-0006-separate-publisher-and-consumer-connections.md)).
 

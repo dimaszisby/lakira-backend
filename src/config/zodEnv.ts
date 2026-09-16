@@ -260,6 +260,19 @@ const envSchema = z
         return parsed;
       })
       .default("5"),
+    // First retry delay; doubles per retry, capped at 5 minutes (ADR-0005).
+    RABBITMQ_RETRY_BASE_DELAY_MS: z
+      .string()
+      .transform((val) => {
+        const parsed = parseInt(val, 10);
+        if (isNaN(parsed) || parsed <= 0) {
+          throw new Error(
+            "RABBITMQ_RETRY_BASE_DELAY_MS must be a positive number",
+          );
+        }
+        return parsed;
+      })
+      .default("2000"),
 
     // Observability
     SENTRY_DSN: z.string().optional(),
