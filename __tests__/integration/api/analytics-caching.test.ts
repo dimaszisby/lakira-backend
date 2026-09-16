@@ -119,13 +119,47 @@ describe("Analytics HTTP caching", () => {
     expect(second.status).toBe(304);
     expect(second.text).toBe("");
 
-    // Documents a known gap rather than hiding it: this handler returns the 304
-    // before it sets the ETag, so the response omits a header RFC 9110 requires,
-    // and it sets no Cache-Control at all. Tracked in
-    // docs/internal/todos/2026-08-31-todo-analytics-304-etag.md — update this
-    // expectation when that is fixed.
-    expect(second.headers.etag).toBeUndefined();
-    expect(second.headers["cache-control"]).toBeUndefined();
+    // RFC 9110 15.4.5: a 304 must carry the same validator the 200 would have, so a
+    // client can refresh its cache entry rather than treating revalidation as failed.
+    expect(second.headers.etag).toBe(first.headers.etag);
+    expect(second.headers["cache-control"]).toContain("private");
+    expect(second.headers["cache-control"]).toBe(
+      first.headers["cache-control"],
+    );
+  });
+
+  it("changes the single metric ETag when the underlying data changes", async () => {
+    const before = await api
+      .get(`/api/v1/analytics/metrics/${metricId}`)
+      .set("Authorization", authHeader(token))
+      .query(RANGE);
+
+    expect(before.status).toBe(200);
+
+    // A second log inside the same window moves a value late in the payload while
+    // leaving its opening bytes identical. The previous ETag was a base64 prefix of
+    // the body covering only its first 20 bytes, so it did not move — and the
+    // conditional request below was answered 304 with stale data.
+    await createMetricLog(token, metricId, {
+      logValue: 99,
+      loggedAt: "2025-05-03T00:00:00.000Z",
+    });
+
+    const after = await api
+      .get(`/api/v1/analytics/metrics/${metricId}`)
+      .set("Authorization", authHeader(token))
+      .query(RANGE);
+
+    expect(after.status).toBe(200);
+    expect(after.headers.etag).not.toBe(before.headers.etag);
+
+    const revalidated = await api
+      .get(`/api/v1/analytics/metrics/${metricId}`)
+      .set("Authorization", authHeader(token))
+      .set("If-None-Match", before.headers.etag)
+      .query(RANGE);
+
+    expect(revalidated.status).toBe(200);
   });
 
   it("rejects an unsupported bucket", async () => {
