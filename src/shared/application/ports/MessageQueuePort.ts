@@ -6,6 +6,8 @@ export interface PublishOptions {
   routingKey: string;
   messageId?: string;
   headers?: Record<string, unknown>;
+  /** Discard (or dead-letter) the message if still queued after this many ms. */
+  expirationMs?: number;
 }
 
 export interface MessageQueuePort {

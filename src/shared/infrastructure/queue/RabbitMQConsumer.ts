@@ -1,9 +1,18 @@
 import type { Channel, ConsumeMessage } from "amqplib";
 import type { ChannelWrapper } from "amqp-connection-manager";
 import { connectRabbitMQ } from "./RabbitMQConnection.js";
-import { assertTopology } from "./topology.js";
+import { assertTopology, retryQueueFor } from "./topology.js";
+import {
+  RETRY_COUNT_HEADER,
+  decideOnFailure,
+  readRetryCount,
+} from "./retryPolicy.js";
 import { env } from "@/config/envManager.js";
 import logger from "@/utils/logger.js";
+import type {
+  MessagePayload,
+  MessageQueuePort,
+} from "@/shared/application/ports/MessageQueuePort.js";
 
 export interface MessageContext {
   /** The queue this consumer reads; handlers need it to record processed messages. */
@@ -18,7 +27,13 @@ export type MessageHandler = (
 export interface ConsumerOptions {
   queue: string;
   handler: MessageHandler;
+  /** Republishes a failed message to the queue's retry queue. */
+  publisher: MessageQueuePort;
   prefetch?: number;
+  /** Retries before parking. 0 parks on the first failure. */
+  maxRetries?: number;
+  /** Delay before the first retry; doubles with each one, up to MAX_RETRY_DELAY_MS. */
+  retryBaseDelayMs?: number;
 }
 
 export class RabbitMQConsumer {
@@ -26,9 +41,14 @@ export class RabbitMQConsumer {
   private consumerTag: string | null = null;
   private inFlight = 0;
   private drainResolvers: Array<() => void> = [];
+  private readonly maxRetries: number;
+  private readonly retryBaseDelayMs: number;
 
   constructor(private readonly options: ConsumerOptions) {
     const prefetch = options.prefetch ?? env.RABBITMQ_PREFETCH;
+    this.maxRetries = options.maxRetries ?? env.RABBITMQ_MAX_RETRIES;
+    this.retryBaseDelayMs =
+      options.retryBaseDelayMs ?? env.RABBITMQ_RETRY_BASE_DELAY_MS;
     const connection = connectRabbitMQ();
 
     this.channel = connection.createChannel({
@@ -51,6 +71,7 @@ export class RabbitMQConsumer {
           queue: options.queue,
           consumerTag,
           prefetch,
+          maxRetries: this.maxRetries,
         });
       },
     });
@@ -59,10 +80,7 @@ export class RabbitMQConsumer {
   private dispatch(ch: Channel, msg: ConsumeMessage): void {
     this.inFlight++;
 
-    const retryCount = parseInt(
-      (msg.properties.headers?.["x-retry-count"] as string) || "0",
-      10,
-    );
+    const retryCount = readRetryCount(msg.properties.headers);
 
     this.options
       .handler(msg, { queue: this.options.queue })
@@ -73,15 +91,15 @@ export class RabbitMQConsumer {
           queue: this.options.queue,
         });
       })
-      .catch((error: Error) => {
-        logger.error("[RABBITMQ] Handler failed — sending to parking.", {
+      .catch((error: unknown) => this.onFailure(ch, msg, retryCount, error))
+      .catch((error: unknown) => {
+        // The channel closed under an ack or nack. The broker redelivers the message,
+        // so log rather than let the rejection take the worker down.
+        logger.error("[RABBITMQ] Could not settle message.", {
           messageId: msg.properties.messageId,
           queue: this.options.queue,
-          retryCount,
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
         });
-        // nack without requeue → DLX routes to parking lot
-        ch.nack(msg, false, false);
       })
       .finally(() => {
         this.inFlight--;
@@ -90,6 +108,84 @@ export class RabbitMQConsumer {
           this.drainResolvers = [];
         }
       });
+  }
+
+  private async onFailure(
+    ch: Channel,
+    msg: ConsumeMessage,
+    retryCount: number,
+    error: unknown,
+  ): Promise<void> {
+    const decision = decideOnFailure({
+      error,
+      retryCount,
+      maxRetries: this.maxRetries,
+      baseDelayMs: this.retryBaseDelayMs,
+    });
+    const context = {
+      messageId: msg.properties.messageId,
+      queue: this.options.queue,
+      retryCount,
+      error: error instanceof Error ? error.message : String(error),
+    };
+
+    if (decision.action === "park") {
+      logger.error("[RABBITMQ] Handler failed — sending to parking.", {
+        ...context,
+        reason: decision.reason,
+      });
+      // nack without requeue → DLX routes to parking lot
+      ch.nack(msg, false, false);
+      return;
+    }
+
+    const { messageId } = msg.properties;
+    if (typeof messageId !== "string" || messageId.length === 0) {
+      // The publisher would mint an id, giving the retry an identity the original never had
+      // and slipping past the idempotency guard's refusal of unidentifiable messages.
+      logger.error(
+        "[RABBITMQ] Handler failed on a message with no messageId — sending to parking.",
+        context,
+      );
+      ch.nack(msg, false, false);
+      return;
+    }
+
+    // Publish, then ack. A crash between the two leaves a duplicate, which the idempotency
+    // guard absorbs (ADR-0007); ack-then-publish would lose the message instead.
+    try {
+      await this.options.publisher.publish(
+        "",
+        JSON.parse(msg.content.toString()) as MessagePayload,
+        {
+          routingKey: retryQueueFor(this.options.queue),
+          messageId: msg.properties.messageId,
+          headers: {
+            ...msg.properties.headers,
+            [RETRY_COUNT_HEADER]: decision.nextRetryCount,
+          },
+          expirationMs: decision.delayMs,
+        },
+      );
+    } catch (publishError) {
+      // Never requeue: headers cannot change on redelivery, so that would loop forever.
+      logger.error("[RABBITMQ] Retry publish failed — sending to parking.", {
+        ...context,
+        publishError:
+          publishError instanceof Error
+            ? publishError.message
+            : String(publishError),
+      });
+      ch.nack(msg, false, false);
+      return;
+    }
+
+    ch.ack(msg);
+    logger.warn("[RABBITMQ] Handler failed — retry scheduled.", {
+      ...context,
+      nextRetryCount: decision.nextRetryCount,
+      delayMs: decision.delayMs,
+    });
   }
 
   async cancel(): Promise<void> {

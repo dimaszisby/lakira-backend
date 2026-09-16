@@ -106,6 +106,11 @@ Disabled by default; the app substitutes a no-op queue so nothing else has to ch
 | `RABBITMQ_VHOST`                      | string  | `/`                                     |
 | `RABBITMQ_PREFETCH`                   | number  | `10`                                    |
 | `RABBITMQ_MAX_RETRIES`                | number  | `5`                                     |
+| `RABBITMQ_RETRY_BASE_DELAY_MS`        | number  | `2000`                                  |
+
+A failed job is retried up to `RABBITMQ_MAX_RETRIES` times, waiting `RABBITMQ_RETRY_BASE_DELAY_MS`
+before the first retry and doubling each time (capped at 5 minutes), then parked. `0` parks on the
+first failure. See [ADR-0005](../explanation/decisions/adr-0005-topic-exchange-with-parking-lot-dlx.md).
 
 `src/worker.ts` consumes the queue and exits at startup unless `RABBITMQ_ENABLED=true`. Locally
 it is an opt-in Compose service (`docker compose --profile worker up -d`) that sets the flag in its

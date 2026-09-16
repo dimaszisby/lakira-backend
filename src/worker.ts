@@ -5,6 +5,7 @@ import {
   disconnectRabbitMQ,
 } from "./shared/infrastructure/queue/RabbitMQConnection.js";
 import { RabbitMQConsumer } from "./shared/infrastructure/queue/RabbitMQConsumer.js";
+import { RabbitMQPublisher } from "./shared/infrastructure/queue/RabbitMQPublisher.js";
 import { QUEUES } from "./shared/infrastructure/queue/topology.js";
 import { SequelizeMessageIdempotency } from "./shared/infrastructure/queue/SequelizeMessageIdempotency.js";
 import { loadModels } from "./infrastructure/db/models.js";
@@ -22,6 +23,8 @@ if (!env.RABBITMQ_ENABLED) {
 }
 
 const workers: RabbitMQConsumer[] = [];
+// Consumers republish failed messages for retry; closed only after they drain.
+let retryPublisher: RabbitMQPublisher | null = null;
 
 const startWorker = async (): Promise<void> => {
   logger.info("[WORKER] Starting...");
@@ -44,10 +47,13 @@ const startWorker = async (): Promise<void> => {
     idempotency,
   );
 
+  retryPublisher = new RabbitMQPublisher();
+
   workers.push(
     new RabbitMQConsumer({
       queue: QUEUES.METRIC_LOG_GENERATE_DUMMY,
       handler: (msg, context) => dummyLogsHandler.handle(msg, context),
+      publisher: retryPublisher,
     }),
   );
 
@@ -59,6 +65,8 @@ const shutdown = async (signal: string, exitCode = 0): Promise<void> => {
   try {
     await Promise.all(workers.map((w) => w.close()));
     logger.info("[WORKER] All consumers drained.");
+
+    await retryPublisher?.close();
 
     await disconnectRabbitMQ();
     logger.info("[WORKER] RabbitMQ disconnected.");
