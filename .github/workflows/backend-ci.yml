@@ -448,6 +448,7 @@ jobs:
       - name: Run smoke tests (staging)
         env:
           SMOKE_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+          SMOKE_EXPECTED_RELEASE: ${{ github.sha }}
         run: npm run test:smoke
 
   deploy_production:
@@ -465,10 +466,10 @@ jobs:
     # STAGING_BASE_URL as a pre-deploy probe — if staging is unhealthy, the production
     # deploy aborts before migrations run.
     #
-    # Note the bound on what this proves: the app exposes no build identity, so the
-    # probe cannot tell whether staging is running the commit being promoted or an
-    # older one. It gates on staging being HEALTHY, not on staging having validated
-    # this commit. ADR-0039 (release identity) is what would close that gap.
+    # SMOKE_EXPECTED_RELEASE (below) asserts staging's own /health reports this exact
+    # commit before promotion proceeds (ADR-0039 Part 1) — this gate now fails if
+    # staging is healthy but running a different commit than the one about to reach
+    # production, e.g. an out-of-band push to staging after the last promotion.
     env:
       RENDER_PRODUCTION_DEPLOY_HOOK_URL: ${{ secrets.RENDER_PRODUCTION_DEPLOY_HOOK_URL }}
       PRODUCTION_HEALTH_URL: ${{ secrets.PRODUCTION_HEALTH_URL }}
@@ -492,6 +493,7 @@ jobs:
       - name: Verify staging is healthy (smoke gate)
         env:
           SMOKE_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+          SMOKE_EXPECTED_RELEASE: ${{ github.sha }}
         run: |
           if [ -z "$SMOKE_BASE_URL" ]; then
             echo "STAGING_BASE_URL secret is not configured — cannot gate production deploy on staging health."
