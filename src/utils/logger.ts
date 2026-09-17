@@ -10,6 +10,12 @@ const { combine, timestamp, printf, errors, colorize, json, splat } = format;
 // lowercases NODE_ENV while this does not.
 const nodeEnv = (process.env.NODE_ENV || "development").toLowerCase();
 
+// Release identity (ADR-0039 Part 1) — same circular-init bypass as nodeEnv above.
+// Mirrors zodEnv.ts's precedence (APP_RELEASE wins; falls back to Render's own
+// RENDER_GIT_COMMIT; "unknown" otherwise) so this one-line duplicate can't drift silently.
+const release =
+  process.env.APP_RELEASE || process.env.RENDER_GIT_COMMIT || "unknown";
+
 const LOG_LEVELS = [
   "error",
   "warn",
@@ -102,7 +108,7 @@ const logger: Logger = createLogger({
     redactSensitive(),
     json(),
   ),
-  defaultMeta: { service: APP_NAME },
+  defaultMeta: { service: APP_NAME, release },
   // ADR-0041 — the application writes its log stream to stdout and nothing else. It does
   // not create, rotate, route, or retain log files in any environment. Collection is the
   // platform's responsibility: Render captures stdout in production, the json-file driver

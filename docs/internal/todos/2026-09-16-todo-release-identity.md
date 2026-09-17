@@ -151,3 +151,74 @@ all present.
 - No `Co-Authored-By` or Claude references in commits or PR text
 - The user opens PRs and merges — do not commit, push, or open PRs
 - Record the outcome as a `## Review` section appended to this file
+
+## Review
+
+Implemented on `feat/release-identity`, off an up-to-date `dev`.
+
+**Shipped:**
+
+- `APP_RELEASE` added to `src/config/zodEnv.ts` (env var #69), optional, defaulting to
+  `RENDER_GIT_COMMIT` when set, else `"unknown"`.
+- `release` added to the `GET /api/v1/health` body, `Sentry.init`'s options, and the
+  logger's `defaultMeta` (with its own `process.env`-reading fallback, mirroring the
+  circular-init pattern `APP_NAME` already uses).
+- `tests/smoke/run-smoke.mjs` gained a `SMOKE_EXPECTED_RELEASE`-driven check that polls
+  `/health` until the reported release matches, with a bounded timeout treated as failure;
+  the header comment was rewritten to explain why it polls rather than asserting strict
+  equality on the first response. It is a distinct named entry in the existing `checks`
+  array (not a hard pre-flight gate), so a release mismatch is reported as its own failure
+  alongside — not instead of — the other checks, and it skips (not fails) when
+  `SMOKE_EXPECTED_RELEASE` is unset, which is correct for local/dev runs.
+- `docs/reference/configuration.md` and `CLAUDE.md` updated for the 68→69 env var count.
+- New tests: `__tests__/integration/health/health.test.ts` (asserts `status`, `environment`,
+  `release`, `timestamp` all present — this shape assertion didn't exist before) and
+  `__tests__/unit/config/sentry-release.test.ts` (mocks `@sentry/node`, reloads `server.ts`
+  fresh via `withTestEnv` + `jest.isolateModulesAsync`, asserts `Sentry.init` receives
+  `release`).
+
+**ADR-0039 status resolution:** kept `Status: Proposed` rather than flipping to Accepted —
+Part 2 is written against Render, which ADR-0042 retired, so it isn't just unbuilt, it's
+wrong for the current target. Added an inline qualifier on the same Status line noting Part
+1 landed on this branch and Part 2 awaits its own rewrite, and pointed the `Related` line at
+ADR-0042. The registry (`docs/explanation/decisions/README.md`) needed no change — the
+Status cell stays `**Proposed**`, correctly telling a reader not to assume the whole record
+matches the code, and the header's accepted/proposed count is unaffected. Also corrected two
+now-wrong Consequences bullets (the OpenAPI-regen and Newman-contract-tests claims) in place
+with a strikethrough + dated annotation rather than a silent rewrite, consistent with the
+registry's "records are immutable, corrected or superseded, not silently edited" norm.
+
+**Verification — all four surfaces observed directly, plus the negative test:**
+
+```
+$ curl -s localhost:5050/api/v1/health
+{"status":"ok","environment":"development","release":"abc1234","timestamp":"..."}
+```
+
+1. `GET /api/v1/health` — confirmed above.
+2. Log line JSON — `defaultMeta.release` appears on every line (confirmed via the manual
+   run's stdout and the unit/integration test runs' captured logs).
+3. `Sentry.init` — confirmed by `sentry-release.test.ts` asserting on the init call's
+   argument object; no event was sent.
+4. Smoke suite — confirmed by running it directly against the manually-started server:
+   `SMOKE_EXPECTED_RELEASE=abc1234` → all 4 checks pass; `SMOKE_EXPECTED_RELEASE=wrong-sha`
+   → **the suite failed as required** (exit 1, `release never matched "wrong-sha"... last
+seen: abc1234`); no `SMOKE_EXPECTED_RELEASE` → the release check reports "skipped" and
+   the suite still passes (the correct local/dev behavior).
+
+**Gates:** `lint`, `typecheck`, `format:check`, and `docs:openapi:check` all pass —
+confirmed 46 operations / 333 $refs, no diff against the committed spec (health was never
+in it, so this was expected). `npm run test:unit` — 90 suites / 564 tests passed. `npm run
+test:integration` — 28 of 30 suites passed, 194 of 199 tests passed (2 skipped suites and 5
+skipped tests are pre-existing, unrelated to this change).
+
+**Handed to the user as a patch (not committed directly — protected by
+`.claude/hooks/protect-files.sh`):** a `.github/workflows/backend-ci.yml` diff adding
+`SMOKE_EXPECTED_RELEASE: ${{ github.sha }}` to both `smoke_staging`'s smoke-test step and
+`deploy_production`'s pre-deploy smoke gate, plus an updated comment on the latter noting
+the gap it used to describe is now closed. `deploy_staging` itself needed no change — its
+deploy hook accepts no payload, which is exactly why the `RENDER_GIT_COMMIT` fallback in
+`zodEnv.ts` is unconditional rather than depending on anything CI injects.
+
+**Out of scope, unchanged:** ADR-0039 Part 2 (build-once-deploy-that-artefact) — needs the
+VPS from ADR-0042 and a rewrite before it can be adopted.

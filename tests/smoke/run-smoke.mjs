@@ -11,14 +11,22 @@
  * It proves the target is healthy: serving, with Postgres and Redis reachable from the
  * deployed process, and with the auth middleware mounted.
  *
- * It does NOT prove the *new* deploy is live. Render deploys with zero downtime and the
- * app exposes no build identity, so polling cannot distinguish a new release from the
- * old one still serving. ADR-0039 (release identity) is what would close that gap; once
- * a release SHA is exposed, this suite should assert it matches the commit being
- * deployed. Until then, treat a green run as "staging is healthy", not "staging is
- * running your change".
+ * Release identity (ADR-0039 Part 1) closes the gap this header used to describe: when
+ * SMOKE_EXPECTED_RELEASE is set, this suite also polls /health until the reported
+ * `release` matches it, treating a timeout as failure. It deliberately does NOT assert
+ * strict equality against a single fetch compared to github.sha — a deploy is not
+ * instantaneous, and Render deploys with zero downtime, so the old release can still
+ * legitimately answer for a window after CI triggers the new one. Asserting on the first
+ * response would produce false failures on nothing more than a slow rollout, or on a
+ * second push landing before the first deploy finishes — in which case waiting out the
+ * timeout and failing is correct: the suite was told to expect a commit that never became
+ * the one actually running. Every CI invocation MUST set SMOKE_EXPECTED_RELEASE (see
+ * smoke_staging and the pre-deploy gate in backend-ci.yml) so this assertion can never be
+ * silently skipped in CI. Locally, and on a fresh fork, SMOKE_EXPECTED_RELEASE is unset
+ * and the check is skipped: APP_RELEASE defaults to "unknown" outside CI and there is
+ * nothing meaningful to compare it against.
  *
- * Usage:  SMOKE_BASE_URL=https://host/api/v1 node tests/smoke/run-smoke.mjs
+ * Usage:  SMOKE_BASE_URL=https://host/api/v1 [SMOKE_EXPECTED_RELEASE=<sha>] node tests/smoke/run-smoke.mjs
  */
 
 import logger from "../../scripts/logger.js";
@@ -29,6 +37,7 @@ const WAIT_TIMEOUT_MS = Number(process.env.SMOKE_WAIT_TIMEOUT_MS ?? 180_000);
 const REQUEST_TIMEOUT_MS = Number(
   process.env.SMOKE_REQUEST_TIMEOUT_MS ?? 10_000,
 );
+const EXPECTED_RELEASE = process.env.SMOKE_EXPECTED_RELEASE ?? "";
 
 if (!RAW_BASE) {
   logger.error(
@@ -107,6 +116,38 @@ const waitUntilReachable = async () => {
 };
 
 const checks = [
+  {
+    name: "deployed release matches expected commit",
+    detail:
+      "GET /health — release must match SMOKE_EXPECTED_RELEASE within the wait budget",
+    run: async () => {
+      if (!EXPECTED_RELEASE) {
+        return "skipped (SMOKE_EXPECTED_RELEASE not set)";
+      }
+
+      const deadline = Date.now() + WAIT_TIMEOUT_MS;
+      let lastSeen = "(no response yet)";
+
+      while (Date.now() < deadline) {
+        const { status, body } = await request("/health");
+        if (status === 200 && body?.release === EXPECTED_RELEASE) {
+          return `release=${body.release}`;
+        }
+        lastSeen = status === 200 ? String(body?.release) : `HTTP ${status}`;
+
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) break;
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.min(3000, remaining)),
+        );
+      }
+
+      throw new Error(
+        `release never matched "${EXPECTED_RELEASE}" within ${WAIT_TIMEOUT_MS}ms — ` +
+          `last seen: ${lastSeen}`,
+      );
+    },
+  },
   {
     name: "readiness reports every backing service healthy",
     detail:
