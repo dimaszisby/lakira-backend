@@ -7,10 +7,66 @@
 - Use plan mode for verification steps, not just building
 - Write detailed specs upfront to reduce ambiguity
 
+## Task Flow
+
+One ordering for non-trivial work. Each step leaves a trace the next step can find.
+
+```
+plan → size the kit → branch → plan.md → checklist.md → ⏸ approve
+     → implement (+ decisions.md entry at each decision) → gates → review → fix
+     → docs → hand over commit → hand over PR
+```
+
+Sizing is the kit table in `.claude/rules/documentation.md` — Full / Standard / Lean / Micro /
+ephemeral todo. **Say which size you picked before starting.** A single-commit fix that demands a
+plan, a checklist, and an ADR gets bypassed once and then always; the Micro and ephemeral rows are
+the escape hatch and using them is correct.
+
+If a Lean sweep turns out to change an interface, a data shape, a dependency, or a security
+boundary — stop and re-size. Do not carry on under the lighter rules.
+
+## The kit slug is the traceability spine
+
+Every artifact of a task carries the same slug, so a line of code can be walked backwards to the
+decision that put it there.
+
+```
+refresh-token-rotation
+  → kit      docs/internal/initiatives/refresh-token-rotation/
+  → plan     …/refresh-token-rotation-plan.md
+  → tickets  …/refresh-token-rotation-checklist.md
+  → log      …/decisions.md
+  → ADR      docs/explanation/decisions/adr-NNNN-<slug>.md, linking back to the kit
+  → branch   feat/refresh-token-rotation
+  → commits  feat(auth): rotate refresh tokens  …  refs: refresh-token-rotation
+  → PR       body links the kit README and every ADR the work promoted
+```
+
+Kit dir, plan filename, checklist filename, and branch name use the **same slug**. A promoted ADR
+links back to the kit; the kit's `decisions.md` entry links forward to the ADR. Without both
+directions the artifacts exist but cannot find each other, and tracing back becomes grep-and-hope.
+
+**Tasks are identified by slug, not by number.** There is no issue tracker here to allocate numbers
+from, so a numeric scheme would have no source of truth for the next free one and two parallel
+sessions would silently pick the same. A slug derived from the work is unique by construction and
+readable in a branch name. ADRs are the one exception — they stay `adr-NNNN-<slug>.md`, allocated
+from `docs/explanation/decisions/README.md`.
+
+Ephemeral todos are exempt — the dated filename is their identity.
+
+## Stop after the checklist
+
+Plan plus checklist is the cheapest place to discover the wrong thing is being built. Present both,
+wait for approval, then run implementation through to review without further check-ins unless
+something forces a re-size.
+
 ## Branching Convention
 
 - **Always create new branches off `dev`**, never off `main`
-- Branch promotion order: `feature/* → dev → staging → main`
+- Branch promotion order: `feat/* → dev → staging → main`
+- Prefix with the Conventional Commits type the work will carry — `feat/`, `fix/`, `docs/`,
+  `chore/`, `ci/` — then the kit slug: `feat/refresh-token-rotation`. (This file previously said
+  `feature/*`; no branch in this repo has ever used it.)
 - Every subagent prompt for implementation must instruct: `branch off dev`
 
 ## Commit & PR Ownership
@@ -36,12 +92,39 @@
 - Ruthlessly iterate on these lessons until mistake rate drops
 - Review `.claude/lessons.md` at session start for relevant project
 
-## Verification Before Done
+## Gates are named, not asserted
 
-- Never mark a task complete without proving it works
-- Diff behavior between main and your changes when relevant
-- Ask yourself: "Would a staff engineer approve this?"
-- Run tests, check logs, demonstrate correctness
+"Tests pass" is not a status, and neither is "verified". Never mark a task complete without
+proving it works: run the gates and report each **by name** with its result. A gate that was
+skipped is reported as skipped, not omitted.
+
+| Gate           | Command                                                          | When                                           |
+| -------------- | ---------------------------------------------------------------- | ---------------------------------------------- |
+| typecheck      | `npm run typecheck`                                              | always                                         |
+| lint           | `npm run lint`                                                   | always                                         |
+| format         | `npm run format:check`                                           | always                                         |
+| tests          | `npm test` (unit then integration — do not combine the projects) | always                                         |
+| build          | `npm run build`                                                  | always                                         |
+| OpenAPI        | `npm run docs:openapi:check`                                     | any route, Zod schema, or `src/lib/openapi/**` |
+| security delta | `npm run security:delta:gate`                                    | any dependency added, upgraded, or removed     |
+
+Use `npm run test:coverage` instead of `npm test` when coverage thresholds are in scope.
+
+`docs:openapi:check` already chains generate → **validate** → diff, so there is no second command to
+run. Validity matters as much as drift: a spec that is self-consistently wrong passes the diff, and
+one did, breaking a downstream repo's type generation. Run `npm run docs:openapi:validate` alone only
+to check the committed spec without regenerating it.
+
+The security gate is "soft" only in that Critical/High findings are what trip it — a tripped gate
+exits non-zero and stops the pipeline. See `.claude/rules/security.md`.
+
+Beyond the gates: diff behaviour against `dev` when relevant, check logs, and ask whether a staff
+engineer would approve this.
+
+## Review before docs
+
+Review can invalidate an implementation choice, and documentation written before that lands gets
+written twice. Order is gates → review → fix → docs.
 
 ## Demand Elegance (Balanced)
 
@@ -57,14 +140,19 @@
 - Zero context switching required from the user
 - Go fix failing CI tests without being told how
 
-## Task Management Process
+## Tracking Progress
 
-1. **Plan First**: Write plan to `docs/internal/todos/YYYY-MM-DD-todo-<title>.md` with checkable items
-2. **Verify Plan**: Check in before starting implementation
-3. **Track Progress**: Mark items complete as you go
-4. **Explain Changes**: High-level summary at each step
-5. **Document Results**: Add review section to the same `docs/internal/todos/...` file
-6. **Capture Lessons**: Update `.claude/lessons.md` after corrections
+The ordering lives in **Task Flow** above; this is how the artifacts are kept current while the work
+runs. Where the plan and checklist live is decided by the kit size — see
+`.claude/rules/documentation.md`. Only ephemeral work uses a bare
+`docs/internal/todos/YYYY-MM-DD-todo-<kebab-title>.md`; anything with a kit keeps its checklist in
+the kit.
+
+1. **Track Progress**: mark checklist items complete as you go, not in a batch at the end
+2. **Explain Changes**: high-level summary at each step
+3. **Log Decisions**: a `decisions.md` entry the moment a decision is taken — never backfilled
+4. **Document Results**: add a review section to the checklist (or the todo file, if ephemeral)
+5. **Capture Lessons**: update `.claude/lessons.md` after corrections
 
 ## Graphify Usage in Feature Implementation
 

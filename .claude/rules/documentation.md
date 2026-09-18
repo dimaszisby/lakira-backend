@@ -56,6 +56,20 @@ Ephemeral work skips the kit entirely: one file at
 `docs/internal/todos/YYYY-MM-DD-todo-<kebab-title>.md`, tracked in git but user-controlled and
 deletable without a follow-up PR. Promote it to a kit if it grows into an initiative.
 
+## A kit is the spec, and the checklist is the tickets
+
+Do not invent a `specs/` folder or a parallel ticket file. The kit already is both:
+
+| Workflow step | Kit file              |
+| ------------- | --------------------- |
+| spec          | `<slug>-plan.md`      |
+| tickets       | `<slug>-checklist.md` |
+| decision log  | `decisions.md`        |
+| entry point   | `README.md`           |
+
+The kit directory slug is the task's identity — it is also the branch name and the `refs:` footer on
+every commit. See `.claude/rules/workflow.md` § The kit slug is the traceability spine.
+
 ## Architectural decisions
 
 A kit's `decisions.md` is a **working log**. A decision that constrains how the system is
@@ -67,6 +81,23 @@ stay in the kit. See `docs/explanation/decisions/README.md` for the format and t
 number.
 
 For migrations: log an entry for every schema change, referencing the migration filename.
+
+### Write the decision when it is made, not at the end
+
+A `decisions.md` entry is written **at the moment the decision is taken** — during planning for the
+forks already visible, mid-implementation the moment an unplanned one is settled. Never backfilled
+at the end of the task.
+
+A record written after the code works is a rationalization. The rejected options and the reason for
+rejecting them are exactly what is wanted when someone traces the headache back months later, and
+they are exactly what is forgotten first.
+
+The final `docs` step of the task flow is for reference pages, how-to guides, and generated
+artifacts. It is **not** the slot for backfilling decisions.
+
+Promotion to `docs/explanation/decisions/` still follows the rule above: promote when the decision
+constrains how the system is built. Promote at the end of the task, not at the moment of decision —
+by then it is clear whether it survived implementation.
 
 ## Before writing anything
 
