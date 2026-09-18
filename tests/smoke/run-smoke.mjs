@@ -38,10 +38,29 @@ const REQUEST_TIMEOUT_MS = Number(
   process.env.SMOKE_REQUEST_TIMEOUT_MS ?? 10_000,
 );
 const EXPECTED_RELEASE = process.env.SMOKE_EXPECTED_RELEASE ?? "";
+// Every CI provider sets CI=true; GitHub Actions also sets GITHUB_ACTIONS.
+const IS_CI =
+  process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 
 if (!RAW_BASE) {
   logger.error(
     "[smoke] SMOKE_BASE_URL (or STAGING_BASE_URL) is required, e.g. https://host/api/v1",
+  );
+  process.exit(1);
+}
+
+/**
+ * The release check skips when SMOKE_EXPECTED_RELEASE is unset, which is right locally
+ * — APP_RELEASE is "unknown" outside CI and there is nothing to compare against. In CI
+ * that same skip would be indistinguishable from a pass, so a future smoke invocation
+ * added without the variable would gate green while verifying nothing. Refuse instead:
+ * the requirement was previously a comment, and a comment cannot fail a build.
+ */
+if (IS_CI && !EXPECTED_RELEASE) {
+  logger.error(
+    "[smoke] SMOKE_EXPECTED_RELEASE is required in CI — without it the release " +
+      "assertion is skipped and the run proves only that some release is healthy. " +
+      "Set it to the commit being deployed (see smoke_staging in backend-ci.yml).",
   );
   process.exit(1);
 }
@@ -122,7 +141,8 @@ const checks = [
       "GET /health — release must match SMOKE_EXPECTED_RELEASE within the wait budget",
     run: async () => {
       if (!EXPECTED_RELEASE) {
-        return "skipped (SMOKE_EXPECTED_RELEASE not set)";
+        // Unreachable in CI — the startup guard above exits first.
+        return "skipped (SMOKE_EXPECTED_RELEASE not set, not running in CI)";
       }
 
       const deadline = Date.now() + WAIT_TIMEOUT_MS;

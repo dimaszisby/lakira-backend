@@ -1,6 +1,6 @@
 # Todo — implement the retry policy the config already promises
 
-- **Status:** Done 2026-09-15 on `feat/queue-retry-policy` — see [Review](#review)
+- **Status:** Complete (2026-09-15) — delivered by `5952b74` (#91)
 - **Created:** 2026-09-15
 - **Owner:** unassigned
 - **Prepared for:** a fresh Claude Code session — **Opus, high effort, plan mode**
