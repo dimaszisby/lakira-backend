@@ -1,6 +1,7 @@
 # Todo — give every running process a release identity (ADR-0039 Part 1)
 
-- **Status:** Ready to start — this is the brief, not a plan
+- **Status:** Complete (2026-09-17) — delivered by `c8404be` (#95) and `ec3789d` (#96); the CI
+  guard in the follow-up below completes it
 - **Created:** 2026-09-16
 - **Owner:** unassigned
 - **Prepared for:** a fresh Claude Code session — **Opus, high effort, plan mode**
@@ -222,3 +223,43 @@ deploy hook accepts no payload, which is exactly why the `RENDER_GIT_COMMIT` fal
 
 **Out of scope, unchanged:** ADR-0039 Part 2 (build-once-deploy-that-artefact) — needs the
 VPS from ADR-0042 and a rewrite before it can be adopted.
+
+---
+
+## Follow-up — 2026-09-17: the CI requirement is now enforced, not documented
+
+Branch `fix/smoke-release-ci-guard` off `dev` @ `ec3789d`.
+
+The brief asked that the CI path not be able to skip the release assertion silently. That landed as a
+header comment — _"Every CI invocation MUST set SMOKE_EXPECTED_RELEASE ... so this assertion can never
+be silently skipped in CI"_ — and both call sites do set it, so the gate works today. But nothing
+enforced it: `grep process.env.CI` in the suite returned nothing. Add a third smoke invocation without
+the variable and the check returns `"skipped"` while the job goes green.
+
+That is the shape this repo keeps removing — `contract_staging` never issuing a request, the error
+components validating `{}`, `docs:openapi:check` validating drift but not validity. A comment cannot
+fail a build.
+
+`tests/smoke/run-smoke.mjs` now refuses to run when `CI`/`GITHUB_ACTIONS` is set and
+`SMOKE_EXPECTED_RELEASE` is not, alongside the existing `SMOKE_BASE_URL` startup guard. Local runs are
+unaffected: unset means skip, which is correct when `APP_RELEASE` is `"unknown"` and there is nothing
+to compare against.
+
+### Verified against a running server, all four cases
+
+| Case                                   | Exit | Expected |
+| -------------------------------------- | ---- | -------- |
+| `CI=true`, no `SMOKE_EXPECTED_RELEASE` | 1    | 1        |
+| local, no `SMOKE_EXPECTED_RELEASE`     | 0    | 0        |
+| `CI=true`, release matches             | 0    | 0        |
+| `CI=true`, release does not match      | 1    | 1        |
+
+The last two ran against a dev server started with `APP_RELEASE=deadbeef`, which also confirmed #95
+end to end: `GET /health` returned
+`{"status":"ok","environment":"development","release":"deadbeef","timestamp":...}`.
+
+Worth recording that the Compose `app` container was still serving a pre-#95 image and reported no
+`release` field at all — which is why the matching cases needed a fresh process rather than the
+running stack. `docker compose up -d --build app` before relying on the container for release checks.
+
+lint / typecheck / format:check / docs:openapi:check and `test:unit` all exit 0.
