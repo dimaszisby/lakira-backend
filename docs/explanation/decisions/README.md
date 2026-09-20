@@ -3,17 +3,23 @@
 One decision per file, numbered globally and ordered by the date the decision was made.
 Format: [Nygard ADR](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions).
 
-**42 records.** 25 accepted, 17 proposed.
-
 ## Reading these
 
 - **Status is the first thing to check.** `Proposed` means the decision was written down but is
-  **not implemented** — do not assume the code matches it.
+  **not implemented** — do not assume the code matches it. The Records table bolds `Proposed` and
+  leaves `Accepted` plain, so how much of this registry is intent rather than fact is visible by
+  scanning the column.
 - **Records are immutable.** A decision that no longer holds is superseded by a new record, not
   edited. The `Related` line links the pair in both directions.
-- **`Origin` points at the kit** the decision was made in. Those kits live under
+- **`Origin` points at the kit** the decision was made in, or at the audit that produced it —
+  `twelve-factor` and `saas-readiness` are audit programmes, not kits. Those live under
   `docs/internal/` and are removed on fork; the record here is the durable copy, and any bare
   filenames in a record's Links section are relative to that kit.
+- **New rows name the entry as well as the kit** — `rabbitmq D-03` rather than bare `rabbitmq`,
+  so the reader lands on the decision instead of scanning a `decisions.md`. `D-NN` is the
+  kit-local id introduced on 2026-09-19; see `.claude/rules/documentation.md`. Rows written
+  before that keep the kit name alone and are **not** backfilled — they record what the entries
+  were actually called at the time.
 
 ## Where the other decisions went
 
@@ -78,3 +84,15 @@ constrain how the system is built, so none of them belonged in a kit.
 Take the next free number, copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
+
+**Most records arrive here by promotion, not by being written here first.** A decision taken inside
+an initiative starts life as a `D-NN` entry in that kit's `decisions.md`, written at the moment the
+decision is taken. It is promoted to this registry only if it would still matter to someone who
+never saw the initiative — token hashing, FK cascade behaviour, port boundaries, queue topology.
+Decisions that only coordinate the work stay in the kit. Promote at the end of the task, once it is
+clear the decision survived implementation, and leave a pointer behind: the kit entry collapses to a
+link, and this record becomes authoritative. The full rule is in
+[`.claude/rules/documentation.md`](../../../.claude/rules/documentation.md).
+
+A record written directly here — with no kit behind it — is normal too: everything from ADR-0038
+onward came from an audit rather than a kit log. Name the audit in `Origin`.
