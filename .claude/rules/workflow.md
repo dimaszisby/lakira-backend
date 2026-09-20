@@ -60,6 +60,9 @@ Plan plus checklist is the cheapest place to discover the wrong thing is being b
 wait for approval, then run implementation through to review without further check-ins unless
 something forces a re-size.
 
+What makes a plan approvable is the **Definition of Ready** in `.claude/rules/documentation.md`.
+Do not present a plan for approval that fails it.
+
 ## Branching Convention
 
 - **Always create new branches off `dev`**, never off `main`
