@@ -8,12 +8,16 @@ on:
       - main
       - dev
       - staging
-      # Every working-branch prefix the team uses. Without these, a fix/ or chore/ branch
-      # gets no CI until a PR is opened — the pull_request trigger below is the real gate,
-      # but there is no early signal. concurrency (below) cancels superseded pushes.
-      - "feature/**"
+      # Every working-branch prefix the team uses, per the Conventional Commits types named
+      # in .claude/rules/workflow.md. Without these, a fix/ or chore/ branch gets no CI until
+      # a PR is opened — the pull_request trigger below is the real gate, but there is no
+      # early signal. Keep this list in step with that rule. concurrency (below) cancels
+      # superseded pushes.
+      - "feat/**"
+      - "feature/**" # retired in favour of feat/; kept so pre-existing branches still build
       - "fix/**"
       - "chore/**"
+      - "ci/**"
       - "docs/**"
       - "refactor/**"
   pull_request:

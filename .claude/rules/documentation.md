@@ -97,13 +97,12 @@ unchanged.
 ### Shared with lakira-frontend — four deliberate differences
 
 This kit format is shared with lakira-frontend: same documents, same mandatory sections, same
-`D-NN` numbering, same Definition of Ready. Four things differ **on purpose**, each matching its own
-repo's history:
+`D-NN` numbering, same Definition of Ready, and the same `feat/` branch prefix. Three things differ
+**on purpose**, each reflecting a genuinely different system:
 
 |                 | Here                             | lakira-frontend                |
 | --------------- | -------------------------------- | ------------------------------ |
 | gate commands   | this repo's npm scripts          | its own                        |
-| branch prefix   | `feat/`                          | `feature/`                     |
 | promotion style | the entry collapses to a pointer | the body stays, under a banner |
 | Accessibility   | no such section                  | a mandatory plan section       |
 
@@ -111,7 +110,7 @@ repo's history:
 entry here is a pointer stub, and all 14 in the frontend's `components-overhaul/decisions.md` keep
 their full body under a banner reading "That record is the durable copy; this entry is the original
 log". Collapsing the body is correct here and would destroy original logs there. A future reader
-comparing two near-identical rule files will read these four as drift and helpfully fix them — this
+comparing two near-identical rule files will read these three as drift and helpfully fix them — this
 table is what stops that.
 
 ### Template — `<slug>-plan.md` (the spec)
