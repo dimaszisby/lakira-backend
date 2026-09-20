@@ -1,5 +1,7 @@
+import { Transaction } from "sequelize";
 import { models } from "@/infrastructure/db/models.js";
 import { Organization } from "../../domain/entities/Organization.js";
+import { PersistenceTransaction } from "../../application/ports/TransactionPort.js";
 import {
   CreateOrganizationDTO,
   OrganizationRepository,
@@ -32,12 +34,19 @@ export class OrganizationRepositorySequelize implements OrganizationRepository {
     return count > 0;
   }
 
-  async create(data: CreateOrganizationDTO): Promise<Organization> {
-    const created = await models.Organization.create({
-      name: data.name,
-      slug: data.slug,
-    });
-    await created.reload();
+  async create(
+    data: CreateOrganizationDTO,
+    tx?: PersistenceTransaction,
+  ): Promise<Organization> {
+    const transaction = tx as Transaction | undefined;
+    const created = await models.Organization.create(
+      {
+        name: data.name,
+        slug: data.slug,
+      },
+      { transaction },
+    );
+    await created.reload({ transaction });
     return toDomain(created);
   }
 

@@ -3,6 +3,7 @@ import {
   MembershipRole,
   MembershipStatus,
 } from "../entities/Membership.js";
+import { PersistenceTransaction } from "../../application/ports/TransactionPort.js";
 
 export type CreateMembershipDTO = {
   userId: string;
@@ -24,7 +25,10 @@ export interface MembershipRepository {
     organizationId: string,
     role: MembershipRole,
   ): Promise<number>;
-  create(data: CreateMembershipDTO): Promise<Membership>;
+  create(
+    data: CreateMembershipDTO,
+    tx?: PersistenceTransaction,
+  ): Promise<Membership>;
   save(membership: Membership): Promise<Membership>;
   delete(id: string): Promise<void>;
 }

@@ -1,8 +1,10 @@
+import { Transaction } from "sequelize";
 import { models } from "@/infrastructure/db/models.js";
 import {
   Membership,
   MembershipRole,
 } from "../../domain/entities/Membership.js";
+import { PersistenceTransaction } from "../../application/ports/TransactionPort.js";
 import {
   CreateMembershipDTO,
   MembershipRepository,
@@ -59,15 +61,22 @@ export class MembershipRepositorySequelize implements MembershipRepository {
     return rows.map(toDomain);
   }
 
-  async create(data: CreateMembershipDTO): Promise<Membership> {
-    const created = await models.Membership.create({
-      userId: data.userId,
-      organizationId: data.organizationId,
-      role: data.role,
-      status: data.status ?? "active",
-      joinedAt: new Date(),
-    });
-    await created.reload();
+  async create(
+    data: CreateMembershipDTO,
+    tx?: PersistenceTransaction,
+  ): Promise<Membership> {
+    const transaction = tx as Transaction | undefined;
+    const created = await models.Membership.create(
+      {
+        userId: data.userId,
+        organizationId: data.organizationId,
+        role: data.role,
+        status: data.status ?? "active",
+        joinedAt: new Date(),
+      },
+      { transaction },
+    );
+    await created.reload({ transaction });
     return toDomain(created);
   }
 

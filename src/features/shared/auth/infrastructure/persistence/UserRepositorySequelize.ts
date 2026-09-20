@@ -1,5 +1,6 @@
-import { Op } from "sequelize";
+import { Op, Transaction } from "sequelize";
 import { models } from "@/infrastructure/db/models.js";
+import { PersistenceTransaction } from "../../application/ports/TransactionPort.js";
 import { AuthUser } from "../../domain/entities/AuthUser.js";
 import {
   CreateUserDTO,
@@ -49,14 +50,21 @@ export class UserRepositorySequelize implements UserRepository {
     return user ? toDomain(user) : null;
   }
 
-  async create(data: CreateUserDTO): Promise<AuthUser> {
-    const created = await models.User.create({
-      email: data.email,
-      username: data.username,
-      password: data.passwordHash,
-      isPublicProfile: data.isPublicProfile,
-    });
-    await created.reload();
+  async create(
+    data: CreateUserDTO,
+    tx?: PersistenceTransaction,
+  ): Promise<AuthUser> {
+    const transaction = tx as Transaction | undefined;
+    const created = await models.User.create(
+      {
+        email: data.email,
+        username: data.username,
+        password: data.passwordHash,
+        isPublicProfile: data.isPublicProfile,
+      },
+      { transaction },
+    );
+    await created.reload({ transaction });
     return toDomain(created);
   }
 

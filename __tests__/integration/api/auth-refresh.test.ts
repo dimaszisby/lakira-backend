@@ -11,9 +11,33 @@ const extractRefreshCookie = (res: any): string | undefined => {
   return match?.[1];
 };
 
-const loginUser = async () => {
+const rawRefreshCookie = (res: any): string | undefined => {
+  const cookies: string[] = res.headers["set-cookie"] ?? [];
+  return cookies.find((c: string) => c.startsWith(`${REFRESH_COOKIE_NAME}=`));
+};
+
+// Attribute set of a Set-Cookie header, ignoring the value and the absolute
+// Expires timestamp (which differs between two responses issued seconds apart).
+// Max-Age survives, so an equal TTL is still compared.
+const cookieAttributes = (raw: string): string[] =>
+  raw
+    .split(";")
+    .slice(1)
+    .map((part) => part.trim().toLowerCase())
+    .filter((part) => !part.startsWith("expires="))
+    .sort();
+
+const registerUser = async () => {
   const payload = buildUserPayload();
-  await api.post("/api/v1/auth/register").send(payload);
+  const registerRes = await api.post("/api/v1/auth/register").send(payload);
+  return { registerRes, payload };
+};
+
+// Registration now issues its own session, so these tests no longer register
+// and then log in purely to obtain a cookie — but the login path still needs
+// exercising in its own right, so this helper stays honest about what it does.
+const loginUser = async () => {
+  const { payload } = await registerUser();
   const loginRes = await api.post("/api/v1/auth/login").send({
     email: payload.email,
     password: payload.password,
@@ -106,5 +130,38 @@ describe("Auth Refresh Token Flow", () => {
       .set("Authorization", `Bearer ${cookie}`);
 
     expect(refreshRes.status).toBe(401);
+  });
+});
+
+describe("Registration issues a session", () => {
+  it("register sets a refresh token cookie with login's attributes", async () => {
+    const { registerRes } = await registerUser();
+    expect(registerRes.status).toBe(201);
+
+    const cookie = extractRefreshCookie(registerRes);
+    expect(cookie).toBeDefined();
+    expect(cookie!.length).toBeGreaterThan(20);
+
+    // AC-1: not merely present — the same cookie contract login issues.
+    const { loginRes } = await loginUser();
+    expect(cookieAttributes(rawRefreshCookie(registerRes)!)).toEqual(
+      cookieAttributes(rawRefreshCookie(loginRes)!),
+    );
+  });
+
+  it("a register-issued cookie refreshes into a new access token", async () => {
+    const { registerRes } = await registerUser();
+    const cookie = extractRefreshCookie(registerRes)!;
+
+    const refreshRes = await api
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", `${REFRESH_COOKIE_NAME}=${cookie}`);
+
+    expect(refreshRes.status).toBe(200);
+    expect(refreshRes.body.data.token).toBeTruthy();
+
+    const rotated = extractRefreshCookie(refreshRes);
+    expect(rotated).toBeDefined();
+    expect(rotated).not.toBe(cookie);
   });
 });

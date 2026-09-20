@@ -51,15 +51,42 @@ describe("UserRepositorySequelize", () => {
       isPublicProfile: true,
     });
 
-    expect(createSpy).toHaveBeenCalledWith({
-      email: "user@example.com",
-      username: "tester",
-      password: "hash",
-      isPublicProfile: true,
-    });
-    expect(instance.reload).toHaveBeenCalled();
+    expect(createSpy).toHaveBeenCalledWith(
+      {
+        email: "user@example.com",
+        username: "tester",
+        password: "hash",
+        isPublicProfile: true,
+      },
+      { transaction: undefined },
+    );
+    expect(instance.reload).toHaveBeenCalledWith({ transaction: undefined });
     expect(result.email).toBe("user@example.com");
     expect(result.username).toBe("tester");
+  });
+
+  it("passes a supplied transaction to both create and reload", async () => {
+    const instance = makeRow();
+    const createSpy = jest.spyOn(models.User, "create") as any;
+    createSpy.mockResolvedValue(instance);
+    const repo = new UserRepositorySequelize();
+    const tx = { fake: "transaction" };
+
+    await repo.create(
+      {
+        email: "user@example.com",
+        username: "tester",
+        passwordHash: "hash",
+        isPublicProfile: true,
+      },
+      tx,
+    );
+
+    // reload() outside the transaction would not see the uncommitted row.
+    expect(createSpy).toHaveBeenCalledWith(expect.anything(), {
+      transaction: tx,
+    });
+    expect(instance.reload).toHaveBeenCalledWith({ transaction: tx });
   });
 
   it("saves updates on existing users", async () => {

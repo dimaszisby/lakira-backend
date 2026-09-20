@@ -76,6 +76,8 @@ export const register = catchAsync(async (req: Request, res: Response) => {
     password,
     passwordConfirmation,
     isPublicProfile,
+    userAgent: req.headers["user-agent"] ?? null,
+    ip: req.ip ?? null,
   });
 
   feature.requestEmailVerification
@@ -86,6 +88,8 @@ export const register = catchAsync(async (req: Request, res: Response) => {
         error: err instanceof Error ? err.message : String(err),
       }),
     );
+
+  setRefreshCookie(res, result.rawRefreshToken);
 
   successResponse(
     res,

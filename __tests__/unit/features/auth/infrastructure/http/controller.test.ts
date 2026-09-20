@@ -110,6 +110,7 @@ describe("Auth HTTP controller", () => {
     registerExecute.mockResolvedValue({
       token: "jwt",
       user,
+      rawRefreshToken: "refresh-raw",
     });
 
     const req = {
@@ -119,6 +120,8 @@ describe("Auth HTTP controller", () => {
         password: "Password123!",
         passwordConfirmation: "Password123!",
       },
+      headers: { "user-agent": "test" },
+      ip: "127.0.0.1",
     } as unknown as AuthRequest;
 
     const response = res();
@@ -129,7 +132,16 @@ describe("Auth HTTP controller", () => {
       username: "tester",
       password: "Password123!",
       passwordConfirmation: "Password123!",
+      isPublicProfile: undefined,
+      userAgent: "test",
+      ip: "127.0.0.1",
     });
+    // AC-1: registration sets the refresh cookie, as login does.
+    expect(response.cookie).toHaveBeenCalledWith(
+      expect.stringContaining("refresh"),
+      "refresh-raw",
+      expect.objectContaining({ httpOnly: true }),
+    );
     expect(response.status).toHaveBeenCalledWith(201);
     expect(response.json).toHaveBeenCalledWith(
       expect.objectContaining({
