@@ -1,4 +1,5 @@
 import { AuthUser } from "../entities/AuthUser.js";
+import { PersistenceTransaction } from "../../application/ports/TransactionPort.js";
 
 export type CreateUserDTO = {
   email: string;
@@ -13,6 +14,6 @@ export interface UserRepository {
   findById(id: string): Promise<AuthUser | null>;
   findByIds(ids: string[]): Promise<AuthUser[]>;
   findByEmail(email: string): Promise<AuthUser | null>;
-  create(data: CreateUserDTO): Promise<AuthUser>;
+  create(data: CreateUserDTO, tx?: PersistenceTransaction): Promise<AuthUser>;
   save(user: AuthUser): Promise<AuthUser>;
 }

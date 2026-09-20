@@ -17,6 +17,7 @@ import { ResendEmailSender } from "./infrastructure/providers/ResendEmailSender.
 import { EmailSender } from "./application/ports/EmailSender.js";
 import { OrganizationRepositorySequelize } from "./infrastructure/persistence/OrganizationRepositorySequelize.js";
 import { MembershipRepositorySequelize } from "./infrastructure/persistence/MembershipRepositorySequelize.js";
+import { SequelizeTransactionPort } from "./infrastructure/persistence/SequelizeTransactionPort.js";
 import { RegisterUser } from "./application/use-cases/RegisterUser.js";
 import { LoginUser } from "./application/use-cases/LoginUser.js";
 import { GetProfile } from "./application/queries/GetProfile.js";
@@ -78,6 +79,8 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
   const token = new JwtTokenProvider();
   const emailSender = overrides.emailSender ?? buildEmailSender();
 
+  const tx = new SequelizeTransactionPort();
+
   const tokenHasher = new RefreshTokenCrypto();
   const issueRefreshToken = new IssueRefreshToken(
     refreshTokenRepo,
@@ -105,6 +108,8 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
       membershipRepo,
       hasher,
       token,
+      issueRefreshToken,
+      tx,
     ),
     loginUser: new LoginUser(
       repo,
