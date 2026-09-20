@@ -63,9 +63,10 @@ because it actively misleads. This happened here: the audience-restructure kit s
 
 ## Architectural decisions
 
-A kit's `decisions.md` is a working log. Decisions that constrain how the system is built get
-**promoted** to `docs/explanation/decisions/` as numbered records, one per file, in Nygard format —
-with a pointer left behind in the kit.
+A kit's `decisions.md` is a working log, its entries numbered `D-01`, `D-02` within the kit.
+Decisions that constrain how the system is built get **promoted** to `docs/explanation/decisions/`
+as numbered records, one per file, in Nygard format — `D-03 → ADR-0044` — with a pointer left
+behind in the kit. The two numbering spaces are separate on purpose.
 
 Promote if it would still matter to someone who never saw the initiative: token hashing, FK
 cascade behaviour, port boundaries, queue topology, module layout. Leave in the kit if it only
@@ -215,12 +216,13 @@ Use the snippets below as copy/paste starters.
 ### Decision record (promoted to the registry)
 
 ```md
-# ADR-00NN — <Decision title>
+# ADR-NNNN — <Decision title>
 
 - **Status:** Proposed | Accepted | Superseded
 - **Date:** YYYY-MM-DD
-- **Related:** Supersedes / superseded by ADR-00NN
-- **Origin:** `ADR-00N` in the <topic> kit — [`<topic>`](../../internal/initiatives/<topic>/decisions.md)
+- **Related:** Supersedes / superseded by ADR-NNNN
+- **Origin:** `D-NN` in the <topic> kit — [`<topic>`](../../internal/initiatives/<topic>/decisions.md)
+  (or the audit programme, for a record written here directly)
 
 ---
 
