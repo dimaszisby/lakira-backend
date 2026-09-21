@@ -34,6 +34,9 @@ describe("envManager", () => {
     ["API_KEY", "abcdef"],
     ["SOME_TOKEN", "token"],
     ["DATABASE_URL", "postgres://user:pass@host/db"],
+    // A Sentry DSN is a write credential — anyone holding it can post events
+    // into the project. It ends in "DSN", so no other term catches it.
+    ["SENTRY_DSN", "https://abc123@o1.ingest.sentry.io/456"],
   ])("masks sensitive %s values", (key, value) => {
     expect(maskEnvValue(key, value)).toBe("***REDACTED***");
   });

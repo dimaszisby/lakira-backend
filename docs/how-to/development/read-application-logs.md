@@ -114,7 +114,7 @@ LOG_LEVEL=debug DB_LOGGING=true npm run dev   # …plus every SQL statement
 ## Sensitive values
 
 Any key matching
-`/password|secret|authorization|cookie|bearer|(token|key|certificate|url)$/i` is replaced with
+`/password|secret|authorization|cookie|bearer|(token|key|certificate|url|dsn)$/i` is replaced with
 `***REDACTED***`, recursively, before serialization
 ([ADR-0028](../../explanation/decisions/adr-0028-sensitive-key-pattern-out-of-envmanager.md)). This
 covers log **metadata**. It does not rewrite free-text messages or URL strings — which is why access

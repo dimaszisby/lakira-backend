@@ -100,3 +100,48 @@ then-current value, not as the decision itself.
 That is correct and expected: it records what was true on 2026-05-06. The live value is in
 `src/config/sensitive-keys.ts`, which is what both the rule file and the how-to now point at rather
 than restating.
+
+---
+
+## D-04 — `dsn` added, and three docs that #104 missed
+
+- **Status:** Accepted
+- **Date:** 2026-09-21
+- **Size:** Micro — single commit, no separate kit. This is the same concern as D-01, so it is
+  logged here rather than spawning an initiative for a one-term regex change.
+
+**Context.** Two problems surfaced immediately after #104 merged.
+
+`SENTRY_DSN` matches no term in the pattern — it ends in "DSN" — so its value is written to logs in
+the clear. A Sentry DSN is a write credential: anyone holding it can post events into the project.
+`.claude/agent-memory/security-reviewer/project_scan_2026_06_05.md:20` flagged this on 2026-06-05
+and it was never actioned.
+
+Separately, #104 updated only two of the five live documents that quote the pattern. The search
+behind it was scoped to a file list rather than the repository, so
+`.claude/agents/security-reviewer.md`, `.claude/rules/environment.md` and
+`docs/reference/configuration.md` were left stating the pre-#104 regex — including a **live agent
+instruction**, which would have had the security-reviewer asserting something false.
+
+**Decision.** Add `dsn` as a suffix term. Update all three missed documents, and stop most of them
+restating the pattern at all — they now point at `src/config/sensitive-keys.ts`. The two that
+legitimately need the terms spelled out for a reader (`read-application-logs.md`,
+`configuration.md`) state them _and_ name the module as authoritative.
+
+**Options considered.**
+
+- _Unanchor `dsn`._ Rejected: no benefit, and it would match any key containing "dsn" as a
+  substring for no reason. `SENTRY_DSN` and any `*_DSN` are suffix matches.
+- _Leave the three docs and rely on the module being the source of truth._ Rejected: a live agent
+  instruction stating a wrong security control is worse than a stale prose doc, and the rules file
+  is loaded into context every session.
+- _Delete the terms from every doc and point only at the module._ Rejected for the how-to and the
+  reference — a reader learning how redaction works needs to see what matches without opening
+  source. Those two keep the list and cite the module.
+
+**Consequences.** Five documents now quote or cite one pattern. The three that merely mention the
+behaviour cite the module only, so there are two copies to keep current instead of five. Nothing
+gates this — the drift that produced this entry would not have been caught by CI, which is worth
+remembering if the pattern changes a third time.
+
+**Commit:** filled on merge — see the PR for this branch (`fix/redaction-doc-drift`).
