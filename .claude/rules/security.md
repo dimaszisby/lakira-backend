@@ -33,7 +33,7 @@ Applied in order on every request:
   only when the file genuinely belongs in the repo.
 
 - Env vars and log metadata whose **key** matches
-  `/password|secret|authorization|cookie|bearer|(token|key|certificate|url)$/i` are masked as
+  `/password|secret|authorization|cookie|bearer|(token|key|certificate|url|dsn)$/i` are masked as
   `***REDACTED***`. The first five terms match anywhere in the key (so `passwordHash` and
   `set-cookie` are caught); the rest are suffix-anchored. Single source:
   `src/config/sensitive-keys.ts`

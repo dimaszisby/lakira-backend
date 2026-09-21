@@ -19,10 +19,14 @@ the schema is the source of truth, and this page is derived from it.
 
 ## Secret redaction
 
-Any variable whose name matches `/(password|secret|token|key|certificate|url)$/i`
-(`src/config/sensitive-keys.ts`) is written to logs as `***REDACTED***`. The suffix drives it, so
-`RESEND_API_KEY` and `DATABASE_URL` are masked while `EMAIL_FROM` is not. Name new secrets to end
-in one of those words and redaction is automatic.
+Any variable whose name matches `SENSITIVE_KEY_PATTERN` (`src/config/sensitive-keys.ts`) is written
+to logs as `***REDACTED***`. That module is the single source of truth — read it rather than
+trusting a copy, because every restatement of this pattern has drifted.
+
+Two matching styles: `password`, `secret`, `authorization`, `cookie` and `bearer` match **anywhere**
+in the name, while `token`, `key`, `certificate`, `url` and `dsn` must be the **suffix**. So
+`RESEND_API_KEY`, `DATABASE_URL` and `SENTRY_DSN` are masked while `EMAIL_FROM` is not. Name new
+secrets to end in one of the suffix words, or add a term to that module.
 
 ---
 
