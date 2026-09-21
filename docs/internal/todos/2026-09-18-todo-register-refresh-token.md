@@ -1,6 +1,6 @@
 # Todo — registration issues no refresh token, so new users lose their session
 
-- **Status:** Ready to start — this is the brief, not a plan
+- **Status:** Complete (2026-09-20) — delivered by `b7cc7ce` (#103). See ## Review below.
 - **Created:** 2026-09-18
 - **Owner:** unassigned
 - **Prepared for:** a fresh Claude Code session — **Opus, high effort, plan mode**
@@ -116,3 +116,37 @@ change, it is not testing the thing.
 - No `Co-Authored-By` or Claude references in commits or PR text
 - The user opens PRs and merges — do not commit, push, or open PRs
 - Record the outcome as a `## Review` section appended to this file
+
+---
+
+## Review
+
+**Outcome.** Delivered by `b7cc7ce` (#103). Registration now issues a refresh cookie identical to
+login's, inside a single transaction covering the user, organization, membership and refresh-token
+writes.
+
+**The question this brief opened was answered: it is a bug.** The "register → verify → log in"
+reading has no support in the code —
+[ADR-0018](../../explanation/decisions/adr-0018-verification-middleware-not-applied-to-existing-routes.md)
+already decided this base gates nothing on email verification, and `requireVerifiedEmail` is mounted
+on no route. Two further findings settled it: `createTestUser`
+(`__tests__/integration/helpers/test-utils.ts`) reads the token from the register response, so the
+whole integration suite depends on it; and `auth-refresh.test.ts` was registering-then-logging-in
+purely to obtain a cookie — the defect's own workaround, sitting in the test suite.
+
+The old behaviour was indefensible under **both** readings: it issued a fully privileged 15-minute
+token to an unverified address with no refresh-token family, and so no revocation path short of
+expiry.
+
+**Promoted to [ADR-0043](../../explanation/decisions/adr-0043-session-issuance-at-every-authenticated-entry-point.md)**
+— session issuance belongs to every authenticated entry point.
+
+**One premise in this brief did not survive checking.** It warned that either fix changes the
+documented response and would turn `lakira-frontend`'s `api-contract` job red, and on that basis
+recommended batching with the analytics 304. That is wrong: **no** endpoint documents its
+`Set-Cookie` header, so setting one on a fourth produced no spec diff at all
+(`docs:openapi:check` exit 0, no diff). There was no cross-repo cost and nothing to batch with. The
+gap is filed as `2026-09-20-todo-document-set-cookie-responses.md`.
+
+**Full record:** `docs/internal/initiatives/registration-session/` — plan, checklist with gate
+results, and `D-01`–`D-03`.
