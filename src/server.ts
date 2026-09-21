@@ -46,6 +46,7 @@ import { accessLogMiddleware } from "@/shared/middleware/access-log.js";
 import { sendError } from "@/shared/utils/error-envelope.js";
 import { attachClientErrorHandler } from "@/shared/middleware/client-error.js";
 import * as Sentry from "@sentry/node";
+import { scrubSentryEvent } from "./utils/sentry-scrub.js";
 
 const visualizationInvalidationAdapter =
   new AnalyticsVisualizationInvalidationAdapter();
@@ -62,6 +63,9 @@ if (env.SENTRY_DSN) {
     tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE,
     environment: env.NODE_ENV,
     release: env.APP_RELEASE,
+    // sendDefaultPii defaults to false, so the SDK attaches no headers, cookies or
+    // bodies by itself. This covers what application code passes explicitly.
+    beforeSend: scrubSentryEvent,
   });
 }
 

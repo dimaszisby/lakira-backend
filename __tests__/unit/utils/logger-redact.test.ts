@@ -61,6 +61,32 @@ describe("redactObject", () => {
     expect(result.a.a.a.a.a.password).toBe("should-not-be-redacted");
   });
 
+  // C6: the pattern was suffix-anchored, so none of these four matched.
+  it.each([
+    ["authorization", "Bearer eyJhbGciOi..."],
+    ["cookie", "lakira_refresh=abc123"],
+    ["bearer", "eyJhbGciOi..."],
+    ["passwordHash", "$2b$10$abcdefghijklmnop"],
+    ["passwordConfirmation", "Password123!"],
+  ])("masks %s", (key, value) => {
+    const result = redactObject({ [key]: value }, 0) as Record<string, unknown>;
+    expect(result[key]).toBe("***REDACTED***");
+  });
+
+  // The other half of the same change: over-redaction destroys debugging context.
+  // `etagHash` and `authorId` are the two this could plausibly break.
+  it.each([
+    ["username", "alice"],
+    ["email", "user@example.com"],
+    ["author", "alice"],
+    ["authorId", "user-1"],
+    ["etagHash", "W/abc123"],
+    ["description", "safe"],
+  ])("leaves %s untouched", (key, value) => {
+    const result = redactObject({ [key]: value }, 0) as Record<string, unknown>;
+    expect(result[key]).toBe(value);
+  });
+
   it("masks multiple sensitive keys in the same object", () => {
     const result = redactObject(
       {

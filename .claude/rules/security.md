@@ -32,7 +32,14 @@ Applied in order on every request:
   **staged set**, so it holds however the files were added. Bypass with `git commit --no-verify`
   only when the file genuinely belongs in the repo.
 
-- Env vars matching `/(password|secret|token|key|certificate|url)$/i` are masked as `***REDACTED***` in logs
+- Env vars and log metadata whose **key** matches
+  `/password|secret|authorization|cookie|bearer|(token|key|certificate|url)$/i` are masked as
+  `***REDACTED***`. The first five terms match anywhere in the key (so `passwordHash` and
+  `set-cookie` are caught); the rest are suffix-anchored. Single source:
+  `src/config/sensitive-keys.ts`
+- Sentry events pass through `scrubSentryEvent` (`src/utils/sentry-scrub.ts`) before egress, which
+  redacts credential headers, drops cookies, and applies the same pattern to the body, `extra` and
+  `contexts`
 - Never log passwords, tokens, or PII
 - Passwords hashed with bcrypt via `PasswordHasher` port
 
