@@ -70,3 +70,17 @@ credentials), while the untestable Redis theory sent the investigation sideways.
 **Why**: `process.exit(1)` inside an `error` handler makes a recoverable, transient failure look
 exactly like a hard network block — the retry that would have disproved the theory never runs, so
 the logs contain no evidence against it.
+
+## [2026-09-24] A kit checklist is not presented until the user has seen it, through plan mode
+
+**Mistake**: For the `saas-audit-closeout` Lean kit, I wrote the checklist and decisions to disk,
+then asked the user to "approve the checklist" while showing only a summary of it. The user had to
+ask where the checklist was. I had also skipped plan mode, even though `workflow.md` requires it for
+any non-trivial task, and this one had six work items.
+**Rule**: For any task of three or more steps, enter plan mode before drafting the kit, and present
+the checklist's acceptance criteria and work items through `ExitPlanMode`, in full rather than as a
+summary. A file path is not a presentation. The approval pause in § Task Flow is the plan-mode exit.
+**Why**: The pause after the checklist is the cheapest point to catch the wrong thing being built,
+and it only works if the user can see what they are approving. Reading my own checklist back in plan
+mode turned up two template violations (gate commands copied in, integration tests wrongly skipped)
+that the summary had hidden.
