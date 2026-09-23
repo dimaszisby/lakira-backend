@@ -52,9 +52,10 @@ industry-standard quality items the gate does not measure (see below).
 | 11. Forkability                         | 4      | 2      | 0     | 0     |
 | **Total (65 items)**                    | **47** | **14** | **4** | **0** |
 
-**Severity counts (open):** P0 = **0**. Remaining work is the C1–C6 caveats (3 graded P1:
-C1/C3/C4; 3 graded P2: C2/C5/C6) plus the by-design deferrals (subscription/billing P1-9.2,
-OAuth, APM, feature flags, outbound webhooks). The independent grade is intentionally stricter
+**Severity counts (open):** P0 = **0**. The C1–C6 caveats are all closed as of 2026-09-24; what
+remains is the by-design deferrals (subscription/billing P1-9.2, OAuth, APM, feature flags,
+outbound webhooks). The scorecard above is the 2026-05-24 grade and is not re-graded here — the
+next dated audit run does that, and restates the verdict as GOLD per ADR-008. The independent grade is intentionally stricter
 than the 2026-05-20 self-audit (52 / 9 / 4) — see ADR-008.
 
 ## Empirical commands (2026-05-24, re-run)
@@ -72,14 +73,14 @@ than the 2026-05-20 self-audit (52 / 9 / 4) — see ADR-008.
 > Run `npm test` as the project defines it (`test:unit` then `test:integration`); a combined
 > invocation under `SKIP_DB_LIFECYCLE=true` produces false failures.
 
-## Open caveats — path to clean GOLD (each ≤1 day)
+## Caveats — path to clean GOLD (all closed 2026-09-24)
 
 1. ~~**C1 · Forkability (P1)**~~ — **CLOSED 2026-08-23.** `bootstrap-fork.sh` now targets `.env`, creating it from `.env.example` when absent, so the `JWT_SECRET` rotation and `APP_NAME` rewrite actually run on a fresh clone instead of silently no-opping. `.env.example` was also corrected so a verbatim copy produces a working database. `bootstrap-fork.sh` now also creates `.env.test` from its template, and both files are documented in getting-started and the testing how-to, so its printed `npm test` step works out of the box.
-2. **C3 · API Contracts (P1)** — global error handler emits three shapes (incl. an undocumented `"fail"` status), bypassing `errorResponse()` and violating `api-design.md`; OpenAPI documents no 4xx/5xx schema (only 429).
-3. **C4 · Architecture (P1)** — the architecture test enforces only 3 narrow checks (no negative cases); real app→infra ORM writes, `AppError` in domain entities, and cross-feature deep imports pass green.
-4. **C2 · Forkability (P2)** — `app-name.ts` defaults to `"lakira-backend"`; combined with C1 a fresh fork brands its runtime as "lakira-backend".
-5. **C5 · Observability (P2)** — Sentry `init()` has no `beforeSend` PII scrubber.
-6. **C6 · Security (P2)** — `SENSITIVE_KEY_PATTERN` is suffix-anchored; misses `authorization`/`cookie`/`bearer` (latent).
+2. ~~**C3 · API Contracts (P1)**~~ — **CLOSED 2026-09-03** (`75cfdaa`). One error envelope through `errorResponse()`, documented in OpenAPI.
+3. ~~**C4 · Architecture (P1)**~~ — **CLOSED 2026-09-23** (`78a05a1`, `3ce0c0e`). Feature boundaries enforced in ESLint, the cross-feature model associations frozen, and HTTP status codes out of the domain layer (ADR-0044).
+4. ~~**C2 · Forkability (P2)**~~ — **CLOSED 2026-09-24 by decision.** `bootstrap-fork.sh` writes `APP_NAME`, so a fork that runs it is branded correctly; the `app-name.ts` default is kept, and why a code guard was rejected is in [`saas-audit-closeout` D-01](docs/internal/initiatives/saas-audit-closeout/decisions.md).
+5. ~~**C5 · Observability (P2)**~~ — **CLOSED 2026-09-21** (`b28381a`). Sentry events pass through `scrubSentryEvent` before egress.
+6. ~~**C6 · Security (P2)**~~ — **CLOSED 2026-09-21** (`b28381a`). The redaction pattern now catches `authorization`, `cookie`, `bearer` and `passwordHash`.
 
 Full evidence (file:line) is in the [dated audit](docs/internal/audits/saas-readiness/audit-2026-05-24-independent.md); fix-status tracking is in [`FINAL-AUDIT-SUMMARY.md` § 4](docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md).
 
