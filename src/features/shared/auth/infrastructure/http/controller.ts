@@ -5,7 +5,7 @@ import { successResponse } from "@/utils/response-formatter.js";
 import catchAsync from "@/utils/catch-async.js";
 import AppError from "@/utils/AppError.js";
 import logger from "@/utils/logger.js";
-import { LOCKOUT_TTL_SECONDS } from "@/features/auth/infrastructure/http/loginLockout.js";
+import { LOCKOUT_TTL_SECONDS } from "./loginLockout.js";
 import { toUserResponseDTO } from "../../infrastructure/mappers/UserMapper.js";
 import { buildAuthFeature } from "../../feature.js";
 import { AuthRequest } from "@/types/request.context.js";

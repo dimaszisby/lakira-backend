@@ -13,6 +13,7 @@ import { buildMetricLogFeature } from "@/features/metric-log/feature.js";
 import { overrideMetricLogFeatureForTest } from "@/features/metric-log/infrastructure/http/controller.js";
 import { GenerateDummyMetricLogsHandler } from "@/features/metric-log/application/use-cases/GenerateDummyMetricLogsHandler.js";
 import { MetricLogCacheRedis } from "@/features/metric-log/infrastructure/cache/MetricLogCacheRedis.js";
+import { MetricLogRepoSequelize } from "@/features/metric-log/infrastructure/persistence/repositories/MetricLogRepoSequelize.js";
 import { MetricAccessSequelize } from "@/features/metric/infrastructure/providers/MetricAccessSequelize.js";
 import { NoopVisualizationInvalidation } from "@/shared/application/ports/VisualizationInvalidationPort.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
@@ -84,6 +85,7 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
       new MetricAccessSequelize(),
       new MetricLogCacheRedis(new NoopVisualizationInvalidation()),
       new SequelizeMessageIdempotency(),
+      new MetricLogRepoSequelize(),
     );
     consumer = new RabbitMQConsumer({
       queue: QUEUES.METRIC_LOG_GENERATE_DUMMY,

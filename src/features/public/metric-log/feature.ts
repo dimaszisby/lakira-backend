@@ -1,6 +1,6 @@
 import { MetricLogRepoSequelize } from "./infrastructure/persistence/repositories/MetricLogRepoSequelize.js";
 import { MetricLogCacheRedis } from "./infrastructure/cache/MetricLogCacheRedis.js";
-import { MetricAccessSequelize } from "@/features/metric/infrastructure/providers/MetricAccessSequelize.js";
+import { MetricAccessSequelize } from "@/features/metric/public.js";
 import { CreateMetricLog } from "./application/use-cases/CreateMetricLog.js";
 import { GetMetricLog } from "./application/queries/GetMetricLog.js";
 import { UpdateMetricLog } from "./application/use-cases/UpdateMetricLog.js";
@@ -40,7 +40,7 @@ export const buildMetricLogFeature = (deps: MetricLogFeatureOverrides = {}) => {
     updateLog: new UpdateMetricLog(repo, cache),
     deleteLog: new DeleteMetricLog(repo, cache),
     getStats: new GetMetricLogStats(access, statsRepo),
-    generateDummyLogs: new GenerateDummyMetricLogs(access, cache, queue),
+    generateDummyLogs: new GenerateDummyMetricLogs(access, cache, queue, repo),
     listLogs: new ListMetricLogs(queryRepo),
   };
 };

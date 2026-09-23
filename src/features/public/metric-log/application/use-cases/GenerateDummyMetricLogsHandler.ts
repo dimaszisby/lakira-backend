@@ -1,5 +1,4 @@
 import type { ConsumeMessage } from "amqplib";
-import { models } from "@/infrastructure/db/models.js";
 import AppError from "@/utils/AppError.js";
 import logger from "@/utils/logger.js";
 import { TerminalMessageError } from "@/shared/application/errors/TerminalMessageError.js";
@@ -7,6 +6,7 @@ import type { MetricAccessPort } from "@/features/public/metric/application/port
 import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import type { MessageContext } from "@/shared/infrastructure/queue/RabbitMQConsumer.js";
 import type { CachePort } from "../ports/CachePort.js";
+import type { MetricLogRepository } from "../../domain/repositories/MetricLogRepository.js";
 
 type JobPayload = {
   jobId: string;
@@ -21,16 +21,12 @@ const TYPES: Array<"manual" | "automatic"> = ["manual", "automatic"];
 /** Access rejections that will not change on retry; any other failure may be transient. */
 const TERMINAL_ACCESS_STATUSES = new Set([401, 403, 404]);
 
-/** The ORM transaction type, without importing the ORM into the application layer. */
-type DbTransaction = NonNullable<
-  Parameters<typeof models.MetricLog.create>[1]
->["transaction"];
-
 export class GenerateDummyMetricLogsHandler {
   constructor(
     private access: MetricAccessPort,
     private cache: CachePort,
     private idempotency: MessageIdempotencyPort,
+    private repo: MetricLogRepository,
   ) {}
 
   async handle(msg: ConsumeMessage, { queue }: MessageContext): Promise<void> {
@@ -61,9 +57,8 @@ export class GenerateDummyMetricLogsHandler {
     const outcome = await this.idempotency.runOnce(
       { messageId, queue, organizationId },
       async (tx) => {
-        const transaction = tx as DbTransaction;
         for (let i = 0; i < count; i++) {
-          await models.MetricLog.create(
+          await this.repo.create(
             {
               metricId,
               organizationId,
@@ -74,7 +69,7 @@ export class GenerateDummyMetricLogsHandler {
               ),
               type: TYPES[Math.floor(Math.random() * TYPES.length)],
             },
-            { transaction },
+            tx,
           );
         }
       },

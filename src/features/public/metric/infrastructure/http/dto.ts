@@ -8,9 +8,9 @@ import {
   MetricResponseDTO,
   UserMetricDetailResponseDTO,
 } from "@/types/dtos/metric.dto.js";
-import { toResponseDTO as toMetricCategoryResponseDTO } from "@/features/metric-category/infrastructure/mappers/MetricCategoryMapper.js";
-import { toMetricSettingsResponseDTO } from "@/features/metric-settings/infrastructure/persistence/mappers/MetricSettingsMapper.js";
-import { toMetricLogResponseDTO } from "@/features/metric-log/infrastructure/http/dto.js";
+import { toMetricCategoryResponseDTO } from "@/features/metric-category/public.js";
+import { toMetricSettingsResponseDTO } from "@/features/metric-settings/public.js";
+import { toMetricLogResponseDTO } from "@/features/metric-log/public.js";
 
 export const toMetricResponseDTO = (
   metric: MetricDomain,

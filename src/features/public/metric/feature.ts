@@ -36,6 +36,6 @@ export const buildMetricFeature = (overrides: MetricFeatureOverrides = {}) => {
     deleteMetric: new DeleteMetric(repo, cache),
     getMetricDetail: new GetMetricDetail(readRepo),
     listMetrics: new ListMetrics(readRepo),
-    generateDummyMetrics: new GenerateDummyMetrics(cache),
+    generateDummyMetrics: new GenerateDummyMetrics(repo, cache, tx),
   };
 };

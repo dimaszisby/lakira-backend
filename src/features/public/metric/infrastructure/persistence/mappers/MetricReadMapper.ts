@@ -1,9 +1,9 @@
-import { Metric } from "@/features/metric/infrastructure/persistence/models/metric.sequelize.js";
+import { Metric } from "../models/metric.sequelize.js";
 import { MetricCategory } from "@/features/metric-category/infrastructure/persistence/models/metric-category.sequelize.js";
 import {
-  toDomain as toMetricCategoryDomain,
-  MetricCategoryRow,
-} from "@/features/metric-category/infrastructure/mappers/MetricCategoryMapper.js";
+  toMetricCategoryDomain,
+  type MetricCategoryRow,
+} from "@/features/metric-category/public.js";
 import { MetricSettings } from "@/features/metric-settings/infrastructure/persistence/models/metric-settings.sequelize.js";
 import { MetricLog } from "@/features/metric-log/infrastructure/persistence/models/metric-log.sequelize.js";
 import {
@@ -14,8 +14,8 @@ import {
 } from "@/types/domain/metric.domain.js";
 import logger from "@/utils/logger.js";
 import AppError from "@/utils/AppError.js";
-import { toDomainMetricSettings } from "@/features/metric-settings/infrastructure/persistence/mappers/MetricSettingsMapper.js";
-import { toDomainMetricLog } from "@/features/metric-log/infrastructure/persistence/mappers/MetricLogReadMapper.js";
+import { toDomainMetricSettings } from "@/features/metric-settings/public.js";
+import { toDomainMetricLog } from "@/features/metric-log/public.js";
 
 const toCategoryRow = (
   category: Partial<MetricCategoryRow>,

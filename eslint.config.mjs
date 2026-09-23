@@ -14,6 +14,98 @@ const { extends: omit1, ...jsConfig } = js.configs.recommended;
 const { extends: omit2, ...tsConfig } = tsPlugin.configs.recommended;
 const { extends: omit3, ...prettierConfig } = prettierConfigPackage;
 
+// Legacy layout bans. Extracted so the feature-boundary blocks below can re-declare
+// `no-restricted-imports` without silently dropping them — a flat-config block that
+// re-specifies a rule replaces it wholesale for the files it matches.
+const LEGACY_IMPORT_PATTERNS = [
+  {
+    group: [
+      "src/services/**",
+      "services/**",
+      "@services/**",
+      "../services/**",
+      "../../services/**",
+      "../../../services/**",
+      "../../../../services/**",
+    ],
+    message:
+      "Legacy services have been replaced by feature slices. Add code to the owning feature (domain/application/infrastructure) instead of importing from src/services.",
+  },
+  {
+    group: [
+      "src/routes/**",
+      "routes/**",
+      "@routes/**",
+      "../routes/**",
+      "../../routes/**",
+      "../../../routes/**",
+      "../../../../routes/**",
+    ],
+    message:
+      "Feature slices now own their HTTP routers. Import routers from the appropriate feature entrypoint instead of src/routes.",
+  },
+  {
+    group: [
+      "src/controllers/**",
+      "controllers/**",
+      "@controllers/**",
+      "../controllers/**",
+      "../../controllers/**",
+      "../../../controllers/**",
+      "../../../../controllers/**",
+    ],
+    message:
+      "Legacy controllers have been replaced by feature adapters. Import handlers from the owning feature instead of src/controllers.",
+  },
+];
+
+const FEATURE_BOUNDARY_MESSAGE =
+  "Feature internals are private. Import another feature through its index.ts (`@/features/<name>`), and reach your own feature with a relative path. See .claude/rules/architecture.md § Export Convention.";
+
+// Reaching into any feature's domain/application/infrastructure through the global
+// alias. Catches both cross-feature imports and a feature importing itself via the
+// alias instead of a relative path.
+const FEATURE_DEEP_IMPORTS = {
+  group: [
+    "@/features/*/domain/**",
+    "@/features/*/application/**",
+    "@/features/*/infrastructure/**",
+  ],
+  message: FEATURE_BOUNDARY_MESSAGE,
+};
+
+// Same, minus Sequelize model files. Applied only to the files that declare
+// cross-model associations, which cannot route through index.ts without risking
+// circular imports between slices. The count is frozen at 11 by
+// __tests__/unit/architecture.test.ts — see
+// docs/internal/initiatives/feature-boundaries/decisions.md D-02 and D-03.
+// Enumerated positively rather than as `@/features/*/infrastructure/**` plus a
+// `!…/models/**` negation: the negation is accepted by the config but has no effect
+// on matching, so every model import was still reported. Verified, not assumed.
+const FEATURE_DEEP_IMPORTS_EXCEPT_MODELS = {
+  group: [
+    "@/features/*/domain/**",
+    "@/features/*/application/**",
+    "@/features/*/infrastructure/cache/**",
+    "@/features/*/infrastructure/email/**",
+    "@/features/*/infrastructure/http/**",
+    "@/features/*/infrastructure/mappers/**",
+    "@/features/*/infrastructure/providers/**",
+    "@/features/*/infrastructure/sql/**",
+    "@/features/*/infrastructure/persistence/mappers/**",
+    "@/features/*/infrastructure/persistence/repositories/**",
+  ],
+  message: FEATURE_BOUNDARY_MESSAGE,
+};
+
+// The application layer depends on domain and ports only. The models barrel is
+// infrastructure, and importing it is an ORM write from the wrong layer.
+const APPLICATION_LAYER_ORM = {
+  group: ["@/infrastructure/db/models", "@/infrastructure/db/models.js"],
+  message:
+    "The application layer must not reach the ORM directly. Inject a repository port instead. See .claude/rules/architecture.md § Dependency Rules.",
+};
+
 export default [
   // Ignore migrations and eslint.config.mjs files
   {
@@ -64,49 +156,49 @@ export default [
       quotes: ["error", "double", { avoidEscape: true }], // Prefer double quotes but avoid needless escaping
       indent: "off", // Delegate indentation entirely to Prettier
       "prettier/prettier": "error", // Ensure Prettier formatting
+      "no-restricted-imports": ["error", { patterns: LEGACY_IMPORT_PATTERNS }],
+    },
+  },
+  // Feature-slice boundaries. Three blocks, most general first — a later block that
+  // matches a file replaces the rule for it, so each re-states the legacy patterns.
+  {
+    files: ["src/features/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: [...LEGACY_IMPORT_PATTERNS, FEATURE_DEEP_IMPORTS] },
+      ],
+    },
+  },
+  {
+    // The frozen exception: files declaring Sequelize cross-model associations.
+    files: [
+      "src/features/**/infrastructure/persistence/models/*.sequelize.ts",
+      "src/features/**/infrastructure/persistence/mappers/MetricReadMapper.ts",
+      "src/features/**/infrastructure/persistence/TrendRepoSequelize.ts",
+    ],
+    rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
-            {
-              group: [
-                "src/services/**",
-                "services/**",
-                "@services/**",
-                "../services/**",
-                "../../services/**",
-                "../../../services/**",
-                "../../../../services/**",
-              ],
-              message:
-                "Legacy services have been replaced by feature slices. Add code to the owning feature (domain/application/infrastructure) instead of importing from src/services.",
-            },
-            {
-              group: [
-                "src/routes/**",
-                "routes/**",
-                "@routes/**",
-                "../routes/**",
-                "../../routes/**",
-                "../../../routes/**",
-                "../../../../routes/**",
-              ],
-              message:
-                "Feature slices now own their HTTP routers. Import routers from the appropriate feature entrypoint instead of src/routes.",
-            },
-            {
-              group: [
-                "src/controllers/**",
-                "controllers/**",
-                "@controllers/**",
-                "../controllers/**",
-                "../../controllers/**",
-                "../../../controllers/**",
-                "../../../../controllers/**",
-              ],
-              message:
-                "Legacy controllers have been replaced by feature adapters. Import handlers from the owning feature instead of src/controllers.",
-            },
+            ...LEGACY_IMPORT_PATTERNS,
+            FEATURE_DEEP_IMPORTS_EXCEPT_MODELS,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/features/*/*/application/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            ...LEGACY_IMPORT_PATTERNS,
+            FEATURE_DEEP_IMPORTS,
+            APPLICATION_LAYER_ORM,
           ],
         },
       ],

@@ -3,20 +3,11 @@ import { GenerateDummyMetricLogs } from "@/features/metric-log/application/use-c
 import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
 import { CachePort } from "@/features/metric-log/application/ports/CachePort.js";
 import { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
+import type { MetricLogRepository } from "@/features/metric-log/domain/repositories/MetricLogRepository.js";
 import {
   EXCHANGES,
   ROUTING_KEYS,
 } from "@/shared/infrastructure/queue/topology.js";
-
-jest.mock("@/infrastructure/db/models.js", () => ({
-  models: {
-    MetricLog: { create: jest.fn() },
-  },
-}));
-
-const { models } = jest.requireMock("@/infrastructure/db/models.js") as {
-  models: { MetricLog: { create: jest.Mock } };
-};
 
 const setup = () => {
   const access: jest.Mocked<MetricAccessPort> = {
@@ -31,8 +22,11 @@ const setup = () => {
     publish: jest.fn(),
     close: jest.fn(),
   };
-  const sut = new GenerateDummyMetricLogs(access, cache, queue);
-  return { sut, access, cache, queue };
+  const repo = {
+    create: jest.fn(),
+  } as unknown as jest.Mocked<MetricLogRepository>;
+  const sut = new GenerateDummyMetricLogs(access, cache, queue, repo);
+  return { sut, access, cache, queue, repo };
 };
 
 const INPUT = {
@@ -47,7 +41,7 @@ describe("GenerateDummyMetricLogs use case", () => {
 
   describe("queue-enabled path", () => {
     it("publishes a job and returns jobId without inserting DB rows", async () => {
-      const { sut, access, cache, queue } = setup();
+      const { sut, access, cache, queue, repo } = setup();
       queue.isEnabled.mockReturnValue(true);
       queue.publish.mockResolvedValue(undefined);
 
@@ -71,7 +65,7 @@ describe("GenerateDummyMetricLogs use case", () => {
           messageId: result.jobId,
         }),
       );
-      expect(models.MetricLog.create).not.toHaveBeenCalled();
+      expect(repo.create).not.toHaveBeenCalled();
       expect(cache.invalidate).not.toHaveBeenCalled();
       expect(typeof result.jobId).toBe("string");
       expect(result.jobId.length).toBeGreaterThan(0);
@@ -80,14 +74,14 @@ describe("GenerateDummyMetricLogs use case", () => {
 
   describe("sync fallback path (queue disabled)", () => {
     it("inserts count rows and invalidates cache when cache is enabled", async () => {
-      const { sut, cache, queue } = setup();
+      const { sut, cache, queue, repo } = setup();
       queue.isEnabled.mockReturnValue(false);
       cache.isEnabled.mockReturnValue(true);
-      models.MetricLog.create.mockResolvedValue({} as never);
+      repo.create.mockResolvedValue({} as never);
 
       const result = await sut.execute(INPUT);
 
-      expect(models.MetricLog.create).toHaveBeenCalledTimes(INPUT.count);
+      expect(repo.create).toHaveBeenCalledTimes(INPUT.count);
       expect(cache.invalidate).toHaveBeenCalledWith(
         "user-1",
         "org-1",
@@ -98,26 +92,26 @@ describe("GenerateDummyMetricLogs use case", () => {
     });
 
     it("inserts rows but skips cache invalidation when cache is disabled", async () => {
-      const { sut, cache, queue } = setup();
+      const { sut, cache, queue, repo } = setup();
       queue.isEnabled.mockReturnValue(false);
       cache.isEnabled.mockReturnValue(false);
-      models.MetricLog.create.mockResolvedValue({} as never);
+      repo.create.mockResolvedValue({} as never);
 
       await sut.execute(INPUT);
 
-      expect(models.MetricLog.create).toHaveBeenCalledTimes(INPUT.count);
+      expect(repo.create).toHaveBeenCalledTimes(INPUT.count);
       expect(cache.invalidate).not.toHaveBeenCalled();
     });
   });
 
   describe("ownership check", () => {
     it("propagates error when ownership check fails", async () => {
-      const { sut, access, queue } = setup();
+      const { sut, access, queue, repo } = setup();
       queue.isEnabled.mockReturnValue(false);
       access.ensureMetricOwnership.mockRejectedValue(new Error("Not owner"));
 
       await expect(sut.execute(INPUT)).rejects.toThrow("Not owner");
-      expect(models.MetricLog.create).not.toHaveBeenCalled();
+      expect(repo.create).not.toHaveBeenCalled();
     });
   });
 });
