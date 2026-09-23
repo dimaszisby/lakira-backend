@@ -98,6 +98,15 @@ const FEATURE_DEEP_IMPORTS_EXCEPT_MODELS = {
   message: FEATURE_BOUNDARY_MESSAGE,
 };
 
+// An HTTP status code has no business in a domain entity. Entities raise a
+// DomainError kind; src/shared/middleware/error.ts maps it. This was the third of
+// SaaS-readiness caveat C4's three claims.
+const DOMAIN_LAYER_HTTP_ERROR = {
+  group: ["@/utils/AppError", "@/utils/AppError.js", "**/utils/AppError.js"],
+  message:
+    "AppError carries an HTTP statusCode, which the domain layer must not know. Throw a DomainError (or ValidationError) from @/shared/domain/errors/DomainError.js and let the error middleware map it. See .claude/rules/architecture.md § Dependency Rules.",
+};
+
 // The application layer depends on domain and ports only. The models barrel is
 // infrastructure, and importing it is an ORM write from the wrong layer.
 const APPLICATION_LAYER_ORM = {
@@ -184,6 +193,21 @@ export default [
           patterns: [
             ...LEGACY_IMPORT_PATTERNS,
             FEATURE_DEEP_IMPORTS_EXCEPT_MODELS,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/features/*/*/domain/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            ...LEGACY_IMPORT_PATTERNS,
+            FEATURE_DEEP_IMPORTS,
+            DOMAIN_LAYER_HTTP_ERROR,
           ],
         },
       ],

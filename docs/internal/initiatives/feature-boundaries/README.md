@@ -1,7 +1,7 @@
 # Feature boundaries
 
-**Status:** PR 1 complete — enforcement and import violations, all gates green, awaiting PR.
-PR 2 (HTTP status out of domain) not started.
+**Status:** Complete — both PRs done. C4 closed; D-02, D-03 and D-06 promoted to
+[ADR-0044](../../../explanation/decisions/adr-0044-feature-boundaries-and-their-frozen-exceptions.md).
 **Slug:** `feature-boundaries` · **Branches:** `fix/feature-boundaries`, then
 `refactor/feature-boundaries-errors`
 

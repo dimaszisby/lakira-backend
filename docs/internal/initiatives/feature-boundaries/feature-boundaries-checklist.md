@@ -80,8 +80,9 @@
 - [x] AC-2 — 14 cross-feature imports via `public.js`; both self-imports relative
 - [x] AC-3 — exactly 11 model associations, asserted; a 12th was seen failing
 - [x] AC-4 — all three rules demonstrated rejecting a deliberate violation and recovering
-- [ ] AC-5 — PR 2
-- [ ] AC-6 — PR 2
+- [x] AC-5 — no `AppError` under any `domain/`; an ESLint rule now rejects it, and was seen doing so
+- [x] AC-6 — the envelope characterisation passed **13/13 against unchanged `dev`** and again,
+      unchanged, after the refactor
 
 ## Gates
 
@@ -131,4 +132,50 @@ something this PR demonstrates.
 
 ## PR 2 — `refactor/feature-boundaries-errors`
 
-Not started. See the plan's Phases § PR 2.
+- [x] `__tests__/unit/shared/middleware/domain-error-envelope.test.ts` — characterisation written
+      **first**, driving the real entity methods through the real middleware. **13/13 against
+      unchanged `dev`.**
+- [x] `src/shared/domain/errors/DomainError.ts` — `DomainError` with a `kind`, `ValidationError`
+- [x] `Metric.ts` (8 throws) and `MetricSettings.ts` (4) throw `ValidationError`; zero `AppError`
+      references remain in either
+- [x] `InvalidTokenError` re-based onto `DomainError` with kind `unauthorized`; still 401
+- [x] `src/shared/middleware/error.ts` — `DOMAIN_ERROR_STATUS` map and a dispatch branch ordered
+      after `instanceof AppError`
+- [x] `eslint.config.mjs` — `AppError` banned from `src/features/*/*/domain/**`; seen rejecting a
+      deliberate violation and clean after revert
+- [x] `MetricSettings.test.ts` — entity assertions moved from `AppError` to `ValidationError`; they
+      had been encoding the violation
+- [x] `docs:openapi:check` exit 0, no diff — the published error components did not move
+- [x] ADR-0044 written; D-02, D-03 and D-06 collapsed to pointers
+- [x] `FINAL-AUDIT-SUMMARY.md` — C4 flipped to ✅
+
+### PR 2 gates
+
+- [x] typecheck, lint, format — exit 0
+- [x] tests — `test:unit` exit 0 (**601** passed, 92 suites); `test:integration` exit 0 (196 passed,
+      5 skipped)
+- [x] build — exit 0
+- [x] OpenAPI — run and **required** here, since AC-6 depends on the error components not moving.
+      Exit 0, no diff.
+- [ ] security delta — **skipped**, no dependency change
+
+### PR 2 review
+
+**C4 is closed.** All three claims are fixed and each is now enforced by a rule that has been seen
+to reject.
+
+**The characterisation test did the work the plan hoped it would.** Written before the refactor, it
+drives the real entity methods rather than hand-built errors — so a missed throw would surface as a
+500, not as a silent pass. Writing it first also caught two of my own mistakes before they mattered:
+the "invalid characters" fixtures used `<>`, which the domain does not consider invalid (it checks
+control characters and unpaired surrogates), and the initial envelope assertions were untyped.
+
+**One thing the plan did not anticipate.** `MetricSettings.test.ts` asserted `toThrow(AppError)` on
+three domain rules — the existing tests were encoding the violation, so they had to change with it.
+That is expected for a refactor of this kind, but it means the pre-existing suite was not neutral
+evidence: it would have failed if the leak were removed, which is worth remembering when a test
+suite is cited as proof that current behaviour is correct.
+
+**Deliberately unused:** three of the five `DomainErrorKind` values (`forbidden`, `not_found`,
+`conflict`) have no caller yet. That is [D-06](decisions.md)'s explicit choice — a partial map would
+push the next person back to `AppError`.

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { MetricDomain } from "@/types/domain/metric.domain.js";
-import AppError from "@/utils/AppError.js";
+import { ValidationError } from "@/shared/domain/errors/DomainError.js";
 import { ZodMessages } from "@/constants/zod/zod-messages.js";
 import {
   METRIC_DESCRIPTION_RULE,
@@ -53,13 +53,13 @@ export class Metric implements MetricDomain {
     const value = next.trim();
     const length = getUnicodeLength(value);
     if (length < METRIC_NAME_RULE.min) {
-      throw new AppError(ZodMessages.metric.nameRequired, 400);
+      throw new ValidationError(ZodMessages.metric.nameRequired);
     }
     if (length > METRIC_NAME_RULE.max) {
-      throw new AppError(ZodMessages.metric.nameTooLong, 400);
+      throw new ValidationError(ZodMessages.metric.nameTooLong);
     }
     if (hasInvalidMetricChars(value)) {
-      throw new AppError(ZodMessages.metric.invalidCharacters, 400);
+      throw new ValidationError(ZodMessages.metric.invalidCharacters);
     }
     this.props.name = value;
     this.touch();
@@ -68,10 +68,10 @@ export class Metric implements MetricDomain {
   describe(next: string | null) {
     if (next !== null) {
       if (getUnicodeLength(next) > METRIC_DESCRIPTION_RULE.max) {
-        throw new AppError(ZodMessages.metric.descriptionTooLong, 400);
+        throw new ValidationError(ZodMessages.metric.descriptionTooLong);
       }
       if (hasInvalidMetricChars(next, true)) {
-        throw new AppError(ZodMessages.metric.invalidCharacters, 400);
+        throw new ValidationError(ZodMessages.metric.invalidCharacters);
       }
     }
     this.props.description = next ?? null;
@@ -82,13 +82,13 @@ export class Metric implements MetricDomain {
     const normalized = unit.trim();
     const length = getUnicodeLength(normalized);
     if (length < METRIC_UNIT_RULE.min) {
-      throw new AppError(ZodMessages.metric.unitRequired, 400);
+      throw new ValidationError(ZodMessages.metric.unitRequired);
     }
     if (length > METRIC_UNIT_RULE.max) {
-      throw new AppError(ZodMessages.metric.unitTooLong, 400);
+      throw new ValidationError(ZodMessages.metric.unitTooLong);
     }
     if (hasInvalidMetricChars(normalized)) {
-      throw new AppError(ZodMessages.metric.invalidCharacters, 400);
+      throw new ValidationError(ZodMessages.metric.invalidCharacters);
     }
     this.props.defaultUnit = normalized;
     this.touch();
