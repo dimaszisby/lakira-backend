@@ -12,6 +12,7 @@ import { loadModels } from "./infrastructure/db/models.js";
 import sequelize from "./config/db.js";
 import { MetricAccessSequelize } from "@/features/metric/infrastructure/providers/MetricAccessSequelize.js";
 import { MetricLogCacheRedis } from "@/features/metric-log/infrastructure/cache/MetricLogCacheRedis.js";
+import { MetricLogRepoSequelize } from "./features/public/metric-log/infrastructure/persistence/repositories/MetricLogRepoSequelize.js";
 import { NoopVisualizationInvalidation } from "./shared/application/ports/VisualizationInvalidationPort.js";
 import { GenerateDummyMetricLogsHandler } from "@/features/metric-log/application/use-cases/GenerateDummyMetricLogsHandler.js";
 
@@ -45,6 +46,7 @@ const startWorker = async (): Promise<void> => {
     access,
     cache,
     idempotency,
+    new MetricLogRepoSequelize(),
   );
 
   retryPublisher = new RabbitMQPublisher();

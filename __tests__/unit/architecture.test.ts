@@ -144,6 +144,48 @@ describe("Architecture enforcement", () => {
     }
   });
 
+  // ADR-0044 / decisions.md D-02, D-03: Sequelize models import each other across
+  // features to declare foreign-key associations. They cannot route through index.ts
+  // without risking circular imports between slices, and the real fix — no cross-module
+  // FKs, ID-only references — is a separate initiative. Frozen at an exact count so the
+  // boundary only ever moves deliberately. ESLint exempts these files; this is the ratchet.
+  describe("cross-feature model associations are frozen", () => {
+    const FROZEN_MODEL_ASSOCIATION_IMPORTS = 11;
+    const MODEL_IMPORT =
+      /from\s+"@\/features\/[a-z-]+\/infrastructure\/persistence\/models\//g;
+
+    it(`holds at exactly ${FROZEN_MODEL_ASSOCIATION_IMPORTS} cross-feature model imports`, () => {
+      const found: string[] = [];
+      for (const featureDir of featureDirs) {
+        for (const file of getAllTsFiles(featureDir)) {
+          const owner = path.basename(featureDir);
+          const content = fs.readFileSync(file, "utf-8");
+          for (const match of content.match(MODEL_IMPORT) ?? []) {
+            const target = match.match(/@\/features\/([a-z-]+)\//)![1];
+            // A feature reaching its own models through the alias is a separate
+            // problem (it should be relative) and is not part of this freeze.
+            if (target !== owner) {
+              found.push(`${path.relative(SRC_FEATURES, file)} -> ${target}`);
+            }
+          }
+        }
+      }
+
+      // Thrown rather than asserted so the guidance actually reaches whoever broke it —
+      // Jest's expect() takes no message argument, and a bare "expected 11, got 12"
+      // tells them nothing about what to do.
+      if (found.length !== FROZEN_MODEL_ASSOCIATION_IMPORTS) {
+        throw new Error(
+          `Cross-feature model associations moved from ${FROZEN_MODEL_ASSOCIATION_IMPORTS} to ${found.length}.\n` +
+            "This count is frozen on purpose — see docs/internal/initiatives/feature-boundaries/decisions.md D-02.\n" +
+            "If the change is deliberate, update the constant in this file and record why in that log.\n" +
+            `Found:\n  ${found.sort().join("\n  ")}`,
+        );
+      }
+      expect(found.length).toBe(FROZEN_MODEL_ASSOCIATION_IMPORTS);
+    });
+  });
+
   describe("legacy mappers directory does not exist", () => {
     it("src/utils/mappers/ does not exist", () => {
       const mappersDir = path.resolve(__dirname, "../../src/utils/mappers");

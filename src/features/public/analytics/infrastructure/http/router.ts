@@ -3,7 +3,7 @@ import {
   handleGetDashboardVisualization,
   handleGetVisualization,
 } from "./controller.js";
-import { authMiddleware } from "@/features/auth/infrastructure/http/authMiddleware.js";
+import { authMiddleware } from "@/features/auth/public.js";
 import { validate } from "@/shared/middleware/validation.js";
 import { getDashboardVizSchema, getVisualizationSchema } from "./schema.zod.js";
 import catchAsync from "@/utils/catch-async.js";

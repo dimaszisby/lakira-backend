@@ -9,7 +9,7 @@ import {
   generateDummyMetrics,
   handleMetricTrend,
 } from "./controller.js";
-import { authMiddleware } from "@/features/auth/infrastructure/http/authMiddleware.js";
+import { authMiddleware } from "@/features/auth/public.js";
 import { cacheMiddleware } from "@/shared/middleware/cache.js";
 import { userRateLimiter } from "@/shared/middleware/rate-limiter.js";
 import { validate } from "@/shared/middleware/validation.js";

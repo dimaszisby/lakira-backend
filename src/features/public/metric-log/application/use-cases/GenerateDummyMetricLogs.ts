@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
-import { models } from "@/infrastructure/db/models.js";
 import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricLogRepository } from "../../domain/repositories/MetricLogRepository.js";
 import { CachePort } from "../ports/CachePort.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import {
@@ -26,6 +26,7 @@ export class GenerateDummyMetricLogs {
     private access: MetricAccessPort,
     private cache: CachePort,
     private queue: MessageQueuePort,
+    private repo: MetricLogRepository,
   ) {}
 
   async execute({
@@ -52,7 +53,7 @@ export class GenerateDummyMetricLogs {
 
     // Sync fallback when queue is disabled (development / tests)
     for (let i = 0; i < count; i++) {
-      await models.MetricLog.create({
+      await this.repo.create({
         metricId,
         organizationId,
         logValue: Number((Math.random() * 100).toFixed(2)),

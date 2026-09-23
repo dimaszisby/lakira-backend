@@ -1,6 +1,6 @@
 import { MetricSettingsRepositorySequelize } from "./infrastructure/persistence/MetricSettingsRepositorySequelize.js";
 import { MetricSettingsCacheInvalidator } from "./infrastructure/providers/MetricSettingsCacheInvalidator.js";
-import { MetricAccessSequelize } from "@/features/metric/infrastructure/providers/MetricAccessSequelize.js";
+import { MetricAccessSequelize } from "@/features/metric/public.js";
 import { CreateMetricSettings } from "./application/use-cases/CreateMetricSettings.js";
 import { GetMetricSettings } from "./application/queries/GetMetricSettings.js";
 import { UpdateMetricSettings } from "./application/use-cases/UpdateMetricSettings.js";

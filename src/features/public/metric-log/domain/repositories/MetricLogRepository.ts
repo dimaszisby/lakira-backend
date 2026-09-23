@@ -1,4 +1,5 @@
 import { MetricLog } from "../entities/MetricLog.js";
+import type { PersistenceTransaction } from "@/shared/application/ports/MessageIdempotencyPort.js";
 
 export type CreateMetricLogDTO = {
   metricId: string;
@@ -15,7 +16,10 @@ export interface MetricLogRepository {
     loggedAt: Date,
     excludeLogId?: string,
   ): Promise<boolean>;
-  create(data: CreateMetricLogDTO): Promise<MetricLog>;
+  create(
+    data: CreateMetricLogDTO,
+    tx?: PersistenceTransaction,
+  ): Promise<MetricLog>;
   findById(
     userId: string,
     organizationId: string,

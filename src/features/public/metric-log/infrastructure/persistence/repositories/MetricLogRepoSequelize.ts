@@ -1,6 +1,7 @@
-import { Op } from "sequelize";
+import { Op, Transaction } from "sequelize";
 import { models } from "@/infrastructure/db/models.js";
 import AppError from "@/utils/AppError.js";
+import type { PersistenceTransaction } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import {
   CreateMetricLogDTO,
   MetricLogRepository,
@@ -44,16 +45,23 @@ export class MetricLogRepoSequelize implements MetricLogRepository {
     return count > 0;
   }
 
-  async create(data: CreateMetricLogDTO): Promise<MetricLog> {
-    const created = await models.MetricLog.create({
-      metricId: data.metricId,
-      organizationId: data.organizationId,
-      logValue: data.logValue,
-      type: data.type,
-      loggedAt: data.loggedAt,
-    });
+  async create(
+    data: CreateMetricLogDTO,
+    tx?: PersistenceTransaction,
+  ): Promise<MetricLog> {
+    const transaction = tx as Transaction | undefined;
+    const created = await models.MetricLog.create(
+      {
+        metricId: data.metricId,
+        organizationId: data.organizationId,
+        logValue: data.logValue,
+        type: data.type,
+        loggedAt: data.loggedAt,
+      },
+      { transaction },
+    );
 
-    await created.reload();
+    await created.reload({ transaction });
     return toDomain(toRow(created));
   }
 
