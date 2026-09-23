@@ -34,58 +34,17 @@ adds nothing to `package.json`.
 
 ## D-02 — The 11 model associations are frozen at an exact count, not allowlisted
 
-- **Status:** Accepted
-- **Date:** 2026-09-22
-
-**Context.** 11 of the 25 cross-feature imports are Sequelize models importing each other to declare
-foreign-key associations. They cannot route through `index.ts` without risking circular imports
-between slices, and they cannot simply be deleted — see D-03.
-
-**Decision.** Assert the count is exactly 11. A 12th fails CI; so does removing one without updating
-the number.
-
-**Options considered.**
-
-- _A named allowlist of the 11 file→target pairs._ Rejected: more precise and self-documenting, but
-  it churns on any file rename, and — more importantly — an allowlist reads as permission. The
-  point is to record a debt, not to bless it.
-- _A ceiling (`<= 11`)._ Rejected: new violations fail, but a drop from 11 to 4 passes silently and
-  the number drifts away from reality until someone looks. A ratchet should resist movement in both
-  directions; each one should be a deliberate act.
-
-**Consequences.** Someone adding a legitimate association gets a red build and must edit a number.
-That is the intended friction, but it will look like a false positive to whoever meets it first, so
-the assertion carries a message explaining what to do and pointing here.
+Promoted to the architecture decision registry as
+**[ADR-0044](../../../explanation/decisions/adr-0044-feature-boundaries-and-their-frozen-exceptions.md)**.
+That file is authoritative; this entry is a pointer.
 
 ---
 
 ## D-03 — Cross-module foreign keys are the real violation; ID-only references are the destination
 
-- **Status:** Accepted
-- **Date:** 2026-09-22
-
-**Context.** The question behind C4 was which cross-feature imports count as violations. The 11
-model associations look like a necessary exception — Sequelize needs direct model references to
-declare a `belongsTo`.
-
-**Decision.** Record that they are **not** an exception but the deepest instance of the problem, and
-that the destination is ID-only references across module boundaries. Freeze them now; do not fix
-them in this kit.
-
-**Options considered.**
-
-- _Treat model associations as permanently legitimate._ Rejected: it is the industry-standard end
-  state for a modular monolith that modules do not share a schema and hold no cross-module FKs —
-  references are by ID, and integrity across modules moves to the application layer. Declaring the
-  associations fine would write the wrong destination into the rules.
-- _Remove the FKs in this kit._ Rejected on size. It means new migrations, rewriting every
-  cross-slice eager load, and deciding what replaces the database's integrity guarantees. That is a
-  multi-week initiative; C4 is a P1 caveat about a weak test.
-
-**Consequences.** The freeze is a staging post with a documented direction rather than a decision
-that 11 violations are acceptable. Promotion candidate for **ADR-0044**, together with D-02 —
-"which cross-feature imports are violations" constrains how every future slice is built and would
-matter to someone who never saw this kit.
+Promoted to the architecture decision registry as
+**[ADR-0044](../../../explanation/decisions/adr-0044-feature-boundaries-and-their-frozen-exceptions.md)**.
+That file is authoritative; this entry is a pointer.
 
 ---
 
@@ -168,3 +127,13 @@ is none of those.
 **This is the second time a barrel cycle has shaped this kit.** D-02 froze the model associations
 partly on the same reasoning. If the router-construction fix above is ever done, both decisions
 should be revisited — the freeze may no longer be necessary.
+
+---
+
+## D-06 — Domain errors carry a semantic `kind`; the HTTP adapter owns the status
+
+Promoted to the architecture decision registry as
+**[ADR-0044](../../../explanation/decisions/adr-0044-feature-boundaries-and-their-frozen-exceptions.md)**.
+That file is authoritative; this entry is a pointer.
+
+---

@@ -6,7 +6,14 @@ env refusal per ADR-0036, both now Accepted). Of the original C1–C6 caveats, *
 **C5 and C6 are closed as of 2026-09-21** (log-redaction coverage and a Sentry `beforeSend`; C5's
 severity was overstated — see its note below the table); **C2 is
 partly resolved** — the cause this audit cites is gone, though a residual remains (see its note
-below the table); **C4 remains open-unchanged.**
+below the table); **C4 is closed as of 2026-09-23** (feature
+boundaries enforced in ESLint, the model-association exception frozen, and HTTP status codes out of
+the domain layer — ADR-0044).
+
+**Five of six are now code-closed; only C2 remains, and it is a judgement call rather than a
+change.** Per the fix-status convention below the table, restating the verdict as **GOLD** and
+producing a new dated audit run per ADR-002 is now gated on that one decision.
+
 Historical context follows.
 The 2026-06-05 re-audit confirmed the 05-24 baseline holds (zero source code drift between
 audits) but surfaced two **NEW P0** (cache-layer cross-tenant scoping) and one **NEW HIGH**
@@ -128,7 +135,7 @@ fast hardening wins C2/C5/C6, then C4.
 | **C1** | **Fork flow doesn't work as printed** — `bootstrap-fork.sh` rotates `JWT_SECRET` / sets `APP_NAME` only in `.env.development` (gitignored, absent on fresh clone → silent no-op); its printed step 4 `npm test` fails out-of-box (84 suites) without `.env.test`, which is never mentioned. | P1  | ≤1d   | ✅ Fixed (`8adf7b8`) |
 | **C2** | **Lakira branding leaks into the forked runtime** — `src/config/app-name.ts:4` defaults to `"lakira-backend"`; because C1's `APP_NAME` write misses, a fresh fork brands logs/OpenAPI/queues/emails as "lakira-backend".                                                                    | P2  | ≤1h   | ⚠️ Partly — see note |
 | **C3** | **Error envelope inconsistent + undocumented** — `error.ts` hand-rolls 3 shapes (incl. an undocumented `"fail"` status), bypassing `errorResponse()`, violating `api-design.md`; OpenAPI documents no 4xx/5xx schema (only 429).                                                            | P1  | ≤1d   | ✅ Fixed (`75cfdaa`) |
-| **C4** | **Architecture test too weak** — enforces only 3 narrow checks, no negative cases; real app→infra ORM writes, `AppError` in domain entities, and cross-feature deep imports pass green.                                                                                                     | P1  | ≤1d   | ☐ Open               |
+| **C4** | **Architecture test too weak** — enforces only 3 narrow checks, no negative cases; real app→infra ORM writes, `AppError` in domain entities, and cross-feature deep imports pass green.                                                                                                     | P1  | ≤1d   | ✅ Fixed             |
 | **C5** | **Sentry has no PII scrubbing** — `Sentry.init()` lacks a `beforeSend` to strip `authorization`/`cookie`/body secrets before egress.                                                                                                                                                        | P2  | ≤1h   | ✅ Fixed — see note  |
 | **C6** | **Log-redaction suffix-anchored** — `SENSITIVE_KEY_PATTERN` misses `authorization`, `cookie`, `bearer`, `passwordHash` (latent: nothing logs them today).                                                                                                                                   | P2  | ≤1h   | ✅ Fixed             |
 

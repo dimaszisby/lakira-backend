@@ -1,4 +1,4 @@
-import AppError from "@/utils/AppError.js";
+import { ValidationError } from "@/shared/domain/errors/DomainError.js";
 
 export type DisplayOptionsProps = {
   showOnDashboard: boolean;
@@ -80,9 +80,8 @@ export class MetricSettings {
       update.goalValue = null;
     } else if (update.goalEnabled === true) {
       if (update.goalType == null || update.goalValue == null) {
-        throw new AppError(
+        throw new ValidationError(
           "goalType and goalValue are required when goalEnabled is true",
-          400,
         );
       }
     }
@@ -92,22 +91,20 @@ export class MetricSettings {
       update.deadlineDate = null;
     } else if (update.timeFrameEnabled === true) {
       if (!update.startDate || !update.deadlineDate) {
-        throw new AppError(
+        throw new ValidationError(
           "Valid startDate and deadlineDate required when timeFrameEnabled is true",
-          400,
         );
       }
       if (update.deadlineDate <= update.startDate) {
-        throw new AppError("deadlineDate must be after startDate", 400);
+        throw new ValidationError("deadlineDate must be after startDate");
       }
     }
 
     if (update.alertEnabled === false) {
       update.alertThresholds = null;
     } else if (update.alertEnabled === true && update.alertThresholds == null) {
-      throw new AppError(
+      throw new ValidationError(
         "alertThresholds is required when alertEnabled is true",
-        400,
       );
     }
 

@@ -1,6 +1,6 @@
 # Feature boundaries — Plan
 
-- **Status:** PR 1 done; PR 2 not started
+- **Status:** Done
 - **Appetite:** 3 days across two PRs — past that, PR 1 alone closes two of C4's three claims
 - **Date:** 2026-09-22
 

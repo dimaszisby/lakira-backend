@@ -1,5 +1,9 @@
 import { Response, NextFunction } from "express";
 import AppError from "@/utils/AppError.js";
+import {
+  DomainError,
+  type DomainErrorKind,
+} from "@/shared/domain/errors/DomainError.js";
 import logger from "@/utils/logger.js";
 import { env } from "@/config/envManager.js";
 import { AuthRequest } from "@/types/request.context.js";
@@ -18,6 +22,20 @@ const MALFORMED_JSON_MESSAGE =
 
 /** Shown instead of a 5xx message in production so internals never leak. */
 const MASKED_SERVER_ERROR_MESSAGE = "Something went wrong!";
+
+/**
+ * Where the domain's vocabulary becomes HTTP's. Entities raise a `kind`; this is the
+ * only place that decides what status it answers with (ADR-0044 / feature-boundaries
+ * D-06). Keep it total — an unmapped kind would fall through to 500, turning a
+ * client mistake into a server fault and, in production, masking its message.
+ */
+const DOMAIN_ERROR_STATUS: Record<DomainErrorKind, number> = {
+  validation: 400,
+  unauthorized: 401,
+  forbidden: 403,
+  not_found: 404,
+  conflict: 409,
+};
 
 const isBodyParseError = (
   error: unknown,
@@ -63,9 +81,11 @@ export const createErrorHandler =
     const appError =
       err instanceof AppError
         ? err
-        : err instanceof UniqueConstraintError
-          ? new AppError("Duplicate value", 409)
-          : new AppError("Internal Server Error", 500);
+        : err instanceof DomainError
+          ? new AppError(err.message, DOMAIN_ERROR_STATUS[err.kind])
+          : err instanceof UniqueConstraintError
+            ? new AppError("Duplicate value", 409)
+            : new AppError("Internal Server Error", 500);
 
     if (appError.statusCode >= 500) {
       Sentry.captureException(err, {
