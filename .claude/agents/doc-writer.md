@@ -48,7 +48,10 @@ Two rules keep the tree honest:
 
 1. **One quadrant per document.** If it both teaches and specifies, split it.
 2. **Generated files are never hand-edited.** `docs/reference/api/lakira-backend-openapi.json`
-   comes from Zod schemas and is drift-gated in CI — edit `src/lib/openapi/**` instead.
+   comes from Zod schemas and is drift-gated in CI — edit `src/lib/openapi/**` instead. It is also
+   **validity-gated**: `docs:openapi:validate` resolves every `$ref` and checks operation ids and
+   responses. Drift-gating alone was not enough — a spec that is self-consistently wrong passes a
+   diff, and one did, breaking a downstream repo's type generation.
 
 If a document does not obviously fit, it is usually working material: put it under
 `docs/internal/` rather than inventing a new top-level folder.
