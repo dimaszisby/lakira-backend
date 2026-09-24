@@ -12,7 +12,7 @@ OpenAPI docs are generated from runtime-adjacent Zod/OpenAPI definitions in:
 - `src/lib/openapi/openapi-config.ts`
 - `src/lib/openapi/openapi-schemas.ts`
 - `src/lib/openapi/openapi-docs.ts`
-- Feature validation schemas under `src/features/*/infrastructure/http/schema.zod.ts`
+- Feature validation schemas under `src/features/*/*/infrastructure/http/schema.zod.ts`
 
 Generated artifact:
 

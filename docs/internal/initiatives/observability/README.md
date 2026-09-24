@@ -50,5 +50,5 @@ Adds the four observability primitives the audit identified as missing: request-
 - **Closes audit gaps:** [P0-5.1] (request-ID), [P1-5.2] (Sentry), [P1-5.3] (readiness probe), [P1-4.3] (Winston redaction) in `docs/internal/audits/saas-readiness/audit-2026-05-01.md`.
 - **Owning ADRs:** ADR-005 (phase order) in `docs/internal/audits/saas-readiness/decisions.md`; (kit-local) ADR-001 (ALS vs cls-rtracer), ADR-002 (Sentry init lifecycle), ADR-003 (sensitive-keys module location) in `./decisions.md`.
 - **Effort:** M (4 distinct sub-tasks, all S individually but they touch the same files).
-- **Status:** Proposed.
+- **Status:** Done — shipped in #42 (`a26d36c`).
 - **Predecessor / dependency:** None — can run parallel to Phase 1 (JWT/refresh tokens). The Phase 1 `InvalidTokenError` will end up flowing through the Sentry-aware `errorHandler` once both ship.

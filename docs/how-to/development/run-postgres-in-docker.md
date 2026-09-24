@@ -12,10 +12,15 @@ This guide provides step-by-step instructions on how to install, configure, and 
 Use this backend’s Docker Compose harness only when you need full-stack parity (CI, pre-release validation). For everyday Jest iterations, run `npm run test:dev` on the host or let the VS Code Jest extension invoke it automatically. When you need the containerized suite:
 
 ```bash
-npm run test:ci -- --coverage
+npm run test:ci
 ```
 
-This command proxies to `scripts/test-ci.sh`, which resets the Compose stack (`db`, `redis`), waits for Postgres readiness, runs migrations, and executes Jest once with any additional flags you provide. If VS Code shows “The Compose app is no longer running,” it simply means the teardown in `test-ci.sh` completed—re-run the command to spin everything back up, or inspect `docker compose -f docker-compose.yml -f docker-compose.test.yml ps -a` for lingering containers.
+This command proxies to `scripts/test-ci.sh`, which runs `docker compose down -v` (this **deletes
+the Compose volumes**, including any local development data), builds the app image, starts `db`,
+`redis` and `rabbitmq`, waits for Postgres, runs migrations, then runs the unit suite, the
+integration suite and integration coverage inside the `app` container. It does **not** forward
+extra arguments, so `npm run test:ci -- --coverage` silently drops `--coverage`; use
+`npm run test:unit:coverage` / `npm run test:integration:coverage` for coverage. If VS Code shows “The Compose app is no longer running,” it simply means the teardown in `test-ci.sh` completed—re-run the command to spin everything back up, or inspect `docker compose -f docker-compose.yml -f docker-compose.test.yml ps -a` for lingering containers.
 
 **Host-side migrations:** When you run Jest directly on macOS/Linux without spinning up the `app` container, the Sequelize CLI still needs the Dockerized Postgres schema. Define the host override before invoking the CLI so it speaks to `127.0.0.1` instead of the Compose hostname `db`:
 
@@ -23,8 +28,11 @@ This command proxies to `scripts/test-ci.sh`, which resets the Compose stack (`d
 TEST_DATABASE_URL=postgres://lakira_user:lakira_password@127.0.0.1:5432/lakira_test_db \
 DB_HOST=127.0.0.1 \
 NODE_ENV=test \
-npx sequelize-cli db:migrate --config src/config/config.cjs
+npx sequelize-cli db:migrate --config src/config/config.cjs --migrations-path src/migrations
 ```
+
+Both flags are required: there is no `.sequelizerc`, so without `--migrations-path` the CLI looks in
+`./migrations`, which does not exist.
 
 Run the same command whenever you drop local volumes. CI already injects these values inside the `app` container, so no change is required there.
 
@@ -35,10 +43,10 @@ Run the same command whenever you drop local volumes. CI already injects these v
 The first step is to pull the official PostgreSQL image from Docker Hub. This image provides a pre-configured PostgreSQL environment that you can use to create containers.
 
 ```bash
-docker pull postgres:17-alpine
+docker pull postgres:18
 ```
 
-This command pulls the `postgres:17-alpine` image, which is a lightweight version of PostgreSQL based on Alpine Linux. You can choose a different version if needed. Consider using a specific version tag (e.g., `postgres:17.2`) for production to avoid unexpected updates.
+This command pulls the `postgres:18` image — the same major and the same Debian (glibc) base as Compose and CI. Do not swap in an `-alpine` tag: musl sorts text differently from glibc, which changes cursor-pagination order (see `docs/reference/environments.md`). Consider a specific version tag (e.g., `postgres:18.1`) for production to avoid unexpected updates.
 
 ## 2. Creating and Running a Container with Persistent Data Storage -> DONE
 
@@ -59,7 +67,7 @@ docker run -d \
   -e POSTGRES_PASSWORD=your_db_password \
   -e POSTGRES_DB=your_db_name \
   -e PGDATA=/var/lib/postgresql/data \
-  postgres:17-alpine
+  postgres:18
 ```
 
 -- Dev DB
@@ -73,7 +81,7 @@ docker run -d \
   -e POSTGRES_PASSWORD=password \
   -e POSTGRES_DB=lakira_development \
   -e PGDATA=/var/lib/postgresql/data \
-  postgres:17-alpine
+  postgres:18
 ```
 
 This command creates and runs a PostgreSQL container named `postgres_db`. It mounts the `pgdata` volume to the `/var/lib/postgresql/data` directory inside the container, which is where PostgreSQL stores its data. It also exposes port 5432 on the host machine, allowing you to connect to the database from your local machine. The `-e` flags set the environment variables for the database user, password, and database name. Replace `your_db_user`, `your_db_password`, and `your_db_name` with your desired values. The `PGDATA` environment variable explicitly sets the data directory.
@@ -158,7 +166,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 You might need to install additional packages in the Docker container to support certain extensions. This can be done by extending the base PostgreSQL image with a custom Dockerfile:
 
 ```dockerfile
-FROM postgres:17-alpine
+FROM postgres:18
 
 RUN apk add --no-cache postgresql-dev uuid-dev
 ```
@@ -214,7 +222,7 @@ When running Docker containers, it's important to stay up-to-date with the lates
 
 ### 11.1. Investigating the Discrepancy
 
-If `docker scout quickview postgres:17-alpine` indicates that a newer version (e.g., 1.17.0) is available, follow these steps to investigate:
+If `docker scout quickview postgres:18` indicates that a newer version (e.g., 1.17.0) is available, follow these steps to investigate:
 
 1.  **Verify the Reported Version:**
     - First, confirm the currently running PostgreSQL version inside the container:
@@ -227,7 +235,7 @@ If `docker scout quickview postgres:17-alpine` indicates that a newer version (e
 
 2.  **Identify the Source of the Update Recommendation:**
     - `docker scout quickview` might be recommending an update due to:
-      - **Base Image Updates:** The `postgres:17-alpine` base image itself has been updated with a newer PostgreSQL version.
+      - **Base Image Updates:** The `postgres:18` base image itself has been updated with a newer PostgreSQL version.
       - **Package Updates:** The Alpine Linux packages within the image have been updated.
 
 3.  **Check the Changelog:**
@@ -263,10 +271,10 @@ Before upgrading, consider the potential impact on your application and data. Al
     docker rm postgres_db
     ```
 
-    - Pull the latest `postgres:17-alpine` image:
+    - Pull the latest `postgres:18` image:
 
     ```bash
-    docker pull postgres:17-alpine
+    docker pull postgres:18
     ```
 
     - Create a new container with the updated image, using the same volume for data persistence:
@@ -280,7 +288,7 @@ Before upgrading, consider the potential impact on your application and data. Al
       -e POSTGRES_PASSWORD=your_db_password \
       -e POSTGRES_DB=your_db_name \
       -e PGDATA=/var/lib/postgresql/data \
-      postgres:17-alpine
+      postgres:18
     ```
 
 4.  **Verification:**
@@ -316,7 +324,7 @@ After changing the PostgreSQL version, it's crucial to verify that the data migr
 
 1.  **Data Migration Verification:**
     - **Check Data Integrity:** Run queries to verify that the data is intact and consistent. Compare the data in the new version with a backup of the old version.
-    - **Check Data Types:** Ensure that the data types are compatible with the new version. Some data types might have changed in PostgreSQL 17.
+    - **Check Data Types:** Ensure that the data types are compatible with the new version. Some data types might have changed in PostgreSQL 18.
     - **Check Constraints:** Verify that all constraints are still valid and that there are no constraint violations.
 
 2.  **Application Functionality Verification:**

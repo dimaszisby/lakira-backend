@@ -1,6 +1,6 @@
 # Documentation Overhaul — Plan
 
-- **Status:** Proposed — awaiting approval
+- **Status:** Done — landed directly on `dev` (`c896881` … `81f724d`) and in #60 (`638d75b`)
 - **Owner:** @dimaszisby
 - **Created:** 2026-08-16
 - **Companion:** [CHECKLIST.md](./CHECKLIST.md)

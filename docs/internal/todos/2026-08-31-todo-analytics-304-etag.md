@@ -1,6 +1,6 @@
 # Todo — analytics 304 responses omit validators
 
-- **Status:** Complete (2026-09-16) — fixed on `fix/analytics-304-validators`
+- **Status:** Complete (2026-09-16) — delivered by #93 (`b0d81bf`)
 - **Created:** 2026-08-31
 - **Owner:** unassigned
 - **Found by:** the newman retirement (`2026-08-31-todo-retire-newman.md`), while migrating the

@@ -2,7 +2,7 @@
 
 - **Status:** Proposed
 - **Date:** 2026-06-05
-- **Related:** Revises [ADR-0011](./adr-0011-where-the-canonical-ddd-layout-lives.md).
+- **Related:** Revises [ADR-0011](./adr-0011-where-the-canonical-ddd-layout-lives.md). Referenced by [ADR-0044](./adr-0044-feature-boundaries-and-their-frozen-exceptions.md).
 - **Origin:** `ADR-011` in the SaaS readiness audit kit — [`saas-readiness`](../../internal/audits/saas-readiness/decisions.md)
 
 ---

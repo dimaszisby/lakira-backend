@@ -9,10 +9,14 @@ Three properties follow from that:
   immediately with a field-level error, rather than failing later at first use.
 - **Read once.** The parsed object is cached; changing `process.env` after boot has no effect.
   Tests call `resetEnvCacheForTesting()` to clear it.
-- **Never read directly.** Application code uses `env.X`, never `process.env.X` — ESLint enforces
-  this outside the config layer.
+- **Never read directly.** Application code uses `env.X`, never `process.env.X`. This is a
+  convention, not a lint rule: ESLint bans `process.env` only in `__tests__/**` (use `withTestEnv`
+  there). The known exceptions in `src/` are `src/config/app-name.ts` and `src/utils/logger.ts`,
+  which load before `envManager` and so cannot use it.
 
-**`JWT_SECRET` is the only variable with no default.** Everything else boots without it.
+**Two things have no default: `JWT_SECRET`, and a database connection.** The database needs
+either a `DATABASE_URL` (or its per-environment variant) or all of `DB_USER`, `DB_PASSWORD` and
+`DB_NAME`; startup throws otherwise. Everything else boots on its default.
 
 Copy `.env.example` to `.env` to begin. Adding a variable means adding it to `zodEnv.ts` first —
 the schema is the source of truth, and this page is derived from it.
@@ -133,7 +137,7 @@ worker before `npm test`, because it would consume the test's messages.
 | `RATE_LIMIT_GLOBAL_MAX`                   | number  | `100`   | 15 min, per IP   |
 | `RATE_LIMIT_USER_MAX`                     | number  | `50`    | 15 min, per user |
 | `RATE_LIMIT_ANALYTICS_MAX`                | number  | `30`    | 1 min            |
-| `RATE_LIMIT_SWITCH_ORG_MAX`               | number  | `10`    |                  |
+| `RATE_LIMIT_SWITCH_ORG_MAX`               | number  | `10`    | 15 min           |
 | `RATE_LIMIT_EMAIL_VERIFICATION_EMAIL_MAX` | number  | `3`     | per email        |
 | `RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX`    | number  | `10`    | per IP           |
 | `RATE_LIMIT_PASSWORD_RESET_EMAIL_MAX`     | number  | `3`     | per email        |
@@ -144,8 +148,8 @@ worker before `npm test`, because it would consume the test's messages.
 > runs. Startup **refuses** it when `NODE_ENV=production`, along with the other
 > production-unsafe switches listed in
 > [ADR-0036](../explanation/decisions/adr-0036-refuse-production-unsafe-env-switches.md):
-> `ALLOW_TEST_HTTP_SERVER=true`, `SWAGGER_REQUIRE_AUTH=false`, and default `guest`
-> RabbitMQ credentials when `RABBITMQ_ENABLED=true`. The process exits before binding a
+> `ALLOW_TEST_HTTP_SERVER=true`, `SWAGGER_REQUIRE_AUTH=false`, `SKIP_DB_LIFECYCLE=true`,
+> `LOG_LEVEL=silly`, and default `guest` RabbitMQ credentials when `RABBITMQ_ENABLED=true`. The process exits before binding a
 > listener and logs a structured `[ENV_ERROR]` line naming the offending variable.
 
 ## Email

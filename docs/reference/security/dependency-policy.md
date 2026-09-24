@@ -6,7 +6,7 @@ Establish a predictable, portfolio-grade process for evaluating, triaging, and r
 
 ## Scope
 
-- **Runtime dependencies** (packages shipped with the service, Docker image, or Render deployment).
+- **Runtime dependencies** (packages shipped with the service: the Docker image, and today's Render deployment).
 - **Dev/test tooling** (lint, jest, schemathesis, etc.) — still tracked, but lower priority unless they compromise CI.
 - Direct and transitive packages listed in `package.json` / `package-lock.json`.
 - Node.js runtime itself (pinned to `20.x` via `.nvmrc`, `.node-version`, and CI env).

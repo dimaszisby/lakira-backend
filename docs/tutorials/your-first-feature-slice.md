@@ -6,7 +6,7 @@ open for any change in this codebase.
 Assumes you finished [Getting started](./getting-started.md) and have the API running.
 
 We will use `src/features/public/metric-category/` — the smallest slice that still has every
-layer, at 27 files.
+layer, at 28 files.
 
 ## The shape
 
@@ -27,7 +27,8 @@ metric-category/
 │   ├── cache/                  Redis adapter
 │   └── mappers/                row ⇄ entity
 ├── feature.ts                  wires it together
-└── index.ts                    what the rest of the app may import
+├── index.ts                    its routers, for src/server.ts only
+└── public.ts                   what other features may import (ADR-0044)
 ```
 
 One rule governs all of it: **dependencies point inward.** `domain/` imports nothing from the
@@ -164,4 +165,5 @@ npm run lint && npm run typecheck && npm run docs:openapi:generate && npm test
 - [C4 Level 3](../explanation/architecture/c4-components-auth.md) — the same anatomy on the
   largest slice
 - [ADR-0022](../explanation/decisions/adr-0022-transaction-port-consolidation.md) — how
-  transactions cross the boundary without leaking Sequelize
+  transactions are meant to cross the boundary without leaking Sequelize (Proposed: two
+  `TransactionPort`s still exist today)

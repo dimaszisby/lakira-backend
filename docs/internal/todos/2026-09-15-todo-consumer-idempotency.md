@@ -156,7 +156,7 @@ recent sessions, the second one during PR #86 itself.
 ## Review — 2026-09-15
 
 **Status:** Done on `feat/consumer-idempotency`, branched from `origin/dev` at `c0efebc`. Not yet
-committed.
+committed. _(Later: merged as #88, `9ebaee9` — added 2026-09-24.)_
 
 ### A second correction to carry forward
 

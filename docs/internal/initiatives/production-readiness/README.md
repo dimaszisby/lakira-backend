@@ -20,5 +20,5 @@ Harden the deployment pipeline and fill runtime safety gaps: multi-stage Dockerf
 - **Closes audit gaps:** [P1-8.3], [P1-8.4], [P1-4.4], [P1-7.1] in `docs/internal/audits/saas-readiness/audit-2026-05-01.md`
 - **Owning ADRs:** ADR-005 (phase order) in `docs/internal/audits/saas-readiness/decisions.md`; (kit-local) ADR-001, ADR-002 in `./decisions.md`
 - **Effort:** M (aggregate)
-- **Status:** Proposed
+- **Status:** Done — shipped in #51 (`5c16bee`)
 - **Predecessor / dependency:** Independent — can run in parallel with other phases

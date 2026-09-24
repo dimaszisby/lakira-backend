@@ -1,8 +1,18 @@
 # ADR-0019 — Refresh-token storage and rotation strategy
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-09-24 — implementation verified in code; see the status note)
 - **Date:** 2026-05-02
+- **Related:** Revised by [ADR-0043](./adr-0043-session-issuance-at-every-authenticated-entry-point.md) (registration also issues a refresh token).
 - **Origin:** `ADR-001` in the JWT kit — [`jwt`](../../internal/initiatives/jwt/decisions.md)
+
+> **Status note (2026-09-24).** Moved from Proposed by the `docs-sweep` kit
+> ([D-03](../../internal/initiatives/docs-sweep/decisions.md)): the decision below is in the code.
+> Evidence: `refresh_tokens` table (`20260503000000-create-refresh-tokens.cjs`), opaque rotating
+> tokens with family revocation on reuse, `POST /auth/refresh`, logout revokes the family,
+> `REFRESH_TOKEN_TTL_DAYS` default 30, `ACCESS_TOKEN_TTL_SEC` default 900.
+> **Differs from point 3:** the cookie is `SameSite=Strict`, not `Lax`, and is named
+> `<app>_refresh` (`controller.ts`). Registration was later added to the issuing endpoints by
+> [ADR-0043](./adr-0043-session-issuance-at-every-authenticated-entry-point.md).
 
 ---
 

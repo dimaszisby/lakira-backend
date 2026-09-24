@@ -2,7 +2,8 @@
 
 **Canonical list: [`docs/reference/commands.md`](../../docs/reference/commands.md).**
 
-That file is the single source of truth and is checked against `package.json`. This file used to
+That file is the single source of truth. Nothing checks it against `package.json` automatically, so
+update it in the same change as any script. This file used to
 carry a second copy, which drifted — it documented `npm run migrate:dev` and
 `npm run migrate:undo:dev`, neither of which has ever existed. Do not reintroduce a copy here;
 link instead.

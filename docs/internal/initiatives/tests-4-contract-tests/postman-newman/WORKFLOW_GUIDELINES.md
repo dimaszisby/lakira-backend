@@ -1,6 +1,6 @@
 # Postman/Newman Workflow Guidelines
 
-**Status:** Active
+**Status:** Superseded — Newman was retired in #75 (`a4635f3`); see this folder's `README.md`
 **Last updated:** 2026-04-13
 
 Use this workflow when API contract behavior changes.

@@ -1,6 +1,7 @@
 # Lakira Backend to Frontend CI/CD Handoff
 
-As of **February 16, 2026**, this document captures the backend details needed to implement frontend CI/CD safely.
+Written **February 16, 2026**; auth, CORS, CI-gate and path details re-checked against the code on
+**2026-09-24**. This document captures the backend details needed to implement frontend CI/CD safely.
 
 ---
 
@@ -11,16 +12,16 @@ FE convention: keep these equal per environment:
 - `API_URL`
 - `NEXT_PUBLIC_API_BASE_URL`
 
-| Target env            | `API_URL`                                            | `NEXT_PUBLIC_API_BASE_URL`                           | Backend health URL                                          | Status                                   |
-| --------------------- | ---------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------- |
-| `dev`                 | `http://localhost:4000/api/v1`                       | `http://localhost:4000/api/v1`                       | `http://localhost:4000/api/v1/health`                       | Active                                   |
-| `staging` / `preview` | `https://lakira-backend-staging.onrender.com/api/v1` | `https://lakira-backend-staging.onrender.com/api/v1` | `https://lakira-backend-staging.onrender.com/api/v1/health` | Active                                   |
-| `prod`                | `TBD`                                                | `TBD`                                                | `TBD`                                                       | Production backend URL not available yet |
+| Target env            | `API_URL`                                            | `NEXT_PUBLIC_API_BASE_URL`                           | Backend health URL                                          | Status                                             |
+| --------------------- | ---------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------- |
+| `dev`                 | `http://localhost:5000/api/v1`                       | `http://localhost:5000/api/v1`                       | `http://localhost:5000/api/v1/health`                       | Active (`npm run dev`; Compose `app` is on `8001`) |
+| `staging` / `preview` | `https://lakira-backend-staging.onrender.com/api/v1` | `https://lakira-backend-staging.onrender.com/api/v1` | `https://lakira-backend-staging.onrender.com/api/v1/health` | Active                                             |
+| `prod`                | `TBD`                                                | `TBD`                                                | `TBD`                                                       | Production backend URL not available yet           |
 
 Secret naming already used in docs:
 
 - FE CI secret: `STAGING_API_BASE_URL` (feed both FE vars in CI)
-- BE CI secret: `STAGING_BASE_URL` (backend contract tests/deploy jobs; same value as above)
+- BE CI secret: `STAGING_BASE_URL` (the `smoke_staging` job; same value as above)
 
 ---
 
@@ -50,35 +51,51 @@ Secret naming already used in docs:
 
 ### Auth strategy
 
-- Auth is JWT Bearer token based (header: `Authorization: Bearer <token>`).
-- `POST /api/v1/auth/login` and `POST /api/v1/auth/register` return a token in response payload.
-- JWT lifetime is 7 days (provider default).
-- `POST /api/v1/auth/logout` is stateless; FE should clear local token storage client-side.
+- Requests authenticate with a short-lived **access token** as a Bearer header
+  (`Authorization: Bearer <token>`), HS256-signed. Lifetime is `ACCESS_TOKEN_TTL_SEC`, default
+  **900 s (15 minutes)**.
+- `POST /api/v1/auth/login` and `POST /api/v1/auth/register` return the access token as
+  `data.token` **and** set a **refresh token** cookie (see below).
+- `POST /api/v1/auth/refresh` reads that cookie, rotates it (single use; reuse revokes the whole
+  token family), sets a new cookie and returns a new `data.token`. Refresh-token lifetime is
+  `REFRESH_TOKEN_TTL_DAYS`.
+- `POST /api/v1/auth/logout` revokes the refresh-token family server-side and clears the cookie.
+  The FE should also drop its in-memory access token.
+- Other auth routes: `/forgot-password`, `/reset-password`, `/verify-email`,
+  `/resend-verification`, `/switch-org` (all under `/api/v1/auth`).
 
 ### CORS behavior
 
-- CORS origin is controlled by backend env var `CORS_ORIGIN`.
-- Backend has `credentials: true`.
-- Allowed methods currently configured: `GET`, `POST`, `PUT`, `DELETE`.
+- CORS origin is controlled by backend env var `CORS_ORIGIN`: a comma-separated allowlist of exact
+  origins (ADR-0034). Unset, it defaults to `http://localhost:3000`.
+- Backend has `credentials: true` — required for the refresh cookie.
+- Allowed methods: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`.
 
 Guidance for FE deployment surfaces (documentation-only, no backend code change in this task):
 
-| FE surface    | CORS expectation                                                                                                                   |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Local FE      | `CORS_ORIGIN=http://localhost:3000`                                                                                                |
-| Preview FE    | Allow the preview origin strategy used by FE (single shared preview domain recommended until backend supports multi-origin config) |
-| Production FE | `TBD` until FE production domain is finalized                                                                                      |
+| FE surface    | CORS expectation                                                                                                                  |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Local FE      | `CORS_ORIGIN=http://localhost:3000`                                                                                               |
+| Preview FE    | List each preview origin in `CORS_ORIGIN` (comma-separated). Matching is exact — no wildcards, and case and trailing slash matter |
+| Production FE | `TBD` until FE production domain is finalized                                                                                     |
 
 ### CSRF and cookies
 
-- No CSRF token contract is currently enforced by backend.
-- No cookie-based auth contract is currently required by backend.
-- `Domain` / `SameSite` cookie settings are currently not part of the FE auth flow.
+- The refresh token is an **httpOnly cookie** named `<app>_refresh` (`lakira_refresh` for this
+  repo), `SameSite=Strict`, `Path=/api/v1/auth/refresh`, `Secure` in staging and production. The
+  FE never reads it; it only needs to send `credentials: "include"` on `/auth/refresh` and
+  `/auth/logout`. No `Domain` attribute is set, so it is host-only.
+- `SameSite=Strict` means the FE and API must be same-site for the cookie to be sent. A
+  cross-site setup (different registrable domains) will not refresh; do not weaken it to `None`
+  without a CSRF defence (open finding F7).
+- No CSRF token contract is enforced. The access token is a header, and the cookie is `Strict` and
+  scoped to one path.
 
 ### Important release risk to resolve before full FE CD
 
-- Backend exposes `PATCH` routes (`/metric-settings/:id/achieve`, `/metric-settings/:id/display`) but CORS allow-methods currently omit `PATCH`.
-- `CORS_ORIGIN` currently supports a single origin string, which may not cover branch-based Vercel preview domains.
+- Both risks previously listed here are resolved: `PATCH` is in the CORS allow-methods, and
+  `CORS_ORIGIN` accepts multiple origins. The remaining one is the `SameSite=Strict` constraint
+  above for cross-site preview domains.
 
 ---
 
@@ -90,13 +107,13 @@ Use this release rule:
 | ---------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------- |
 | FE-only UI/internal changes (no API contract change) | Yes                                 | FE deploy anytime                                                       |
 | BE-only internal changes (no API contract change)    | Yes                                 | BE deploy anytime                                                       |
-| Backward-compatible API additions/changes            | Partially (coordinate)              | BE first (staging `contract_staging` green), then FE                    |
+| Backward-compatible API additions/changes            | Partially (coordinate)              | BE first (staging `smoke_staging` green), then FE                       |
 | Breaking API changes                                 | No                                  | Introduce compatibility/versioning plan first, then coordinated rollout |
 
 Minimum gate before FE production promotion:
 
 1. Backend staging health green.
-2. Backend contract checks green (`contract_local`, plus `contract_staging` on `staging` branch).
+2. Backend checks green: `contract_local` (Schemathesis, pre-deploy), plus `smoke_staging` on the `staging` branch.
 3. FE CI checks green against staging API base URL.
 
 ---
@@ -113,7 +130,7 @@ Minimum gate before FE production promotion:
 ### Non-prod account flow
 
 - Local deterministic user (seed script): `contract-primary@lakira.dev` / `ContractPrimary!123`
-- Staging: use a dedicated synthetic test account (documented example: `staging-tester@lakira.app`) and/or `STAGING_CONTRACT_TOKEN` in CI
+- Staging: use a dedicated synthetic test account (documented example: `staging-tester@lakira.app`). The CI smoke suite needs no account or token
 - Do not commit staging credentials; store them only in GitHub/Vercel secrets
 
 ### Example post-deploy smoke sequence
@@ -144,8 +161,9 @@ curl -fsS "$STAGING_BASE_URL/metrics?limit=1" \
 - `docs/internal/initiatives/tests-4-contract-tests/seed-strategy.md`
 - `docs/reference/ci-pipeline/workflow-guidelines.md`
 - `src/server.ts`
-- `src/features/auth/infrastructure/http/authMiddleware.ts`
-- `src/features/auth/infrastructure/providers/JwtTokenProvider.ts`
+- `src/features/shared/auth/infrastructure/http/authMiddleware.ts`
+- `src/features/shared/auth/infrastructure/http/controller.ts` (cookie settings)
+- `src/features/shared/auth/infrastructure/providers/JwtTokenProvider.ts`
 
 ---
 

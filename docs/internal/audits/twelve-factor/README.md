@@ -99,6 +99,10 @@ Aligned with the saas-readiness kit so the two programs can be read together:
 
 ## Verdict summary
 
+> **Dated snapshot (banner added 2026-09-24).** This summary is the 2026-08-17 grading. TF-1, TF-3
+> and TF-11 have since closed, so Factor XI no longer carries a P0. The live open list is § 4 of the
+> audit file.
+
 Full reasoning is in [`audit-2026-08-17.md`](./audit-2026-08-17.md).
 
 | Status       | Factors             |

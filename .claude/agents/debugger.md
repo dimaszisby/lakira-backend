@@ -21,7 +21,7 @@ You are a senior backend debugger investigating issues in the Lakira Backend, an
 ## Project Structure Quick Reference
 
 - **Entry point**: `src/server.ts`
-- **Features**: `src/features/{auth,metric,metric-category,metric-log,metric-settings,analytics}/`
+- **Features**: `src/features/shared/auth/` and `src/features/public/{metric,metric-category,metric-log,metric-settings,analytics}/`
 - **Error handling**: `src/shared/middleware/error.ts` dispatches `AppError`, `ZodError`, `UniqueConstraintError`
 - **Validation**: Zod schemas in `schema.zod.ts` → `validate()` middleware → `req.validated`
 - **DB config**: `src/config/db.ts`, models registered in `src/infrastructure/db/models.ts`
@@ -34,11 +34,8 @@ You are a senior backend debugger investigating issues in the Lakira Backend, an
 # Run a single test
 npx jest --runInBand --selectProjects unit -- path/to/test.test.ts
 
-# Check DB connectivity (migrate:status validates the connection and shows pending migrations)
-npx sequelize-cli db:migrate:status
-
-# Check migration status
-npx sequelize-cli db:migrate:status
+# Check DB connectivity and pending migrations (there is no .sequelizerc, so both flags are needed)
+npx sequelize-cli db:migrate:status --config src/config/config.cjs --migrations-path src/migrations
 
 # Check Redis
 redis-cli ping
@@ -57,7 +54,7 @@ npm run typecheck 2>&1 | head -30
 - **404 not found**: Check route registration in `src/server.ts`, verify path matches
 - **409 conflict**: Sequelize `UniqueConstraintError` — check unique indexes on the model
 - **500 internal**: Read the full stack trace, check `errorHandler` middleware behavior per environment
-- **Test fixture issues**: Check `truncateAllTables()` in `jest.setup.ts`, verify test DB migrations are current
+- **Test fixture issues**: Check the per-test truncation in `jest.setup.ts` (the reusable `truncateAllTables()` lives in `__tests__/integration/helpers/db-fixtures.ts`), verify test DB migrations are current
 
 ## Output Format
 

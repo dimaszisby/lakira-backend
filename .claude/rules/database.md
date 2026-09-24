@@ -47,7 +47,9 @@ module.exports = {
 ## Model Registration
 
 - Models defined in feature's `infrastructure/persistence/models/`
-- Each model file exports `registerXModels(sequelize)` and `associateXModels(models)`
+- Each feature exports `registerXModels(sequelize)` and `associateXModels(models)` from one of its
+  model files (e.g. `registerAuthModels` in `shared/auth/.../models/user.sequelize.ts`); individual
+  model files export their own `associateX` helpers
 - All models registered in `src/infrastructure/db/models.ts` (cached singleton)
 - DB column names use `snake_case`; domain properties use `camelCase`
 
@@ -65,6 +67,7 @@ Mapper:          XMapper.toDomain(sequelizeModel) / XMapper.toPersistence(domain
 
 ## Sequelize CLI Config
 
-- `.sequelizerc` points CLI to `src/config/config.cjs` and `src/migrations/`
+- There is no `.sequelizerc`: every `migrate:*` script passes `--config src/config/config.cjs` and
+  `--migrations-path src/migrations` explicitly. Running `npx sequelize-cli` by hand needs both flags
 - Environment-specific connection strings: `DEVELOPMENT_DATABASE_URL`, `TEST_DATABASE_URL`, etc.
 - SSL enabled for staging/production (`dialectOptions.ssl`)

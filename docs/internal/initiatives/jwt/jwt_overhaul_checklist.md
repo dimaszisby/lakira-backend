@@ -10,8 +10,8 @@
 ## Phase B – Token Semantics
 
 - [ ] Configure `jwt.sign` / `jwt.verify` with explicit `algorithm`, `issuer`, `audience`, and `subject`.
-- [ ] Adjust lifetimes (short-lived access token + optional refresh token) and document policy.
-- [ ] Implement refresh-token store (DB/Redis) with rotation & revocation handling if product scope allows.
+- [x] Adjust lifetimes (short-lived access token + optional refresh token) and document policy. — Phase D, #41 (ADR-0019)
+- [x] Implement refresh-token store (DB/Redis) with rotation & revocation handling if product scope allows. — Phase D, #41 (ADR-0019)
 - [ ] Add structured logging + metrics for token issuance, verification failures, and refresh operations.
 
 ## Phase C – Rotation & Operations

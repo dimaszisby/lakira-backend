@@ -1,6 +1,6 @@
 # Log redaction coverage
 
-**Status:** Complete — C6 and C5 closed, all gates green, awaiting PR.
+**Status:** Complete — merged in #104 (`b28381a`); follow-up #105 (`21f12eb`). C6 and C5 closed.
 **Slug:** `log-redaction-coverage` · **Branch:** `fix/log-redaction-coverage`
 
 Lean kit — no plan; acceptance criteria live in the checklist.

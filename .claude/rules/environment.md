@@ -32,6 +32,6 @@ For tests: `resetEnvCacheForTesting()` clears the cache so test env can be reloa
 
 1. Add to Zod schema in `src/config/zodEnv.ts` with type, default, and description
 2. Use in code via `const env = loadEnvOrExit(); env.YOUR_VAR`
-3. Add to `env.test.example` if needed for test setup
+3. Add to `.env.test.example` if needed for test setup
 4. If sensitive, it auto-masks in logs — the live pattern is `SENSITIVE_KEY_PATTERN` in
    `src/config/sensitive-keys.ts`. Name new secrets so they match it, or add a term there.

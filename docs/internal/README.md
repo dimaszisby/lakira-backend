@@ -28,11 +28,12 @@ Nothing here describes how the system works today. For that, use the four Diáta
 
 ## Two things to know before pruning
 
-**`audits/saas-readiness/` tracks unresolved risk, not history.** As of `audit-2026-06-05.md`
-there are two open P0s and one open HIGH. The cache-key finding is still live in
-`src/features/public/analytics/infrastructure/cache/VisualizationCacheRedis.ts`, which builds
-keys as `viz:${userId}:…` with no `organizationId` component. Read that audit before assuming
-the repo is clean.
+**`audits/saas-readiness/` tracks unresolved risk, not history.** Its live status is
+[`FINAL-AUDIT-SUMMARY.md`](audits/saas-readiness/FINAL-AUDIT-SUMMARY.md). As of 2026-09-24 there
+are no open P0 or HIGH findings: the 2026-06-05 cache-key P0s and the rate-limit HIGH closed in
+`f5f28b9` (#64), and all six C1–C6 caveats are closed. Open P1/P2 findings (N4, N6–N11, F4–F7)
+are listed in that file's § 7. Read it, not an individual dated audit, before assuming what is
+open.
 
 **Historical documents are left factually as-written.** Review evidence and incident records
 quote paths and commands as they were at the time. Where those paths have since moved, the text

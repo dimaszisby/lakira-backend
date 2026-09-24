@@ -2,6 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-05-11
+- **Related:** Supersedes [ADR-0016](./adr-0016-require-admin-lives-under-shared-auth.md) (`requireAdmin`).
 - **Origin:** `ADR-002` in the Multi-tenancy kit — [`multi-tenancy`](../../internal/initiatives/multi-tenancy/decisions.md)
 
 ---

@@ -5,7 +5,7 @@
 - [x] Add `rabbitmq:3.13-management-alpine` to `docker-compose.yml` — _pending user confirmation (hook protected)_
 - [x] Add `RABBITMQ_*` vars to `src/config/zodEnv.ts` — branch `pr/dev-weeks-work`
 - [x] Add `normalizeRabbitMQConfig` to `buildEnv` — branch `pr/dev-weeks-work`
-- [ ] Add `RABBITMQ_*` vars to `.env.test.example` — manual edit required (hook protected)
+- [x] Add `RABBITMQ_*` vars to `.env.test.example` — present; retry var added in #92 (`c17c923`)
 - [x] Install `amqplib`, `amqp-connection-manager`, `@types/amqplib`
 
 ## Phase 1 — Shared Infrastructure (PR 1)
@@ -21,7 +21,7 @@
 - [x] Add `worker`, `worker:dev`, `worker:staging` scripts to `package.json`
 - [x] Wire `connectRabbitMQ` + `disconnectRabbitMQ` into `src/server.ts` shutdown
 - [x] `npm run typecheck` passes clean
-- [ ] Documentation kit (README, plan, checklist, decisions) — this file
+- [x] Documentation kit (README, plan, checklist, decisions) — this file
 
 ## Phase 2 — First Feature Migration (PR 2)
 

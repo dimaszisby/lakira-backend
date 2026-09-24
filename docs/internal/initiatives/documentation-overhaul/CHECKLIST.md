@@ -1,6 +1,6 @@
 # Documentation Overhaul — Checklist
 
-- **Status:** Proposed — awaiting approval
+- **Status:** Done — landed directly on `dev` (`c896881` … `81f724d`) and in #60 (`638d75b`)
 - **Companion:** [PLAN.md](./PLAN.md)
 - **Branch:** create off `dev` (per `.claude/rules/workflow.md`)
 
@@ -652,8 +652,9 @@ grep -rhoE '(docs)/[A-Za-z0-9._/-]+\.(md|json|ts|js|mjs|py|yml)' docs *.md .clau
 
 Surfaced during the audit; each deserves its own ticket:
 
-- [ ] **Open P0s** — ADR-009/010/011 remain unimplemented. `VisualizationCacheRedis.ts` cache keys
-      lack `organizationId`; `DISABLE_RATE_LIMITING` has no production guard.
+- [x] **Open P0s** — ADR-009/010 fixed in #64 (`f5f28b9`): cache keys carry `organizationId` and
+      `DISABLE_RATE_LIMITING` is refused in production. (Updated 2026-09-24.)
+- [ ] ADR-011 (registry ADR-0037, the persistence-layout migration) is still Proposed.
 - [ ] `security/audit/audit-2026-05-18/` is still marked "Planned" — three months past its scheduled
       execution date, with the next quarterly cycle now due.
 - [x] ~~`express-openapi-validator` is a declared dependency with zero imports~~ — removed, along

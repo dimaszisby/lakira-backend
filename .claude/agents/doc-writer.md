@@ -134,7 +134,7 @@ touch docs/internal/initiatives/<topic>/{README.md,<topic>-plan.md,<topic>-check
 
 - Run `npm run docs:openapi:generate` to regenerate the spec
 - Cross-reference the generated OpenAPI spec (`docs/reference/api/`) for route inventory
-- Follow Zod schema naming from `src/features/<name>/api/schema.zod.ts`
+- Follow Zod schema naming from `src/features/<audience>/<name>/infrastructure/http/schema.zod.ts`
 - Document: method, path, auth required, request body shape, response codes, example
 
 ### Architecture docs (`docs/explanation/architecture/`)

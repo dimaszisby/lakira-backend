@@ -54,7 +54,7 @@ Read every modified file top to bottom. Map which features, layers, and APIs wer
 - No mocked database in integration tests — must hit real DB
 - Tests cover happy path AND edge cases (invalid input, unauthorized, not found)
 - No `test.only` or `test.skip` left in merged code
-- Coverage thresholds respected (check `jest.config.ts`)
+- Coverage thresholds respected (check `jest.config.mjs`)
 
 ## Step 6: Performance
 

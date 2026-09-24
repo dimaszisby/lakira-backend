@@ -77,7 +77,7 @@ describe("MyUseCase", () => {
 
 ## Integration Test Template
 
-Read existing tests in `__tests__/integration/` and `__tests__/helpers/db-fixtures.ts` for reference, then create:
+Read existing tests in `__tests__/integration/` and the helpers in `__tests__/integration/helpers/` (`test-utils.ts` for HTTP-level setup, `db-fixtures.ts` for direct rows) for reference, then create:
 
 ```typescript
 import { models } from "@/infrastructure/db/models.js";
@@ -107,7 +107,7 @@ describe("FeatureName (integration)", () => {
 
 - **`build()` factory** returns SUT + all mocked deps — one source of truth for test setup
 - **`jest.resetAllMocks()`** in `beforeEach` — prevents test pollution
-- **Domain factories** (`makeUser()`, `makeMetric()`) for creating test entities
+- **Entity helpers**: build entities through their real factories, in a local `makeX()` helper in the test file (there are no shared `makeUser()`/`makeMetric()`; `__tests__/unit/factories/` holds only `metric-settings.ts`)
 - **Never use `process.env` directly** — use `withTestEnv()` helper for unit tests
 - **Test names**: describe behavior, not implementation ("should return 404 when metric not found")
 - **Coverage targets**: Unit 60% statements, Integration 70% statements

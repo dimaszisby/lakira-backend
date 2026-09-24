@@ -45,7 +45,7 @@ These guidelines define **how to design, write, and maintain** GitHub Actions wo
 Use clear workflow names and consistent triggers:
 
 ```yaml
-name: backend-ci
+name: Lakira Backend CI # promote-dev-to-staging.yml triggers on this exact name
 
 on:
   push:
@@ -53,7 +53,12 @@ on:
       - main
       - dev
       - staging
-      - "feature/**"
+      - "feat/**"
+      - "fix/**"
+      - "chore/**"
+      - "ci/**"
+      - "docs/**"
+      - "refactor/**"
   pull_request:
     branches:
       - main
@@ -68,30 +73,41 @@ on:
 
 Standard jobs:
 
-- `checks` – lint & typecheck
+- `checks` – lint, format, typecheck, OpenAPI check
+- `security_delta` – security framework tests, dependency delta, gate evaluation
 - `tests` – unit + integration tests
-- `contract_local` – contract tests against locally started backend
-- `deploy_staging` – deploy to Render staging (staging branch gate)
-- `contract_staging` – contract tests against staging (staging branch gate)
+- `contract_local` – Schemathesis against a locally started backend
+- `deploy_staging` – deploy to Render staging (`staging` branch only)
+- `smoke_staging` – smoke suite against live staging (`staging` branch only)
+- `deploy_production` – deploy to production (`main` branch only, approval-gated)
 
 Use `needs` to enforce ordering:
 
 ```yaml
 jobs:
   checks:
-    # first
+    # first, in parallel with security_delta
+
+  security_delta:
+    # no needs
 
   tests:
-    needs: [checks]
+    needs: [checks, security_delta]
 
   contract_local:
-    needs: [tests]
+    needs: tests
 
   deploy_staging:
-    needs: [contract_local]
+    needs: contract_local
+    if: github.ref == 'refs/heads/staging'
 
-  contract_staging:
-    needs: [deploy_staging]
+  smoke_staging:
+    needs: deploy_staging
+    if: github.ref == 'refs/heads/staging'
+
+  deploy_production:
+    needs: contract_local
+    if: github.ref == 'refs/heads/main'
 ```
 
 ### 3.3 Concurrency
@@ -120,8 +136,8 @@ jobs:
     timeout-minutes: 30
   deploy_staging:
     timeout-minutes: 15
-  contract_staging:
-    timeout-minutes: 20
+  smoke_staging:
+    timeout-minutes: 10
 ```
 
 Avoid unbounded runtimes; keep timeouts visible and justifiable.
@@ -170,7 +186,7 @@ Workflows that require data stores (e.g. `tests`, `contract_local`) should defin
 ```yaml
 services:
   postgres:
-    image: postgres:15
+    image: postgres:18
     env:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD_TEST }}
@@ -184,7 +200,7 @@ services:
       --health-retries=5
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
     ports:
       - 6379:6379
     options: >-
@@ -234,7 +250,7 @@ env:
   JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
 ```
 
-> Special Note for Codex: Before proposing new secrets or env var names, cross-check `ENVIRONMENTS_MATRIX.md` so the same identifiers exist everywhere (GitHub, Render, docs).
+> Special Note for Codex: Before proposing new secrets or env var names, cross-check `docs/reference/environments.md` so the same identifiers exist everywhere (GitHub, Render, docs).
 
 Never:
 
@@ -305,10 +321,16 @@ When a job fails:
 
 ## 8. Example Skeleton: `backend-ci.yml`
 
-The main backend CI workflow should roughly align with this skeleton:
+> **Illustrative only.** This skeleton shows the shape; `.github/workflows/backend-ci.yml` is the
+> source of truth and has more steps (seeding, Schemathesis, the RabbitMQ service, artefact
+> uploads). Copy from the real file, not from here. The values that must match exactly — the
+> workflow name, triggers, job names and `needs`, and service images — were re-checked on
+> 2026-09-24.
+
+The main backend CI workflow roughly aligns with this skeleton:
 
 ```yaml
-name: backend-ci
+name: Lakira Backend CI # promote-dev-to-staging.yml triggers on this exact name
 
 on:
   push:
@@ -316,7 +338,12 @@ on:
       - main
       - dev
       - staging
-      - "feature/**"
+      - "feat/**"
+      - "fix/**"
+      - "chore/**"
+      - "ci/**"
+      - "docs/**"
+      - "refactor/**"
   pull_request:
     branches:
       - main
@@ -345,12 +372,12 @@ jobs:
       - run: npm run docs:openapi:check
 
   tests:
-    needs: checks
+    needs: [checks, security_delta]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
       postgres:
-        image: postgres:15
+        image: postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD_TEST }}
@@ -363,7 +390,7 @@ jobs:
           --health-timeout=5s
           --health-retries=5
       redis:
-        image: redis:7
+        image: redis:7-alpine
         ports:
           - 6379:6379
         options: >-
@@ -399,7 +426,7 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:15
+        image: postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD_TEST }}
@@ -412,7 +439,7 @@ jobs:
           --health-timeout=5s
           --health-retries=5
       redis:
-        image: redis:7
+        image: redis:7-alpine
         ports:
           - 6379:6379
         options: >-
@@ -488,8 +515,8 @@ jobs:
 When changing job structure, timeouts, secrets, or artifact paths:
 
 - Update this file,
-- Update `GITHUB_ACTIONS_PIPELINE_PLAN.md`,
-- Update `GITHUB_ACTIONS_PIPELINE_CHECKLIST.md`,
+- Update `docs/internal/initiatives/ci-pipeline/GITHUB_ACTIONS_PIPELINE_PLAN.md`,
+- Update `docs/internal/initiatives/ci-pipeline/GITHUB_ACTIONS_PIPELINE_CHECKLIST.md`,
 - Keep `.github/workflows/backend-ci.yml` in sync.
 
 This keeps the backend CI documentation and implementation aligned and ready for portfolio review.

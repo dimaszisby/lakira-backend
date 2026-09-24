@@ -1,10 +1,15 @@
 # ADR-0016 — `requireAdmin` lives under `shared/auth/infrastructure/http/`
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0030](./adr-0030-membership-role-replaces-users-role.md)
 - **Date:** 2026-05-01
 - **Origin:** `ADR-005` in the Feature audience restructure kit — [`feature-audience-restructure`](../../internal/initiatives/feature-audience-restructure/decisions.md)
 - **Note:** originally logged as _Proposed_.
 - **Note:** date backfilled from git history; the kit left it as `YYYY-MM-DD`.
+
+> **Status note (2026-09-24).** `requireAdmin` no longer exists. ADR-0030 replaced it with
+> `requireOrgRole` / `assertHasOrgRole`
+> (`src/features/shared/auth/infrastructure/http/assertHasOrgRole.ts`), which read
+> `req.membership.role`. The location decision below applies to that file instead.
 
 ---
 
@@ -29,4 +34,4 @@ Place it at `src/features/shared/auth/infrastructure/http/requireAdmin.ts` and r
 
 ## Links
 
-[Plan §Phase 7](./feature-audience-restructure-plan.md#phase-7--wire-apiv1admin-namespace)
+[Plan §Phase 7](../../internal/initiatives/feature-audience-restructure/feature-audience-restructure-plan.md#phase-7--wire-apiv1admin-namespace)

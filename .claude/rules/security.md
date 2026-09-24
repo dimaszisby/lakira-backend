@@ -2,29 +2,52 @@
 
 ## Global Middleware Stack
 
-Applied in order on every request:
+Applied in this order in `src/server.ts`:
 
-1. `helmet()` — secure HTTP headers
-2. `xss-clean` — sanitize request payloads
-3. `hpp()` — prevent HTTP parameter pollution
-4. `disallowTraceMethod` — blocks TRACE requests
-5. Rate limiters (global, user, analytics)
+1. `express.json()` — body parsing
+2. `cookie-parser` — needed for the refresh-token cookie
+3. `requestIdMiddleware` — AsyncLocalStorage correlation id (ADR-0027)
+4. `accessLogMiddleware` — one line per request
+5. `helmet()` — secure HTTP headers
+6. HTTPS redirect — production only
+7. `xss-clean` — sanitize request payloads
+8. `hpp()` — prevent HTTP parameter pollution
+9. `disallowTraceMethod` — blocks TRACE requests
+10. `cors` — `CORS_ORIGIN` allowlist
+11. `/api/v1/health` and `/api/v1/ready` — mounted here, before rate limiting
+12. `globalRateLimiter` — the only app-wide limiter; the rest are attached per route
 
 ## Rate Limiting
 
-- **Global**: 100 req / 15 min (IP-based)
-- **User**: 50 req / 15 min (user ID or IP fallback)
-- **Analytics**: 30 req / 1 min (user ID or IP fallback)
-- Store: Redis in production, in-memory fallback in dev/test
+App-wide:
+
+- **Global**: 100 req / 15 min (IP-based), `RATE_LIMIT_GLOBAL_MAX`
+
+Per route (`src/shared/middleware/rate-limiter.ts`):
+
+- **User**: 50 req / 15 min (user ID or IP fallback), `RATE_LIMIT_USER_MAX`
+- **Analytics**: 30 req / 1 min (user ID or IP fallback), `RATE_LIMIT_ANALYTICS_MAX`
+- **Switch org**: per 15 min, `RATE_LIMIT_SWITCH_ORG_MAX`
+- **Password reset** and **email verification**: per hour, each keyed both by email and by IP
+  (`RATE_LIMIT_PASSWORD_RESET_{EMAIL,IP}_MAX`, `RATE_LIMIT_EMAIL_VERIFICATION_{EMAIL,IP}_MAX`)
+
+Store: in-memory under `NODE_ENV=test`; everywhere else Redis. Outside tests the in-memory store is
+used only when `REDIS_REQUIRED=false` **and** Redis is not connected — it then logs a warning,
+and limits stop being shared across instances (twelve-factor TF-12).
+
 - `DISABLE_RATE_LIMITING=true` disables all limiters (test/fuzzing only). Startup refuses it
   when `NODE_ENV=production` — see ADR-0036 for the full refused set.
 
 ## Authentication Flow
 
-1. Client sends `Authorization: Bearer <JWT>` header
-2. `authMiddleware` validates token via `TokenProvider` port
-3. Loads user from `UserRepository`, sets `req.user`
-4. Protected routes use `assertAuthenticated(req)` to narrow type
+1. Client sends `Authorization: Bearer <JWT>` header (a short-lived access token; the refresh
+   token travels separately, as an httpOnly cookie scoped to `/api/v1/auth/refresh`)
+2. `authMiddleware` validates the token via the `TokenProvider` port
+3. The token must carry an organization claim, and the user must hold an active membership in
+   that organization — otherwise 401
+4. Sets `req.user`, `req.organizationId` and `req.membership`
+5. Protected routes use `assertAuthenticated(req)` to narrow the type; role checks use
+   `requireOrgRole` / `assertHasOrgRole`
 
 ## Sensitive Data Handling
 

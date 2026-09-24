@@ -3,12 +3,13 @@
 Inside the backend: two process types sharing one codebase and one database — but only one of them
 is currently deployed anywhere.
 
-> ⚠️ **The job worker has no deployment.** `src/worker.ts` is fully implemented and has npm scripts,
-> but there is no Compose service, no Dockerfile `CMD` variant, no CI job, and no Render service that
+> **The job worker has no deployment.** `src/worker.ts` is fully implemented and has npm scripts.
+> Locally it runs as the opt-in Compose `worker` service (`docker compose --profile worker up -d`),
+> but there is no Dockerfile `CMD` variant, no CI job, and no staging or production service that
 > runs it. The diagram below shows it dashed for that reason. See
 > [ADR-0040](../decisions/adr-0040-worker-process-deployment-topology.md) and
 > [`audit-2026-08-17.md`](../../internal/audits/twelve-factor/audit-2026-08-17.md) § Factor VIII.
-> Remove this note and the dashed styling in the PR that adds the service.
+> Remove this note and the dashed styling in the PR that deploys it.
 
 ```mermaid
 graph TB
@@ -20,7 +21,7 @@ graph TB
         worker["<b>Job worker</b><br/><code>src/worker.ts</code><br/><small>RabbitMQ consumer<br/>not deployed — ADR-0040</small>"]
     end
 
-    pg[("PostgreSQL<br/><small>Sequelize · 13 tables</small>")]
+    pg[("PostgreSQL<br/><small>Sequelize · 12 tables</small>")]
     redis[("Redis<br/><small>viz cache · rate limits · login lockout</small>")]
     mq["RabbitMQ<br/><small>topic exchange <code>&lt;app&gt;.jobs</code><br/>parking-lot DLX</small>"]
     mail["Resend / console<br/><small>EmailSender port</small>"]
@@ -47,14 +48,14 @@ graph TB
 
 ## The two processes
 
-|             | API server         | Job worker                             |
-| ----------- | ------------------ | -------------------------------------- |
-| Entry point | `src/server.ts`    | `src/worker.ts`                        |
-| Start       | `npm start`        | `npm run worker`                       |
-| Deployed?   | yes — Render       | **no** — no service runs it (ADR-0040) |
-| Handles     | every HTTP request | queue messages only                    |
-| Scales on   | request volume     | queue depth — once deployed            |
-| Required?   | yes                | only with `RABBITMQ_ENABLED=true`      |
+|             | API server                                | Job worker                                     |
+| ----------- | ----------------------------------------- | ---------------------------------------------- |
+| Entry point | `src/server.ts`                           | `src/worker.ts`                                |
+| Start       | `npm start`                               | `npm run worker`                               |
+| Deployed?   | yes — Render today (ADR-0042 plans a VPS) | **no** — local Compose profile only (ADR-0040) |
+| Handles     | every HTTP request                        | queue messages only                            |
+| Scales on   | request volume                            | queue depth — once deployed                    |
+| Required?   | yes                                       | only with `RABBITMQ_ENABLED=true`              |
 
 They share the same `src/`, the same models, and the same database. The worker exists so that
 slow or fire-and-forget work does not occupy a request thread — today that is dummy metric-log
@@ -66,17 +67,19 @@ Middleware order in `src/server.ts` is deliberate — each layer assumes the pre
 
 ```mermaid
 graph LR
-    r["request"] --> cors["cors"] --> cookie["cookie-parser"]
+    r["request"] --> json["express.json"] --> cookie["cookie-parser"]
     cookie --> rid["request-id<br/><small>AsyncLocalStorage</small>"]
-    rid --> helm["helmet"] --> xss["xss-clean"] --> hpp["hpp"]
-    hpp --> trace["disallow TRACE"] --> rl["rate limiter"]
+    rid --> alog["access log"] --> helm["helmet"]
+    helm --> https["HTTPS redirect<br/><small>production only</small>"] --> xss["xss-clean"] --> hpp["hpp"]
+    hpp --> trace["disallow TRACE"] --> cors["cors"]
+    cors --> rl["global rate limiter<br/><small>after /health, /ready</small>"]
     rl --> route["feature router"] --> auth["authMiddleware<br/><small>per route</small>"]
     auth --> zod["Zod validation"] --> ctrl["controller"] --> uc["use case"]
     uc --> err["error handler"] --> resp["response"]
 
     classDef sec fill:#8250df,stroke:#6639ac,color:#fff
     classDef app fill:#1f6feb,stroke:#1a4f8a,color:#fff
-    class helm,xss,hpp,trace,rl,auth sec
+    class helm,https,xss,hpp,trace,cors,rl,auth sec
     class route,zod,ctrl,uc app
 ```
 
@@ -101,8 +104,10 @@ Redelivery makes at-least-once the default, so handlers must be idempotent. The
 Visualization caches, rate-limit counters, and login-lockout counters — all recomputable. Losing
 Redis costs latency and resets counters; it loses no durable state.
 
-> ⚠️ Cache keys are currently scoped by `userId` but **not** `organizationId`. That is an open
-> P0: [ADR-0035](../decisions/adr-0035-tenant-scoped-cache-keys.md).
+Every cache key carries `organizationId` as well as `userId`
+([ADR-0035](../decisions/adr-0035-tenant-scoped-cache-keys.md), closed the 2026-06-05 P0 in
+`f5f28b9`). `__tests__/unit/architecture.test.ts` ("cache keys are tenant-scoped") fails the build
+if a new cache-key template drops it.
 
 ## Next
 

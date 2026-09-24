@@ -30,6 +30,6 @@ Add per-feature TypeScript path aliases that map each `@/features/<feature>/*` t
 
 ## Links
 
-[Plan §Strategy / Path-Alias Preservation](./feature-audience-restructure-plan.md#path-alias-preservation-the-linchpin)
+[Plan §Strategy / Path-Alias Preservation](../../internal/initiatives/feature-audience-restructure/feature-audience-restructure-plan.md#path-alias-preservation-the-linchpin)
 
 ---

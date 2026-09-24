@@ -29,6 +29,6 @@ Defer the rewrite to a follow-up cleanup PR. This initiative is a structural mov
 
 ## Links
 
-[Plan §Open Questions](./feature-audience-restructure-plan.md#open-questions)
+[Plan §Open Questions](../../internal/initiatives/feature-audience-restructure/feature-audience-restructure-plan.md#open-questions)
 
 ---

@@ -1,6 +1,6 @@
 # Todo — three auth operations don't document their 400
 
-- **Status:** Complete (2026-09-01)
+- **Status:** Complete (2026-09-01) — delivered by #77 (`6ee8417`)
 - **Created:** 2026-09-01
 - **Owner:** dimaszisby
 

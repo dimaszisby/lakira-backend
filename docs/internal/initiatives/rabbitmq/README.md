@@ -9,7 +9,7 @@ Redis continues to handle caching, rate limiting, and sessions.
 RabbitMQ handles reliable job queuing, routing, and dead-lettering.
 
 **DRI:** @dimaspramudya  
-**Status:** PR 1 (scaffolding) merged — feature in progress
+**Status:** Shipped — scaffolding and the feature landed (#11 `78e98b1`); worker/CI coverage #86 (`85b4e77`), idempotency #88 (`9ebaee9`), TTL retry queues #91 (`5952b74`). Only Phase 3 (staging/production enablement) remains.
 
 ## Scope
 
@@ -24,7 +24,7 @@ RabbitMQ handles reliable job queuing, routing, and dead-lettering.
 **Out of scope (follow-up):**
 
 - Email / webhook producers
-- TTL-based exponential backoff retry queues
+- ~~TTL-based exponential backoff retry queues~~ — delivered later in #91 (`5952b74`)
 - Quorum queues
 - Job status polling API
 

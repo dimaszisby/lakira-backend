@@ -8,15 +8,20 @@ As part of the Phase 4 vertical slice migration we retired the legacy `src/middl
 
 ## Modules
 
-| Concern              | Module                                                    | Notes                                                                                                           |
-| -------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Auth guard           | `src/features/auth/infrastructure/http/authMiddleware.ts` | Depends on the auth feature’s repository/use cases and converts the user to the domain model.                   |
-| Rate limiting        | `src/shared/middleware/rate-limiter.ts`                   | Provides `globalRateLimiter`, `userRateLimiter`, and `analyticsRateLimiter` plus corresponding factory helpers. |
-| Request validation   | `src/shared/middleware/validation.ts`                     | Exposes the `validate` middleware supporting both full-schema and bag mode; attaches `req.validated`.           |
-| Cache responses      | `src/shared/middleware/cache.ts`                          | Wraps Redis caching logic and logs cache hits/misses.                                                           |
-| Role guard           | `src/shared/middleware/role.ts`                           | Provides `createRoleMiddleware` factory for RBAC checks.                                                        |
-| pickValidated helper | `src/shared/middleware/validated.ts`                      | Supplies the `pickValidated` helper used by controllers.                                                        |
-| Error handler        | `src/shared/middleware/error.ts`                          | Centralized error handler that hides stack traces in production.                                                |
+| Concern              | Module                                                             | Notes                                                                                                                                                                        |
+| -------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth guard           | `src/features/shared/auth/infrastructure/http/authMiddleware.ts`   | Verifies the token, requires an active org membership, and sets `req.user` / `req.organizationId` / `req.membership`.                                                        |
+| Rate limiting        | `src/shared/middleware/rate-limiter.ts`                            | `globalRateLimiter`, `userRateLimiter`, `analyticsRateLimiter`, `switchOrgRateLimiter`, and the password-reset / email-verification limiters, each with a `create*` factory. |
+| Request validation   | `src/shared/middleware/validation.ts`                              | Exposes the `validate` middleware supporting both full-schema and bag mode; attaches `req.validated`.                                                                        |
+| Cache responses      | `src/shared/middleware/cache.ts`                                   | Wraps Redis caching logic and logs cache hits/misses.                                                                                                                        |
+| Role guard           | `src/features/shared/auth/infrastructure/http/assertHasOrgRole.ts` | `requireOrgRole(...roles)` middleware and `assertHasOrgRole(req, ...)`, reading `req.membership.role` (ADR-0030).                                                            |
+| pickValidated helper | `src/shared/middleware/validated.ts`                               | Supplies the `pickValidated` helper used by controllers.                                                                                                                     |
+| Error handler        | `src/shared/middleware/error.ts`                                   | Centralized error handler that hides stack traces in production.                                                                                                             |
+| Request ID           | `src/shared/middleware/request-id.ts`                              | `requestIdMiddleware` and `getRequestId()` — AsyncLocalStorage correlation (ADR-0027).                                                                                       |
+| Access log           | `src/shared/middleware/access-log.ts`                              | `accessLogMiddleware` (morgan) — one line per request, carrying the request id (ADR-0041).                                                                                   |
+| Method guards        | `src/shared/middleware/method-guard.ts`                            | `methodNotAllowed([...])` (405) and `disallowTraceMethod`.                                                                                                                   |
+| JSON body guard      | `src/shared/middleware/require-json-object.ts`                     | `requireJsonObjectBody()` — rejects non-object JSON bodies.                                                                                                                  |
+| Malformed requests   | `src/shared/middleware/client-error.ts`                            | `attachClientErrorHandler(server)` — answers malformed HTTP at the socket level with the error envelope.                                                                     |
 
 Each module exports both a default instance (e.g., `authMiddleware`, `globalRateLimiter`) and factory helpers (`createAuthMiddleware`, `createGlobalRateLimiter`, etc.) so tests/composition roots can override dependencies.
 
@@ -38,7 +43,7 @@ Each module exports both a default instance (e.g., `authMiddleware`, `globalRate
 
 All cursor/list caches across feature slices must use the shared helper at `src/shared/cache/keys.ts`.
 
-- `buildCursorCacheKey({ feature, version, userId, segments })` generates keys in the format `cursor:<feature>:v<version>:<user>:<k1>:<v1>:...`. Missing values collapse to `_`, booleans serialize to `1/0`, and numeric input stays numeric.
+- `buildCursorCacheKey({ feature, version, userId, organizationId, segments })` generates keys in the format `cursor:<feature>:v<version>:<user>:org:<org>:<k1>:<v1>:...`. `organizationId` is required (ADR-0035), and `__tests__/unit/architecture.test.ts` fails the build if a cache-key template omits it. Missing values collapse to `_`, booleans serialize to `1/0`, and numeric input stays numeric.
 - `cursorCacheNamespace(feature, versionOrWildcard)` returns the namespace prefix so invalidation logic can call `delByPattern` with strings such as `${cursorCacheNamespace("metric-logs", "*")}:${userId}:*`.
 - Feature slices own their feature slug + version (e.g., metrics = `feature: "metrics", version: 1`; metric logs = `feature: "metric-logs", version: 2`). Bumping versions should happen alongside cache invalidation updates.
 - Metric, metric-log, metric-settings, and metric-category routers/use cases now adhere to this convention; future cursor endpoints must do the same.

@@ -55,5 +55,5 @@ This is the largest single phase in the SaaS-readiness remediation. It is gated 
 - **Closes audit gaps:** [P0-3.1] (no multi-tenancy primitives in DB), [P0-9.1] (same gap as 3.1, listed under SaaS-specific category), [P1-1.3] (RBAC stub, replaced by membership.role) in `docs/internal/audits/saas-readiness/audit-2026-05-01.md`.
 - **Owning ADRs:** ADR-004 in `docs/internal/audits/saas-readiness/decisions.md` MUST be Accepted before kickoff.
 - **Effort:** L (multi-week, multi-PR). Recommended split across 6 phases with separate PRs.
-- **Status:** Blocked — pending ADR-004 acceptance.
+- **Status:** Done — shipped in #44–#47 (`bf74caa`, `f0deecc`, `e76f25c`, `f6b62e3`); ADR-004 is ADR-0012, Accepted.
 - **Predecessor / dependency:** Phase 1 (refresh tokens) ideally lands first so `organizationId` claims can ride on the new access-token format. Phase 5 (drift cleanup) should run AFTER this phase to avoid migration collisions.

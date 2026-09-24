@@ -5,10 +5,10 @@
 All changes flow through a promotion chain — never PR directly into `staging` or `main`:
 
 ```
-feature/<name>  →  dev  →  staging  →  main
+<type>/<slug>  →  dev  →  staging  →  main
 ```
 
-- **feature branches**: branch off `dev`, target `dev` in your PR.
+- **work branches**: branch off `dev`, named `<type>/<slug>` with a Conventional Commits type (`feat/`, `fix/`, `docs/`, `chore/`, `ci/`, `refactor/`), and target `dev` in your PR. See `.claude/rules/workflow.md` § Branching Convention.
 - **dev → staging**: promoted via CI after passing all checks.
 - **staging → main**: promoted after manual sign-off.
 
@@ -27,17 +27,11 @@ docs(readme): add forking section
 
 Common types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`.
 
-For AI-assisted commits, add a co-author trailer:
-
-```
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
-```
-
 ## Code Style
 
 Follow `.claude/rules/code-style.md`:
 
-- 2-space indent, double quotes, semicolons, trailing commas (ES5).
+- 2-space indent, double quotes, semicolons, trailing commas everywhere (Prettier 3 default `all`).
 - ESM imports with `.js` extensions, path aliases (`@/*`, `@utils/*`).
 - camelCase for variables/functions, PascalCase for classes/types, kebab-case for files.
 

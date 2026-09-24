@@ -1,6 +1,6 @@
 # Todo — dev-environment sweep (TF-8, TF-9, CI triggers)
 
-- **Status:** Complete
+- **Status:** Complete — delivered by #66 (`b6d12bd`)
 - **Created:** 2026-08-23
 - **Completed:** 2026-08-23
 - **Owner:** dimaszisby

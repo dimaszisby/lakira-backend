@@ -13,7 +13,14 @@ Each feature owns its Express router via a factory function:
 ```typescript
 function createMyRouter(): Router {
   const router = Router();
-  router.post("/", validate(createSchema), authMiddleware, controller.create);
+  router.use(authMiddleware);
+  router.post(
+    "/",
+    userRateLimiter,
+    requireJsonObjectBody(),
+    validate(createSchema),
+    controller.create,
+  );
   router.all("/", methodNotAllowed(["POST", "GET"]));
   return router;
 }
@@ -22,15 +29,20 @@ export const myRouter = createMyRouter();
 
 ## Middleware Pipeline Order
 
-1. `validate(schema)` — Zod validation
-2. `authMiddleware` — JWT authentication (sets `req.user`)
-3. Controller handler (wrapped in `catchAsync()`)
-4. `methodNotAllowed([...methods])` — 405 for unsupported methods
-5. Global `errorHandler` — catches all thrown errors
+1. `authMiddleware` — JWT authentication and org membership (sets `req.user`, `req.organizationId`,
+   `req.membership`); usually `router.use(authMiddleware)` so it runs before anything else
+2. Per-route rate limiter where needed (e.g. `userRateLimiter`)
+3. `requireJsonObjectBody()` — for routes that take a JSON body
+4. `validate(schema)` — Zod validation
+5. Controller handler (wrapped in `catchAsync()`)
+6. `methodNotAllowed([...methods])` — 405 for unsupported methods
+7. Global `errorHandler` — catches all thrown errors
 
 ## Request Types
 
-- `AuthRequest` extends Express Request with `user?: AuthUser` and `validated?: Record<string, unknown>`
+- `AuthRequest` (`src/types/request.context.ts`) extends Express Request with `user?: UserDomain`,
+  `organizationId?` and `membership?`. `validated?: unknown` is added to every Express `Request` in
+  `src/types/express-aug.d.ts`
 - Always use `assertAuthenticated(req)` from `src/utils/auth-guards.ts` to narrow `req.user`
 - Access validated data from `req.validated`, not `req.body` / `req.query` / `req.params`
 

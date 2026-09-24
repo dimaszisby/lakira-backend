@@ -1,5 +1,8 @@
 # Staging Contract Tests Runbook – Lakira Backend
 
+**Status:** Superseded — Newman was retired in #75 (`a4635f3`), and the `contract_staging` job it
+describes was replaced by `smoke_staging`. Kept as history.
+
 Use this guide when preparing or executing the `contract_staging` flow (either manually or via CI). It supplements the Postman README, the CI pipeline plan, and the Phase 3 checklist.
 
 ## 1. Prerequisites

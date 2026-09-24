@@ -1,6 +1,6 @@
 # Todo — validate the OpenAPI spec, not just its drift
 
-- **Status:** Complete
+- **Status:** Complete — delivered by #70 (`84dab8b`)
 - **Created:** 2026-08-27
 - **Completed:** 2026-08-27
 - **Owner:** dimaszisby

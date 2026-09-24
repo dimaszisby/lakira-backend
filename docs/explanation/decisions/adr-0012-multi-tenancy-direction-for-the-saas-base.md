@@ -1,9 +1,15 @@
 # ADR-0012 — Multi-tenancy direction for the SaaS base
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-09-24 — implementation verified in code; see the status note)
 - **Date:** 2026-05-01
 - **Related:** Realised by [ADR-0029](./adr-0029-fk-cascade-behaviour-on-organization-id.md)–[ADR-0031](./adr-0031-invite-token-format-mirrors-password-reset.md).
 - **Origin:** `ADR-004` in the SaaS readiness audit kit — [`saas-readiness`](../../internal/audits/saas-readiness/decisions.md)
+
+> **Status note (2026-09-24).** Moved from Proposed by the `docs-sweep` kit
+> ([D-03](../../internal/initiatives/docs-sweep/decisions.md)): the decision below is in the code.
+> Evidence: `organizations` and `memberships` tables and `organization_id` on every domain table
+> (migrations `20260510000001`–`20260510000006`); `authMiddleware` requires the token's
+> organization claim and an active membership and sets `req.organizationId`.
 
 ---
 

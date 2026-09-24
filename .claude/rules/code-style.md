@@ -5,7 +5,7 @@
 - Semicolons: always required
 - Quotes: double quotes (`"`, with `avoidEscape: true`)
 - Indentation: 2 spaces
-- Trailing commas: ES5-style (Prettier default)
+- Trailing commas: everywhere (Prettier 3 default, `all`; there is no Prettier config overriding it)
 - Print width: 80 characters (Prettier default)
 
 ## ESM Imports
@@ -22,7 +22,7 @@
 - **Files**: kebab-case for features/modules, PascalCase for entity classes (`AuthUser.ts`)
 - **Feature directories**: kebab-case (`metric-settings`, `metric-log`)
 - **Booleans**: `is*` or `has*` prefix (`isPublicProfile`, `goalEnabled` for domain flags)
-- **Enum values**: lowercase strings (`"user" | "admin"`, `"manual" | "automatic"`)
+- **Enum values**: lowercase strings (`"owner" | "admin" | "member"`, `"manual" | "automatic"`)
 
 ## Logging
 
@@ -31,4 +31,5 @@
   the platform's job. `LOG_LEVEL` controls verbosity; see
   `docs/how-to/development/read-application-logs.md`
 - `console.log` with `[DB PROCESS]`/`[DB ERROR]` prefix is acceptable only in migration files
-- ESLint warns on bare `console.log` usage outside migrations/tests/scripts
+- ESLint warns on bare `console.log` everywhere it lints, tests included. It is off for
+  `scripts/**` and `src/config/config.cjs`; `src/migrations/**` is not linted at all

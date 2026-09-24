@@ -51,5 +51,5 @@ This kit owns all JSON Web Token concerns for the Lakira backend: signing, verif
 - **Closes audit gaps:** [P0-1.1] (refresh tokens), [P1-10.3] (auth middleware leaks `jwt.verify`) in `docs/internal/audits/saas-readiness/audit-2026-05-01.md`.
 - **Owning ADRs:** ADR-005 (phase order) in `docs/internal/audits/saas-readiness/decisions.md`; (kit-local) ADR-001 in `./decisions.md`.
 - **Effort:** L (refresh-token entity + migration + rotation logic + revocation + verify-port refactor).
-- **Status:** Proposed — kickoff pending the kit-local ADR-001 flipping to Accepted.
+- **Status:** Phase D shipped in #41 (`5001578`); its ADR-001 is now ADR-0019, Accepted. Phases A–C not started.
 - **Predecessor / dependency:** None for the verify-port refactor; refresh-token rotation depends on a Redis or DB store decision (kit-local ADR-001).

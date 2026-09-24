@@ -7,9 +7,9 @@ REST API backend for Lakira, a personal metrics tracking platform. Built with Ex
 - **Runtime**: Node.js 20 (ESM)
 - **Framework**: Express.js + TypeScript
 - **ORM**: Sequelize (PostgreSQL)
-- **Auth**: JWT (RS256 via `jsonwebtoken`)
+- **Auth**: JWT (HS256 via `jsonwebtoken`) — short-lived access token plus a rotating refresh token in an httpOnly cookie
 - **Validation**: Zod
-- **Cache**: Redis (`ioredis`)
+- **Cache**: Redis (`redis`, node-redis v4)
 - **Queue**: RabbitMQ (`amqplib`)
 - **Docs**: OpenAPI 3 + Swagger UI
 
@@ -59,10 +59,11 @@ npm run dev
 
 ```
 src/
-├── server.ts                 # App entry point
+├── server.ts                 # API entry point
+├── worker.ts                 # RabbitMQ consumer entry point
 ├── config/                   # Env loading, DB config
 ├── features/
-│   ├── shared/auth/          # Authentication (JWT, register, login, password reset)
+│   ├── shared/auth/          # Auth, organizations, memberships, invites, refresh tokens
 │   ├── public/
 │   │   ├── metric/           # Metric CRUD
 │   │   ├── metric-log/       # Metric log entries
@@ -72,6 +73,9 @@ src/
 ├── shared/
 │   ├── middleware/           # Rate limiting, error handling, method guard
 │   └── infrastructure/       # Queue adapters (RabbitMQ)
+├── infrastructure/db/        # Model registry and its types (every feature's models)
+├── lib/openapi/              # OpenAPI spec generation from the Zod schemas
+├── migrations/               # Sequelize migrations
 └── utils/                    # Logger, Redis client, helpers
 ```
 

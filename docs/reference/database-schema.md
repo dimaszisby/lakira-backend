@@ -2,8 +2,8 @@
 
 PostgreSQL. Managed by Sequelize migrations in `src/migrations/`.
 
-**As of migration `20260516000001-drop-users-role-column.cjs` (26 applied).**
-Verified by introspecting a freshly migrated database, not by reading migration files.
+**As of migration `20260816000001-drop-duplicate-org-fks-and-orphan-enums.cjs` (27 applied).**
+Verified by introspecting a migrated database (re-checked 2026-09-24), not by reading migration files.
 
 All timestamps are `timestamptz`. `created_at` / `updated_at` default to `now()`.
 Tables with `deleted_at` are Sequelize-paranoid (soft delete).
@@ -64,14 +64,15 @@ There is **no `role` column** — it was dropped in `20260516000001`. Roles live
 
 ### `memberships`
 
-| Column            | Type        | Null | Default             | Notes                          |
-| ----------------- | ----------- | ---- | ------------------- | ------------------------------ |
-| `id`              | uuid        | no   | `gen_random_uuid()` | PK                             |
-| `user_id`         | uuid        | no   |                     | → `users` **CASCADE**          |
-| `organization_id` | uuid        | no   |                     | → `organizations` **CASCADE**  |
-| `role`            | varchar(20) | no   |                     | `owner` \| `admin` \| `member` |
-| `status`          | varchar(20) | no   | `'active'`          |                                |
-| `joined_at`       | timestamptz | no   | `now()`             |                                |
+| Column                      | Type        | Null | Default             | Notes                          |
+| --------------------------- | ----------- | ---- | ------------------- | ------------------------------ |
+| `id`                        | uuid        | no   | `gen_random_uuid()` | PK                             |
+| `user_id`                   | uuid        | no   |                     | → `users` **CASCADE**          |
+| `organization_id`           | uuid        | no   |                     | → `organizations` **CASCADE**  |
+| `role`                      | varchar(20) | no   |                     | `owner` \| `admin` \| `member` |
+| `status`                    | varchar(20) | no   | `'active'`          |                                |
+| `joined_at`                 | timestamptz | no   | `now()`             |                                |
+| `created_at` / `updated_at` | timestamptz | no   | `now()`             |                                |
 
 Unique on `(user_id, organization_id)` — one membership per user per organization.
 
@@ -209,19 +210,15 @@ Deleting an **organization** is deliberately hard:
 | `memberships`, `organization_invites`                            | **CASCADE**  | Bookkeeping with no standalone value.                                                                                                                         |
 | `refresh_tokens`, `processed_messages`                           | **SET NULL** | Must survive so sessions and message replay do not break.                                                                                                     |
 
-Full rationale: ADR-001 in
-[`../internal/initiatives/multi-tenancy/decisions.md`](../internal/initiatives/multi-tenancy/decisions.md).
+Full rationale: [ADR-0029](../explanation/decisions/adr-0029-fk-cascade-behaviour-on-organization-id.md)
+(originally ADR-001 in the multi-tenancy kit).
 
 ---
 
 ## Known schema defects
 
-Found while introspecting the live database for this document. Neither affects correctness
-today; both are cleanup candidates.
-
-1. **Duplicate foreign keys on `organization_id`.** `metrics`, `metric_logs`, `metric_settings`,
-   and `metric_categories` each carry two identical constraints (`…_organization_id_fkey` and
-   `…_organization_id_fkey1`) with the same RESTRICT behaviour — almost certainly
-   `20260510000005` and `20260510000006` both adding one. Doubles FK-check work on every write.
-2. **Orphaned enum types.** `enum_users_role` still exists though its column was dropped, and
-   `enum_metric_log_type` is a leftover beside the live `enum_metric_logs_type`.
+None open. The two found while writing this page — duplicate `organization_id` foreign keys on
+the four metric tables, and the orphaned `enum_users_role` / `enum_metric_log_type` types — were
+removed by `20260816000001-drop-duplicate-org-fks-and-orphan-enums.cjs`, and introspection on
+2026-09-24 confirms one foreign key per table and only `enum_metric_logs_type` and
+`enum_metric_settings_goal_type` remaining.

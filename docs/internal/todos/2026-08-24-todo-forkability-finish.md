@@ -1,6 +1,6 @@
 # Todo — forkability finish (C1 remainder, N5, TF-6)
 
-- **Status:** Complete
+- **Status:** Complete — delivered by #67 (`8adf7b8`)
 - **Created:** 2026-08-24
 - **Completed:** 2026-08-24
 - **Owner:** dimaszisby

@@ -1,6 +1,6 @@
 # Todo — pre-commit guard against staged environment files
 
-- **Status:** Complete
+- **Status:** Complete — delivered by #73 (`dc7ad39`)
 - **Created:** 2026-08-29
 - **Completed:** 2026-08-29
 - **Owner:** dimaszisby

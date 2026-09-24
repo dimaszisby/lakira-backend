@@ -2,7 +2,7 @@
 
 Add the billing skeleton that most SaaS forks need within the first month: `Plan` + `Subscription` tables, a `BillingProvider` port with a Stripe adapter, webhook signature verification, and plan-gated middleware.
 
-**Status: Proposed — kickoff deferred.** This kit is scaffolded up front for planning visibility but implementation is blocked by the multi-tenancy foundation (Phase 4). Billing attaches to an organization, not a user.
+**Status: Deferred — unblocked, not started.** This kit is scaffolded up front for planning visibility. Its blocker, the multi-tenancy foundation (Phase 4), shipped in #44–#47; no billing code exists yet. Billing attaches to an organization, not a user.
 
 ## Scope
 
@@ -27,4 +27,4 @@ Add the billing skeleton that most SaaS forks need within the first month: `Plan
 - **Owning ADRs:** ADR-005 (phase order) in `docs/internal/audits/saas-readiness/decisions.md`; (kit-local) ADR-001, ADR-002 in `./decisions.md`
 - **Effort:** L
 - **Status:** Proposed — deferred kickoff
-- **Predecessor / dependency:** Depends on Phase 4 (multi-tenancy) completing — billing entity attaches to `Organization`, not `User`
+- **Predecessor / dependency:** Depended on Phase 4 (multi-tenancy), which has shipped (#44–#47) — billing entity attaches to `Organization`, not `User`

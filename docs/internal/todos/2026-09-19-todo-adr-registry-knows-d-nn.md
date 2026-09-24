@@ -1,6 +1,6 @@
 # Todo — teach the ADR registry about `D-NN`
 
-- **Status:** Complete (2026-09-20)
+- **Status:** Complete (2026-09-20) — delivered by #102 (`5e9f20b`)
 - **Created:** 2026-09-19
 - **Owner:** unassigned
 - **Prepared for:** a fresh Claude Code session — Sonnet, medium effort

@@ -15,7 +15,7 @@ Goals:
     before being considered “ready to consume”.
 - Keep the strategy realistic for a **single-developer portfolio project**, while reflecting **production-grade practices**.
 
-> Special Note for Codex: When asked “how is CI/CD structured for Lakira?” or when generating pipeline definitions, use this file as the root reference and then drill into the backend/frontend docs under `docs/ci-cd/backend/**` and `docs/internal/archive/frontend/ci-cd/**`.
+> Special Note for Codex: When asked “how is CI/CD structured for Lakira?” or when generating pipeline definitions, use this file as the root reference and then drill into the backend docs in `docs/reference/ci-pipeline/` and the (archived) frontend docs under `docs/internal/archive/frontend/ci-cd/**`.
 
 ---
 
@@ -37,7 +37,7 @@ Goals:
 
 3. **Small, Fast, Frequent**
    - Pipelines should be fast enough to run on:
-     - Every push to main/develop,
+     - Every push to `main`/`dev`/`staging` and to working branches,
      - Every pull request.
    - Encourage small PRs and frequent merges.
 
@@ -63,7 +63,7 @@ Goals:
 - **Source Control:** GitHub
 - **Primary CI Engine:** GitHub Actions
 - **Optional CI Engine:** Jenkins (short-lived, self-hosted for learning)
-- **Backend Deploy Target:** Managed PaaS (Render)
+- **Backend Deploy Target:** Managed PaaS (Render) today; [ADR-0042](../../explanation/decisions/adr-0042-vps-compose-deployment-topology.md) (Accepted 2026-09-15, not yet implemented) moves staging and production to a VPS running Docker Compose
 - **Frontend Deploy Target:** Vercel
 - **Artifacts:**
   - Jest test reports (optional).
@@ -104,12 +104,14 @@ Each service (BE/FE) has its own implementation details, described in:
 
 - **Branches:**
   - `main` – stable, production-ready.
-  - `develop` – integration branch for new features.
-  - `feature/*` – short-lived feature branches.
+  - `staging` – release candidate, deployed to staging.
+  - `dev` – integration branch; every work branch targets it.
+  - `<type>/<slug>` (`feat/`, `fix/`, `docs/`, `chore/`, `ci/`, `refactor/`) – short-lived work
+    branches. Promotion is `<type>/* → dev → staging → main`.
 
 - **Triggers:**
-  - On push to `main`, `develop`, and any `feature/*` branch.
-  - On pull requests targeting `main` or `develop`.
+  - On push to `main`, `dev`, `staging`, and any work-branch prefix above.
+  - On pull requests targeting `main`, `dev` or `staging`.
 
 - **Required checks for PR merge:**
   - GitHub Actions backend CI workflow:
@@ -144,9 +146,9 @@ Logical environments:
   - Target for contract tests.
   - Uses test/synthetic data.
 
-- **Production (Optional for Lakira)**
-  - Same platforms as staging.
-  - For a portfolio project, may be identical to “staging” or a single shared environment.
+- **Production**
+  - A `deploy_production` CI job exists (runs on `main`), but no production service is provisioned.
+  - Per ADR-0042 it will run on the same VPS topology as staging, not on Render.
 
 Detailed environment URLs, config, and secrets are captured in:
 
@@ -157,16 +159,16 @@ Detailed environment URLs, config, and secrets are captured in:
 
 ## 7. Backend CI/CD Docs
 
-Backend-specific CI/CD docs live under:
+Backend-specific CI/CD docs:
 
 ```text
-docs/ci-cd/backend/
-  README.md
-  GITHUB_ACTIONS_PIPELINE_PLAN.md
-  GITHUB_ACTIONS_PIPELINE_CHECKLIST.md
-  GITHUB_ACTIONS_WORKFLOW_GUIDELINES.md
-  ENVIRONMENTS_MATRIX.md
-  JENKINS_NOTES.md
+docs/reference/ci-pipeline/          reference (this folder)
+  strategy.md
+  pipeline-overview.md
+  workflow-guidelines.md
+docs/reference/environments.md       environment matrix
+docs/internal/initiatives/ci-pipeline/   working plan and checklist
+docs/internal/archive/JENKINS_NOTES.md   archived Jenkins experiment
 ```
 
 ---
@@ -183,7 +185,7 @@ docs/internal/archive/frontend/ci-cd/
   ENVIRONMENTS_MATRIX.md
 ```
 
-> Special Note for Codex: Treat the frontend plan/checklist as authoritative when editing `.github/workflows/frontend-ci.yml`.
+> Special Note for Codex: The frontend workflow lives in the lakira-frontend repository, not here; these archived docs are background only.
 
 ---
 
@@ -194,8 +196,8 @@ To align Lakira with modern production expectations (and to strengthen portfolio
 1. **Dependency & Vulnerability Scanning**
    - Enable GitHub **Dependabot** for npm dependencies.
    - Enable GitHub **Dependency Review** so PRs surface vulnerable packages before merge.
-   - (Optional) Add a `security` job that runs:
-     - `npm audit --audit-level=high` and fails on high/critical issues.
+   - The `security_delta` job runs the security framework tests, `npm run security:delta:check` and
+     the gate evaluation; Critical/High findings fail the pipeline.
 
 2. **Secret Scanning**
    - Enable GitHub **secret scanning** and **push protection** for the repository.
@@ -212,7 +214,7 @@ To align Lakira with modern production expectations (and to strengthen portfolio
 5. **Automated Verification & Rollback Hooks (Conceptual)**
    - Staging deploys are considered “good” only after:
      - Health checks succeed, and
-     - Staging contract tests pass.
+     - The staging smoke suite (`smoke_staging`) passes.
    - Rollback strategy for a portfolio project:
      - Re-deploy the last known good commit to staging (via Render deploy hook tied to that SHA).
      - Document the last green run and commit SHA used as the “release baseline”.

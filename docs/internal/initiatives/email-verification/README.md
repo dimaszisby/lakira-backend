@@ -48,5 +48,5 @@ Adds self-service email verification on registration: a one-time, hashed, 24-hou
 - **Closes audit gaps:** [P1-1.2] in `docs/internal/audits/saas-readiness/audit-2026-05-01.md`.
 - **Owning ADRs:** ADR-005 (phase order) in `docs/internal/audits/saas-readiness/decisions.md`; (kit-local) ADR-001 (24-hour TTL + anti-enumeration response shape) in `./decisions.md`.
 - **Effort:** M.
-- **Status:** Proposed.
+- **Status:** Done — shipped in #43 (`6d78331`).
 - **Predecessor / dependency:** Soft dependency on Phase 1 — the verify-port refactor lands an `InvalidTokenError` pattern that `VerifyEmail` reuses. Can technically ship before Phase 1 completes by inlining the error class.
