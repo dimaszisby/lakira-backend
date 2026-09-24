@@ -23,9 +23,13 @@ This note captures the non-negotiable boundaries every feature slice must honor 
 
 Added 2026-09-24; the guardrails above predate it.
 
-- **A feature's public surface is `public.ts`, not `index.ts`.** `index.ts` builds the feature's
-  routers when it is imported, so importing it from a sibling pulls in that feature's composition
-  root and can cycle. `public.ts` holds what other features may use and imports no routers.
+- **A feature's public surface is `public.ts`, not `index.ts`.** `index.ts` exports the router
+  factories and `buildXFeature` — the composition root — for `src/server.ts` alone. `public.ts`
+  holds the narrow set other features may use, and ESLint rejects a sibling importing another
+  feature's `index.ts` or `feature.ts` (ADR-0045).
+- **Importing a feature module constructs nothing.** Routers are built in `server.ts`;
+  controllers and `authMiddleware` build their dependencies on first use. This removed the
+  import-cycle failure that `public.ts` originally worked around.
 - **Enforced by ESLint**, not only by review: `no-restricted-imports` in `eslint.config.mjs` bans
   importing another feature's `domain/`, `application/` or `infrastructure/` directly
   (`src/features/**` only — see the open todo on widening it).

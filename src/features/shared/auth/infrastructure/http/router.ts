@@ -116,5 +116,3 @@ export const createAuthRouter = () => {
 
   return router;
 };
-
-export const authRouter = createAuthRouter();

@@ -86,7 +86,3 @@ export const createMembershipRouter = () => {
 
   return router;
 };
-
-export const organizationRouter = createOrganizationRouter();
-export const inviteRouter = createInviteRouter();
-export const membershipRouter = createMembershipRouter();

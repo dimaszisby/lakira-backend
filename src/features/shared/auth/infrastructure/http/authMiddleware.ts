@@ -95,4 +95,12 @@ export const createAuthMiddleware = (
   );
 };
 
-export const authMiddleware = createAuthMiddleware();
+// The default instance is built on its first request, never at import (ADR-0045): sibling
+// routers import this module, and constructing repositories during that import is what
+// let a half-loaded feature hand out `undefined`. The export stays one stable function, so
+// routers and tests can keep referring to it by identity.
+type AuthMiddleware = ReturnType<typeof createAuthMiddleware>;
+let defaultAuthMiddleware: AuthMiddleware | undefined;
+
+export const authMiddleware: AuthMiddleware = (req, res, next) =>
+  (defaultAuthMiddleware ??= createAuthMiddleware())(req, res, next);

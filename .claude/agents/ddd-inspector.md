@@ -66,7 +66,8 @@ features/<audience>/{name}/
 
 ### Export Hygiene
 
-- `index.ts` exports only the public API: `buildXFeature`, router, `createXRouter`
+- `index.ts` exports only `buildXFeature` and `createXRouter` (no router instance); siblings import `public.ts`
+- Nothing is constructed at module scope — no router, feature or middleware instance (ADR-0045)
 - Internal implementation details not re-exported
 - All import paths use `.js` extension (ESM convention)
 

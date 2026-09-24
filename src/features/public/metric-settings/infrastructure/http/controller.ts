@@ -19,7 +19,9 @@ import {
 import { pickValidated } from "@/shared/middleware/validated.js";
 
 type Feature = ReturnType<typeof buildMetricSettingsFeature>;
-let feature: Feature = buildMetricSettingsFeature();
+// Built on first use, never at import (ADR-0045).
+let feature: Feature | undefined;
+const getFeature = (): Feature => (feature ??= buildMetricSettingsFeature());
 
 export const overrideMetricSettingsFeatureForTest = (custom: Feature) => {
   feature = custom;
@@ -30,7 +32,7 @@ export const createMetricSettings = catchAsync(
     assertAuthenticated(req);
     const { body } = pickValidated(createMetricSettingsSchema)(req);
     const payload = body;
-    const created = await feature.createSettings.execute({
+    const created = await getFeature().createSettings.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       ...payload,
@@ -49,7 +51,7 @@ export const getAllMetricSettingsViaCursor = catchAsync(
   async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { query } = pickValidated(listMetricSettingsViaCursorSchema)(req);
-    const result = await feature.listSettings.execute({
+    const result = await getFeature().listSettings.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       ...query,
@@ -75,7 +77,7 @@ export const getMetricSettingsById = catchAsync(
   async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { params } = pickValidated(getMetricSettingsSchema)(req);
-    const settings = await feature.getSettings.execute(
+    const settings = await getFeature().getSettings.execute(
       req.user.id,
       req.user.organizationId,
       params.id,
@@ -88,7 +90,7 @@ export const updateMetricSettings = catchAsync(
   async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { body, params } = pickValidated(updateMetricSettingsSchema)(req);
-    const updated = await feature.updateSettings.execute(
+    const updated = await getFeature().updateSettings.execute(
       req.user.id,
       req.user.organizationId,
       params.id,
@@ -107,7 +109,7 @@ export const deleteMetricSettings = catchAsync(
   async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { params } = pickValidated(deleteMetricSettingsSchema)(req);
-    await feature.deleteSettings.execute(
+    await getFeature().deleteSettings.execute(
       req.user.id,
       req.user.organizationId,
       params.id,
@@ -120,7 +122,7 @@ export const updateGoalAchievement = catchAsync(
   async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { params } = pickValidated(getMetricSettingsSchema)(req);
-    const updated = await feature.updateGoalAchievement.execute(
+    const updated = await getFeature().updateGoalAchievement.execute(
       req.user.id,
       req.user.organizationId,
       params.id,
@@ -139,7 +141,7 @@ export const updateDisplayOptions = catchAsync(
     assertAuthenticated(req);
     const { body, params } = pickValidated(updateDisplayOptionsSchema)(req);
     const { displayOptions } = body;
-    const updated = await feature.updateDisplayOptions.execute(
+    const updated = await getFeature().updateDisplayOptions.execute(
       req.user.id,
       req.user.organizationId,
       params.id,

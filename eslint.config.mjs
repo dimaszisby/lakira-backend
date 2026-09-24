@@ -60,7 +60,17 @@ const LEGACY_IMPORT_PATTERNS = [
 ];
 
 const FEATURE_BOUNDARY_MESSAGE =
-  "Feature internals are private. Import another feature through its index.ts (`@/features/<name>`), and reach your own feature with a relative path. See .claude/rules/architecture.md § Export Convention.";
+  "Feature internals are private. Import another feature through its public.ts (`@/features/<name>/public.js`), and reach your own feature with a relative path. See .claude/rules/architecture.md § Export Convention.";
+
+// ADR-0045: a sibling may not import another feature's composition root — its index.ts
+// (the bare alias or /index.js) or its feature.ts. index.ts exists for src/server.ts;
+// public.ts is the cross-feature surface. A regex rather than a glob: `@/features/*`
+// as a gitignore-style group would also match everything beneath it, public.ts included.
+const SIBLING_COMPOSITION_ROOT = {
+  regex: "^@/features/[a-z-]+(?:/(?:index|feature)(?:\\.js)?)?$",
+  message:
+    "Import another feature through its public.ts, not its index.ts or feature.ts — those are the composition root, for src/server.ts only (ADR-0045).",
+};
 
 // Reaching into any feature's domain/application/infrastructure through the global
 // alias. Catches both cross-feature imports and a feature importing itself via the
@@ -75,8 +85,10 @@ const FEATURE_DEEP_IMPORTS = {
 };
 
 // Same, minus Sequelize model files. Applied only to the files that declare
-// cross-model associations, which cannot route through index.ts without risking
-// circular imports between slices. The count is frozen at 11 by
+// cross-model associations. Those are frozen as a recorded debt — cross-module foreign
+// keys are the deepest coupling, ID-only references the destination (ADR-0044
+// decision 4); the import-cycle reason this comment used to give no longer applies
+// (ADR-0045). The count is frozen at 11 by
 // __tests__/unit/architecture.test.ts — see
 // docs/internal/initiatives/feature-boundaries/decisions.md D-02 and D-03.
 // Enumerated positively rather than as `@/features/*/infrastructure/**` plus a
@@ -175,7 +187,13 @@ export default [
     rules: {
       "no-restricted-imports": [
         "error",
-        { patterns: [...LEGACY_IMPORT_PATTERNS, FEATURE_DEEP_IMPORTS] },
+        {
+          patterns: [
+            ...LEGACY_IMPORT_PATTERNS,
+            FEATURE_DEEP_IMPORTS,
+            SIBLING_COMPOSITION_ROOT,
+          ],
+        },
       ],
     },
   },
@@ -193,8 +211,22 @@ export default [
           patterns: [
             ...LEGACY_IMPORT_PATTERNS,
             FEATURE_DEEP_IMPORTS_EXCEPT_MODELS,
+            SIBLING_COMPOSITION_ROOT,
           ],
         },
+      ],
+    },
+  },
+  {
+    // D-04 (routers-at-module-scope): the one known sibling composition-root import.
+    // GET /metrics/:metricId/trends builds the analytics feature. Exempt by name only;
+    // moving the endpoint or exposing a trends port is tracked in
+    // docs/internal/todos/2026-09-24-todo-metric-trends-uses-analytics-composition-root.md.
+    files: ["src/features/public/metric/infrastructure/http/controller.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: [...LEGACY_IMPORT_PATTERNS, FEATURE_DEEP_IMPORTS] },
       ],
     },
   },
@@ -207,6 +239,7 @@ export default [
           patterns: [
             ...LEGACY_IMPORT_PATTERNS,
             FEATURE_DEEP_IMPORTS,
+            SIBLING_COMPOSITION_ROOT,
             DOMAIN_LAYER_HTTP_ERROR,
           ],
         },
@@ -222,6 +255,7 @@ export default [
           patterns: [
             ...LEGACY_IMPORT_PATTERNS,
             FEATURE_DEEP_IMPORTS,
+            SIBLING_COMPOSITION_ROOT,
             APPLICATION_LAYER_ORM,
           ],
         },

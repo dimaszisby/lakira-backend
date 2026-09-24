@@ -36,7 +36,8 @@ Create a complete feature module at `src/features/<audience>/$0/` following this
 
 5. **Create the wiring files**:
    - `feature.ts` — `export const buildXFeature = () => { ... }` instantiating repos, providers, use cases
-   - `index.ts` — export `buildXFeature` and `xRouter`/`createXRouter`; imported only by `src/server.ts`
+   - `index.ts` — export `buildXFeature` and `createXRouter` only (no router instance); imported only by `src/server.ts`, which calls `createXRouter()` when mounting it
+   - in the controller, build the feature lazily — `let feature: F | undefined; const getFeature = () => (feature ??= buildXFeature());` — never at module scope (ADR-0045)
    - `public.ts` — the cross-feature surface other features may import (ADR-0044). It must not import routers or `feature.ts`
    - add the `@/features/$0` path alias to `tsconfig.json` alongside the existing ones
 

@@ -79,7 +79,12 @@ const catchAsyncMock = catchAsyncModule.default;
 
 const instantiateRouter = (): RouterDouble => {
   jest.isolateModules(() => {
-    require("@/features/analytics/infrastructure/http/router.js");
+    // The module constructs nothing on import (ADR-0045); build the router explicitly.
+    const { createVisualizationRouter } =
+      require("@/features/analytics/infrastructure/http/router.js") as {
+        createVisualizationRouter: () => unknown;
+      };
+    createVisualizationRouter();
   });
   const result = RouterMock.mock.results[RouterMock.mock.results.length - 1];
   if (!result || result.type !== "return" || !result.value) {

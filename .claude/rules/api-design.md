@@ -24,8 +24,10 @@ function createMyRouter(): Router {
   router.all("/", methodNotAllowed(["POST", "GET"]));
   return router;
 }
-export const myRouter = createMyRouter();
 ```
+
+Export the factory, not an instance: `src/server.ts` calls `createMyRouter()` at mount time, and
+importing a feature must construct nothing (ADR-0045).
 
 ## Middleware Pipeline Order
 

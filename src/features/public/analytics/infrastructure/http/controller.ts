@@ -19,7 +19,10 @@ const VIZ_CACHE_CONTROL = [
 ].join(", ");
 
 type AnalyticsFeature = ReturnType<typeof buildAnalyticsFeature>;
-let feature: AnalyticsFeature = buildAnalyticsFeature();
+// Built on first use, never at import (ADR-0045).
+let feature: AnalyticsFeature | undefined;
+const getFeature = (): AnalyticsFeature =>
+  (feature ??= buildAnalyticsFeature());
 
 export const overrideAnalyticsFeatureForTest = (custom: AnalyticsFeature) => {
   feature = custom;
@@ -50,7 +53,7 @@ export async function handleGetVisualization(
     const v = pickValidated(getVisualizationSchema)(req);
     const { params, query } = v;
 
-    const data = await feature.getVisualization.execute({
+    const data = await getFeature().getVisualization.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId: params.metricId,
@@ -84,7 +87,7 @@ export async function handleGetDashboardVisualization(
     assertAuthenticated(req);
     const { query } = pickValidated(getDashboardVizSchema)(req);
 
-    const data = await feature.getDashboardVisualization.execute({
+    const data = await getFeature().getDashboardVisualization.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       startISO: query.start,

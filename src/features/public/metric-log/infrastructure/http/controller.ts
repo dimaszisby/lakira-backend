@@ -19,7 +19,10 @@ import { buildMetricLogFeature } from "../../feature.js";
 import { pickValidated } from "@/shared/middleware/validated.js";
 
 type MetricLogFeature = ReturnType<typeof buildMetricLogFeature>;
-let metricLogFeature: MetricLogFeature = buildMetricLogFeature();
+// Built on first use, never at import (ADR-0045).
+let metricLogFeature: MetricLogFeature | undefined;
+const getMetricLogFeature = (): MetricLogFeature =>
+  (metricLogFeature ??= buildMetricLogFeature());
 
 export const overrideMetricLogFeatureForTest = (feature: MetricLogFeature) => {
   metricLogFeature = feature;
@@ -32,7 +35,7 @@ export const createMetricLog = catchAsync(
     const { body } = pickValidated(createMetricLogSchema)(req);
     const { metricId, type, logValue, loggedAt } = body;
 
-    const logDomain = await metricLogFeature.createLog.execute({
+    const logDomain = await getMetricLogFeature().createLog.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId,
@@ -53,7 +56,7 @@ export const getUserLogLibrariesViaCursor = catchAsync(
     const { query } = pickValidated(listMetricLogsViaCursorSchema)(req);
     const { limit, sort, q, after, includeTotal, filter } = query;
 
-    const page = await metricLogFeature.listLogs.execute({
+    const page = await getMetricLogFeature().listLogs.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       limit,
@@ -85,7 +88,7 @@ export const getLogById = catchAsync(
     const { params, query } = pickValidated(getMetricLogByIdSchema)(req);
     const { metricId } = query;
 
-    const logDomain = await metricLogFeature.getLog.execute({
+    const logDomain = await getMetricLogFeature().getLog.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       logId: params.id,
@@ -105,7 +108,7 @@ export const updateLog = catchAsync(async (req: AuthRequest, res: Response) => {
   const { body, params } = pickValidated(updateMetricLogSchema)(req);
   const { logValue, type, loggedAt } = body;
 
-  const logDomain = await metricLogFeature.updateLog.execute({
+  const logDomain = await getMetricLogFeature().updateLog.execute({
     userId: req.user.id,
     organizationId: req.user.organizationId,
     logId: params.id,
@@ -124,7 +127,7 @@ export const deleteLog = catchAsync(async (req: AuthRequest, res: Response) => {
   assertAuthenticated(req);
 
   const { params } = pickValidated(deleteMetricLogSchema)(req);
-  const logDomain = await metricLogFeature.deleteLog.execute({
+  const logDomain = await getMetricLogFeature().deleteLog.execute({
     userId: req.user.id,
     organizationId: req.user.organizationId,
     logId: params.id,
@@ -142,7 +145,7 @@ export const getAggregatedStats = catchAsync(
   async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { query } = pickValidated(getAggregatedStatsSchema)(req);
-    const stats = await metricLogFeature.getStats.execute({
+    const stats = await getMetricLogFeature().getStats.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId: query.metricId,
@@ -165,7 +168,7 @@ export const generateDummyMetricLogs = catchAsync(
       userId: req.user.id,
     });
 
-    const result = await metricLogFeature.generateDummyLogs.execute({
+    const result = await getMetricLogFeature().generateDummyLogs.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId,

@@ -4,6 +4,14 @@
 - **Date:** 2026-09-23
 - **Origin:** `D-02`, `D-03` and `D-06` in the feature-boundaries kit —
   [`feature-boundaries`](../../internal/initiatives/feature-boundaries/decisions.md)
+- **Related:** Decision 2's rationale revised by [ADR-0045](./adr-0045-feature-modules-construct-nothing-on-import.md).
+
+> **Status note (2026-09-24).** Decision 2 still holds — `public.ts` is the cross-feature surface —
+> but its reason has changed. Importing a feature module no longer constructs anything
+> ([ADR-0045](./adr-0045-feature-modules-construct-nothing-on-import.md)), so the import cycle it
+> worked around is gone. `public.ts` is kept to keep siblings off each other's composition roots,
+> and ESLint now enforces that. Decisions 3 and 4 (the frozen associations) are unaffected; the
+> cycle half of their rationale no longer applies, but decision 4 stands alone.
 
 ---
 

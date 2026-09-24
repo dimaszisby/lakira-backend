@@ -170,5 +170,3 @@ export const createMetricLogRouter = () => {
 
   return router;
 };
-
-export const metricLogRouter = createMetricLogRouter();

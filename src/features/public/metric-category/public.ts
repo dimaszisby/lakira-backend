@@ -1,12 +1,11 @@
 /**
  * Metric-category's cross-feature surface.
  *
- * Separate from `index.ts` because that barrel eagerly constructs this feature's
- * routers, which pulls the composition root and, transitively, sibling features. A
- * sibling importing through `index.ts` is evaluated mid-cycle and receives
- * `undefined` — seen as "Route.post() requires a callback function but got [object
- * Undefined]". This module imports no routers and no feature.ts, so it has no cycle.
- * See docs/internal/initiatives/feature-boundaries/decisions.md D-05.
+ * Other features import this, never `index.ts` or `feature.ts` — those are the
+ * composition root, for src/server.ts only, and ESLint rejects a sibling importing
+ * them. It is deliberately narrow: only what a sibling genuinely needs. (It once also
+ * dodged an import cycle; importing any feature module now constructs nothing.)
+ * See ADR-0045.
  */
 export {
   toResponseDTO as toMetricCategoryResponseDTO,
