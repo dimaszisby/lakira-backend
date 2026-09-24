@@ -9,20 +9,21 @@ This guide provides step-by-step instructions on how to install, configure, and 
 
 ## 0. Test Workflow & Troubleshooting
 
-Use this backend’s Docker Compose harness only when you need full-stack parity (CI, pre-release validation). For everyday Jest iterations, run `npm run test:dev` on the host or let the VS Code Jest extension invoke it automatically. When you need the containerized suite:
+Tests run on the host against the Compose services — the same shape CI uses:
 
 ```bash
-npm run test:ci
+docker compose up -d db redis rabbitmq   # the db init script creates lakira_test_db
+npm run db:migrate:test                  # migrations against the test database (.env.test)
+npm test                                 # unit, then integration
 ```
 
-This command proxies to `scripts/test-ci.sh`, which runs `docker compose down -v` (this **deletes
-the Compose volumes**, including any local development data), builds the app image, starts `db`,
-`redis` and `rabbitmq`, waits for Postgres, runs migrations, then runs the unit suite, the
-integration suite and integration coverage inside the `app` container. It does **not** forward
-extra arguments, so `npm run test:ci -- --coverage` silently drops `--coverage`; use
-`npm run test:unit:coverage` / `npm run test:integration:coverage` for coverage. If VS Code shows “The Compose app is no longer running,” it simply means the teardown in `test-ci.sh` completed—re-run the command to spin everything back up, or inspect `docker compose -f docker-compose.yml -f docker-compose.test.yml ps -a` for lingering containers.
+For everyday Jest iterations, `npm run test:dev` runs Jest in watch mode on the host (the VS Code
+Jest extension can invoke it). There is no containerised test runner: `npm run test:ci` was retired
+on 2026-09-24 because it could not work (it built the production image, which has no tests or
+devDependencies) and it ran `docker compose down -v` against the dev stack. To check that the
+production image still builds, run `npm run docker:build`.
 
-**Host-side migrations:** When you run Jest directly on macOS/Linux without spinning up the `app` container, the Sequelize CLI still needs the Dockerized Postgres schema. Define the host override before invoking the CLI so it speaks to `127.0.0.1` instead of the Compose hostname `db`:
+**Migrating by hand:** `npm run db:migrate:test` reads `.env.test`, which already points at `127.0.0.1`. The equivalent raw command, if you need to vary a setting:
 
 ```bash
 TEST_DATABASE_URL=postgres://lakira_user:lakira_password@127.0.0.1:5432/lakira_test_db \

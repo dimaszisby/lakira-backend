@@ -113,7 +113,7 @@ still lands and still answers the attribution question.
   This is the difference between a one-minute and a ten-minute recovery, and it removes the
   possibility of a rollback build differing from the build being rolled back to.
 - The `Dockerfile` finally gets exercised by CI on every deploy, so it stops being able to rot
-  silently. It is currently built only by `scripts/test-ci.sh` and `docker-compose.test.yml`.
+  silently. It is currently built only by `scripts/test-ci.sh` and `docker-compose.test.yml`. _(2026-09-24: both were retired; `npm run docker:build` is now the only way to build it until this decision lands — see the `retire-test-ci` kit.)_
 - Node base image resolution stops floating between the CI build and the Render build, because there
   is only one build.
 - **Not addressed here:** the four unused npm scripts (`staging`, `prod`, `start:staging`,

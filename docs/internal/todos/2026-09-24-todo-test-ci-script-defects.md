@@ -1,6 +1,6 @@
 # Todo — `scripts/test-ci.sh` drops its arguments and may migrate nothing
 
-- **Status:** Open
+- **Status:** Complete (2026-09-24) — resolved by retiring `test:ci`, not repairing it: it could never have worked (production image, wrong hosts, destructive `down -v`). See the [`retire-test-ci`](../initiatives/retire-test-ci/README.md) kit.
 - **Created:** 2026-09-24
 - **Owner:** unassigned
 - **Origin:** found by the `docs-sweep` kit while correcting `run-postgres-in-docker.md`; see its

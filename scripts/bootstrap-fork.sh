@@ -7,7 +7,7 @@
 #
 # What it does:
 #   1. Replaces "lakira-backend" with <new-name> in package.json,
-#      package-lock.json, docker-compose.test.yml, CI workflows, and scripts.
+#      package-lock.json, .env.example, and CI workflows.
 #   2. Replaces "lakira" with the derived short name (strip -backend suffix)
 #      in queue-topology references, DB names, and CI DB refs.
 #   3. Rotates JWT_SECRET in .env (creating it from .env.example if needed).
@@ -109,12 +109,10 @@ echo "Renaming '$CURRENT_NAME' → '$NEW_NAME' (short: lakira → $SHORT_NAME)"
 FILES_FULL=(
   "$REPO_ROOT/package.json"
   "$REPO_ROOT/package-lock.json"
-  "$REPO_ROOT/docker-compose.test.yml"
   "$REPO_ROOT/.env.example"
   "$REPO_ROOT/.github/workflows/backend-ci.yml"
   "$REPO_ROOT/.github/workflows/backend-prd-drift-warning.yml"
   "$REPO_ROOT/.github/workflows/promote-dev-to-staging.yml"
-  "$REPO_ROOT/scripts/test-ci.sh"
 )
 
 for f in "${FILES_FULL[@]}"; do
@@ -127,11 +125,9 @@ done
 #    (Only in config/CI files — runtime src/ uses app-name.ts)
 # ---------------------------------------------------------------------------
 FILES_SHORT=(
-  "$REPO_ROOT/docker-compose.test.yml"
   "$REPO_ROOT/.github/workflows/backend-ci.yml"
   "$REPO_ROOT/.github/workflows/backend-prd-drift-warning.yml"
   "$REPO_ROOT/.github/workflows/promote-dev-to-staging.yml"
-  "$REPO_ROOT/scripts/test-ci.sh"
   "$REPO_ROOT/.env.example"
 )
 
