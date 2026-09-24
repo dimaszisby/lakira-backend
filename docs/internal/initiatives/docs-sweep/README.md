@@ -1,6 +1,6 @@
 # Docs sweep
 
-**Status:** In progress — plan approved 2026-09-24.
+**Status:** Complete — all acceptance criteria met except AC-8 (descoped), gates green, awaiting PR.
 **Slug:** `docs-sweep` · **Branch:** `docs/docs-sweep`
 
 Lean kit — no plan; acceptance criteria live in the checklist.

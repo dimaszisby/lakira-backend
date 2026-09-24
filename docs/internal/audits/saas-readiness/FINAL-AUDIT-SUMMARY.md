@@ -46,7 +46,7 @@ follow-ups (P1-4.2 analytics env-reads, P2-4.5 multi-origin CORS) closed the las
 blocking the strict fork-ready gate. Phase 8 (subscription/billing) is deferred by design.
 
 An independent, skeptical "gone-gold" review on 2026-05-24 re-ran all six empirical gates
-(green), pressure-tested the security- and multi-tenancy-critical claims by reading code
+(green), pressure-tested the security- and multi-tenancy-critical Pass-graded claims by reading code
 (they hold up), ran the architectural drift sweep, and performed a **live forkability
 dry-run**. Result: the repo **passes the strict ADR-001 fork-ready gate** and has no P0
 blockers, but carries six industry-standard quality gaps that an outside reviewer would fix
@@ -67,7 +67,7 @@ before recommending it as a base. Verdict: **GOLD WITH CAVEATS.**
 | `npm run security:delta:check`  | `0`  | **8 medium, 0 high/critical**                                                                                         |
 | `npm run docs:openapi:generate` | `0`  | Regenerated spec byte-identical to committed (in sync)                                                                |
 
-> ⚠️ **Re-audit integrity note:** run `npm test` exactly as the project defines it
+> **Re-audit integrity note:** run `npm test` exactly as the project defines it
 > (`test:unit` then `test:integration`). A naïve combined `jest --selectProjects unit
 integration` under `SKIP_DB_LIFECYCLE=true` _appears_ to fail (8 errors) — an artifact of
 > running integration without its DB lifecycle, not a real failure. Also never let a shell
@@ -76,15 +76,15 @@ integration` under `SKIP_DB_LIFECYCLE=true` _appears_ to fail (8 errors) — an 
 
 ### Strict ADR-001 fork-ready gate → **PASS**
 
-| Criterion                            | Result                                                                |
-| ------------------------------------ | --------------------------------------------------------------------- |
-| ① Zero P0 gaps                       | ✅ (all 7 closed)                                                     |
-| ② All six gates green                | ✅                                                                    |
-| ③ Cat 1/4/6/7/8/11 ≥ 80% ✅          | ✅ — Cat 4 = **87.5%** after P1-4.2 + P2-4.5 closed; all others ≥ 80% |
-| ④ `LICENSE` + `.env.example` present | ✅                                                                    |
+| Criterion                              | Result                                                                 |
+| -------------------------------------- | ---------------------------------------------------------------------- |
+| (1) Zero P0 gaps                       | Yes (all 7 closed)                                                     |
+| (2) All six gates green                | Yes                                                                    |
+| (3) Cat 1/4/6/7/8/11 ≥ 80% (pass)      | Yes — Cat 4 = **87.5%** after P1-4.2 + P2-4.5 closed; all others ≥ 80% |
+| (4) `LICENSE` + `.env.example` present | Yes                                                                    |
 
 > ADR-007 framed the pass as "closing P2-4.5 flips the gate." That is arithmetically
-> incomplete: Cat 4 was 5✅/3⚠️ (62.5%); CORS alone → 6/8 = 75% (still < 80%). The gate only
+> incomplete: Cat 4 was 5 pass/3 partial (62.5%); CORS alone → 6/8 = 75% (still < 80%). The gate only
 > clears because **P1-4.2 also closed** (commit `302a335`). Both were required; both landed.
 
 ### What the audit verified solid (by reading code, not trusting prose)
@@ -110,18 +110,18 @@ integration` under `SKIP_DB_LIFECYCLE=true` _appears_ to fail (8 errors) — an 
 **Baseline → now:** 7 P0 / 17 P1 / 11 P2 (2026-05-01) → **0 P0 / 2 P1-by-design-deferred /
 P2 follow-ups** (2026-05-24).
 
-| Phase                  | Closed                                 | Outcome                                                                                                                    |
-| ---------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| 0 — Cheap-P0 sweep     | P0-4.1, P0-6.1, P0-6.2, P0-11.1        | `trust proxy` + HTTPS readiness, `.env.example`, root `README.md`, `LICENSE`                                               |
-| 1 — JWT lifecycle      | P0-1.1, P1-10.3                        | Refresh-token family + rotation; `TokenProvider.verify()` port (no `jwt.verify` in middleware)                             |
-| 2 — Observability      | P0-5.1, P1-5.2, P1-5.3, P1-4.3         | Request-ID ALS, Sentry hook (5xx), `/ready` probe, Winston redaction filter                                                |
-| 3 — Email verification | P1-1.2                                 | End-to-end verify + resend, gated by `requireVerifiedEmail`                                                                |
-| 4 — Multi-tenancy      | P0-3.1, P0-9.1, P1-1.3                 | `Organization` + `Membership` + `organizationId` on all domain tables; RBAC via org roles                                  |
-| 5 — Drift cleanup      | P1-10.1, P1-10.2, P2-10.4, P2-10.5     | Canonical DDD layout + architecture test (see caveat **C4**)                                                               |
-| 6 — Forkability        | P1-11.2, P1-11.3, P1-11.4, P2-11.5⚠️   | `CONTRIBUTING.md`, `bootstrap-fork.sh`, `APP_NAME` centralization (see caveats **C1/C2**); CachePort consolidation partial |
-| 7 — Production runtime | P1-8.3, P1-8.4, P1-4.4, P1-7.1         | Multi-stage Dockerfile, `deploy_production`, login lockout, e2e Jest project                                               |
-| post-7                 | P1-4.2 (`302a335`), P2-4.5 (`a4c4a86`) | Analytics env-reads routed through `envManager`; CORS comma-separated allowlist (ADR-007)                                  |
-| 8 — Subscription       | P1-9.2                                 | 🅿️ Deferred by design (post-multi-tenancy)                                                                                 |
+| Phase                  | Closed                                     | Outcome                                                                                                                    |
+| ---------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| 0 — Cheap-P0 sweep     | P0-4.1, P0-6.1, P0-6.2, P0-11.1            | `trust proxy` + HTTPS readiness, `.env.example`, root `README.md`, `LICENSE`                                               |
+| 1 — JWT lifecycle      | P0-1.1, P1-10.3                            | Refresh-token family + rotation; `TokenProvider.verify()` port (no `jwt.verify` in middleware)                             |
+| 2 — Observability      | P0-5.1, P1-5.2, P1-5.3, P1-4.3             | Request-ID ALS, Sentry hook (5xx), `/ready` probe, Winston redaction filter                                                |
+| 3 — Email verification | P1-1.2                                     | End-to-end verify + resend, gated by `requireVerifiedEmail`                                                                |
+| 4 — Multi-tenancy      | P0-3.1, P0-9.1, P1-1.3                     | `Organization` + `Membership` + `organizationId` on all domain tables; RBAC via org roles                                  |
+| 5 — Drift cleanup      | P1-10.1, P1-10.2, P2-10.4, P2-10.5         | Canonical DDD layout + architecture test (see caveat **C4**)                                                               |
+| 6 — Forkability        | P1-11.2, P1-11.3, P1-11.4, P2-11.5 partial | `CONTRIBUTING.md`, `bootstrap-fork.sh`, `APP_NAME` centralization (see caveats **C1/C2**); CachePort consolidation partial |
+| 7 — Production runtime | P1-8.3, P1-8.4, P1-4.4, P1-7.1             | Multi-stage Dockerfile, `deploy_production`, login lockout, e2e Jest project                                               |
+| post-7                 | P1-4.2 (`302a335`), P2-4.5 (`a4c4a86`)     | Analytics env-reads routed through `envManager`; CORS comma-separated allowlist (ADR-007)                                  |
+| 8 — Subscription       | P1-9.2                                     | Deferred by design (post-multi-tenancy)                                                                                    |
 
 ---
 
@@ -199,8 +199,8 @@ defects to fix blindly:
 
 | Date       | File                                                                   | Verdict                                             | Scorecard                                                                |
 | ---------- | ---------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------ |
-| 2026-05-01 | [`audit-2026-05-01.md`](./audit-2026-05-01.md)                         | NOT fork-ready                                      | 26✅ / 21⚠️ / 18❌ — 7 P0, 17 P1, 11 P2                                  |
-| 2026-05-20 | [`audit-2026-05-20.md`](./audit-2026-05-20.md)                         | Shippable; not strictly fork-ready (self-audit)     | 52✅ / 9⚠️ / 4❌ — 0 P0, 4 P1, 9 P2                                      |
+| 2026-05-01 | [`audit-2026-05-01.md`](./audit-2026-05-01.md)                         | NOT fork-ready                                      | 26 pass / 21 partial / 18 fail — 7 P0, 17 P1, 11 P2                      |
+| 2026-05-20 | [`audit-2026-05-20.md`](./audit-2026-05-20.md)                         | Shippable; not strictly fork-ready (self-audit)     | 52 pass / 9 partial / 4 fail — 0 P0, 4 P1, 9 P2                          |
 | 2026-05-24 | [`audit-2026-05-24-independent.md`](./audit-2026-05-24-independent.md) | **GOLD WITH CAVEATS** (independent)                 | ADR-001 gate **PASS**; 6 caveats + 8 judgment items                      |
 | 2026-06-05 | [`audit-2026-06-05.md`](./audit-2026-06-05.md)                         | **GOLD WITH CAVEATS — DOWNGRADED PENDING N1+N2+F1** | All six gates re-run green; 2 new P0, 1 new HIGH, 6 P1, 6 P2, 4 P3 found |
 
@@ -208,7 +208,7 @@ defects to fix blindly:
 the dated file): security findings 1→8 medium; `svix` present transitively via `resend`;
 `token-generator.ts` is a second `jwt.sign` path; the "no Sequelize leak in application" and
 "drift closed / arch-test enforces" claims are overstated; the runtime branding "flips in one
-shot" claim is false on a fresh fork; and the error-envelope ⚠️ is stronger than graded.
+shot" claim is false on a fresh fork; and the error-envelope Partial grade is stronger than graded.
 
 ---
 
@@ -232,8 +232,8 @@ re-confirmed status. The fresh pass is where this re-audit earned its keep.
 | `npm run security:gate:evaluate` | `0`  | `passed=true blocking=0 backlogWarnings=0`                          |
 | `npm run docs:openapi:generate`  | `0`  | Regenerated spec **byte-identical** to committed (`git diff` empty) |
 
-Strict ADR-001 fork-ready gate criteria: ① zero P0 in the 05-24 baseline (still true);
-② all gates green (true); ③ Cat 1/4/6/7/8/11 ≥ 80% (still true); ④ LICENSE + .env.example
+Strict ADR-001 fork-ready gate criteria: (1) zero P0 in the 05-24 baseline (still true);
+(2) all gates green (true); (3) Cat 1/4/6/7/8/11 ≥ 80% (still true); (4) LICENSE + .env.example
 (still true). The 2026-06-05 audit downgrades the **verdict** to "GOLD WITH CAVEATS —
 DOWNGRADED PENDING N1+N2+F1" not because ADR-001 fails, but because the newly-surfaced
 findings are exactly the kind a clean GOLD restatement should refuse to ignore.
@@ -246,12 +246,12 @@ findings are exactly the kind a clean GOLD restatement should refuse to ignore.
 
 | ID  | Caveat                                | Status | Evidence                                                                                                                  |
 | --- | ------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
-| C1  | Fork flow doesn't work as printed     | ☐ Open | `scripts/bootstrap-fork.sh:144,153,182` unchanged                                                                         |
-| C2  | Lakira branding leaks                 | ☐ Open | `src/config/app-name.ts:4` unchanged                                                                                      |
-| C3  | Error envelope inconsistent + undoc'd | ☐ Open | `src/shared/middleware/error.ts:33,47,76,80` unchanged                                                                    |
-| C4  | Architecture test too weak            | ☐ Open | `__tests__/unit/architecture.test.ts:39–118` unchanged; concrete leak: `AppError` in `Metric.ts:3`, `MetricSettings.ts:1` |
-| C5  | Sentry no `beforeSend`                | ☐ Open | `src/server.ts:57–61` unchanged                                                                                           |
-| C6  | Log-redaction suffix-anchored         | ☐ Open | `src/config/sensitive-keys.ts:1` unchanged                                                                                |
+| C1  | Fork flow doesn't work as printed     | Open   | `scripts/bootstrap-fork.sh:144,153,182` unchanged                                                                         |
+| C2  | Lakira branding leaks                 | Open   | `src/config/app-name.ts:4` unchanged                                                                                      |
+| C3  | Error envelope inconsistent + undoc'd | Open   | `src/shared/middleware/error.ts:33,47,76,80` unchanged                                                                    |
+| C4  | Architecture test too weak            | Open   | `__tests__/unit/architecture.test.ts:39–118` unchanged; concrete leak: `AppError` in `Metric.ts:3`, `MetricSettings.ts:1` |
+| C5  | Sentry no `beforeSend`                | Open   | `src/server.ts:57–61` unchanged                                                                                           |
+| C6  | Log-redaction suffix-anchored         | Open   | `src/config/sensitive-keys.ts:1` unchanged                                                                                |
 
 ### Newly surfaced findings (full details in `audit-2026-06-05.md` §6)
 

@@ -29,7 +29,7 @@ This audit captures the current state of the Lakira backend integration testing 
 - Helpers:
   - HTTP: `__tests__/integration/helpers/test-utils.ts` handles user registration, auth headers, payload builders for metrics/logs/settings.
   - DB fixtures: `__tests__/integration/helpers/db-fixtures.ts` manages raw model inserts, transactions (`runInTransaction`), new composite builders (`createUserWithCategory`, `seedMetricWithLogs`, `seedDashboardMetric`), and manual table truncation for targeted tests.
-- Phase 2 repository coverage tracker (`docs/internal/initiatives/tests-overhaul/phase2-integration-coverage.md`) shows all planned repo suites marked ✅.
+- Phase 2 repository coverage tracker (`docs/internal/initiatives/tests-overhaul/phase2-integration-coverage.md`) shows all planned repo suites marked Pass.
 - `docs/internal/archive/test-classification-2025-12-22.md` updated to reflect the current state and highlight remaining higher-order gaps (journeys, Redis).
 
 ## 4. Findings & Gaps

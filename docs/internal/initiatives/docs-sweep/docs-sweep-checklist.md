@@ -46,7 +46,7 @@ commits: content (clusters 1–8), then the emoji pass (cluster 9).
      product-requirements rewrite
 - [x] 7. `docs/tutorials/` and `docs/how-to/`
 - [x] 8. Kits and todos — statuses, SHAs, Superseded markers (placement table descoped, see Discovered)
-- [ ] 9. Emoji pass (commit 2)
+- [x] 9. Emoji pass (commit 2)
 - [x] Todos filed (D-05) — `2026-09-24-todo-test-ci-script-defects`,
       `2026-09-24-todo-commands-doc-drift-check`, `2026-09-24-todo-app-name-short-name-mismatch`
 
@@ -115,7 +115,11 @@ commits: content (clusters 1–8), then the emoji pass (cluster 9).
       operations), tables and indexes from database introspection, role rules from
       `organization.controller.ts` and the use cases
 - [ ] AC-8 — **descoped**: the todo asks for its own PR (see Discovered)
-- [ ] AC-9 —
+- [x] AC-9 — a scan of every tracked `.md` (emoji ranges U+2300–23FF, 2460–24FF, 2600–27BF,
+      2B00–2BFF, 1F000–1FAFF) finds 4 lines, all allow-listed data values. Triangle arrow characters in ASCII
+      diagrams are typography and were kept. 575 lines in 60 files changed; the
+      rule script's output was reviewed by category, and 11 sentences where the emoji carried the
+      meaning (for example "a category cannot be [pass mark]") were rewritten by hand
 
 ## Gates
 
@@ -130,10 +134,36 @@ Commit 1 (content):
       0: unit 92 suites / 601 tests; integration 28 passed, 2 skipped / 196 passed, 5 skipped.
       `security-framework.validation.test.ts` PASS
 - [x] build — exit 0
+      Commit 2 (emoji pass):
+
+- [x] format — exit 0
+- [x] tests — unit 92 suites / 601 tests, exit 0, `security-framework.validation.test.ts` PASS.
+      Integration, typecheck, lint and build skipped for commit 2: it changes only Markdown text
+      outside the linted and compiled tree, and commit 1 ran them all
+- [x] links and paths — every link and path-like code span in the 60 files is unchanged by the
+      pass (compared before and after)
+- [ ] mermaid rendering — not re-rendered: only emoji characters inside quoted node labels were
+      removed, with no syntax change
+
+Both:
+
 - [ ] OpenAPI — skipped: no route, Zod schema, or `src/lib/openapi/**` change
 - [ ] security delta — skipped: no dependency change
 - [ ] link check and path/script resolver — each run with a negative control
 
 ## Review
 
-_(after gates)_
+- **Outcome:** about 160 stale claims corrected across the rules, the agents and skills, reference,
+  explanation, tutorials, how-to, and the internal status docs, each checked against code, git or a
+  live database. Emoji markers are removed from tracked Markdown except four data values.
+- **What review caught in this kit's own plan:** ADR-0018 was not partial (its decision is "apply
+  to no route"); one sweep finding was a false positive (`DISABLE_RATE_LIMITING`); the
+  placement-table fix belongs in its own PR by that todo's explicit request. All three are in
+  Discovered.
+- **What review caught in the work:** a PRD line wrongly said admins can change roles (owner only);
+  `README.md` wrongly described `src/infrastructure/db`; a rationale I had invented for the
+  api-design middleware order was removed; the mechanical emoji rules dropped meaning in 11
+  sentences, now rewritten.
+- **Left open:** the placement-table todo, the four todos this kit filed, ADR-0039 Part 2 and
+  ADR-0040 against the VPS (TF-2), and the dated snapshots that now carry a banner rather than a
+  rewrite.

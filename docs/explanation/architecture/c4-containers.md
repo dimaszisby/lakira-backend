@@ -13,7 +13,7 @@ is currently deployed anywhere.
 
 ```mermaid
 graph TB
-    web["🖥️ Web frontend<br/><small>separate repo</small>"]
+    web["Web frontend<br/><small>separate repo</small>"]
 
     subgraph sys ["Lakira Backend"]
         direction TB

@@ -147,7 +147,7 @@ something this PR demonstrates.
       had been encoding the violation
 - [x] `docs:openapi:check` exit 0, no diff — the published error components did not move
 - [x] ADR-0044 written; D-02, D-03 and D-06 collapsed to pointers
-- [x] `FINAL-AUDIT-SUMMARY.md` — C4 flipped to ✅
+- [x] `FINAL-AUDIT-SUMMARY.md` — C4 flipped to Fixed
 
 ### PR 2 gates
 

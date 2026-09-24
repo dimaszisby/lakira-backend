@@ -19,7 +19,7 @@ Lean kit: no plan, so the acceptance criteria are stated here.
 - **AC-4** — The C5 audit row records the `@sentry/node` v10 default-finding, so the next reader
   does not re-derive the same doubt for a third time.
   _Why:_ two sessions have now spent effort doubting this row's severity.
-- **AC-5** — C6 and C5 are flipped to ✅ in `FINAL-AUDIT-SUMMARY.md` § 4, per that file's own
+- **AC-5** — C6 and C5 are flipped to Fixed in `FINAL-AUDIT-SUMMARY.md` § 4, per that file's own
   fix-status convention.
 
 ## Work items
@@ -33,7 +33,7 @@ Lean kit: no plan, so the acceptance criteria are stated here.
       inline closure in `server.ts`
 - [x] `src/server.ts` — `beforeSend: scrubSentryEvent`
 - [x] `__tests__/unit/utils/sentry-scrub.test.ts` — six cases
-- [x] `docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` — C6 ✅, C5 ✅ + dated note,
+- [x] `docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` — C6 Fixed, C5 Fixed + dated note,
       and the § header line that still said "C4, C5 and C6 remain open-unchanged"
 - [x] `.claude/rules/security.md` — restated, and now points at `sensitive-keys.ts` as the source
 - [x] `docs/how-to/development/read-application-logs.md` — same regex quoted, same fix
@@ -93,6 +93,6 @@ exactly the context needed to debug the analytics conditional-request work. Six 
 guard that, and they passed before the change as well as after, which is what makes them regression
 cover rather than decoration.
 
-**One loose end:** the audit's fix-status convention asks for a commit SHA alongside ✅, which
-cannot exist before the commit does. C6/C5 currently read ✅ without one. Either fill them in a
+**One loose end:** the audit's fix-status convention asks for a commit SHA alongside (pass), which
+cannot exist before the commit does. C6/C5 currently read Fixed without one. Either fill them in a
 follow-up, or accept that C1/C3 carry SHAs and these two carry a dated note instead.

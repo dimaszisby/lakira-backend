@@ -12,7 +12,7 @@ The Lakira backend protects every authenticated endpoint with JSON Web Tokens (J
 
 | Area                    | Observations                                                                                                                                                                                             | Risk                                                                         |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Secret sourcing         | Code consistently reads `env.JWT_SECRET`. Zod schema throws at boot if the secret is missing. ✔️                                                                                                         | Low                                                                          |
+| Secret sourcing         | Code consistently reads `env.JWT_SECRET`. Zod schema throws at boot if the secret is missing.                                                                                                            | Low                                                                          |
 | Secret storage          | Realistic looking secrets are committed under `.env.development` / `.env.test`. No `.env.example` pattern.                                                                                               | High: repo leakage, cannot prove unique-per-environment secrets.             |
 | Signing implementation  | `tokenGenerator` and `JwtTokenProvider` sign payload `{ id, email }` with `expiresIn: "7d"` but omit explicit `algorithm`. JSON Web Token defaults to HS256. No issuer/audience/subject claims.          | Medium: defaults can drift, harder to audit, long token lifetime.            |
 | Verification            | Middleware calls `jwt.verify` with a single shared secret. No grace period or JWKS support, no clock skew tolerance, error responses are generic 401.                                                    | Medium: rotation downtime, limited observability.                            |
@@ -70,10 +70,10 @@ The Lakira backend protects every authenticated endpoint with JSON Web Tokens (J
 
 ## 6. Success Metrics
 
-- ✅ No committed secrets detected by automated scanners.
-- ✅ Token lifetime and claims align with documented policy.
-- ✅ Rotation can occur without downtime, verified via staging exercise.
-- ✅ Auth-related alerts and dashboards exist for failed verifications and unusual activity.
+- No committed secrets detected by automated scanners.
+- Token lifetime and claims align with documented policy.
+- Rotation can occur without downtime, verified via staging exercise.
+- Auth-related alerts and dashboards exist for failed verifications and unusual activity.
 
 ---
 
@@ -125,8 +125,8 @@ Detailed decisions for this phase live in [`./decisions.md`](./decisions.md) ADR
 
 ### Phase D — Success metrics
 
-- ✅ `POST /auth/refresh` works end-to-end in integration tests with rotation + reuse detection.
-- ✅ `authMiddleware` no longer imports `jsonwebtoken` directly.
-- ✅ Logout actually revokes (verified by integration test).
-- ✅ Access-token TTL is 15 minutes in production env.
-- ✅ Audit re-run marks P0-1.1 and P1-10.3 as ✅.
+- `POST /auth/refresh` works end-to-end in integration tests with rotation + reuse detection.
+- `authMiddleware` no longer imports `jsonwebtoken` directly.
+- Logout actually revokes (verified by integration test).
+- Access-token TTL is 15 minutes in production env.
+- Audit re-run marks P0-1.1 and P1-10.3 as Pass.

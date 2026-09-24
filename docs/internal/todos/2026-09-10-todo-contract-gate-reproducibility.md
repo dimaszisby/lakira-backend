@@ -167,9 +167,9 @@ reproducibility" section.
 
 | Run | Verdict | Test cases                       | Failing check                                                                                                                             | Seed (printed, unused)                  |
 | --- | ------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| 1   | ✅ pass | 1369 generated, 1369 passed      | —                                                                                                                                         | 332935362757454943535769103405316754424 |
-| 2   | ✅ pass | 1370 generated, 1370 passed      | —                                                                                                                                         | 249507818271592478822377287030058576965 |
-| 3   | ❌ fail | 1362 generated, 1 unique failure | `PATCH /metric-settings/{id}/display` — API rejected schema-compliant request (400: `displayOptions.color` "contains invalid characters") | 285743832185050430886247269922914328681 |
+| 1   | pass    | 1369 generated, 1369 passed      | —                                                                                                                                         | 332935362757454943535769103405316754424 |
+| 2   | pass    | 1370 generated, 1370 passed      | —                                                                                                                                         | 249507818271592478822377287030058576965 |
+| 3   | fail    | 1362 generated, 1 unique failure | `PATCH /metric-settings/{id}/display` — API rejected schema-compliant request (400: `displayOptions.color` "contains invalid characters") | 285743832185050430886247269922914328681 |
 
 All three: 46 operations, 37/46 selected. The three "before" runs did **not** all agree — 2 green,
 1 red on an identical tree — which is direct, first-hand confirmation of the defect described above,
@@ -202,9 +202,9 @@ again. That is the fuzzer-as-fixture tradeoff accepted above, and it holds only 
 
 | Run | Verdict | Test cases                  | Seed (pinned) | `seed.txt` written |
 | --- | ------- | --------------------------- | ------------- | ------------------ |
-| 1   | ✅ pass | 1370 generated, 1370 passed | 42            | yes, matches       |
-| 2   | ✅ pass | 1371 generated, 1371 passed | 42            | yes, matches       |
-| 3   | ✅ pass | 1371 generated, 1371 passed | 42            | yes, matches       |
+| 1   | pass    | 1370 generated, 1370 passed | 42            | yes, matches       |
+| 2   | pass    | 1371 generated, 1371 passed | 42            | yes, matches       |
+| 3   | pass    | 1371 generated, 1371 passed | 42            | yes, matches       |
 
 All three: 46 operations, 37/46 selected — unchanged. All three verdicts agree (pass, 0 failures),
 and the runner's log line and `reports/local/<timestamp>/seed.txt` both show `42` in every run,

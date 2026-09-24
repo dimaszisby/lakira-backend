@@ -38,7 +38,7 @@
   - Acceptance Criteria:
     - No file in `application/**` imports `sequelize`, `models`, or SQL builders directly.
     - Feature builders instantiate and provide the new read ports.
-    - Tests demonstrate queries executing against stubbed ports. ✅ `__tests__/features/*/application/*.test.ts`
+    - Tests demonstrate queries executing against stubbed ports. `__tests__/features/*/application/*.test.ts`
 
 - [x] **G-02 – Localize DTOs and validation under each feature**
   - From findings: AUTH-01, AUTH-02, ML-02, MS-01, MS-02

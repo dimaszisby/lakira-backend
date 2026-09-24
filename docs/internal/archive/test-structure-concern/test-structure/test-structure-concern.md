@@ -388,11 +388,11 @@ This is optional for now; the minimum is to classify them correctly.
   ```markdown
   | Feature         | Unit (domain/app) | Integration (HTTP/DB) | Contract | Status   |
   | --------------- | ----------------- | --------------------- | -------- | -------- |
-  | Auth            | ✅                | ✅                    | ✅       | Stable   |
-  | Metric          | ✅                | ✅                    | ✅       | Stable   |
-  | Metric Log      | ✅                | 🚧                    | ✅       | In Prog. |
-  | Metric Settings | ✅                | 🚧                    | ✅       | In Prog. |
-  | Analytics       | ✅                | ✅                    | ✅       | Stable   |
+  | Auth            | PASS              | PASS                  | PASS     | Stable   |
+  | Metric          | PASS              | PASS                  | PASS     | Stable   |
+  | Metric Log      | PASS              | In progress           | PASS     | In Prog. |
+  | Metric Settings | PASS              | In progress           | PASS     | In Prog. |
+  | Analytics       | PASS              | PASS                  | PASS     | Stable   |
   ```
 
 ### Step 5 – Align CI

@@ -42,8 +42,8 @@ Run the security checks defined in `docs/how-to/security/release-delta-sop.md`.
 
    ```
    Security Audit Results:
-     ✓/✗ Framework tests
-     ✓/✗ Security delta gate
+     PASS/FAIL Framework tests
+     PASS/FAIL Security delta gate
 
    Gate decision: PASS / BLOCKED
    Blocking findings: [count]

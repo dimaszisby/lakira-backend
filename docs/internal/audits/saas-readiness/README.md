@@ -4,7 +4,7 @@
 
 This kit holds the SaaS-base readiness audit for the Lakira backend — a graded, file-path-precise assessment of how close the repo is to being **forkable as a generic SaaS base** rather than a personal-app codebase.
 
-The audit grades against the project's own intended standard (`.claude/rules/*`, `docs/explanation/testing-strategy.md`, `docs/reference/ci-pipeline/strategy.md`) and not just generic SaaS criteria. Empirical verification commands are run; a category cannot be ✅ if its verification fails or if the intended standard itself is missing.
+The audit grades against the project's own intended standard (`.claude/rules/*`, `docs/explanation/testing-strategy.md`, `docs/reference/ci-pipeline/strategy.md`) and not just generic SaaS criteria. Empirical verification commands are run; a category cannot be Pass if its verification fails or if the intended standard itself is missing.
 
 ## Scope
 
@@ -39,15 +39,15 @@ npm run security:delta:check
 npm run docs:openapi:generate
 ```
 
-A category cannot be ✅ if any of those fail. See `audit-2026-05-01.md` Appendix B for the full re-audit recipe (branding scan, env-bypass scan, sequelize-leak scan, soft-delete consistency scan).
+A category cannot be Pass if any of those fail. See `audit-2026-05-01.md` Appendix B for the full re-audit recipe (branding scan, env-bypass scan, sequelize-leak scan, soft-delete consistency scan).
 
 When re-auditing, write the result to a new dated file (`audit-YYYY-MM-DD.md`) in this folder — do not overwrite the prior one. Diff the scorecards across runs to track progress.
 
 ## How to read the gap entries
 
-Each non-✅ item in `audit-2026-05-01.md` follows the same structure:
+Each non-item in `audit-2026-05-01.md` follows the same structure:
 
-- **Status** — ⚠️ (partial) or ❌ (missing).
+- **Status** — Partial or Missing.
 - **What's missing/incomplete** — 1–3 sentences, no soft pedalling.
 - **Why it matters for a SaaS base** — the reason it's worth fixing for a forker.
 - **Recommended fix** — opinionated, picks specific lib/pattern fitting the existing stack.
@@ -66,7 +66,7 @@ The repo is fork-ready only when **all four** conditions hold:
 
 1. Zero P0 gaps remaining.
 2. All six empirical commands green.
-3. Categories 1 (Auth), 4 (Security), 6 (DX), 7 (Testing), 8 (CI/CD), 11 (Forkability) at ≥80% ✅.
+3. Categories 1 (Auth), 4 (Security), 6 (DX), 7 (Testing), 8 (CI/CD), 11 (Forkability) at ≥80% Yes.
 4. `LICENSE` and `.env.example` present.
 
 At the 2026-05-01 baseline: condition 1 failed (7 P0s), condition 3 failed (5 of 6 categories below 80%), condition 4 failed (both files missing). Condition 2 held. All four have held since the 2026-05-24 independent audit; current status is in `FINAL-AUDIT-SUMMARY.md`.

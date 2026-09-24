@@ -144,7 +144,7 @@ worker before `npm test`, because it would consume the test's messages.
 | `RATE_LIMIT_PASSWORD_RESET_IP_MAX`        | number  | `10`    | per IP           |
 | `DISABLE_RATE_LIMITING`                   | boolean | `false` |                  |
 
-> ⚠️ `DISABLE_RATE_LIMITING=true` turns off **every** limiter. It exists for test and fuzzing
+> `DISABLE_RATE_LIMITING=true` turns off **every** limiter. It exists for test and fuzzing
 > runs. Startup **refuses** it when `NODE_ENV=production`, along with the other
 > production-unsafe switches listed in
 > [ADR-0036](../explanation/decisions/adr-0036-refuse-production-unsafe-env-switches.md):

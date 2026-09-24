@@ -4,15 +4,15 @@ I am building a back-end Goal Tracking web application named Lakira using **Node
 
 Lakira is a **versatile tracking app** designed to help users **monitor, visualize, and improve** their progress in fitness, wellness, productivity, learning, or personal habits.
 
-✅ **Custom Metrics** – Track anything, from gym workouts and study hours to sleep quality and mindfulness sessions.
+**Custom Metrics** – Track anything, from gym workouts and study hours to sleep quality and mindfulness sessions.
 
-✅ **Visual Analytics** – Interactive charts & insights for tracking trends.
+**Visual Analytics** – Interactive charts & insights for tracking trends.
 
-✅ **Goal-Oriented Tracking** – Set milestones, measure improvements.
+**Goal-Oriented Tracking** – Set milestones, measure improvements.
 
-✅ **Minimalist Design** – Inspired by **Japanese precision and structured simplicity and Javanese calming and elegant**.
+**Minimalist Design** – Inspired by **Japanese precision and structured simplicity and Javanese calming and elegant**.
 
-✅ **Smart Reminders** – Stay accountable with nudges and progress summaries.
+**Smart Reminders** – Stay accountable with nudges and progress summaries.
 
 # Technology Stack
 

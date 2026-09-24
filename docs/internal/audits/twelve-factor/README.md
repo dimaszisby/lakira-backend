@@ -66,7 +66,7 @@ grep -nE "image: (postgres|redis|rabbitmq)" docker-compose.yml .github/workflows
 grep -n "transports\.\|nodeEnv" src/utils/logger.ts
 ```
 
-A factor cannot be ✅ if its scan contradicts the grade. When re-auditing, write the result to a new
+A factor cannot be Pass if its scan contradicts the grade. When re-auditing, write the result to a new
 dated file (`audit-YYYY-MM-DD.md`) in this folder — **do not overwrite the prior one**. Diff the
 scorecards across runs to track progress.
 
@@ -74,10 +74,10 @@ scorecards across runs to track progress.
 
 Each factor entry follows the same structure:
 
-- **Status** — ✅ (compliant) / ⚠️ (partial) / ❌ (violated).
+- **Status** — Compliant / Partial / Violated.
 - **What the code does** — the actual mechanism, with citations. Strengths first; several factors
   here are genuinely well built and the audit says so.
-- **Gap** — what breaks the factor. 1–3 sentences, no soft pedalling. Absent when ✅.
+- **Gap** — what breaks the factor. 1–3 sentences, no soft pedalling. Absent when Yes.
 - **Why it matters** — the operational consequence, not the doctrinal one. A factor is not worth
   fixing because 12factor.net says so.
 - **Recommended fix** — opinionated, fitting the existing stack. Defers to the linked ADR where one
@@ -105,11 +105,11 @@ Aligned with the saas-readiness kit so the two programs can be read together:
 
 Full reasoning is in [`audit-2026-08-17.md`](./audit-2026-08-17.md).
 
-| Status       | Factors             |
-| ------------ | ------------------- |
-| ✅ Compliant | I, VI, VII, IX, XII |
-| ⚠️ Partial   | II, III, IV, X      |
-| ❌ Violated  | V, VIII, XI         |
+| Status    | Factors             |
+| --------- | ------------------- |
+| Compliant | I, VI, VII, IX, XII |
+| Partial   | II, III, IV, X      |
+| Violated  | V, VIII, XI         |
 
 The three violations share one root cause: **the deployment topology was never finished.** The
 Dockerfile, the worker, and the structured logger are each individually well built and none of them

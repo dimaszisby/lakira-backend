@@ -12,7 +12,7 @@
 One ordering for non-trivial work. Each step leaves a trace the next step can find.
 
 ```
-plan → size the kit → branch → plan.md → checklist.md → ⏸ approve
+plan → size the kit → branch → plan.md → checklist.md → STOP: approve
      → implement (+ decisions.md entry at each decision) → gates → review → fix
      → docs → hand over commit → hand over PR
 ```

@@ -64,6 +64,6 @@
 
 ## Next Steps
 
-- ✅ Share this review with the platform/infrastructure lead.
-- 🔄 Prioritize the bootstrap refactor in the next sprint; target adding measurement to compare cold-start timings before/after.
-- 📘 Update onboarding docs to link to this review and explain the desired env validation workflow.
+- Share this review with the platform/infrastructure lead.
+- Prioritize the bootstrap refactor in the next sprint; target adding measurement to compare cold-start timings before/after.
+- Update onboarding docs to link to this review and explain the desired env validation workflow.

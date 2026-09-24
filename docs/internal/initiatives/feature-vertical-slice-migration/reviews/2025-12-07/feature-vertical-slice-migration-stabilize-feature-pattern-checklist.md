@@ -17,8 +17,8 @@
   - [x] Define read/query port interfaces per feature.
   - [x] Implement adapters moving all Sequelize/SQL into infrastructure.
   - [x] Update application queries to depend on the new ports.
-  - [x] Add unit tests for queries using port stubs. ✅ `__tests__/features/{analytics|metric|metric-log}/application`
-  - [x] Add integration tests for adapters. ✅ `__tests__/features/{analytics|metric}/infrastructure/persistence`
+  - [x] Add unit tests for queries using port stubs. `__tests__/features/{analytics|metric|metric-log}/application`
+  - [x] Add integration tests for adapters. `__tests__/features/{analytics|metric}/infrastructure/persistence`
 - [x] **G-02 – Localize DTOs and validation under each feature**
   - [x] Create feature-scoped DTO + schema files.
   - [x] Update routers/controllers to use local definitions.
@@ -83,7 +83,7 @@
 - [x] **MC-01 – Add GenerateDummyCategories use-case**
   - [x] Implement new use-case using factory + repo + cache.
   - [x] Update controller to call the use-case.
-  - [x] Add tests verifying cache invalidation. ✅ `__tests__/features/metric-category/application/GenerateDummyCategories.test.ts`
+  - [x] Add tests verifying cache invalidation. `__tests__/features/metric-category/application/GenerateDummyCategories.test.ts`
 - [x] **MC-02 – Split read flows into `application/queries`**
   - [x] Move read classes to `application/queries`.
   - [x] Update imports/feature builder.
@@ -113,7 +113,7 @@
 - [x] **MS-02 – Add Zod schemas for metric-settings endpoints**
   - [x] Create schema file for create/update/list/display options.
   - [x] Ensure router/controllers use `validate`/`pickValidated`.
-  - [x] Add validation tests. ✅ `__tests__/features/metric-settings/infrastructure/http/schema.zod.test.ts`
+  - [x] Add validation tests. `__tests__/features/metric-settings/infrastructure/http/schema.zod.test.ts`
 
 ---
 

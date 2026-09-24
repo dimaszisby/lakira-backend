@@ -2,7 +2,7 @@
 
 ## Scope & Outcome
 
-- ✅ Phase 0–4 checklist completed in `docs/internal/initiatives/tests-overhaul/test-structure-checklist.md`.
+- Phase 0–4 checklist completed in `docs/internal/initiatives/tests-overhaul/test-structure-checklist.md`.
 - Unit vs. integration suites fully split (`__tests__/unit/**`, `__tests__/integration/**`).
 - Repository-level integration coverage now includes metrics (read/write/settings/logs), auth, analytics (visualizations), with status tracked in `docs/internal/initiatives/tests-overhaul/phase2-integration-coverage.md`.
 - `package.json` provides fast + coverage scripts for each layer; Jest multi-project config (`jest.config.mjs`) collects artifacts in `coverage/jest-unit` and `coverage/jest-integration`.

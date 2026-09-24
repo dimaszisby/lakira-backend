@@ -87,7 +87,7 @@ docs/
 ├── reference/                                        [information-oriented]
 │   ├── api/
 │   │   ├── README.md                   NEW   pointer: Swagger UI, spec, regeneration
-│   │   └── lakira-backend-openapi.json       ← openapi/  ⚠ GENERATED, code-path
+│   │   └── lakira-backend-openapi.json       ← openapi/  GENERATED, code-path
 │   ├── database-schema.md              REWRITE from src/migrations (12+ tables)
 │   ├── configuration.md                NEW   from .env.example + src/config/envManager.ts
 │   ├── commands.md                     NEW   single source; .claude/rules/commands.md points here
@@ -100,8 +100,8 @@ docs/
 │       ├── security-exceptions-policy.md     ← security/framework/
 │       ├── audit-master-checklist.md         ← security/framework/
 │       ├── dependency-policy.md              ← DEPENDENCY_POLICY.md (snapshot split out)
-│       ├── ci-gate-policy.json               ← security/framework/  ⚠ code-path
-│       └── audit-run-template/               ← security/templates/audit-run/  ⚠ code-path
+│       ├── ci-gate-policy.json               ← security/framework/  code-path
+│       └── audit-run-template/               ← security/templates/audit-run/  code-path
 │
 ├── explanation/                                      [understanding-oriented]
 │   ├── architecture/

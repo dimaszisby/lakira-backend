@@ -95,6 +95,6 @@ Goal: greenfield email-verification flow that mirrors the existing password-rese
 
 ## Success Metrics
 
-- ✅ All acceptance criteria checked.
-- ✅ Lint/typecheck/test green on the feature branch.
-- ✅ Audit re-run marks P1-1.2 as ✅.
+- All acceptance criteria checked.
+- Lint/typecheck/test green on the feature branch.
+- Audit re-run marks P1-1.2 as Pass.

@@ -42,7 +42,7 @@ This is the largest single phase in the SaaS-readiness remediation. It is gated 
 - A second user joining an existing organization can read shared `metrics` rows; without the membership, they cannot.
 - Switching organizations changes which rows the same JWT can read.
 - Existing single-user tests still pass without modification (because each user becomes the sole owner of their auto-created organization).
-- Audit re-run marks P0-3.1, P0-9.1, P1-1.3 as ✅.
+- Audit re-run marks P0-3.1, P0-9.1, P1-1.3 as Pass.
 
 ## References
 

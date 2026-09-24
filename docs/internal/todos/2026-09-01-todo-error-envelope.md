@@ -383,12 +383,12 @@ The body it sends is the same envelope as everything else.
 ## Verification
 
 ```
-npm run lint            ✅
-npm run typecheck       ✅
-npm run format:check    ✅
-npm run docs:openapi:check   ✅ (spec generation confirmed idempotent — regenerating twice is a no-op)
-npm test                ✅ 556 unit (88 suites) + 182 integration (26 suites, 5 skipped)
-npm run contract:local:gate  ✅ exit 0 — 1370 generated, 1370 passed, 46 operations, 37 selected
+npm run lint            PASS
+npm run typecheck       PASS
+npm run format:check    PASS
+npm run docs:openapi:check   PASS (spec generation confirmed idempotent — regenerating twice is a no-op)
+npm test                PASS 556 unit (88 suites) + 182 integration (26 suites, 5 skipped)
+npm run contract:local:gate  PASS exit 0 — 1370 generated, 1370 passed, 46 operations, 37 selected
 ```
 
 Neither 46 nor 37 moved, as required.

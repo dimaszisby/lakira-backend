@@ -26,7 +26,7 @@
 1. Create `__tests__/unit/` and `__tests__/integration/` roots.
 2. Move the 27 unit suites into `__tests__/unit/**` mirroring their feature hierarchy.
 3. Move the 7 HTTP/Swagger suites into `__tests__/integration/api/**` and `__tests__/integration/docs/**`.
-4. Move `__tests__/helpers/test-utils.ts` into `__tests__/integration/helpers/` (or `tests/support/`) and update imports. ✅ Completed 2025-12-22.
+4. Move `__tests__/helpers/test-utils.ts` into `__tests__/integration/helpers/` (or `tests/support/`) and update imports. Completed 2025-12-22.
 5. Run `npm run lint` to catch any broken relative imports or path-alias regressions.
 
 ### Phase 2 – Tighten application & repo tests

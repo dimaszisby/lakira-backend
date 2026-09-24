@@ -28,7 +28,7 @@ Ship `requireVerifiedEmail` as a documented middleware but do not apply it to an
 
 ## Consequences
 
-- Audit will mark [P1-1.2] as ✅ once the middleware exists and the verification flow is in place, even though no Lakira route uses the middleware.
+- Audit will mark [P1-1.2] as Pass once the middleware exists and the verification flow is in place, even though no Lakira route uses the middleware.
 - A unit test exercises the middleware against a fake `req.user`. No integration test wires it to a real route in this PR.
 
 ## Links

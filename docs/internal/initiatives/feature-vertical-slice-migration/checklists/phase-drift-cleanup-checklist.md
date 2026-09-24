@@ -73,7 +73,7 @@
 ## Wrap-up
 
 - [x] `npm run typecheck && npm run lint && npm run format:write && npm test` green.
-- [ ] Audit re-run grades 10.1, 10.2, 10.4, 10.5 as ✅.
+- [ ] Audit re-run grades 10.1, 10.2, 10.4, 10.5 as Pass.
 
 ## Known Debt (follow-up phase)
 

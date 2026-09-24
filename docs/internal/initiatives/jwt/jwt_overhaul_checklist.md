@@ -60,4 +60,4 @@
 - [x] `npm run docs:openapi:generate`; verify `/auth/refresh` appears with cookie auth scheme.
 - [x] Integration test `__tests__/integration/api/auth-refresh.test.ts`: login → refresh succeeds → re-use original refresh fails 401 + family revoked → logout revokes outstanding refresh → expired access token rejected.
 - [x] Manual verification: `grep "from \"jsonwebtoken\"" src/features/shared/auth/infrastructure/http/authMiddleware.ts` returns nothing.
-- [ ] Audit re-run shows P0-1.1 and P1-10.3 marked ✅.
+- [ ] Audit re-run shows P0-1.1 and P1-10.3 marked Pass.

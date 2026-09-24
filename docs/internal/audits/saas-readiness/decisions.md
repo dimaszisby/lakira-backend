@@ -12,12 +12,12 @@ ADR-style entries for standards adopted in response to the SaaS-base readiness a
 
 1. Zero P0 gaps remaining in the latest audit.
 2. All six empirical commands green: `typecheck`, `lint`, `format:check`, `test`, `security:delta:check`, `docs:openapi:generate`.
-3. Categories 1 (Auth), 4 (Security), 6 (DX), 7 (Testing), 8 (CI/CD), 11 (Forkability) at ≥80% ✅ items.
+3. Categories 1 (Auth), 4 (Security), 6 (DX), 7 (Testing), 8 (CI/CD), 11 (Forkability) at ≥80% items.
 4. `LICENSE` and `.env.example` present at repo root.
 
 **Options considered:**
 
-- _Single threshold (e.g., ≥90% ✅ across all categories)._ Rejected: hides gaps in critical categories behind strong scores in others. A perfect testing stack does not compensate for a missing license.
+- _Single threshold (e.g., ≥90% across all categories)._ Rejected: hides gaps in critical categories behind strong scores in others. A perfect testing stack does not compensate for a missing license.
 - _Pure P0-zero gate._ Rejected: a P0-free audit could still ship without a `LICENSE` if no auditor flagged it as P0; an explicit file check is more robust.
 - _Stakeholder sign-off._ N/A for a single-developer portfolio repo.
 
@@ -109,7 +109,7 @@ Promoted to the architecture decision registry as **[ADR-0012](../../../explanat
 - **P0-6.1** — add root `.env.example` generated from `src/config/zodEnv.ts` (write `scripts/generate-env-example.ts` and a CI sync-check).
 - **P0-4.1** — add `app.set("trust proxy", env.TRUST_PROXY ?? 1)` in `src/server.ts`; add `TRUST_PROXY` to `zodEnv.ts`; add HTTPS-redirect middleware gated by `NODE_ENV === "production"`.
 
-The PR title is `chore: cheap-P0 sweep (LICENSE, README, .env.example, trust-proxy)`. After merge, append a row to this ADR with the commit SHA and update `iteration-plan.md` Phase 0 status to ✅ Done.
+The PR title is `chore: cheap-P0 sweep (LICENSE, README, .env.example, trust-proxy)`. After merge, append a row to this ADR with the commit SHA and update `iteration-plan.md` Phase 0 status to Pass Done.
 
 **Options considered:**
 
@@ -138,7 +138,7 @@ Promoted to the architecture decision registry as **[ADR-0034](../../../explanat
 
 ## ADR-008 — Accept "GOLD WITH CAVEATS" as the gone-gold verdict (Accepted 2026-05-24)
 
-**Context:** An independent, deliberately-skeptical "gone-gold" review (`audit-2026-05-24-independent.md`) re-ran all six empirical gates (green), pressure-tested the security- and multi-tenancy-critical ✅ claims by reading code rather than trusting the 2026-05-20 self-audit, ran an architectural-drift sweep, and performed a live forkability dry-run. It confirmed the strict ADR-001 fork-ready gate now **passes** (zero P0; Cat 1/4/6/7/8/11 ≥80% — Cat 4 at 87.5% after P1-4.2 + P2-4.5 both closed; `LICENSE` + `.env.example` present), with no exploitable P0 remaining. It also found six industry-standard quality gaps (C1–C6), each scoped to ≤1 day, that an outside reviewer would close before recommending the repo as a base. A decision is needed: declare the repo publishable now, or hold until every caveat closes.
+**Context:** An independent, deliberately-skeptical "gone-gold" review (`audit-2026-05-24-independent.md`) re-ran all six empirical gates (green), pressure-tested the security- and multi-tenancy-critical Pass-graded claims by reading code rather than trusting the 2026-05-20 self-audit, ran an architectural-drift sweep, and performed a live forkability dry-run. It confirmed the strict ADR-001 fork-ready gate now **passes** (zero P0; Cat 1/4/6/7/8/11 ≥80% — Cat 4 at 87.5% after P1-4.2 + P2-4.5 both closed; `LICENSE` + `.env.example` present), with no exploitable P0 remaining. It also found six industry-standard quality gaps (C1–C6), each scoped to ≤1 day, that an outside reviewer would close before recommending the repo as a base. A decision is needed: declare the repo publishable now, or hold until every caveat closes.
 
 **Decision:** Accept the verdict **GOLD WITH CAVEATS** — the repo is publishable as a forkable SaaS base **today**, with C1–C6 tracked as visible ≤1-day follow-ups in `FINAL-AUDIT-SUMMARY.md`. The repo is re-stated as a clean **GOLD** (and a new dated `audit-YYYY-MM-DD.md` produced per ADR-002) only when C1–C6 are closed. The two caveats a forker / API consumer hits first — **C1** (the bootstrap-fork flow does not work as printed: secret rotation no-ops on a fresh clone and `npm test` fails without an undocumented `.env.test`) and **C3** (the error envelope is inconsistent, violates `api-design.md`, and is undocumented in the OpenAPI contract) — lead the punch list.
 
@@ -153,7 +153,7 @@ Promoted to the architecture decision registry as **[ADR-0034](../../../explanat
 - The repo may be published/forked now; the C1–C6 punch list governs the path to a clean GOLD verdict.
 - `SAAS-BASE-CHECKLIST.md` (repo root) is updated to point at `audit-2026-05-24-independent.md` and reflect the GOLD WITH CAVEATS verdict + re-graded scorecard.
 - Audit cadence (ADR-002 unchanged): produce a new dated audit when C1–C6 close, and re-state the verdict.
-- The independent scorecard is intentionally stricter than the 2026-05-20 self-audit (47✅ / 14⚠️ / 4❌ vs 52 / 9 / 4) because the review downgraded items the self-audit over-credited (error envelope, architecture-test rigor, runtime branding leak, Sentry PII scrubbing, log-redaction coverage). This is expected: the independent grade is the conservative one of record.
+- The independent scorecard is intentionally stricter than the 2026-05-20 self-audit (47 pass / 14 partial / 4 fail vs 52 / 9 / 4) because the review downgraded items the self-audit over-credited (error envelope, architecture-test rigor, runtime branding leak, Sentry PII scrubbing, log-redaction coverage). This is expected: the independent grade is the conservative one of record.
 
 **Links:**
 

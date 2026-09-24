@@ -4,7 +4,7 @@ Use this checklist to track the contract-test program end-to-end (Postman/Newman
 
 ---
 
-## Phase 0 – Audit & Documentation Scaffolding ✅ (2026-01-14)
+## Phase 0 – Audit & Documentation Scaffolding Done (2026-01-14)
 
 - [x] Inventory existing Postman/Schemathesis assets and note gaps in plan — owner: @dimaspramudya (2026-01-14)
 - [x] Create top-level doc kit (`README`, plan, checklist, ticket, decisions, incidents, metrics) — owner: Codex assist (2026-01-14)

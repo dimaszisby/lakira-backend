@@ -43,4 +43,4 @@
 
 - [x] `npm run typecheck && npm run lint && npm run format:write && npm test` green.
 - [x] `npm run test:e2e` green.
-- [ ] Audit re-run grades 8.3, 8.4, 4.4, 7.1 as ✅. _(Pending follow-up audit pass.)_
+- [ ] Audit re-run grades 8.3, 8.4, 4.4, 7.1 as Pass. _(Pending follow-up audit pass.)_

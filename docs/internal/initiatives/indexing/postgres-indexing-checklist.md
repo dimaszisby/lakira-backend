@@ -4,7 +4,7 @@
 **Last updated:** 2025-12-17  
 **Companion plan:** `docs/internal/initiatives/indexing/postgres-indexing-plan.md`
 
-> Use this checklist for every environment rollout. Mark each step with ✅ / ❌ in the Status column and attach evidence links (Grafana snapshots, `EXPLAIN` output, etc.).
+> Use this checklist for every environment rollout. Mark each step with Pass / Fail in the Status column and attach evidence links (Grafana snapshots, `EXPLAIN` output, etc.).
 
 ---
 
@@ -25,15 +25,15 @@
 
 | Step                                                                                                   | Owner           | Evidence / Notes                                                                                                                                                        | Status |
 | ------------------------------------------------------------------------------------------------------ | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Run Sequelize migration for metric_categories indexes (`npm run migrate:<env>`)                        | DB Engineer     | `docker compose exec app npm run migrate:development/test/staging` logs (2025-12-17)                                                                                    | ✅     |
-| Validate indexes exist (`\di+ idx_metric_categories_*`)                                                | DB Engineer     | Covered in migration logs showing `idx_metric_categories_*` creation                                                                                                    | ✅     |
-| Run Metric Category regression tests (`npm run test:integration -- metric-category`)                   | Feature Owner   | Current repo has no metric-category Jest suite; documented attempt on 2025-12-17 (`npm run jest -- --runInBand --selectProjects integration` returned “No tests found”) | ⚪️ N/A |
-| Deploy metrics index migration                                                                         | DB Engineer     | Same migration run logs (see above)                                                                                                                                     | ✅     |
-| Verify uniqueness constraint enforcement (attempt duplicate metric name in staging)                    | QA              | Manual insert in staging DB via Node script (2025-12-17) raised `duplicate key value violates unique constraint "uq_metrics_user_name"`                                 | ✅     |
-| Deploy metric_settings constraint/index migration                                                      | DB Engineer     | Same migration run logs (see above)                                                                                                                                     | ✅     |
-| Confirm dashboard query uses new expression index (`EXPLAIN` shows idx_metric_settings_dashboard_flag) | Analytics Owner | `EXPLAIN (ANALYZE, BUFFERS)` output captured 2025-12-17                                                                                                                 | ✅     |
-| Deploy ownership helper index (`idx_metrics_id_user_active`)                                           | DB Engineer     | Included in metrics migration log                                                                                                                                       | ✅     |
-| Monitor locks + CPU during deployment (< 60s wait)                                                     | SRE             | Local deployment (no contention)                                                                                                                                        | ✅     |
+| Run Sequelize migration for metric_categories indexes (`npm run migrate:<env>`)                        | DB Engineer     | `docker compose exec app npm run migrate:development/test/staging` logs (2025-12-17)                                                                                    | Yes    |
+| Validate indexes exist (`\di+ idx_metric_categories_*`)                                                | DB Engineer     | Covered in migration logs showing `idx_metric_categories_*` creation                                                                                                    | Yes    |
+| Run Metric Category regression tests (`npm run test:integration -- metric-category`)                   | Feature Owner   | Current repo has no metric-category Jest suite; documented attempt on 2025-12-17 (`npm run jest -- --runInBand --selectProjects integration` returned “No tests found”) | N/A    |
+| Deploy metrics index migration                                                                         | DB Engineer     | Same migration run logs (see above)                                                                                                                                     | Yes    |
+| Verify uniqueness constraint enforcement (attempt duplicate metric name in staging)                    | QA              | Manual insert in staging DB via Node script (2025-12-17) raised `duplicate key value violates unique constraint "uq_metrics_user_name"`                                 | Yes    |
+| Deploy metric_settings constraint/index migration                                                      | DB Engineer     | Same migration run logs (see above)                                                                                                                                     | Yes    |
+| Confirm dashboard query uses new expression index (`EXPLAIN` shows idx_metric_settings_dashboard_flag) | Analytics Owner | `EXPLAIN (ANALYZE, BUFFERS)` output captured 2025-12-17                                                                                                                 | Yes    |
+| Deploy ownership helper index (`idx_metrics_id_user_active`)                                           | DB Engineer     | Included in metrics migration log                                                                                                                                       | Yes    |
+| Monitor locks + CPU during deployment (< 60s wait)                                                     | SRE             | Local deployment (no contention)                                                                                                                                        | Yes    |
 
 ---
 
@@ -41,10 +41,10 @@
 
 | Step                                                                 | Owner           | Evidence / Notes                                                                                                                          | Status |
 | -------------------------------------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Run full Jest suite (unit + integration)                             | QA              | Blocked (integration projects not configured; see regression-test note above)                                                             | ⚪️ N/A |
-| Compare pre/post query metrics (p95 latency, rows scanned)           | Analytics Owner | `EXPLAIN (ANALYZE, BUFFERS)` baselines captured 2025-12-17                                                                                | ✅     |
-| Check `pg_stat_user_indexes` for new indexes (ensure `idx_scan > 0`) | DB Engineer     | Query output (2025-12-17) confirms scans recorded for newly added indexes; remaining zero-count indexes noted due to limited seed traffic | ✅     |
-| Stakeholder sign-off (Backend TL + SRE)                              | Tech Lead       | Sole maintainer review + approval recorded 2025-12-17 (chat confirmation)                                                                 | ✅     |
+| Run full Jest suite (unit + integration)                             | QA              | Blocked (integration projects not configured; see regression-test note above)                                                             | N/A    |
+| Compare pre/post query metrics (p95 latency, rows scanned)           | Analytics Owner | `EXPLAIN (ANALYZE, BUFFERS)` baselines captured 2025-12-17                                                                                | Yes    |
+| Check `pg_stat_user_indexes` for new indexes (ensure `idx_scan > 0`) | DB Engineer     | Query output (2025-12-17) confirms scans recorded for newly added indexes; remaining zero-count indexes noted due to limited seed traffic | Yes    |
+| Stakeholder sign-off (Backend TL + SRE)                              | Tech Lead       | Sole maintainer review + approval recorded 2025-12-17 (chat confirmation)                                                                 | Yes    |
 
 ---
 
@@ -52,12 +52,12 @@
 
 | Step                                                                                                   | Owner           | Evidence / Notes                                                                                                                                          | Status |
 | ------------------------------------------------------------------------------------------------------ | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Confirm Phase 1 indexes meeting adoption criteria (usage, no regressions)                              | Tech Lead       | `pg_stat_user_indexes` sample (2025-12-17) shows idx_scans incrementing for new indexes; no regressions observed                                          | ✅     |
-| Create covering indexes on `metric_logs` (`idx_metric_logs_metric_created`, etc.)                      | DB Engineer     | `docker compose exec app npm run migrate:<env>` logs for migration `20251217170030`                                                                       | ✅     |
-| Build BRIN index (`brin_metric_logs_logged`) and run `VACUUM ANALYZE metric_logs`                      | DB Engineer     | `ANALYZE public.metric_logs;` executed post-migration                                                                                                     | ✅     |
-| Verify new indexes in query plans (`EXPLAIN` for `MetricLogQueryRepo` and `visualization*.sql`)        | Analytics Owner | `EXPLAIN (ANALYZE, BUFFERS)` captures showing `idx_metric_logs_metric_created/logged/log_value`; BRIN present but not chosen due to small dataset (noted) | ✅     |
-| Drop redundant `ix_metric_logs_metric_id_logged_at` only after confirming uniqueness constraint health | DB Engineer     | Migration removed `ix_metric_logs_metric_id_logged_at`; uniqueness constraint `uq_metric_logs_metric_id_logged_at` remains                                | ✅     |
-| Monitor replication lag + write throughput for 72h                                                     | SRE             | No replicas in personal stack; monitoring N/A                                                                                                             | ⚪️ N/A |
+| Confirm Phase 1 indexes meeting adoption criteria (usage, no regressions)                              | Tech Lead       | `pg_stat_user_indexes` sample (2025-12-17) shows idx_scans incrementing for new indexes; no regressions observed                                          | Yes    |
+| Create covering indexes on `metric_logs` (`idx_metric_logs_metric_created`, etc.)                      | DB Engineer     | `docker compose exec app npm run migrate:<env>` logs for migration `20251217170030`                                                                       | Yes    |
+| Build BRIN index (`brin_metric_logs_logged`) and run `VACUUM ANALYZE metric_logs`                      | DB Engineer     | `ANALYZE public.metric_logs;` executed post-migration                                                                                                     | Yes    |
+| Verify new indexes in query plans (`EXPLAIN` for `MetricLogQueryRepo` and `visualization*.sql`)        | Analytics Owner | `EXPLAIN (ANALYZE, BUFFERS)` captures showing `idx_metric_logs_metric_created/logged/log_value`; BRIN present but not chosen due to small dataset (noted) | Yes    |
+| Drop redundant `ix_metric_logs_metric_id_logged_at` only after confirming uniqueness constraint health | DB Engineer     | Migration removed `ix_metric_logs_metric_id_logged_at`; uniqueness constraint `uq_metric_logs_metric_id_logged_at` remains                                | Yes    |
+| Monitor replication lag + write throughput for 72h                                                     | SRE             | No replicas in personal stack; monitoring N/A                                                                                                             | N/A    |
 
 ---
 

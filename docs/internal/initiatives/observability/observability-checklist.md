@@ -38,5 +38,5 @@
 - [x] `npm run typecheck && npm run lint && npm run format:write`.
 - [x] `npm test` green (283 unit + 130 integration, 0 failures).
 - [ ] Update Render deployment health-check URL to `/api/v1/ready` (paired with Phase 7 production-readiness deploy job).
-- [ ] Audit re-run shows P0-5.1, P1-5.2, P1-5.3, P1-4.3 marked ✅.
-- [ ] Update `iteration-plan.md` Phase 2 status to ✅ Done with PR link.
+- [ ] Audit re-run shows P0-5.1, P1-5.2, P1-5.3, P1-4.3 marked Pass.
+- [ ] Update `iteration-plan.md` Phase 2 status to Pass Done with PR link.

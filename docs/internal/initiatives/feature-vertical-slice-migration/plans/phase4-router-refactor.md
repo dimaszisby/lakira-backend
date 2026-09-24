@@ -37,18 +37,18 @@ src/server.ts
 
 ## Work Breakdown
 
-1. **Auth Router** ✅ _(2025-12-03)_
+1. **Auth Router** _(2025-12-03)_
    - Moved `src/features/auth/infrastructure/http/router.ts` contents into `src/features/auth/infrastructure/http/router.ts`.
    - `src/features/auth/index.ts` now re-exports `authRouter`.
    - `src/server.ts` mounts the feature router; legacy route file deleted.
-2. **Metric Router** ✅ _(2025-12-03)_
+2. **Metric Router** _(2025-12-03)_
    - Legacy router deleted; feature exposes `metricRouter` via `src/features/metric/index.ts`.
    - `src/server.ts` mounts the feature router for `/api/v1/metrics`.
-3. **Metric Log Router** ✅ _(2025-12-03)_
+3. **Metric Log Router** _(2025-12-03)_
    - Feature router now owns `/api/v1/metric-logs`; legacy route removed.
-4. **Metric Settings Router** ✅ _(2025-12-03)_
+4. **Metric Settings Router** _(2025-12-03)_
    - Feature router now handles `/api/v1/metric-settings`; legacy route removed.
-5. **Metric Category Router** ✅ _(2025-12-04)_
+5. **Metric Category Router** _(2025-12-04)_
    - Feature router now owns `/api/v1/metric-categories`; legacy `routes.ts` deleted and the slice exports `createMetricCategoryRouter`.
 6. **Analytics Router**
    - Already under feature slice; ensure naming/pattern matches the new standard and export via `src/features/analytics/index.ts`.
@@ -60,5 +60,5 @@ src/server.ts
 
 ## Follow-Ups
 
-- ✅ (2025-12-03) Removed the `@routes/*` alias from `jsconfig.json` and added ESLint guardrails for `src/routes/**`.
-- ✅ (2025-12-03) Documented the router factory pattern in `docs/internal/initiatives/features/README.md`; keep the template updated when new slices are added.
+- Done (2025-12-03) Removed the `@routes/*` alias from `jsconfig.json` and added ESLint guardrails for `src/routes/**`.
+- Done (2025-12-03) Documented the router factory pattern in `docs/internal/initiatives/features/README.md`; keep the template updated when new slices are added.

@@ -8,7 +8,7 @@
 
 ## Context
 
-Audit gap P2-4.5 in `audit-2026-05-20.md`: `CORS_ORIGIN` was a single `string`, so a deployment could only whitelist one origin. Multi-surface SaaS bases (app + admin + marketing) need more than one. This was the last ⚠️ item keeping Category 4 (Security) below the 80% threshold from ADR-001 exit criterion #3 — closing it flips Cat 4 to ≥80% ✅ and the ADR-001 fork-ready verdict from FAIL → PASS.
+Audit gap P2-4.5 in `audit-2026-05-20.md`: `CORS_ORIGIN` was a single `string`, so a deployment could only whitelist one origin. Multi-surface SaaS bases (app + admin + marketing) need more than one. This was the last Partial item keeping Category 4 (Security) below the 80% threshold from ADR-001 exit criterion #3 — closing it flips Cat 4 to ≥80% and the ADR-001 fork-ready verdict from FAIL → PASS.
 
 ## Decision
 
@@ -23,7 +23,7 @@ Keep the env var name `CORS_ORIGIN`. Parse its value in `src/config/zodEnv.ts` a
 
 ## Consequences
 
-- Closes P2-4.5 → Cat 4 reaches the ≥80% ✅ bar → ADR-001 exit criterion #3 passes → repo is fork-ready by the strict reading of ADR-001.
+- Closes P2-4.5 → Cat 4 reaches the ≥80% bar → ADR-001 exit criterion #3 passes → repo is fork-ready by the strict reading of ADR-001.
 - `CORS_ORIGIN` schema output type changes from `string | undefined` to `string[] | undefined`. The only consumer is `src/server.ts`; no other call sites read it.
 - `.env.example` updated to demonstrate the multi-origin form.
 

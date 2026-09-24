@@ -5,7 +5,7 @@
 **Source of truth for gap IDs:** [`audit-2026-05-01.md`](./audit-2026-05-01.md).
 **Source of truth for the binary fork-ready gate:** ADR-001 in [`decisions.md`](./decisions.md).
 
-This is the master roadmap for closing the 18 ❌ + 21 ⚠️ items in the audit. Each phase below has its own kit (or extends an existing kit) under `docs/internal/initiatives/`. P2-only items are deferred and not yet scaffolded.
+This is the master roadmap for closing the 18 Missing + 21 Partial items in the audit. Each phase below has its own kit (or extends an existing kit) under `docs/internal/initiatives/`. P2-only items are deferred and not yet scaffolded.
 
 ## Phase Index
 
@@ -21,7 +21,7 @@ This is the master roadmap for closing the 18 ❌ + 21 ⚠️ items in the audit
 | 7   | Production runtime + CI/CD     | [`../../initiatives/production-readiness/`](../../initiatives/production-readiness/)                                                     | P1-8.3, P1-8.4, P1-4.4, P1-7.1     | M      | Done — #51                                   | —                                                                                  |
 | 8   | Subscription model             | [`../../initiatives/subscription-billing/`](../../initiatives/subscription-billing/)                                                     | P1-9.2                             | L      | Deferred — not started                       | None — Phase 4 is done                                                             |
 
-Status legend: ⏳ Scaffolded = doc kit exists, no code yet · ⏳ Ready to kick off = no kit, single ADR is the artifact · ⏳ Blocked = kit exists but a Proposed ADR must be Accepted before code starts · ⚠️ Mostly Done = primary targets closed but one or more sub-items remain partial · ✅ Done = all phase targets closed · 🅿️ Deferred = scaffold only; do not start.
+Status legend: Scaffolded = doc kit exists, no code yet · Ready to kick off = no kit, single ADR is the artifact · Blocked = kit exists but a Proposed ADR must be Accepted before code starts · Mostly Done = primary targets closed but one or more sub-items remain partial · Done = all phase targets closed · Deferred = scaffold only; do not start.
 
 **Phase 6 partial:** P1-11.2 (CONTRIBUTING.md), P1-11.3 (`scripts/bootstrap-fork.sh`), and P1-11.4 (APP_NAME centralization) are closed. P2-11.5 (CachePort consolidation) shipped a shared `CachePort<T>` in `src/shared/application/ports/`, but only `metric-category` re-exports it; `metric`, `metric-log`, `analytics`, and `metric-settings` still declare per-feature ports. See `audit-2026-05-20.md` § P2-11.5.
 
@@ -51,7 +51,7 @@ Each kit's `README.md` ends with the same cross-reference block so the audit re-
 - **Predecessor / dependency:** (e.g., "depends on Phase 1 completing the TokenProvider.verify() extension")
 ```
 
-When a phase ships, the row in this file moves from ⏳ Scaffolded → ✅ Done with a link to the merged PR. The audit re-run script can then auto-mark the closed gap IDs as ✅ in the next dated audit file.
+When a phase ships, the row in this file moves from Scaffolded → Done with a link to the merged PR. The audit re-run script can then auto-mark the closed gap IDs as Pass in the next dated audit file.
 
 ## P2-Only Items (Deferred — Not Scaffolded)
 
@@ -68,15 +68,15 @@ These items in `audit-2026-05-01.md` are not blocking and have no kit yet. Open 
 
 ## Maintenance Rules
 
-- **Append-only:** finished phases keep their row (status → ✅ Done with PR link). Do not delete.
+- **Append-only:** finished phases keep their row (status → Done with PR link). Do not delete.
 - **One mutable surface:** the **Status** column of each row. Everything else describes intent and should not change.
 - **Cross-link bidirectionally:** every kit's `README.md` references this file in its "Predecessor / dependency" line; this file references every kit folder.
 - **Rerun audit after each phase:** generate a new dated `audit-YYYY-MM-DD.md`; diff its scorecard against `audit-2026-05-01.md` so the closed gaps are visible in the public `SAAS-BASE-CHECKLIST.md`.
 
 ## Audit History
 
-- `audit-2026-05-01.md` — original baseline: 26 ✅ / 21 ⚠️ / 18 ❌; 7 P0, 17 P1, 11 P2 open; NOT fork-ready (3 of 4 ADR-001 criteria fail).
-- `audit-2026-05-20.md` — post Phases 0–7: 52 ✅ / 9 ⚠️ / 4 ❌; 0 P0, 4 P1, 9 P2 open; criterion #3 still fails on Cat 4 (62.5%, blocked by P1-4.2 env-reads). Functionally shippable; not strictly fork-ready under ADR-001.
+- `audit-2026-05-01.md` — original baseline: 26 Pass / 21 Partial / 18 Missing; 7 P0, 17 P1, 11 P2 open; NOT fork-ready (3 of 4 ADR-001 criteria fail).
+- `audit-2026-05-20.md` — post Phases 0–7: 52 Pass / 9 Partial / 4 Missing; 0 P0, 4 P1, 9 P2 open; criterion #3 still fails on Cat 4 (62.5%, blocked by P1-4.2 env-reads). Functionally shippable; not strictly fork-ready under ADR-001.
 - `audit-2026-05-24-independent.md` — independent re-audit: **GOLD WITH CAVEATS**; ADR-001 gate PASS; 6 caveats + 8 judgment items. Source code unchanged through 2026-06-05.
 - `audit-2026-06-05.md` — fresh threat-surface re-audit: **GOLD WITH CAVEATS — DOWNGRADED PENDING N1+N2+F1**. C1–C6 open-unchanged. Two new P0 (cache-layer cross-tenant scoping) + one new HIGH (DISABLE_RATE_LIMITING no prod guard). Six P1 + six P2 + four P3 newly surfaced. ADR-003 reopened (see ADR-011).
 
