@@ -1,6 +1,6 @@
 # Feature boundaries
 
-**Status:** Complete — both PRs done. C4 closed; D-02, D-03 and D-06 promoted to
+**Status:** Complete — both PRs merged: #106 (`78a05a1`) and #107 (`3ce0c0e`). C4 closed; D-02, D-03 and D-06 promoted to
 [ADR-0044](../../../explanation/decisions/adr-0044-feature-boundaries-and-their-frozen-exceptions.md).
 **Slug:** `feature-boundaries` · **Branches:** `fix/feature-boundaries`, then
 `refactor/feature-boundaries-errors`

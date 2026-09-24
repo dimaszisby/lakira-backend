@@ -5,7 +5,7 @@
 2026-05-20 self-audit. Graded against industry standards (OWASP ASVS L1, RFC 6750/7807,
 12-factor, PaaS deploy hygiene, multi-tenant row-isolation, draft-ietf-oauth refresh
 rotation, JWT hygiene) **in addition to** the project's own `.claude/rules/*` + ADR-001.
-**Method:** all six gates re-run (real exit codes); ≥18 ✅ claims pressure-tested by reading
+**Method:** all six gates re-run (real exit codes); ≥18 Pass claims pressure-tested by reading
 code; cross-temporal drift sweep via `architecture-auditor` subagent; live forkability
 dry-run in an isolated `git archive` tree. Read-only — the only file written is this report;
 the working tree is pristine after the run.
@@ -15,8 +15,8 @@ the working tree is pristine after the run.
 > origin CORS); both landed afterward (`302a335`, `a4c4a86`). This review audits the current
 > tip and treats the 05-20 scorecard as the claim under test, not ground truth. ADR-007's
 > framing that "closing P2-4.5 flips ADR-001 FAIL→PASS" is arithmetically incomplete — Cat 4
-> was 5✅/3⚠️ (62.5%); closing CORS alone gives 6/8 = 75% (still <80%). The gate only clears
-> because **P1-4.2 also closed** (verified below). With both closed, Cat 4 = 7✅/1⚠️ = 87.5%.
+> was 5 pass/3 partial (62.5%); closing CORS alone gives 6/8 = 75% (still <80%). The gate only clears
+> because **P1-4.2 also closed** (verified below). With both closed, Cat 4 = 7 pass/1 partial = 87.5%.
 
 ---
 
@@ -44,12 +44,12 @@ claims**, letting genuine DDD-layering breaches pass green. Each caveat is scope
 
 | Command                         | Result | Real exit           | Notes                                                                                                                                                                                                                  |
 | ------------------------------- | ------ | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run typecheck`             | ✅     | `0`                 | Clean                                                                                                                                                                                                                  |
-| `npm run lint`                  | ✅     | `0`                 | Clean                                                                                                                                                                                                                  |
-| `npm run format:check`          | ✅     | `0`                 | All files Prettier-clean                                                                                                                                                                                               |
-| `npm test` (unit + integration) | ✅     | unit `0`, integ `0` | **unit: 84 suites / 497 tests pass**; **integration: 24 pass + 2 skipped (5 tests), 0 fail**; `migrate:test` `0`. Skipped = Redis-flagged suites (`auth-lockout`, `VisualizationCacheRedis`, `analytics`), CI-covered. |
-| `npm run security:delta:check`  | ✅     | `0`                 | **8 medium, 0 high/critical** (body-parser, brace-expansion, express, qs, resend, sequelize, svix, uuid)                                                                                                               |
-| `npm run docs:openapi:generate` | ✅     | `0`                 | Regenerated spec is **byte-identical** to committed (`git diff` empty) — spec in sync                                                                                                                                  |
+| `npm run typecheck`             | Yes    | `0`                 | Clean                                                                                                                                                                                                                  |
+| `npm run lint`                  | Yes    | `0`                 | Clean                                                                                                                                                                                                                  |
+| `npm run format:check`          | Yes    | `0`                 | All files Prettier-clean                                                                                                                                                                                               |
+| `npm test` (unit + integration) | Yes    | unit `0`, integ `0` | **unit: 84 suites / 497 tests pass**; **integration: 24 pass + 2 skipped (5 tests), 0 fail**; `migrate:test` `0`. Skipped = Redis-flagged suites (`auth-lockout`, `VisualizationCacheRedis`, `analytics`), CI-covered. |
+| `npm run security:delta:check`  | Yes    | `0`                 | **8 medium, 0 high/critical** (body-parser, brace-expansion, express, qs, resend, sequelize, svix, uuid)                                                                                                               |
+| `npm run docs:openapi:generate` | Yes    | `0`                 | Regenerated spec is **byte-identical** to committed (`git diff` empty) — spec in sync                                                                                                                                  |
 
 **Methodology note (integrity):** a _naïve_ combined invocation
 (`jest --selectProjects unit integration` under `SKIP_DB_LIFECYCLE=true`) reports 8 failures
@@ -65,23 +65,23 @@ in `tail`/`echo` mask jest's exit code.
 
 ## 3. Independent scorecard (re-graded on HEAD)
 
-| Category                           | ✅  | ⚠️  | ❌  | Independent note vs 2026-05-20                                                                                                                     |
-| ---------------------------------- | --- | --- | --- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Auth & Authorization            | 5   | 0   | 1   | Refresh-rotation, email-verify, RBAC all verified solid. `token-generator.ts` 2nd jwt path is a footgun (not runtime). OAuth still ❌ (by design). |
-| 2. API Design & Contracts          | 3   | 3   | 0   | **Downgraded.** Error envelope violates own `api-design.md` + undocumented in OpenAPI (was graded mild ⚠️).                                        |
-| 3. Database Layer                  | 3   | 2   | 0   | Multi-tenancy migrations verified safe. Soft-delete still mixed (agree ⚠️).                                                                        |
-| 4. Security                        | 6   | 2   | 0   | **P1-4.2 + P2-4.5 verified closed** → clears 80%. But Sentry `beforeSend` + log-redaction gaps drag two items to ⚠️.                               |
-| 5. Error Handling & Observability  | 4   | 1   | 1   | Request-ID ALS + readiness verified solid. Sentry lacks PII scrubbing → ⚠️. APM still ❌.                                                          |
-| 6. Developer Experience            | 5   | 1   | 0   | **Downgraded.** Fork bootstrap + `.env.test` onboarding gap (printed steps fail out-of-box).                                                       |
-| 7. Testing                         | 6   | 0   | 0   | 664 tests pass. Solid.                                                                                                                             |
-| 8. CI/CD & Deployment              | 6   | 0   | 0   | Multi-stage Dockerfile + main-gated `deploy_production` + env-protection verified.                                                                 |
-| 9. Multi-Tenancy                   | 2   | 1   | 2   | Repo-layer org-scoping verified across **all** domain repos. Subscription deferred.                                                                |
-| 10. Architecture & Maintainability | 3   | 2   | 0   | **Downgraded.** Arch test loose; real app→infra leaks; AppError in domain; cross-feature imports.                                                  |
-| 11. Forkability                    | 4   | 2   | 0   | **Downgraded.** Builds+tests clean, but runtime branding leak + secret-rotation no-op on fresh clone.                                              |
+| Category                           | Pass | Partial | Fail | Independent note vs 2026-05-20                                                                                                                          |
+| ---------------------------------- | ---- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Auth & Authorization            | 5    | 0       | 1    | Refresh-rotation, email-verify, RBAC all verified solid. `token-generator.ts` 2nd jwt path is a footgun (not runtime). OAuth still Missing (by design). |
+| 2. API Design & Contracts          | 3    | 3       | 0    | **Downgraded.** Error envelope violates own `api-design.md` + undocumented in OpenAPI (was graded mild Partial).                                        |
+| 3. Database Layer                  | 3    | 2       | 0    | Multi-tenancy migrations verified safe. Soft-delete still mixed (agree, Partial).                                                                       |
+| 4. Security                        | 6    | 2       | 0    | **P1-4.2 + P2-4.5 verified closed** → clears 80%. But Sentry `beforeSend` + log-redaction gaps drag two items to Partial.                               |
+| 5. Error Handling & Observability  | 4    | 1       | 1    | Request-ID ALS + readiness verified solid. Sentry lacks PII scrubbing → Partial. APM still Missing.                                                     |
+| 6. Developer Experience            | 5    | 1       | 0    | **Downgraded.** Fork bootstrap + `.env.test` onboarding gap (printed steps fail out-of-box).                                                            |
+| 7. Testing                         | 6    | 0       | 0    | 664 tests pass. Solid.                                                                                                                                  |
+| 8. CI/CD & Deployment              | 6    | 0       | 0    | Multi-stage Dockerfile + main-gated `deploy_production` + env-protection verified.                                                                      |
+| 9. Multi-Tenancy                   | 2    | 1       | 2    | Repo-layer org-scoping verified across **all** domain repos. Subscription deferred.                                                                     |
+| 10. Architecture & Maintainability | 3    | 2       | 0    | **Downgraded.** Arch test loose; real app→infra leaks; AppError in domain; cross-feature imports.                                                       |
+| 11. Forkability                    | 4    | 2       | 0    | **Downgraded.** Builds+tests clean, but runtime branding leak + secret-rotation no-op on fresh clone.                                                   |
 
-**ADR-001 fork-ready gate:** ① zero P0 ✅ · ② six gates green ✅ · ③ Cat 1/4/6/7/8/11 ≥80%
-✅ (Cat 4 = 87.5% after the two real closures; all others ≥80%) · ④ LICENSE + `.env.example`
-present ✅. **→ PASSES the strict ADR-001 reading.** The "gone-gold" caveats below are
+**ADR-001 fork-ready gate:** (1) zero P0 (pass) · (2) six gates green (pass) · (3) Cat 1/4/6/7/8/11 ≥80%
+Yes (Cat 4 = 87.5% after the two real closures; all others ≥80%) · (4) LICENSE + `.env.example`
+present Yes. **→ PASSES the strict ADR-001 reading.** The "gone-gold" caveats below are
 _industry-standard_ gaps the ADR-001 gate does not measure.
 
 ---
@@ -95,8 +95,8 @@ _industry-standard_ gaps the ADR-001 gate does not measure.
 fresh clone** → both steps silently no-op. The script's printed step 4 is `npm test`, but
 `npm test` fail-fasts in `envManager` (`zodEnv.ts:498` requires `JWT_SECRET`) without
 `.env.test` — which is also gitignored (`.gitignore:21`) and never mentioned in the printed
-steps. **Reproduced live:** fresh `git archive` fork → `npm ci` ✅ → `build` ✅ →
-`typecheck` ✅ → `npm test` = **84 suites failed, 0 tests run** (`ZodError: JWT_SECRET
+steps. **Reproduced live:** fresh `git archive` fork → `npm ci` (pass) → `build` (pass) →
+`typecheck` (pass) → `npm test` = **84 suites failed, 0 tests run** (`ZodError: JWT_SECRET
 Required`). After `cp .env.test.example .env.test`, the same fork passes **84 suites / 497
 tests**.
 **Failure mode:** a forker following the script's own instructions hits 84 red suites in the
@@ -149,7 +149,7 @@ the drift sweep + spot-read):
   that also violates "features export through index.ts only."
 
 This directly undercuts 05-20's P1-10.1 ("drift closed; architecture-test enforces") and
-P1-10.2 ("no Sequelize leak in application ✅" — the grep was too narrow). **Fix:** broaden
+P1-10.2 ("no Sequelize leak in application Yes" — the grep was too narrow). **Fix:** broaden
 the test to fail on `@/infrastructure/`, `db/models`, `infrastructure/http/dto` imports in
 `application/` and on cross-feature deep imports; fix the ~5 leaking files. Test guard ≤1 day.
 
@@ -185,19 +185,19 @@ bearer token. **Fix:** add `authorization|cookie|bearer|auth` and drop the `$` a
 {expiresIn:"7d"})` living in `src/`, used by `scripts/seed-contract-tests.ts` + a unit test.
   A 7-day non-rotating token minter bypassing `TokenProvider`, sitting in the shipped tree —
   a forkability footgun. (Severity P2: not in the request path.)
-- **[D4] P1-10.2 "no Sequelize leak in application ✅"** → the `from "sequelize"` grep is too
+- **[D4] P1-10.2 "no Sequelize leak in application Yes"** → the `from "sequelize"` grep is too
   narrow; real leaks via `@/infrastructure/db/models.js` in the dummy-generator use-cases
-  (see C4). Disagree: ⚠️.
+  (see C4). Disagree: Partial.
 - **[D5] P1-10.1 "drift closed; architecture-test enforces going forward"** → the test
   enforces 3 narrow checks and no negative cases (see C4). "Enforces the standard" is
-  overstated. Disagree: ⚠️.
+  overstated. Disagree: Partial.
 - **[D6] P1-11.4 "no Lakira leaks into runtime; flips in one shot"** → false on a fresh fork
   (see C2). Disagree.
-- **[D7] P1-2.1 "envelopes disagree" (mild ⚠️)** → understated; it violates the documented
+- **[D7] P1-2.1 "envelopes disagree" (mild, graded Partial)** → understated; it violates the documented
   `api-design.md` contract, emits an undocumented `"fail"` status, and is absent from the
   OpenAPI error schemas (see C3). Disagree: stronger P1.
-- **[D8] "Sentry hook ✅"** → present and 5xx-only (correct), but no PII scrubbing (C5).
-- **[D9] "Winston log redaction ✅"** → exists and wired, but suffix-anchored gap (C6).
+- **[D8] "Sentry hook Yes"** → present and 5xx-only (correct), but no PII scrubbing (C5).
+- **[D9] "Winston log redaction Yes"** → exists and wired, but suffix-anchored gap (C6).
 - **[D10] `npm test` "163 passed / 168 total"** → very stale; current suite is **664 passing
   / 669 total** (multi-tenancy added ~500 tests). Not a defect, but the audit's numbers no
   longer describe the repo.
@@ -206,25 +206,25 @@ bearer token. **Fix:** add `authorization|cookie|bearer|auth` and drop the `$` a
 
 - Refresh-token rotation **single-use + family revocation on reuse** — `RotateRefreshToken.ts`
   uses `findByTokenHashForUpdate` (row lock) in a tx, `isRevoked()`→`revokeFamily()` on reuse,
-  marks old revoked + links replacement; no raw token logged. ✅
+  marks old revoked + links replacement; no raw token logged. (pass)
 - Multi-tenant **repository-layer** isolation — every domain read scopes by `organizationId`
   in the WHERE (MetricReadRepo `:189`, MetricRepo, MetricLogRepo `:66,73`, MetricCategoryRepo
-  `:37,84`, MetricSettings `:84,100,106`, Trend `:15`, Stats `:18-19`). ✅
+  `:37,84`, MetricSettings `:84,100,106`, Trend `:15`, Stats `:18-19`). (pass)
 - P1-4.2 **genuinely closed** — `grep process.env src/` (excl. config/tests) returns only
-  bootstrap reads (`NODE_ENV`, `SKIP_DB_LIFECYCLE`); all 6 analytics `VIZ_*` reads gone. ✅
+  bootstrap reads (`NODE_ENV`, `SKIP_DB_LIFECYCLE`); all 6 analytics `VIZ_*` reads gone. (pass)
 - Email/password-reset tokens: `randomBytes(32)` (256-bit) → SHA-256-hashed → single-use
-  (`usedAt`) → 24h/15min TTL. ✅
+  (`usedAt`) → 24h/15min TTL. (pass)
 - Request-ID ALS propagates across awaits — `request-id.ts:22` wraps `next()` in
-  `requestIdStorage.run()`; `logger.ts:41-47` injects it. ✅
-- Dockerfile: multi-stage, `npm ci --omit=dev`, `USER node`, `dumb-init`. ✅ (no `HEALTHCHECK`
+  `requestIdStorage.run()`; `logger.ts:41-47` injects it. (pass)
+- Dockerfile: multi-stage, `npm ci --omit=dev`, `USER node`, `dumb-init`. Pass (no `HEALTHCHECK`
   directive — PaaS-external, minor).
 - `deploy_production`: `if github.ref == refs/heads/main` + `environment: production`
-  (manual-approval gate). ✅
-- Readiness probe `/api/v1/ready` checks DB + Redis with a 2s budget → 503. ✅
-- CORS: specific-array origin + `credentials:true`, never `*` (`server.ts:133-139`). ✅
-- Soft-delete still mixed (agree ⚠️): paranoid on User/Metric/MetricCategory/Organization;
+  (manual-approval gate). (pass)
+- Readiness probe `/api/v1/ready` checks DB + Redis with a 2s budget → 503. (pass)
+- CORS: specific-array origin + `credentials:true`, never `*` (`server.ts:133-139`). (pass)
+- Soft-delete still mixed (agree, Partial): paranoid on User/Metric/MetricCategory/Organization;
   hard-delete on the other 7 models; no codifying ADR.
-- Migration ordering safe: add nullable + FK → backfill → NOT NULL → index (`…000005`/`000006`). ✅
+- Migration ordering safe: add nullable + FK → backfill → NOT NULL → index (`…000005`/`000006`). (pass)
 
 ---
 

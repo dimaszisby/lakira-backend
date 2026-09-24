@@ -54,4 +54,4 @@
 ## Wrap-up
 
 - [ ] `npm run typecheck && npm run lint && npm run format:write && npm test` green.
-- [ ] Audit re-run grades 9.2 as ✅.
+- [ ] Audit re-run grades 9.2 as Pass.

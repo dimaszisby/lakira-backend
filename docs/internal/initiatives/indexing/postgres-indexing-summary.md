@@ -36,9 +36,9 @@
 
 | Environment | Command(s)                                            | Status | Timestamp            |
 | ----------- | ----------------------------------------------------- | ------ | -------------------- |
-| Development | `docker compose exec app npm run migrate:development` | ✅     | 2025-12-17 08:40 UTC |
-| Test        | `docker compose exec app npm run migrate:test`        | ✅     | 2025-12-17 08:43 UTC |
-| Staging     | `docker compose exec app npm run migrate:staging`     | ✅     | 2025-12-17 08:46 UTC |
+| Development | `docker compose exec app npm run migrate:development` | Yes    | 2025-12-17 08:40 UTC |
+| Test        | `docker compose exec app npm run migrate:test`        | Yes    | 2025-12-17 08:43 UTC |
+| Staging     | `docker compose exec app npm run migrate:staging`     | Yes    | 2025-12-17 08:46 UTC |
 
 > _Production rollout will reuse the same commands once a live environment exists._
 
@@ -73,7 +73,7 @@
 
 1. **Monitoring adoption:** Once real workloads flow, revisit `pg_stat_user_indexes` to ensure BRIN and category/original metric indexes accrue usage; drop unused ones if they remain idle past 30 days.
 2. **Phase 3 considerations:** Evaluate monthly partitioning or retention policies for `metric_logs` when rowcounts exceed the threshold called out in the review (≈50M).
-3. **Automated testing:** Backfill integration tests for metric categories/logs when bandwidth allows so checklist regression rows can graduate from N/A to ✅.
+3. **Automated testing:** Backfill integration tests for metric categories/logs when bandwidth allows so checklist regression rows can graduate from N/A to Pass.
 4. **Documentation upkeep:** Keep `postgres-indexing-plan.md` in sync with any future index additions/removals; archive this summary with the release notes.
 
 ---

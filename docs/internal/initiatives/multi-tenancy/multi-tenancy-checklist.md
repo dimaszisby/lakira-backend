@@ -85,5 +85,5 @@
 ## Wrap-up
 
 - [x] `npm run typecheck && npm run lint && npm run format:write && npm test` — all 163 tests pass, 0 failures.
-- [ ] Audit re-run shows P0-3.1, P0-9.1, P1-1.3 marked ✅.
-- [ ] Update `iteration-plan.md` Phase 4 status to ✅ Done with PR link(s).
+- [ ] Audit re-run shows P0-3.1, P0-9.1, P1-1.3 marked Pass.
+- [ ] Update `iteration-plan.md` Phase 4 status to Pass Done with PR link(s).

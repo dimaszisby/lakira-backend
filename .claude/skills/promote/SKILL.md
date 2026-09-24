@@ -62,4 +62,4 @@ Report the PR URL and remind:
 - The promotion workflow (`.github/workflows/promote-dev-to-staging.yml`) normally creates this PR automatically after CI passes on dev
 - Manual promotion is for when you need to promote before the automation triggers
 - After merging, staging deployment triggers automatically via the CI pipeline
-- Post-deploy contract tests run against live staging (`contract_staging` job)
+- Post-deploy, the smoke suite runs against live staging (`smoke_staging` job); contract tests run pre-deploy in `contract_local`

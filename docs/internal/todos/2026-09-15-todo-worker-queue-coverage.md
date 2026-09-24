@@ -163,7 +163,8 @@ queue-path equivalent of the error components that validated `{}`.
 ## Review — 2026-09-15
 
 **Status:** Done on `feat/worker-queue-coverage` (off `origin/dev` 91fbdc9). Not committed. The
-three infrastructure files are handed over as a patch; see _Protected files_ below.
+three infrastructure files are handed over as a patch; see _Protected files_ below. _(Later: merged
+as #86, `85b4e77`, patch included — added 2026-09-24.)_
 
 ### The trap: the existing tests stay on the fallback path
 
@@ -247,8 +248,9 @@ copies (`config`, image build, the worker run above). They are handed over as a 
 ### Found, not fixed (out of scope)
 
 - **ADR-0007 is Accepted but not implemented.** There is no `processed_messages` table, and
-  `GenerateDummyMetricLogsHandler` is not idempotent, so a redelivery duplicates rows.
+  `GenerateDummyMetricLogsHandler` is not idempotent, so a redelivery duplicates rows. _(Since
+  fixed: #88, `9ebaee9`.)_
 - **`RABBITMQ_MAX_RETRIES` is unused.** The consumer reads `x-retry-count` only to log it, and every
-  failure goes straight to the parking lot.
+  failure goes straight to the parking lot. _(Since fixed: #91, `5952b74`.)_
 - Production deployment (ADR-0040), queue-depth observability (ADR-0038) and parking-lot
   monitoring remain open, as the brief scoped.

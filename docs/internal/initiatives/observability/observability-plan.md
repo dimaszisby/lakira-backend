@@ -57,8 +57,8 @@ Goal: every production log line carries a `requestId`, no sensitive value reache
 
 ## Success metrics
 
-- ✅ Every log emitted from a request carries the same `requestId` as the response header.
-- ✅ A log call passing a key matching `SENSITIVE_KEY_PATTERN` is masked.
-- ✅ With `SENTRY_DSN` set, an unhandled 500 produces a Sentry event tagged with `requestId`.
-- ✅ `/api/v1/ready` returns 503 when Postgres is down and 200 when both deps are reachable; `/api/v1/health` keeps returning 200 in both cases.
-- ✅ Audit re-run marks P0-5.1, P1-5.2, P1-5.3, P1-4.3 as ✅.
+- Every log emitted from a request carries the same `requestId` as the response header.
+- A log call passing a key matching `SENSITIVE_KEY_PATTERN` is masked.
+- With `SENTRY_DSN` set, an unhandled 500 produces a Sentry event tagged with `requestId`.
+- `/api/v1/ready` returns 503 when Postgres is down and 200 when both deps are reachable; `/api/v1/health` keeps returning 200 in both cases.
+- Audit re-run marks P0-5.1, P1-5.2, P1-5.3, P1-4.3 as Pass.

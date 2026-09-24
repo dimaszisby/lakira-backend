@@ -34,6 +34,6 @@ Three buckets:
 
 ## Links
 
-[Plan §Strategy](./feature-audience-restructure-plan.md#strategy)
+[Plan §Strategy](../../internal/initiatives/feature-audience-restructure/feature-audience-restructure-plan.md#strategy)
 
 ---

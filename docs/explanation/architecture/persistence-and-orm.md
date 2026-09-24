@@ -5,7 +5,7 @@
 ## Summary
 
 - Phase 4 replaces the legacy `src/infrastructure/db/sequelize.ts` singleton with a thin composer at `src/infrastructure/db/models.ts`.
-- Each feature owns its Sequelize models under `src/features/<feature>/infrastructure/persistence/models/*.sequelize.ts` and exposes `register*/associate*` helpers.
+- Each feature owns its Sequelize models under `src/features/<audience>/<feature>/infrastructure/persistence/models/*.sequelize.ts` and exposes `register*/associate*` helpers.
 - `src/infrastructure/db/models.ts` iterates those helpers, caches the initialized models, and re-exports both `loadModels()` and the shared `sequelize` instance from `src/config/db.ts`.
 
 ## How Bootstrapping Works Now
@@ -17,7 +17,7 @@
 
 ## Adding a New Feature Model
 
-1. Create the model under `src/features/<feature>/infrastructure/persistence/models/<name>.sequelize.ts`.
+1. Create the model under `src/features/<audience>/<feature>/infrastructure/persistence/models/<name>.sequelize.ts`.
 2. Export `register<Feature>Models()` (returning `{ <ModelName> }`) and `associate<Feature>Models()` (accepting the `DbModels` map).
 3. Append the helpers to the arrays in `src/infrastructure/db/models.ts`.
 4. Import the model via `@/infrastructure/db/models` inside repositories/use cases.

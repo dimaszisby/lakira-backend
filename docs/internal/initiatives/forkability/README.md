@@ -21,5 +21,5 @@ Make the repository a one-command-fork template: centralize branding, add a boot
 - **Closes audit gaps:** [P1-11.2], [P1-11.3], [P1-11.4], [P2-11.5] in `docs/internal/audits/saas-readiness/audit-2026-05-01.md`
 - **Owning ADRs:** ADR-005 (phase order) in `docs/internal/audits/saas-readiness/decisions.md`; (kit-local) ADR-001 in `./decisions.md`
 - **Effort:** M (aggregate)
-- **Status:** Proposed
+- **Status:** Mostly done — #49 (`69224ba`), #50 (`b4916e6`), #67 (`8adf7b8`); P2-11.5 (CachePort consolidation) still partial
 - **Predecessor / dependency:** Independent — can run in parallel with other phases. `TokenProvider.verify()` consolidation deferred to JWT kit.

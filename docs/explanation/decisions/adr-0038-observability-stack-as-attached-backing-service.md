@@ -5,7 +5,7 @@
 - **Related:** Depends on [ADR-0041](./adr-0041-logs-as-event-streams-on-stdout.md) — the log stream
   must exist before a collector can be pointed at it. Extends the deferral recorded in
   [ADR-0021](./adr-0021-sentry-init-lifecycle.md) ("APM/tracing is its own (P2-5.4) decision and
-  likely Prometheus + OpenTelemetry, not Sentry traces").
+  likely Prometheus + OpenTelemetry, not Sentry traces"). Made cheaper by [ADR-0042](./adr-0042-vps-compose-deployment-topology.md).
 - **Origin:** `TF-5` in the twelve-factor audit kit — [`twelve-factor`](../../internal/audits/twelve-factor/audit-2026-08-17.md)
 
 ---

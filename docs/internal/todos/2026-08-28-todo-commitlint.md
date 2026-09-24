@@ -1,6 +1,6 @@
 # Todo — enforce Conventional Commits with commitlint
 
-- **Status:** Complete
+- **Status:** Complete — delivered by #71 (`bba4e6c`), CI check in #74 (`b71bacd`)
 - **Created:** 2026-08-28
 - **Completed:** 2026-08-28
 - **Owner:** dimaszisby

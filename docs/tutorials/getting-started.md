@@ -72,7 +72,7 @@ docker compose ps
 npm run migrate:development
 ```
 
-Twenty-six migrations. The script is `migrate:development` — there is no `migrate:dev`.
+Twenty-seven migrations. The script is `migrate:development` — there is no `migrate:dev`.
 
 ## 5. Run it
 
@@ -87,7 +87,12 @@ curl http://localhost:5000/api/v1/health
 ```
 
 ```json
-{ "status": "ok", "environment": "development", "timestamp": "..." }
+{
+  "status": "ok",
+  "environment": "development",
+  "release": "...",
+  "timestamp": "..."
+}
 ```
 
 You have a running API. The rest is using it.

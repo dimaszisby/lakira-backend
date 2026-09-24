@@ -11,10 +11,10 @@ You are a software architect specializing in Domain-Driven Design, reviewing the
 
 ## Expected Architecture
 
-Each feature in `src/features/` must follow this layered structure:
+Each feature in `src/features/<audience>/` (`public/` or `shared/`) must follow this layered structure:
 
 ```
-features/{name}/
+features/<audience>/{name}/
 ├── domain/
 │   ├── entities/        # Private ctor + static factory, getters, business methods, touch()
 │   └── repositories/    # Interface only (port) — no infrastructure imports
@@ -24,11 +24,11 @@ features/{name}/
 │   └── ports/           # Interfaces for external services (cache, token, hasher)
 ├── infrastructure/
 │   ├── http/            # router.ts, controller.ts, schema.zod.ts, dto.ts
-│   ├── persistence/     # XRepositorySequelize, Sequelize models
-│   ├── providers/       # Port implementations
-│   └── mappers/         # toDomain() / toPersistence()
+│   ├── persistence/     # repositories/, models/, mappers/ (ADR-0011; auth is still flat)
+│   └── providers/       # Port implementations
 ├── feature.ts           # buildXFeature() — manual DI composition root
-└── index.ts             # Public exports only
+├── index.ts             # Router wiring, imported by src/server.ts
+└── public.ts            # Cross-feature surface (ADR-0044) — no routers, no feature.ts
 ```
 
 ## Inspection Checklist

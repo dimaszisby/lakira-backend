@@ -1,8 +1,13 @@
 # ADR-0024 — APP_NAME centralization strategy
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-09-24 — implementation verified in code; see the status note)
 - **Date:** 2026-05-03
 - **Origin:** `ADR-001` in the Forkability kit — [`forkability`](../../internal/initiatives/forkability/decisions.md)
+
+> **Status note (2026-09-24).** Moved from Proposed by the `docs-sweep` kit
+> ([D-03](../../internal/initiatives/docs-sweep/decisions.md)): the decision below is in the code.
+> Evidence: `src/config/app-name.ts` exports `APP_NAME` (default `"lakira-backend"`) and every
+> runtime reference imports it; `scripts/bootstrap-fork.sh` rewrites the build-time references.
 
 ---
 

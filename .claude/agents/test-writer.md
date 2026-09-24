@@ -67,7 +67,7 @@ describe("MyUseCase", () => {
 
 Rules:
 
-- Use domain factories (`makeMetric()`, `makeUser()`) for test data — never raw object literals
+- Build entities through their real factories (e.g. `Entity.fromPersistence(...)`), wrapped in a local `makeX()` helper in the test file as the auth tests do; `__tests__/unit/factories/` holds the one shared builder (`metric-settings.ts`)
 - Mock only the direct dependencies of the SUT, not transitive ones
 - Never use `process.env` — use `withTestEnv(async () => { ... })` for env-dependent tests
 - Each `it()` is independent; no shared mutable state between tests
@@ -75,36 +75,43 @@ Rules:
 
 ## Step 4: Write integration tests
 
-Use `supertest` against the auto-started server. Tables are truncated before each test via `jest.setup.ts`.
+Use the shared `api` supertest agent and the HTTP helpers in `__tests__/integration/helpers/test-utils.ts` (`createTestUser`, `authHeader`, `build*Payload`, `create*`). Tables are truncated before each test via `jest.setup.ts`.
 
 ```typescript
-import request from "supertest";
-import { app } from "@/server.js";
-import { createUserAndLogin } from "../../helpers/db-fixtures.js";
+// __tests__/integration/api/metric.test.ts
+import {
+  api,
+  authHeader,
+  buildMetricPayload,
+  createTestUser,
+} from "../helpers/test-utils.js";
 
-describe("POST /api/metrics", () => {
+describe("POST /api/v1/metrics", () => {
+  let token: string;
+
+  beforeEach(async () => {
+    ({ token } = await createTestUser());
+  });
+
   it("creates a metric and returns 201", async () => {
-    const { token } = await createUserAndLogin();
-    const res = await request(app)
-      .post("/api/metrics")
-      .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Weight", unit: "kg", goalEnabled: false });
+    const payload = buildMetricPayload();
+    const res = await api
+      .post("/api/v1/metrics")
+      .set("Authorization", authHeader(token))
+      .send(payload);
     expect(res.status).toBe(201);
-    expect(res.body.data).toMatchObject({ name: "Weight" });
+    expect(res.body.data).toMatchObject({ name: payload.name });
   });
 
   it("returns 401 when no token is provided", async () => {
-    const res = await request(app)
-      .post("/api/metrics")
-      .send({ name: "Weight" });
+    const res = await api.post("/api/v1/metrics").send(buildMetricPayload());
     expect(res.status).toBe(401);
   });
 
   it("returns 400 when required fields are missing", async () => {
-    const { token } = await createUserAndLogin();
-    const res = await request(app)
-      .post("/api/metrics")
-      .set("Authorization", `Bearer ${token}`)
+    const res = await api
+      .post("/api/v1/metrics")
+      .set("Authorization", authHeader(token))
       .send({});
     expect(res.status).toBe(400);
   });
@@ -114,7 +121,7 @@ describe("POST /api/metrics", () => {
 Rules:
 
 - Always test: happy path, missing auth (401), invalid input (400), not found (404), conflict (409) where applicable
-- Use DB fixtures from `__tests__/helpers/db-fixtures.js` to create seed data
+- For state the API cannot create directly, use the row fixtures in `__tests__/integration/helpers/db-fixtures.ts` (`createUserRow`, `createMetricRow`, `seedMetricWithLogs`, …)
 - Assert on `res.body.data` shape, not exact deep equality (avoids brittle timestamp checks)
 - Do not rely on test execution order — each test must set up its own state
 

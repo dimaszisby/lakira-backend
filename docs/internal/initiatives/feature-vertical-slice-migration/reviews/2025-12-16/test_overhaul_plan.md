@@ -66,7 +66,7 @@ Modernize Lakira’s JWT implementation so it meets production-grade expectation
 
 ## 6. Success Metrics
 
-- ✅ CI fails fast when JWT config is missing or invalid.
-- ✅ Access tokens carry the documented claims/TTL, verified by automated tests.
-- ✅ Rotation exercises complete in staging without downtime, and alerting confirms success/failure.
-- ✅ No secrets live in the repo, and scanners enforce the policy continuously.
+- CI fails fast when JWT config is missing or invalid.
+- Access tokens carry the documented claims/TTL, verified by automated tests.
+- Rotation exercises complete in staging without downtime, and alerting confirms success/failure.
+- No secrets live in the repo, and scanners enforce the policy continuously.

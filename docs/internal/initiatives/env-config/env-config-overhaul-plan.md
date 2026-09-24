@@ -45,7 +45,7 @@ Transform the current environment configuration pipeline into an industry-standa
   - `envManager.ts` with `loadEnvOrExit()`, `getEnv(key)`, and caching.
   - Replace `execFileSync` in `src/config/config.cjs` with a direct `require` of the compiled manager.
 - **Success Metrics**: `npm run build` + `sequelize db:migrate` run without spawning child Node processes.
-- **Status**: ✅ `src/config/config.cjs` now imports `dist/config/envManager.js`, reusing the cached loader.
+- **Status**: `src/config/config.cjs` now imports `dist/config/envManager.js`, reusing the cached loader.
 
 ### Phase 2 — Error & Security Hardening
 
@@ -54,7 +54,7 @@ Transform the current environment configuration pipeline into an industry-standa
   - Masking utility (e.g., hide `*_SECRET`, `*_PASSWORD`).
   - Logging hooks that emit JSON payloads to observability stack.
 - **Success Metrics**: Simulated invalid env fails with descriptive, secret-safe output.
-- **Status**: ✅ Env manager now throws `EnvValidationError`, masks sensitive keys, and logs structured payloads.
+- **Status**: Env manager now throws `EnvValidationError`, masks sensitive keys, and logs structured payloads.
 
 ### Phase 3 — Tooling & Testing
 
@@ -63,8 +63,8 @@ Transform the current environment configuration pipeline into an industry-standa
   - Jest utility in `__tests__/utils/env.ts` (or similar) + documentation snippet.
   - Example tests migrated to the helper.
 - **Success Metrics**: New helper adopted in at least one integration test; lint rules prevent direct mutation of `process.env` in tests.
-- **Status**: ✅ Helper published (`src/tests/env-test-utils.ts`), analytics tests migrated, and as of 2026-01-05 the ESLint override blocks direct `process.env` usage in `__tests__/**`.
-- **Follow-up**: 🚧 Continue migrating legacy suites to `withTestEnv` patterns per TKT-005A (formatting/fixture cleanup) even though the guardrail now prevents regressions.
+- **Status**: Helper published (`src/tests/env-test-utils.ts`), analytics tests migrated, and as of 2026-01-05 the ESLint override blocks direct `process.env` usage in `__tests__/**`.
+- **Follow-up**: In progress: Continue migrating legacy suites to `withTestEnv` patterns per TKT-005A (formatting/fixture cleanup) even though the guardrail now prevents regressions.
 
 ### Phase 4 — Documentation & Runbooks
 

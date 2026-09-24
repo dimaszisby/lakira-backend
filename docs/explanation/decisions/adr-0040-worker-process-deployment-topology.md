@@ -5,8 +5,12 @@
 - **Related:** Pairs with [ADR-0039](./adr-0039-release-identity-and-immutable-artifacts.md) — both
   concern what a Lakira release consists of and what runs it. Gives the queue design of
   [ADR-0005](./adr-0005-topic-exchange-with-parking-lot-dlx.md) and
-  [ADR-0006](./adr-0006-separate-publisher-and-consumer-connections.md) somewhere to actually run.
+  [ADR-0006](./adr-0006-separate-publisher-and-consumer-connections.md) somewhere to actually run. Its deployment target is changed by [ADR-0042](./adr-0042-vps-compose-deployment-topology.md) (VPS, not Render).
 - **Origin:** `TF-4` in the twelve-factor audit kit — [`twelve-factor`](../../internal/audits/twelve-factor/audit-2026-08-17.md)
+
+> **Status note (2026-09-24).** Stays Proposed: partly implemented. The worker has a local
+> Compose service (opt-in `worker` profile) and CI coverage of the queue path (`85b4e77`, #86).
+> There is no staging or production deployment, and ADR-0042 moves that target to the VPS.
 
 ---
 

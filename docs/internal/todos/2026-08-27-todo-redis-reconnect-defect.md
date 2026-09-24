@@ -1,6 +1,6 @@
 # Todo — Redis reconnect defect
 
-- **Status:** Complete
+- **Status:** Complete — delivered by #69 (`8b3e9b2`)
 - **Created:** 2026-08-27
 - **Completed:** 2026-08-27
 - **Owner:** dimaszisby

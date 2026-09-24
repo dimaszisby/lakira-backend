@@ -1,6 +1,6 @@
 # Todo — remove the orphaned OpenAPI schemas
 
-- **Status:** Complete (2026-09-10) — all 16 removed, and the gate that would have caught them exists
+- **Status:** Complete (2026-09-10) — delivered by #83 (`9d8e090`); all 16 removed, and the gate that would have caught them exists
 - **Created:** 2026-09-10
 - **Owner:** unassigned
 - **Origin:** follow-up 2 from the C3 error-envelope work

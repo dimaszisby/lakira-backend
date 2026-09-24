@@ -6,15 +6,15 @@ I am building a front-end Goal Tracking web application named Lakira using NextJ
 
 Lakira is a **versatile tracking app** designed to help users **monitor, visualize, and improve** their progress in fitness, wellness, productivity, learning, or personal habits.
 
-✅ **Custom Metrics** – Track anything, from gym workouts and study hours to sleep quality and mindfulness sessions.
+**Custom Metrics** – Track anything, from gym workouts and study hours to sleep quality and mindfulness sessions.
 
-✅ **Visual Analytics** – Interactive charts & insights for tracking trends.
+**Visual Analytics** – Interactive charts & insights for tracking trends.
 
-✅ **Goal-Oriented Tracking** – Set milestones, measure improvements.
+**Goal-Oriented Tracking** – Set milestones, measure improvements.
 
-✅ **Minimalist Design** – Inspired by **Japanese precision and structured simplicity and Javanese calming and elegant**.
+**Minimalist Design** – Inspired by **Japanese precision and structured simplicity and Javanese calming and elegant**.
 
-✅ **Smart Reminders** – Stay accountable with nudges and progress summaries.
+**Smart Reminders** – Stay accountable with nudges and progress summaries.
 
 # Technology Stack
 
@@ -162,30 +162,30 @@ Lakira is a **versatile tracking app** designed to help users **monitor, visuali
 Keeping in mind industry standards, scalability, and maintainability, this structure aligns with your metric-based tracking system while following Next.js best practices.
 Note: This is the base paging visualization, pages may be added during development and/or future business approach changes. Please be agile for further changes according to business needs and development strategy.
 
-📂 pages
-├── 📌 dashboard/ # Main dashboard
+pages
+├── dashboard/ # Main dashboard
 │ ├── index.tsx # Overview page, include data visualization for each metric with displayOnDashboard === true
 │
-├── 📊 metrics/ # Metrics Management
+├── metrics/ # Metrics Management
 │ ├── index.tsx # List of metrics (Create new metric through modal pop-up), pagination, sort, filter, search.
 │ ├── [metricId]/ # Dynamic route for metric details
 │ │ ├── index.tsx # Metric overview page, includes view associated metric-category, metric-log, metric-settings, and data visualization of log. Create, Edit, Update of metric and it's assossiation happened through pop-up modal. Date Range Filter, Granularity Buckets, Smart Aggregation Triggers.
 │
-├── 📂 categories/ # Categories Management
+├── categories/ # Categories Management
 │ ├── index.tsx # List of categories (Create new category with modal pop-up)
 │ ├── [categoryId]/ # Dynamic category routes, includes view associated Metrics. Edit of metri-category happened through pop-up modal
 │
-├── ⚙️ settings/ # Application & user settings
+├── settings/ # Application & user settings
 │ ├── index.tsx # General settings
 │ ├── profile.tsx # Profile settings
 │ ├── metrics.tsx # Metric-related settings
 │
-├── 👤 account/ # User Account Management
+├── account/ # User Account Management
 │ ├── profile.tsx # View and edit user profile
 │ ├── change-password.tsx # Change password page
 │ ├── logout.tsx # Logout page
 │
-├── 📂 auth/ # Authentication Pages
+├── auth/ # Authentication Pages
 │ ├── login.tsx # Login page
 │ ├── register.tsx # Register page
 │ ├── forgot-password.tsx # Password recovery
@@ -213,28 +213,28 @@ Note: This is the base paging visualization, pages may be added during developme
 To **keep pages clean**, move reusable UI components to a `components/` directory:
 Note: This is the base component visualization, refactored components may be added during development and/or future business approach changes. Please be agile for further changes according to business needs and development strategy.
 
-📂 components
-├── 📌 layout/ # Layout components
+components
+├── layout/ # Layout components
 │ ├── Sidebar.tsx # Sidebar navigation
 │ ├── Layout.tsx # Main Layout with integerated sidebar (used for authenticated users)
 │
-├── 📊 metrics/ # Metric-related components
+├── metrics/ # Metric-related components
 │ ├── MetricCard.tsx # Individual metric UI for metric list page
 │ ├── MetricForm.tsx # Create and edit form using pop-up modal
 │
-├── 📂 categories/ # Category-related components
+├── categories/ # Category-related components
 │ ├── CategoryCard.tsx # Individual metric-category UI for metric-category list page
 │ ├── CategoryForm.tsx # Create and edit form using pop-up modal
 │
-├── 📊 metric-logs/ # Metric-log-related components
+├── metric-logs/ # Metric-log-related components
 │ ├── LogCard.tsx # Individual metric-log UI for recent-log and logs in metric details page
 │ ├── LogForm.tsx # Create and edit form using pop-up modal
 │
-├── 📊 metric-settings/ # Metric-settings-related components
+├── metric-settings/ # Metric-settings-related components
 │ ├── MetricSettingsCard.tsx # Individual metric-settings UI in metric details page
 │ ├── MetricSettingsForm.tsx # Create and edit form using pop-up modal
 │
-├── ⚙️ settings/ # Settings components
+├── settings/ # Settings components
 │ ├── ProfileForm.tsx
 │ ├── AccountSettings.tsx
 │

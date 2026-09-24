@@ -3,10 +3,9 @@
 **Status:** Active
 **Last updated:** 2026-04-13
 
-Contract tests enforce externally visible API behavior using two complementary tools:
-
-- Postman/Newman (curated deterministic suites)
-- Schemathesis (spec-driven generative/fuzz coverage)
+Contract tests enforce externally visible API behavior with **Schemathesis** (spec-driven
+generative/fuzz coverage). Postman/Newman was the second tool until it was retired in #75
+(`a4635f3`); `postman-newman/` is kept as history.
 
 ## Scope
 
@@ -25,8 +24,6 @@ Out of scope:
 ## Commands
 
 ```bash
-npm run test:contract:local
-npm run test:contract:staging
 npm run test:contract:schemathesis:local
 npm run test:contract:schemathesis:staging
 npm run contract:local:quick

@@ -1,6 +1,6 @@
 # Registration session
 
-**Status:** Complete — implemented, all gates green, awaiting PR. D-01 promoted to
+**Status:** Complete — merged in #103 (`b7cc7ce`). D-01 promoted to
 [ADR-0043](../../../explanation/decisions/adr-0043-session-issuance-at-every-authenticated-entry-point.md).
 **Slug:** `registration-session` · **Branch:** `fix/registration-session`
 

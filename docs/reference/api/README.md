@@ -38,9 +38,9 @@ Full workflow: [`../../how-to/development/regenerate-the-openapi-spec.md`](../..
 
 ## Coverage
 
-**44 documented operations** across `Auth`, `Metric Categories`, `Metrics`, `Metric Logs`,
-`Metric Settings`, `Trends`, and `Analytics`, plus the organization surface (invites, members,
-memberships).
+**46 documented operations** (counted from the committed spec on 2026-09-24) across `Auth` (11),
+`Organizations` (5), `Metric Categories` (5), `Metrics` (5), `Metric Logs` (6), `Metric Settings`
+(7), `Dummy Data` (3), `Analytics` (2), `Trends` (1) and `Admin` (1).
 
 Two routes are served but intentionally absent from the spec, and one is documented but excluded
 from fuzzing:
@@ -53,10 +53,8 @@ from fuzzing:
 
 ## Known gaps
 
-- Error responses are under-specified. Most operations document only success shapes and `429`;
-  `4xx`/`5xx` bodies are largely absent, and the global error handler can emit shapes the spec
-  does not describe. Tracked as caveat C3 in
-  [`../../internal/audits/saas-readiness/`](../../internal/audits/saas-readiness/).
+- ~~Error responses are under-specified.~~ Closed by caveat C3 (`75cfdaa`, #79): every operation
+  now documents its `4xx`/`5xx` responses with the single error envelope. Kept here as history.
 - Request validation is done by **Zod middleware**, not by the spec at runtime. The spec is
   generated _from_ the validators; it does not enforce anything itself. (`express-openapi-validator`
   was a declared dependency with zero imports and has been removed.)

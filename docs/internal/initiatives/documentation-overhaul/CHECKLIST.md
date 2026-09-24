@@ -1,6 +1,6 @@
 # Documentation Overhaul — Checklist
 
-- **Status:** Proposed — awaiting approval
+- **Status:** Done — landed directly on `dev` (`c896881` … `81f724d`) and in #60 (`638d75b`)
 - **Companion:** [PLAN.md](./PLAN.md)
 - **Branch:** create off `dev` (per `.claude/rules/workflow.md`)
 
@@ -9,7 +9,7 @@ start the next phase until the current gate is green.
 
 ---
 
-## Phase 0 — Unblock ✅ DONE (2026-08-16)
+## Phase 0 — Unblock DONE (2026-08-16)
 
 - [x] Read `.gitignore:100`. The bare `docs` pattern (comment: "actionlint docs") is unanchored
       and matches a `docs` directory at any depth.
@@ -37,10 +37,10 @@ was worth doing independently of the docs migration.
 **Gate — all passed**
 
 ```bash
-git check-ignore -v --no-index docs/README.md                          # exit 1 → not ignored ✅
-git status --short docs/                                               # "?? docs/" → visible ✅
-git check-ignore -v --no-index __tests__/integration/docs/swagger.test.ts  # exit 1 → freed ✅
-git status --short                                                     # no unintended unignores ✅
+git check-ignore -v --no-index docs/README.md                          # exit 1 → not ignored PASS
+git status --short docs/                                               # "?? docs/" → visible PASS
+git check-ignore -v --no-index __tests__/integration/docs/swagger.test.ts  # exit 1 → freed PASS
+git status --short                                                     # no unintended unignores PASS
 ```
 
 > Use `--no-index`: plain `git check-ignore` reports exit 1 for already-tracked files regardless
@@ -48,7 +48,7 @@ git status --short                                                     # no unin
 
 ---
 
-## Phase 1 — Move executables out of the docs tree ✅ DONE (2026-08-16)
+## Phase 1 — Move executables out of the docs tree DONE (2026-08-16)
 
 > Riskiest phase. Runs first and alone, while `docs/` is otherwise untouched, so any CI
 > failure is unambiguously attributable.
@@ -93,33 +93,33 @@ scripts (out of scope).
 
 **Gate — results**
 
-| Check                                  | Result                                                                         |
-| -------------------------------------- | ------------------------------------------------------------------------------ |
-| `npm run lint`                         | ✅ 0 (needed one `lint:fix` pass for Prettier width)                           |
-| `npm run typecheck`                    | ✅ 0                                                                           |
-| `npm run format:check`                 | ✅ 0                                                                           |
-| `npm run test:unit`                    | ✅ **84 suites / 497 tests** — matches the pre-move audit baseline exactly     |
-| `npm run test:unit:security-framework` | ✅ 1 suite / 8 tests                                                           |
-| Stale-path sweep (non-`.md`)           | ✅ zero hits for `4-contract-tests` / `contract_hooks`                         |
-| Python module resolves                 | ✅ `tests.contract.hooks.seeded_ids` **FOUND**; old path `ModuleNotFoundError` |
-| JS `repoRoot` + asset paths            | ✅ all resolve to repo root; all assets present                                |
-| Script smoke-load                      | ✅ all 4 load and fail at env validation, not on import/path                   |
-| `run-local.js` spec check              | ✅ passes `fs.access(specPath)`, reaches the health check                      |
+| Check                                  | Result                                                                      |
+| -------------------------------------- | --------------------------------------------------------------------------- |
+| `npm run lint`                         | 0 (needed one `lint:fix` pass for Prettier width)                           |
+| `npm run typecheck`                    | 0                                                                           |
+| `npm run format:check`                 | 0                                                                           |
+| `npm run test:unit`                    | **84 suites / 497 tests** — matches the pre-move audit baseline exactly     |
+| `npm run test:unit:security-framework` | 1 suite / 8 tests                                                           |
+| Stale-path sweep (non-`.md`)           | zero hits for `4-contract-tests` / `contract_hooks`                         |
+| Python module resolves                 | `tests.contract.hooks.seeded_ids` **FOUND**; old path `ModuleNotFoundError` |
+| JS `repoRoot` + asset paths            | all resolve to repo root; all assets present                                |
+| Script smoke-load                      | all 4 load and fail at env validation, not on import/path                   |
+| `run-local.js` spec check              | passes `fs.access(specPath)`, reaches the health check                      |
 
 ### Full contract gate — run locally against real infra (Colima/Docker)
 
 The CI `contract_local` job was mirrored end to end: `docker compose up db redis` → `build` →
 `docs:openapi:generate` → `db:migrate:test` (26 migrations) → `start:test` on :4000 → both suites.
 
-| Check                                      | Result                                                                                                                                                                                        |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs:openapi:check` (drift gate)          | ✅ 0 — generator still writes where CI diffs                                                                                                                                                  |
-| `npm run test:contract:local` (Newman)     | ✅ **5/5 collections, 60 assertions, 0 failures**                                                                                                                                             |
-| Newman reports written                     | ✅ 10 files under `tests/contract/postman-newman/reports/local/`                                                                                                                              |
-| `npm run test:contract:schemathesis:local` | ✅ 0 — 38/43 operations selected, **32 generated / 32 passed**                                                                                                                                |
-| Schemathesis reports written               | ✅ JUNIT + HAR under `tests/contract/schemathesis/reports/local/`                                                                                                                             |
-| **Hook actually executed**                 | ✅ 5 `[schemathesis-hook]` lines from `_debug_case_path` (via `SCHEMATHESIS_HOOK_DEBUG=1`) covering `/auth/register`, `/auth/login`, `/metric-categories`, `/metric-logs`, `/metric-settings` |
-| **Negative control**                       | ✅ forcing `SCHEMATHESIS_HOOKS=documents.tests.contract_hooks.seeded_ids` → **exit 1, `ModuleNotFoundError`**                                                                                 |
+| Check                                      | Result                                                                                                                                                                                     |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `docs:openapi:check` (drift gate)          | 0 — generator still writes where CI diffs                                                                                                                                                  |
+| `npm run test:contract:local` (Newman)     | **5/5 collections, 60 assertions, 0 failures**                                                                                                                                             |
+| Newman reports written                     | 10 files under `tests/contract/postman-newman/reports/local/`                                                                                                                              |
+| `npm run test:contract:schemathesis:local` | 0 — 38/43 operations selected, **32 generated / 32 passed**                                                                                                                                |
+| Schemathesis reports written               | JUNIT + HAR under `tests/contract/schemathesis/reports/local/`                                                                                                                             |
+| **Hook actually executed**                 | 5 `[schemathesis-hook]` lines from `_debug_case_path` (via `SCHEMATHESIS_HOOK_DEBUG=1`) covering `/auth/register`, `/auth/login`, `/metric-categories`, `/metric-logs`, `/metric-settings` |
+| **Negative control**                       | forcing `SCHEMATHESIS_HOOKS=documents.tests.contract_hooks.seeded_ids` → **exit 1, `ModuleNotFoundError`**                                                                                 |
 
 The negative control is the important one: it proves Schemathesis **fails loudly** on a bad hook
 module rather than passing vacuously — so the green run above genuinely loaded the relocated hook.
@@ -150,7 +150,7 @@ locally with `--options-path /dev/null --migrations-path src/migrations`. CI is 
 
 ---
 
-## Phase 2 — Rename the docs tree to `docs/` ✅ DONE (2026-08-16)
+## Phase 2 — Rename the docs tree to `docs/` DONE (2026-08-16)
 
 - [x] `git mv documents docs` — **272 renames** detected by git (123 pure, 149 rename+edit), so
       history follows every file.
@@ -193,16 +193,16 @@ broken link in the tree, since the file opened by telling every reader and agent
 
 **Gate — results**
 
-| Check                                         | Result                                                                   |
-| --------------------------------------------- | ------------------------------------------------------------------------ |
-| `grep -rn "documents/"` repo-wide             | ✅ **0 hits**                                                            |
-| `npm run lint` / `typecheck` / `format:check` | ✅ 0                                                                     |
-| `npm run test:unit`                           | ✅ 84 suites / 497 tests                                                 |
-| `npm run test:unit:security-framework`        | ✅ 1 suite / 8 tests                                                     |
-| `npm run docs:openapi:check`                  | ✅ 0 — generator writes to `docs/reference/api/`, CI diffs the same path |
-| `npm run test:contract:local`                 | ✅ 5/5 collections, 60 assertions, 0 failures                            |
-| `npm run test:contract:schemathesis:local`    | ✅ 38/43 operations, 32/32 passed, 5 hook traces                         |
-| Security scripts + Jest schema gate           | ✅ all three `docs/security/**` paths resolve                            |
+| Check                                         | Result                                                                |
+| --------------------------------------------- | --------------------------------------------------------------------- |
+| `grep -rn "documents/"` repo-wide             | **0 hits**                                                            |
+| `npm run lint` / `typecheck` / `format:check` | 0                                                                     |
+| `npm run test:unit`                           | 84 suites / 497 tests                                                 |
+| `npm run test:unit:security-framework`        | 1 suite / 8 tests                                                     |
+| `npm run docs:openapi:check`                  | 0 — generator writes to `docs/reference/api/`, CI diffs the same path |
+| `npm run test:contract:local`                 | 5/5 collections, 60 assertions, 0 failures                            |
+| `npm run test:contract:schemathesis:local`    | 38/43 operations, 32/32 passed, 5 hook traces                         |
+| Security scripts + Jest schema gate           | all three `docs/security/**` paths resolve                            |
 
 Re-running both contract suites mattered here: `specPath` in the Schemathesis runners now
 resolves `docs/reference/api/lakira-backend-openapi.json`, and the runner aborts on `fs.access` if the
@@ -220,7 +220,7 @@ substitution and table-rule padding left **162 changed lines matching exactly**,
 
 ---
 
-## Phase 3 — Reshape into Diátaxis quadrants ✅ DONE (2026-08-16)
+## Phase 3 — Reshape into Diátaxis quadrants DONE (2026-08-16)
 
 Result: **45 shipped files** across the four quadrants, **224 files** fenced under `internal/`.
 
@@ -280,7 +280,7 @@ Two classes the remap could not see, fixed separately:
 
 ---
 
-## Phase 4 — Prune ✅ DONE (2026-08-16)
+## Phase 4 — Prune DONE (2026-08-16)
 
 - [x] `lakira-backend-types.md` (2,065 lines of copy-pasted `src/types/`) — deleted.
 - [x] `lakira-backend-routes.md` (390 lines, zero organization routes) — deleted; superseded by
@@ -295,14 +295,14 @@ Two classes the remap could not see, fixed separately:
 
 **Gate — results**
 
-| Check                                 | Result                                                            |
-| ------------------------------------- | ----------------------------------------------------------------- |
-| `lint` / `typecheck` / `format:check` | ✅ 0                                                              |
-| `test:unit`                           | ✅ 84 suites / 497 tests                                          |
-| `test:unit:security-framework`        | ✅ 8 tests — passes against relocated audit + template roots      |
-| `docs:openapi:check`                  | ✅ 0 — generator and CI diff both follow to `docs/reference/api/` |
-| `test:contract:local`                 | ✅ 5/5 collections, 60 assertions, 0 failures                     |
-| `test:contract:schemathesis:local`    | ✅ 38/43 operations, 32/32 passed, 5 hook traces                  |
+| Check                                 | Result                                                         |
+| ------------------------------------- | -------------------------------------------------------------- |
+| `lint` / `typecheck` / `format:check` | 0                                                              |
+| `test:unit`                           | 84 suites / 497 tests                                          |
+| `test:unit:security-framework`        | 8 tests — passes against relocated audit + template roots      |
+| `docs:openapi:check`                  | 0 — generator and CI diff both follow to `docs/reference/api/` |
+| `test:contract:local`                 | 5/5 collections, 60 assertions, 0 failures                     |
+| `test:contract:schemathesis:local`    | 38/43 operations, 32/32 passed, 5 hook traces                  |
 
 Contract suites were re-run because `specPath` moved again, to
 `docs/reference/api/lakira-backend-openapi.json`.
@@ -311,7 +311,7 @@ Contract suites were re-run because `specPath` moved again, to
 
 ---
 
-## Phase 5 — Rewrite the reference layer ✅ DONE (2026-08-16)
+## Phase 5 — Rewrite the reference layer DONE (2026-08-16)
 
 - [x] `reference/database-schema.md` — rewritten from a **freshly migrated live database**, not
       from reading migration files. 13 tables, all FK on-delete behaviour, unique/partial indexes,
@@ -365,13 +365,13 @@ escapes validation.
 
 **Gate — results**
 
-| Check                                  | Result                                                                                   |
-| -------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `lint` / `typecheck` / `format:check`  | ✅ 0                                                                                     |
-| `test:unit`                            | ✅ 84 suites / 497 tests                                                                 |
-| `docs:openapi:check`                   | ✅ 0                                                                                     |
-| Every `npm run` in the new docs exists | ✅ verified against `package.json`                                                       |
-| Broken links **in the shipped tree**   | ✅ **0** (3 remaining are template placeholders and the `/api/v1/docs/openapi.json` URL) |
+| Check                                  | Result                                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------------------- |
+| `lint` / `typecheck` / `format:check`  | 0                                                                                     |
+| `test:unit`                            | 84 suites / 497 tests                                                                 |
+| `docs:openapi:check`                   | 0                                                                                     |
+| Every `npm run` in the new docs exists | verified against `package.json`                                                       |
+| Broken links **in the shipped tree**   | **0** (3 remaining are template placeholders and the `/api/v1/docs/openapi.json` URL) |
 
 Schema and config content were verified against the running system: the tables, columns,
 constraints, and indexes were read out of a live migrated database, and the variable table was
@@ -381,7 +381,7 @@ generated from the schema that validates it.
 
 ---
 
-## Phase 6 — Build the ADR registry ✅ DONE (2026-08-16)
+## Phase 6 — Build the ADR registry DONE (2026-08-16)
 
 **52 entries triaged → 37 promoted** to `docs/explanation/decisions/`, one per file, globally
 numbered and ordered by decision date. 22 Accepted, 15 Proposed.
@@ -425,15 +425,15 @@ entries, all still readable in place — they are not lost, just not architectur
 
 **Gate — results**
 
-| Check                                               | Result                                                         |
-| --------------------------------------------------- | -------------------------------------------------------------- |
-| No ADR number appears twice                         | ✅ 37 files, 0 duplicates                                      |
-| Every promoted entry has a resolving stub           | ✅ 37 stubs, 0 broken                                          |
-| Every record has Status + Date + Origin             | ✅                                                             |
-| Every record has Context/Decision/Consequences      | ✅                                                             |
-| No leftover bold labels that should be headings     | ✅                                                             |
-| Relative links in `explanation/` resolve            | ✅ 0 broken (excluding template placeholders in fenced blocks) |
-| `lint` / `typecheck` / `format:check` / `test:unit` | ✅ 0 · 497 tests                                               |
+| Check                                               | Result                                                      |
+| --------------------------------------------------- | ----------------------------------------------------------- |
+| No ADR number appears twice                         | 37 files, 0 duplicates                                      |
+| Every promoted entry has a resolving stub           | 37 stubs, 0 broken                                          |
+| Every record has Status + Date + Origin             | Yes                                                         |
+| Every record has Context/Decision/Consequences      | Yes                                                         |
+| No leftover bold labels that should be headings     | Yes                                                         |
+| Relative links in `explanation/` resolve            | 0 broken (excluding template placeholders in fenced blocks) |
+| `lint` / `typecheck` / `format:check` / `test:unit` | 0 · 497 tests                                               |
 
 Phase 3 fallout also cleaned up here: `feature-slice-ddd.md` and `shared-middleware.md` still
 carried relative links into the kit they were lifted out of.
@@ -442,7 +442,7 @@ carried relative links into the kit they were lifted out of.
 
 ---
 
-## Phase 7 — Author new content ✅ DONE (2026-08-16)
+## Phase 7 — Author new content DONE (2026-08-16)
 
 - [x] `explanation/architecture/c4-context.md` — L1: users, the API, six external systems.
 - [x] `explanation/architecture/c4-containers.md` — L2: API server + job worker, plus a
@@ -488,13 +488,13 @@ proposes to fix. Verified in the tree, not assumed.
 
 **Gate — results**
 
-| Check                                 | Result                               |
-| ------------------------------------- | ------------------------------------ |
-| Every `getting-started.md` request    | ✅ executed against a live server    |
-| Mermaid diagrams                      | ✅ 4/4 render to SVG via mermaid-cli |
-| Relative links in the shipped tree    | ✅ **0 broken** of 170               |
-| `lint` / `typecheck` / `format:check` | ✅ 0                                 |
-| `test:unit`                           | ✅ 84 suites / 497 tests             |
+| Check                                 | Result                            |
+| ------------------------------------- | --------------------------------- |
+| Every `getting-started.md` request    | executed against a live server    |
+| Mermaid diagrams                      | 4/4 render to SVG via mermaid-cli |
+| Relative links in the shipped tree    | **0 broken** of 170               |
+| `lint` / `typecheck` / `format:check` | 0                                 |
+| `test:unit`                           | 84 suites / 497 tests             |
 
 Fixed one straggler from Phase 3 while checking: the CI/CD playbook still linked
 `../security/DEPENDENCY_POLICY.md`.
@@ -503,7 +503,7 @@ Fixed one straggler from Phase 3 while checking: the CI/CD playbook still linked
 
 ---
 
-## Phase 8 — Realign the rules ✅ DONE (2026-08-16)
+## Phase 8 — Realign the rules DONE (2026-08-16)
 
 The restructure only holds if the instructions agents follow describe the new tree. Both files
 that route new documentation were stale, and — more importantly — they contradicted each other.
@@ -548,19 +548,19 @@ The rules now carry the specific failures this overhaul uncovered, as rules rath
 
 **Gate — results**
 
-| Check                                                        | Result                                                   |
-| ------------------------------------------------------------ | -------------------------------------------------------- |
-| Placement tables byte-identical                              | ✅ 1,824 chars, exact match                              |
-| Concrete `docs/` paths in `.claude/**` + `CLAUDE.md` resolve | ✅ 50 checked, 0 missing (2 prose placeholders excluded) |
-| `lint` / `typecheck` / `format:check`                        | ✅ 0                                                     |
-| `test:unit`                                                  | ✅ 84 suites / 497 tests                                 |
-| `docs:openapi:check`                                         | ✅ 0                                                     |
+| Check                                                        | Result                                                |
+| ------------------------------------------------------------ | ----------------------------------------------------- |
+| Placement tables byte-identical                              | 1,824 chars, exact match                              |
+| Concrete `docs/` paths in `.claude/**` + `CLAUDE.md` resolve | 50 checked, 0 missing (2 prose placeholders excluded) |
+| `lint` / `typecheck` / `format:check`                        | 0                                                     |
+| `test:unit`                                                  | 84 suites / 497 tests                                 |
+| `docs:openapi:check`                                         | 0                                                     |
 
 **Commit boundary: Phase 8 (or fold into 8–9).**
 
 ---
 
-## Phase 9 — Fork-proofing ✅ DONE (2026-08-16)
+## Phase 9 — Fork-proofing DONE (2026-08-16)
 
 - [x] `scripts/bootstrap-fork.sh` removes `docs/internal/` by default, with `--keep-internal` to
       opt out. Reports the file count and warns that the upstream SaaS-readiness audit went with it.
@@ -578,15 +578,15 @@ Guarding the whole suite would have cost a fork its **template** validation, whi
 exactly what a forker depends on. `schema conformance` asserted on both the shipped templates and
 this project's `audit-2026-02-18` run in one test, so it was split:
 
-| Test                                             | In a fork  |
-| ------------------------------------------------ | ---------- |
-| init script creates every required artifact      | ✅ runs    |
-| shipped templates have required sections/columns | ✅ runs    |
-| 3 × gate-policy evaluation                       | ✅ runs    |
-| current audit run matches template columns       | ⏭ skipped |
-| finding traceability                             | ⏭ skipped |
-| audit index continuity                           | ⏭ skipped |
-| portfolio sanitization                           | ⏭ skipped |
+| Test                                             | In a fork |
+| ------------------------------------------------ | --------- |
+| init script creates every required artifact      | runs      |
+| shipped templates have required sections/columns | runs      |
+| 3 × gate-policy evaluation                       | runs      |
+| current audit run matches template columns       | skipped   |
+| finding traceability                             | skipped   |
+| audit index continuity                           | skipped   |
+| portfolio sanitization                           | skipped   |
 
 Only assertions about _this project's history_ skip. The framework is still proven.
 
@@ -603,14 +603,14 @@ docs/internal after           GONE
 shipped docs                  94 files
 ```
 
-| Check in the fork                      | Result                                                                                   |
-| -------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `npm ci`                               | ✅ 0                                                                                     |
-| `npm run test:unit`                    | ✅ **494 passed, 4 skipped, 0 failed**                                                   |
-| `npm run test:unit:security-framework` | ✅ 5 passed, 4 skipped                                                                   |
-| `lint` / `typecheck` / `format:check`  | ✅ 0                                                                                     |
-| Branding applied                       | ✅ `"name": "tmp-app"`, zero `lakira` hits in `package.json` / `docker-compose.test.yml` |
-| `FORKED-FROM.md`                       | ✅ written                                                                               |
+| Check in the fork                      | Result                                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------------------- |
+| `npm ci`                               | 0                                                                                     |
+| `npm run test:unit`                    | **494 passed, 4 skipped, 0 failed**                                                   |
+| `npm run test:unit:security-framework` | 5 passed, 4 skipped                                                                   |
+| `lint` / `typecheck` / `format:check`  | 0                                                                                     |
+| Branding applied                       | `"name": "tmp-app"`, zero `lakira` hits in `package.json` / `docker-compose.test.yml` |
+| `FORKED-FROM.md`                       | written                                                                               |
 
 **A fresh fork's test suite is green on first run.** Before this phase it would have been red —
 the security suite walked an audit root the prune deletes.
@@ -652,8 +652,9 @@ grep -rhoE '(docs)/[A-Za-z0-9._/-]+\.(md|json|ts|js|mjs|py|yml)' docs *.md .clau
 
 Surfaced during the audit; each deserves its own ticket:
 
-- [ ] **Open P0s** — ADR-009/010/011 remain unimplemented. `VisualizationCacheRedis.ts` cache keys
-      lack `organizationId`; `DISABLE_RATE_LIMITING` has no production guard.
+- [x] **Open P0s** — ADR-009/010 fixed in #64 (`f5f28b9`): cache keys carry `organizationId` and
+      `DISABLE_RATE_LIMITING` is refused in production. (Updated 2026-09-24.)
+- [ ] ADR-011 (registry ADR-0037, the persistence-layout migration) is still Proposed.
 - [ ] `security/audit/audit-2026-05-18/` is still marked "Planned" — three months past its scheduled
       execution date, with the next quarterly cycle now due.
 - [x] ~~`express-openapi-validator` is a declared dependency with zero imports~~ — removed, along

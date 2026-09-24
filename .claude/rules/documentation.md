@@ -75,7 +75,7 @@ every commit. See `.claude/rules/workflow.md` § The kit slug is the traceabilit
 > Kits created on or after **2026-09-19** follow the templates below. Earlier kits are left as
 > written — records are immutable, and retrofitting them would falsify what happened.
 
-Naming was already consistent across the 20 kits here; what drifted was the inside. Plan headings
+Naming was already consistent across the 20 kits that existed then; what drifted was the inside. Plan headings
 varied (`## 1. Context and Goals` vs `## Context & Goals`), and only one in five sampled plans stated
 acceptance criteria at all. A spec with no acceptance criteria cannot be verified — the gates then
 prove the code compiles, not that it does what was asked.

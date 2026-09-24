@@ -8,7 +8,7 @@
 
 ## Verdict
 
-> **✅ GOLD WITH CAVEATS — publishable as a forkable SaaS base today.** An independent,
+> **GOLD WITH CAVEATS — publishable as a forkable SaaS base today.** An independent,
 > skeptical re-audit re-ran all six empirical gates (green), verified the security and
 > multi-tenancy fundamentals by reading code (not trusting the prior self-audit), and ran a
 > live forkability dry-run. The strict ADR-001 fork-ready gate now **passes**: zero P0,
@@ -25,32 +25,32 @@
 
 A repo is fork-ready only when **all four** hold (see ADR-001 in [`decisions.md`](docs/internal/audits/saas-readiness/decisions.md)):
 
-| #   | Criterion                                                                                                                       | Status (2026-05-24)                       |
-| --- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| 1   | Zero P0 gaps remaining                                                                                                          | ✅ — all 7 closed                         |
-| 2   | All six empirical commands green (`typecheck`, `lint`, `format:check`, `test`, `security:delta:check`, `docs:openapi:generate`) | ✅                                        |
-| 3   | Categories 1 (Auth), 4 (Security), 6 (DX), 7 (Testing), 8 (CI/CD), 11 (Forkability) at ≥80% ✅                                  | ✅ — Cat 4 = 87.5%; all six clear the bar |
-| 4   | `LICENSE` and `.env.example` present at repo root                                                                               | ✅ — both present                         |
+| #   | Criterion                                                                                                                       | Status (2026-05-24)                        |
+| --- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| 1   | Zero P0 gaps remaining                                                                                                          | Yes — all 7 closed                         |
+| 2   | All six empirical commands green (`typecheck`, `lint`, `format:check`, `test`, `security:delta:check`, `docs:openapi:generate`) | Yes                                        |
+| 3   | Categories 1 (Auth), 4 (Security), 6 (DX), 7 (Testing), 8 (CI/CD), 11 (Forkability) at ≥80% (pass)                              | Yes — Cat 4 = 87.5%; all six clear the bar |
+| 4   | `LICENSE` and `.env.example` present at repo root                                                                               | Yes — both present                         |
 
 **All four pass.** The repo is fork-ready by the strict ADR-001 reading; the open caveats are
 industry-standard quality items the gate does not measure (see below).
 
 ## Scorecard (independent re-grade)
 
-| Category                                | ✅     | ⚠️     | ❌    | N/A   |
-| --------------------------------------- | ------ | ------ | ----- | ----- |
-| 1. Authentication & Authorization       | 5      | 0      | 1     | 0     |
-| 2. API Design & Contracts               | 3      | 3      | 0     | 0     |
-| 3. Database Layer                       | 3      | 2      | 0     | 0     |
-| 4. Security                             | 6      | 2      | 0     | 0     |
-| 5. Error Handling & Observability       | 4      | 1      | 1     | 0     |
-| 6. Developer Experience & Onboarding    | 5      | 1      | 0     | 0     |
-| 7. Testing                              | 6      | 0      | 0     | 0     |
-| 8. CI/CD & Deployment                   | 6      | 0      | 0     | 0     |
-| 9. Multi-Tenancy & SaaS-Specific        | 2      | 1      | 2     | 0     |
-| 10. Code Architecture & Maintainability | 3      | 2      | 0     | 0     |
-| 11. Forkability                         | 4      | 2      | 0     | 0     |
-| **Total (65 items)**                    | **47** | **14** | **4** | **0** |
+| Category                                | Pass   | Partial | Fail  | N/A   |
+| --------------------------------------- | ------ | ------- | ----- | ----- |
+| 1. Authentication & Authorization       | 5      | 0       | 1     | 0     |
+| 2. API Design & Contracts               | 3      | 3       | 0     | 0     |
+| 3. Database Layer                       | 3      | 2       | 0     | 0     |
+| 4. Security                             | 6      | 2       | 0     | 0     |
+| 5. Error Handling & Observability       | 4      | 1       | 1     | 0     |
+| 6. Developer Experience & Onboarding    | 5      | 1       | 0     | 0     |
+| 7. Testing                              | 6      | 0       | 0     | 0     |
+| 8. CI/CD & Deployment                   | 6      | 0       | 0     | 0     |
+| 9. Multi-Tenancy & SaaS-Specific        | 2      | 1       | 2     | 0     |
+| 10. Code Architecture & Maintainability | 3      | 2       | 0     | 0     |
+| 11. Forkability                         | 4      | 2       | 0     | 0     |
+| **Total (65 items)**                    | **47** | **14**  | **4** | **0** |
 
 **Severity counts (open):** P0 = **0**. The C1–C6 caveats are all closed as of 2026-09-24; what
 remains is the by-design deferrals (subscription/billing P1-9.2, OAuth, APM, feature flags,
@@ -60,14 +60,14 @@ than the 2026-05-20 self-audit (52 / 9 / 4) — see ADR-008.
 
 ## Empirical commands (2026-05-24, re-run)
 
-| Command                         | Result                                                                                       |
-| ------------------------------- | -------------------------------------------------------------------------------------------- |
-| `npm run typecheck`             | ✅ exit 0                                                                                    |
-| `npm run lint`                  | ✅ exit 0                                                                                    |
-| `npm run format:check`          | ✅ exit 0                                                                                    |
-| `npm test`                      | ✅ unit exit 0 (84 suites / 497 tests); integration exit 0 (24 pass + 2 Redis-flagged skips) |
-| `npm run security:delta:check`  | ✅ exit 0 (8 medium dep findings; 0 high/critical)                                           |
-| `npm run docs:openapi:generate` | ✅ exit 0 (regenerated spec byte-identical to committed — in sync)                           |
+| Command                         | Result                                                                                    |
+| ------------------------------- | ----------------------------------------------------------------------------------------- |
+| `npm run typecheck`             | exit 0                                                                                    |
+| `npm run lint`                  | exit 0                                                                                    |
+| `npm run format:check`          | exit 0                                                                                    |
+| `npm test`                      | unit exit 0 (84 suites / 497 tests); integration exit 0 (24 pass + 2 Redis-flagged skips) |
+| `npm run security:delta:check`  | exit 0 (8 medium dep findings; 0 high/critical)                                           |
+| `npm run docs:openapi:generate` | exit 0 (regenerated spec byte-identical to committed — in sync)                           |
 
 > Verified on host Node 22; CI/Docker use the mandated Node 20 — re-confirm parity there.
 > Run `npm test` as the project defines it (`test:unit` then `test:integration`); a combined
@@ -84,7 +84,7 @@ than the 2026-05-20 self-audit (52 / 9 / 4) — see ADR-008.
 
 Full evidence (file:line) is in the [dated audit](docs/internal/audits/saas-readiness/audit-2026-05-24-independent.md); fix-status tracking is in [`FINAL-AUDIT-SUMMARY.md` § 4](docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md).
 
-## What's already strong (✅ highlights)
+## What's already strong (Pass-graded highlights)
 
 - **Multi-tenancy:** `Organization` + `Membership`, `organizationId` on every domain table, repository-layer row isolation (verified in every domain read repo), cross-org isolation integration tests.
 - **Auth:** refresh-token family with single-use rotation + reuse-revocation; email verification; password reset; org-scoped RBAC via membership roles; Redis-backed login lockout; `TokenProvider.verify()` port (no `jwt.verify` in middleware).

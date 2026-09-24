@@ -1,8 +1,15 @@
 # ADR-0018 — Verification middleware is created but NOT applied to existing routes
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-09-24 — implementation verified in code; see the status note)
 - **Date:** 2026-05-02
+- **Related:** Relied on by [ADR-0043](./adr-0043-session-issuance-at-every-authenticated-entry-point.md).
 - **Origin:** `ADR-002` in the Email verification kit — [`email-verification`](../../internal/initiatives/email-verification/decisions.md)
+
+> **Status note (2026-09-24).** Moved from Proposed by the `docs-sweep` kit
+> ([D-03](../../internal/initiatives/docs-sweep/decisions.md)): the decision below is in the code.
+> Evidence: `requireVerifiedEmail` is exported from `shared/auth/public.ts` and applied to no route,
+> which is exactly this decision. [ADR-0043](./adr-0043-session-issuance-at-every-authenticated-entry-point.md)
+> relies on it: there is no verification wall to hold registration behind.
 
 ---
 
@@ -21,7 +28,7 @@ Ship `requireVerifiedEmail` as a documented middleware but do not apply it to an
 
 ## Consequences
 
-- Audit will mark [P1-1.2] as ✅ once the middleware exists and the verification flow is in place, even though no Lakira route uses the middleware.
+- Audit will mark [P1-1.2] as Pass once the middleware exists and the verification flow is in place, even though no Lakira route uses the middleware.
 - A unit test exercises the middleware against a fake `req.user`. No integration test wires it to a real route in this PR.
 
 ## Links

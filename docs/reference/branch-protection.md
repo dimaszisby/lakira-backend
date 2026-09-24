@@ -40,33 +40,33 @@ All three are **Active** with an **empty bypass list** — the rules apply to th
 
 | Rule                             | Setting                                                    | Why                                                                                                                         |
 | -------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Require linear history           | ✅ ON                                                      | Feature branches are squashed in — keeps dev history clean                                                                  |
+| Require linear history           | ON                                                         | Feature branches are squashed in — keeps dev history clean                                                                  |
 | Allowed merge methods            | Squash                                                     | Squash only, as of 2026-08-30 — see [merge methods](#key-design-decision-squash-for-featuredev-merge-commit-for-promotions) |
-| Require a pull request           | ✅ ON                                                      | Ensures CI runs before anything lands on dev                                                                                |
+| Require a pull request           | ON                                                         | Ensures CI runs before anything lands on dev                                                                                |
 | Required approvals               | 0                                                          | Solo dev — [see rationale](#solo-developer-rationale)                                                                       |
-| Require conversation resolution  | ✅ ON                                                      | Unresolved review threads block the merge                                                                                   |
-| Extra approval, unattributed PRs | ✅ ON (inert)                                              | No-op at 0 approvals — [see rationale](#solo-developer-rationale)                                                           |
+| Require conversation resolution  | ON                                                         | Unresolved review threads block the merge                                                                                   |
+| Extra approval, unattributed PRs | ON (inert)                                                 | No-op at 0 approvals — [see rationale](#solo-developer-rationale)                                                           |
 | Required CI checks               | Lint & Typecheck, Unit & Integration Tests, contract_local | [Two more are pending](#pending-changes)                                                                                    |
-| Require branches up to date      | ❌ OFF                                                     | Would serialise every merge; `dev` favours throughput                                                                       |
-| Restrict deletions               | ✅ ON                                                      | `dev` cannot be deleted                                                                                                     |
-| Block force pushes               | ✅ ON                                                      | Prevents accidental history rewrites                                                                                        |
-| Require signed commits           | ❌ OFF                                                     | [See rationale](#solo-developer-rationale)                                                                                  |
+| Require branches up to date      | OFF                                                        | Would serialise every merge; `dev` favours throughput                                                                       |
+| Restrict deletions               | ON                                                         | `dev` cannot be deleted                                                                                                     |
+| Block force pushes               | ON                                                         | Prevents accidental history rewrites                                                                                        |
+| Require signed commits           | OFF                                                        | [See rationale](#solo-developer-rationale)                                                                                  |
 
 ### `staging` — promotion gate
 
 | Rule                             | Setting                                                    | Why                                                                                       |
 | -------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **Require linear history**       | **❌ OFF**                                                 | Must be OFF — merge commits are required for promotion branches to preserve git ancestry  |
+| **Require linear history**       | **OFF**                                                    | Must be OFF — merge commits are required for promotion branches to preserve git ancestry  |
 | **Allowed merge methods**        | **Merge commit**                                           | Preserves shared history between dev and staging; prevents conflicts on future promotions |
-| Require a pull request           | ✅ ON                                                      | Audit trail for every promotion                                                           |
+| Require a pull request           | ON                                                         | Audit trail for every promotion                                                           |
 | Required approvals               | 0                                                          | Solo dev — [see rationale](#solo-developer-rationale)                                     |
-| Require conversation resolution  | ✅ ON                                                      |                                                                                           |
-| Extra approval, unattributed PRs | ✅ ON (inert)                                              | No-op at 0 approvals                                                                      |
+| Require conversation resolution  | ON                                                         |                                                                                           |
+| Extra approval, unattributed PRs | ON (inert)                                                 | No-op at 0 approvals                                                                      |
 | Required CI checks               | Lint & Typecheck, Unit & Integration Tests, contract_local | Same gate as dev                                                                          |
-| Require branches up to date      | ❌ OFF                                                     |                                                                                           |
-| Restrict deletions               | ✅ ON                                                      |                                                                                           |
-| Block force pushes               | ✅ ON                                                      |                                                                                           |
-| Require signed commits           | ❌ OFF                                                     |                                                                                           |
+| Require branches up to date      | OFF                                                        |                                                                                           |
+| Restrict deletions               | ON                                                         |                                                                                           |
+| Block force pushes               | ON                                                         |                                                                                           |
+| Require signed commits           | OFF                                                        |                                                                                           |
 
 ### `main` — release gate
 
@@ -74,17 +74,17 @@ Currently unexercised — see the warning at the top of this document.
 
 | Rule                             | Setting                                                    | Why                                                                  |
 | -------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------- |
-| Require linear history           | ❌ OFF                                                     | Same reason as staging — merge commits needed                        |
+| Require linear history           | OFF                                                        | Same reason as staging — merge commits needed                        |
 | Allowed merge methods            | Merge commit                                               | Preserves ancestry from staging                                      |
-| Require a pull request           | ✅ ON                                                      |                                                                      |
+| Require a pull request           | ON                                                         |                                                                      |
 | Required approvals               | 0                                                          | Solo dev — 1 approval would permanently block self-merges            |
-| Require conversation resolution  | ✅ ON                                                      |                                                                      |
-| Extra approval, unattributed PRs | ✅ ON (inert)                                              | No-op at 0 approvals                                                 |
+| Require conversation resolution  | ON                                                         |                                                                      |
+| Extra approval, unattributed PRs | ON (inert)                                                 | No-op at 0 approvals                                                 |
 | Required CI checks               | Lint & Typecheck, Unit & Integration Tests, contract_local |                                                                      |
-| Require branches up to date      | ✅ ON                                                      | Ensures main always tests against latest                             |
-| Restrict deletions               | ✅ ON                                                      |                                                                      |
-| Block force pushes               | ✅ ON                                                      |                                                                      |
-| Require signed commits           | ✅ ON                                                      | Narrower than it sounds — [see rationale](#solo-developer-rationale) |
+| Require branches up to date      | ON                                                         | Ensures main always tests against latest                             |
+| Restrict deletions               | ON                                                         |                                                                      |
+| Block force pushes               | ON                                                         |                                                                      |
+| Require signed commits           | ON                                                         | Narrower than it sounds — [see rationale](#solo-developer-rationale) |
 
 ### Stale ruleset
 

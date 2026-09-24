@@ -1,6 +1,6 @@
 # SaaS audit closeout
 
-**Status:** Complete — all acceptance criteria met, gates green, awaiting PR.
+**Status:** Complete — merged in #108 (`e08f5a9`).
 **Slug:** `saas-audit-closeout` · **Branch:** `docs/saas-audit-closeout`
 
 Lean kit — no plan; acceptance criteria live in the checklist.

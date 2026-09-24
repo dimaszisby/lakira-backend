@@ -13,12 +13,12 @@ Collection is the platform's job. This page is how you read that stream.
 
 ## Where the stream goes
 
-| Environment                   | Reader                                                                                      |
-| ----------------------------- | ------------------------------------------------------------------------------------------- |
-| Production / staging (Render) | Render dashboard → the service → **Logs**, or the Render CLI/API                            |
-| Local Docker                  | `docker compose logs -f app` (the `json-file` driver is configured with 10 MB × 3 rotation) |
-| Local `npm run dev`           | Your terminal                                                                               |
-| CI                            | Redirected to `/tmp/backend.log` and tailed automatically on failure                        |
+| Environment                                               | Reader                                                                                      |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Production / staging (Render today; ADR-0042 plans a VPS) | Render dashboard → the service → **Logs**, or the Render CLI/API                            |
+| Local Docker                                              | `docker compose logs -f app` (the `json-file` driver is configured with 10 MB × 3 rotation) |
+| Local `npm run dev`                                       | Your terminal                                                                               |
+| CI                                                        | Redirected to `/tmp/backend.log` and tailed automatically on failure                        |
 
 ## What a line looks like
 
@@ -84,7 +84,7 @@ docker compose logs --no-log-prefix app \
 To trace a request you are making yourself, set the id and search for it:
 
 ```bash
-curl -H 'x-request-id: debug-me-1' http://localhost:4000/api/v1/metrics
+curl -H 'x-request-id: debug-me-1' http://localhost:8001/api/v1/metrics   # Compose app; 5000 for npm run dev
 docker compose logs app | grep debug-me-1
 ```
 

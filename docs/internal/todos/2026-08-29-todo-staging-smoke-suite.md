@@ -1,6 +1,6 @@
 # Todo — staging smoke suite
 
-- **Status:** Complete
+- **Status:** Complete — delivered by #72 (`1deca15`)
 - **Created:** 2026-08-29
 - **Completed:** 2026-08-29
 - **Owner:** dimaszisby

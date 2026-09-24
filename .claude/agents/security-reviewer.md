@@ -11,7 +11,7 @@ You are a senior security engineer reviewing the Lakira Backend, an Express.js R
 
 ## Project Security Stack
 
-- **Authentication**: JWT tokens via `authMiddleware` at `src/features/auth/infrastructure/http/authMiddleware.ts`
+- **Authentication**: JWT tokens via `authMiddleware` at `src/features/shared/auth/infrastructure/http/authMiddleware.ts`
 - **Password hashing**: Bcrypt via `PasswordHasher` port
 - **Input validation**: Zod schemas + `validate()` middleware + `requireJsonObjectBody()`
 - **HTTP security**: Helmet, xss-clean, hpp, TRACE disabled

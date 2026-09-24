@@ -18,7 +18,7 @@ The most dangerous problems you look for are ones that no single PR review would
 Before anything else, build a complete picture:
 
 ```bash
-find src/features -mindepth 1 -maxdepth 1 -type d
+find src/features -mindepth 2 -maxdepth 2 -type d   # features live under public/ and shared/
 find src/shared -type f -name "*.ts"
 find src/infrastructure -type f -name "*.ts"
 ```
@@ -35,9 +35,10 @@ For each feature slice, read:
 - `infrastructure/http/schema.zod.ts` — input validation
 - `infrastructure/mappers/*.ts` — mapper design
 - `feature.ts` — DI composition root
-- `index.ts` — public API surface
+- `index.ts` — router wiring, imported by `src/server.ts`
+- `public.ts` — the cross-feature surface (ADR-0044)
 
-Build a **pattern fingerprint** for each feature: note which patterns it uses, how it wires dependencies, how it handles errors, and when it was likely written (infer from git log if helpful: `git log --oneline src/features/<name>/`).
+Build a **pattern fingerprint** for each feature: note which patterns it uses, how it wires dependencies, how it handles errors, and when it was likely written (infer from git log if helpful: `git log --oneline src/features/<audience>/<name>/`).
 
 ---
 
@@ -345,8 +346,8 @@ Ordered by impact × effort (quick wins first):
 At the end of the report, extract one exemplary implementation for each key pattern from the codebase itself — the cleanest feature for each dimension. These become the reference for fixing everything else.
 
 ```
-Best entity design:      src/features/auth/domain/entities/AuthUser.ts
-Best use case:           src/features/metric/application/use-cases/CreateMetric.ts
+Best entity design:      src/features/shared/auth/domain/entities/AuthUser.ts
+Best use case:           src/features/public/metric/application/use-cases/CreateMetric.ts
 Best repository impl:    src/features/...
 Best controller:         src/features/...
 Best feature.ts wiring:  src/features/...

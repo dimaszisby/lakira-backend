@@ -1,6 +1,6 @@
 # Todo — tenant-scoped cache keys (ADR-0035) + production-unsafe env refusal (ADR-0036)
 
-- **Status:** Complete
+- **Status:** Complete — delivered by #64 (`f5f28b9`)
 - **Created:** 2026-08-23
 - **Completed:** 2026-08-23
 - **Owner:** dimaszisby

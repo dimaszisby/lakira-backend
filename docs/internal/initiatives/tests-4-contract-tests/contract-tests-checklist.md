@@ -4,7 +4,7 @@ Use this checklist to track the contract-test program end-to-end (Postman/Newman
 
 ---
 
-## Phase 0 – Audit & Documentation Scaffolding ✅ (2026-01-14)
+## Phase 0 – Audit & Documentation Scaffolding Done (2026-01-14)
 
 - [x] Inventory existing Postman/Schemathesis assets and note gaps in plan — owner: @dimaspramudya (2026-01-14)
 - [x] Create top-level doc kit (`README`, plan, checklist, ticket, decisions, incidents, metrics) — owner: Codex assist (2026-01-14)
@@ -12,7 +12,7 @@ Use this checklist to track the contract-test program end-to-end (Postman/Newman
 
 ---
 
-## Phase 1 – Postman/Newman Foundation (In Progress)
+## Phase 1 – Postman/Newman Foundation (Superseded — Newman retired in #75, `a4635f3`)
 
 - [x] Implement deterministic contract-test seed script exporting stable IDs/tokens for users, categories, metrics, metric settings, and logs (see `seed-strategy.md`) — owner: Codex assist (2026-01-14) [`npm run seed:contract-tests` → `tmp/contract-seed.json`].
 - [x] Populate `environments/lakira-local.postman_environment.json` with local base URL + fixture IDs — owner: Codex assist (2026-01-14) (IDs from deterministic seed constants; token sourced from `tmp/contract-seed.json`).

@@ -1,6 +1,6 @@
 # Todo — the staging contract pipeline cannot pass
 
-- **Status:** Complete (2026-08-29) — resolved by replacing the staging contract job with a fixture-free smoke suite, not by building seeding
+- **Status:** Complete (2026-08-29) — delivered by #72 (`1deca15`); resolved by replacing the staging contract job with a fixture-free smoke suite, not by building seeding
 - **Created:** 2026-08-24
 - **Owner:** dimaszisby
 - **Prepared for:** a planning session; this is a research handoff, not a plan

@@ -1,8 +1,14 @@
 # ADR-0017 — 24-hour TTL + anti-enumeration response shape
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-09-24 — implementation verified in code; see the status note)
 - **Date:** 2026-05-02
 - **Origin:** `ADR-001` in the Email verification kit — [`email-verification`](../../internal/initiatives/email-verification/decisions.md)
+
+> **Status note (2026-09-24).** Moved from Proposed by the `docs-sweep` kit
+> ([D-03](../../internal/initiatives/docs-sweep/decisions.md)): the decision below is in the code.
+> Evidence: `VERIFICATION_TOKEN_TTL_SEC = 86400` (`RequestEmailVerification.ts`); one generic
+> message for every `/verify-email` failure (`VerifyEmail.ts`); `/resend-verification` always
+> answers 200 with the same body (`controller.ts`).
 
 ---
 

@@ -1,9 +1,10 @@
-# Tests Documentation Index
+# Run the test suites
 
 **Status:** Active
-**Last updated:** 2026-04-13
+**Last updated:** 2026-09-24
 
-This folder documents the Lakira backend testing pyramid and the execution rules used in local runs and CI.
+How to run the Lakira backend tests locally, and where each test layer is documented. The strategy
+itself is in `docs/explanation/testing-strategy.md`.
 
 ## Before you run anything
 
@@ -15,6 +16,26 @@ cp .env.test.example .env.test
 
 `scripts/bootstrap-fork.sh` creates it for you; a plain clone does not.
 
+## Running them
+
+```bash
+docker compose up -d db redis rabbitmq   # integration tests need these
+npm test                                 # unit, then integration — never combine the projects
+npm run test:unit
+npm run test:integration
+npm run test:unit:coverage               # with coverage thresholds
+```
+
+**Running one file or one test.** A bare path after `--` does **not** filter; pass it explicitly:
+
+```bash
+npm run test:integration -- --runTestsByPath __tests__/integration/api/auth.test.ts
+npm run test:unit -- --runTestsByPath __tests__/unit/config/app-name.test.ts -t "strips a trailing"
+```
+
+Stop the Compose `worker` before `npm test` if it is running (`docker compose stop worker`): it
+consumes the integration tests' queue messages. Full command list: `docs/reference/commands.md`.
+
 ## Canonical Start Points
 
 1. `docs/explanation/testing-strategy.md`
@@ -25,18 +46,19 @@ cp .env.test.example .env.test
 
 ## Test Layers
 
-- `1-static-checks/`: lint, typecheck, formatting, OpenAPI drift checks.
-- `2-unit-tests/`: in-memory/domain/use-case/controller unit tests with mocks.
-- `3-integration-tests/`: real app + Postgres (and optional Redis) tests.
-- `4-contract-tests/`: Schemathesis API contract enforcement.
-- `overhaul/`: historical restructuring artifacts.
-- Top-level dated docs: historical snapshots and recommendations.
+Each layer's working docs live in a kit under `docs/internal/initiatives/`:
+
+- `tests-1-static-checks/`: lint, typecheck, formatting, OpenAPI drift checks.
+- `tests-2-unit-tests/`: in-memory/domain/use-case/controller unit tests with mocks.
+- `tests-3-integration-tests/`: real app + Postgres, Redis and RabbitMQ tests.
+- `tests-4-contract-tests/`: Schemathesis API contract enforcement (Newman was retired in #75).
+- `tests-overhaul/`: historical restructuring artifacts.
 
 ## Update Rules
 
 - Keep commands aligned with `package.json` scripts and CI workflow behavior.
 - Prefer updating existing canonical docs over adding new overlapping docs.
-- When a layer’s command, gate, or ownership changes, update that layer README and `TESTING_STRATEGY.md` in the same PR.
+- When a layer’s command, gate, or ownership changes, update that layer README and `docs/explanation/testing-strategy.md` in the same PR.
 - Treat dated `YYYY-MM-DD` docs as historical unless explicitly reactivated.
 
 ## LLM Context Guidance

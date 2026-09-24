@@ -4,19 +4,19 @@ What the backend talks to, and who talks to it.
 
 ```mermaid
 graph TB
-    user["👤 End user<br/><small>tracks personal metrics</small>"]
-    admin["👤 Organization owner / admin<br/><small>invites members, manages roles</small>"]
+    user["End user<br/><small>tracks personal metrics</small>"]
+    admin["Organization owner / admin<br/><small>invites members, manages roles</small>"]
 
     subgraph boundary [" "]
         api["<b>Lakira Backend</b><br/>REST API + async worker<br/><small>Node 20 · Express · TypeScript</small>"]
     end
 
-    web["🖥️ Web frontend<br/><small>separate Next.js repository</small>"]
-    pg[("🗄️ PostgreSQL<br/><small>system of record</small>")]
-    redis[("⚡ Redis<br/><small>cache · rate limits · lockout</small>")]
-    mq["📨 RabbitMQ<br/><small>async jobs</small>"]
-    mail["✉️ Resend<br/><small>transactional email</small>"]
-    sentry["🚨 Sentry<br/><small>error tracking</small>"]
+    web["Web frontend<br/><small>separate Next.js repository</small>"]
+    pg[("PostgreSQL<br/><small>system of record</small>")]
+    redis[("Redis<br/><small>cache · rate limits · lockout</small>")]
+    mq["RabbitMQ<br/><small>async jobs</small>"]
+    mail["Resend<br/><small>transactional email</small>"]
+    sentry["Sentry<br/><small>error tracking</small>"]
 
     user --> web
     admin --> web

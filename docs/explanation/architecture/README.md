@@ -15,8 +15,8 @@ a wrong arrow shows up in review like any other line.
 
 - [**Feature-slice DDD**](./feature-slice-ddd.md) — how a slice is laid out and what may import
   what. Read this before adding one.
-- [**Persistence and ORM**](./persistence-and-orm.md) — model loading, repository pattern,
-  transaction handling.
+- [**Persistence and ORM**](./persistence-and-orm.md) — how each feature's Sequelize models are
+  registered and associated at boot.
 - [**Shared middleware**](./shared-middleware.md) — what lives in `src/shared/middleware/`, and
   the cache-key naming convention.
 
@@ -33,6 +33,6 @@ recomputable state; PostgreSQL is the sole system of record.
 ## Where decisions are recorded
 
 Every architectural choice above has an entry in
-[`../decisions/`](../decisions/) — 37 records, one per file. When code and diagram disagree, check
+[`../decisions/`](../decisions/) — 44 records, one per file. When code and diagram disagree, check
 the ADR's status first: `Proposed` means written down but **not implemented**, which is exactly
 the case for the persistence-layout drift noted at the bottom of the Level 3 page.

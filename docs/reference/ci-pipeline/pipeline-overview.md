@@ -30,9 +30,12 @@ For migrated non-blocking CI/contract follow-ups, see `docs/internal/initiatives
 
 - Keep the implementation **cost-aware and simple**, using:
   - GitHub Actions as primary CI engine.
-  - Managed PaaS for staging deployments (Render).
+  - Managed PaaS for staging deployments (Render) today; ADR-0042 (Accepted, not yet implemented)
+    moves staging and production to a VPS running Docker Compose.
 
-> Special Note for Codex: When modifying or generating workflow YAMLs for the backend, read this file and `GITHUB_ACTIONS_PIPELINE_PLAN.md` first.
+> Special Note for Codex: When modifying or generating workflow YAMLs for the backend, read this file and
+> [`GITHUB_ACTIONS_PIPELINE_PLAN.md`](../../internal/initiatives/ci-pipeline/GITHUB_ACTIONS_PIPELINE_PLAN.md) first.
+> The workflow file itself (`.github/workflows/backend-ci.yml`) is the source of truth.
 
 ---
 
@@ -46,7 +49,7 @@ The main backend workflow is triggered on:
   - `main`
   - `dev`
   - `staging`
-  - `feature/**`
+  - `feat/**`, `fix/**`, `chore/**`, `ci/**`, `docs/**`, `refactor/**` (and legacy `feature/**`)
 - `pull_request` targeting:
   - `main`
   - `dev`
@@ -55,14 +58,19 @@ The main backend workflow is triggered on:
 
 ### 3.2 Stages (Jobs)
 
-A typical pipeline is composed of these jobs:
+The workflow (`name: Lakira Backend CI`) has these jobs:
 
 1. **checks** – Lint, format check, OpenAPI consistency check, and typecheck
-2. **tests** – Unit & Integration tests (with Postgres + Redis services)
+2. **security_delta** – Security framework tests, dependency delta check and gate evaluation. Runs in
+   parallel with `checks`; a tripped gate fails the pipeline
+3. **tests** (needs `checks` and `security_delta`) – Unit & Integration tests (with Postgres, Redis
+   and RabbitMQ services)
    - Runs both fast test commands and coverage variants (`test:unit:coverage`, `test:integration:coverage`) and uploads `coverage/jest-unit` + `coverage/jest-integration` as artifacts.
-3. **contract_local** – Contract tests against a locally started backend
-4. **deploy_staging** – Deploy backend to Render staging (runs on `staging` branch)
-5. **contract_staging** – Run contract tests against staging backend (runs on `staging` branch)
+4. **contract_local** (needs `tests`) – Schemathesis against a locally started backend
+5. **deploy_staging** (needs `contract_local`) – Deploy backend to Render staging (`staging` branch only)
+6. **smoke_staging** (needs `deploy_staging`) – Smoke suite against live staging (`staging` branch only)
+7. **deploy_production** (needs `contract_local`) – Deploy to production (`main` branch only, behind
+   the `production` environment's approval gate; no production service is provisioned yet)
 
 Later, you may add:
 
@@ -135,7 +143,7 @@ FE convention: `API_URL` and `NEXT_PUBLIC_API_BASE_URL` must resolve to the same
 
 | FE target         | Backend API base URL to use                          | Status                                     |
 | ----------------- | ---------------------------------------------------- | ------------------------------------------ |
-| Local             | `http://localhost:4000/api/v1`                       | Active                                     |
+| Local             | `http://localhost:5000/api/v1`                       | Active (`npm run dev`)                     |
 | Preview / Staging | `https://lakira-backend-staging.onrender.com/api/v1` | Active                                     |
 | Production        | `TBD`                                                | Production backend URL not provisioned yet |
 
@@ -155,8 +163,8 @@ CI jobs call the same scripts and commands referenced in those documents, ensuri
 
 - The **theoretical testing strategy** is reflected in the **actual pipeline**.
 - There is a single source of truth for each layer:
-  - Testing strategy → tests/
-  - CI/CD strategy → ci-cd/
+  - Testing strategy → `docs/explanation/testing-strategy.md`
+  - CI/CD strategy → `docs/reference/ci-pipeline/`
 
 ---
 
@@ -166,9 +174,9 @@ CI jobs call the same scripts and commands referenced in those documents, ensuri
 - Enforce this via GitHub branch protection rules:
   1. Open **Repository Settings → Branches → Branch protection rules**.
   2. Require status checks to pass before merging and add `contract_local` (job name) to the required checks list.
-  3. Optionally add `checks` + `tests` so lint/unit/integration suites stay enforced; require `contract_staging` for `staging` if you gate releases there.
+  3. Optionally add `checks` + `security_delta` + `tests` so lint/security/unit/integration stay enforced. `smoke_staging` runs after the deploy, so it cannot gate a merge. See `docs/reference/branch-protection.md` for what is actually configured.
 - Document exceptions in PR descriptions and re-run the workflow rather than bypassing checks, since contract seeds + Schemathesis rely on deterministic fixtures to catch regressions early.
-- When new jobs are added (e.g., `contract_staging`, nightly Schemathesis), update this section and the branch protection configuration accordingly.
+- When new jobs are added (e.g., a nightly Schemathesis run), update this section and the branch protection configuration accordingly.
 
 > Special Note for Codex: If you modify job names or add/remove required checks, update this section plus `GITHUB_ACTIONS_PIPELINE_PLAN.md` so future contributors know which jobs gate merges.
 
@@ -179,24 +187,25 @@ CI jobs call the same scripts and commands referenced in those documents, ensuri
 Planned/optional enhancements:
 
 - **Jenkins experimental pipeline**:
-  - Short-lived Jenkins setup documented in `JENKINS_NOTES.md`.
+  - Short-lived Jenkins setup documented in
+    [`JENKINS_NOTES.md`](../../internal/archive/JENKINS_NOTES.md) (archived).
   - Mirrors the GitHub Actions pipeline stages for learning.
 
 - **Staging hardening**:
-  - Add Schemathesis staging execution to `contract_staging`.
+  - Run Schemathesis against staging (`npm run test:contract:schemathesis:staging` exists; no CI job runs it).
   - Add stronger release gates for `staging` promotion flow.
 
 - **Production rollout**:
   - Define production backend URL/domain (currently `TBD`).
-  - Add production deploy + health + smoke verification jobs once production exists.
+  - `deploy_production` exists; the production target itself is pending ADR-0042's VPS.
 
 ---
 
 ## 9. Summary
 
-- The Lakira Backend CI/CD is implemented primarily with **GitHub Actions**, following the strategy in `CI_CD_STRATEGY.md`.
+- The Lakira Backend CI/CD is implemented primarily with **GitHub Actions**, following the strategy in [`strategy.md`](./strategy.md).
 - Pipelines are designed to:
   - Run on every push/PR,
   - Enforce lint, typecheck, unit, integration, and contract tests,
   - Deploy to and validate against staging on the `staging` branch.
-- The documentation in this `backend/` folder ensures that anyone (including AI agents) can understand and safely modify the pipeline without guesswork.
+- The documentation in this `ci-pipeline/` folder ensures that anyone (including AI agents) can understand and safely modify the pipeline without guesswork.

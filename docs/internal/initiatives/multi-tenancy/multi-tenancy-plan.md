@@ -76,7 +76,7 @@ Goal: introduce `Organization` + `Membership` and add `organization_id` to every
 
 ## Success metrics
 
-- ✅ A user belonging to two organizations sees disjoint row sets when switching.
-- ✅ All existing integration tests pass (each user is auto-owner of their org).
-- ✅ `users.role` column is removed; `Membership.role` is the source of truth.
-- ✅ Audit re-run marks P0-3.1, P0-9.1, P1-1.3 as ✅.
+- A user belonging to two organizations sees disjoint row sets when switching.
+- All existing integration tests pass (each user is auto-owner of their org).
+- `users.role` column is removed; `Membership.role` is the source of truth.
+- Audit re-run marks P0-3.1, P0-9.1, P1-1.3 as Pass.

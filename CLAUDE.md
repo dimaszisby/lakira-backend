@@ -46,13 +46,13 @@ Frequently needed:
 
 - `docs/reference/commands.md` — canonical npm scripts (do not keep a second copy elsewhere)
 - `docs/reference/configuration.md` — all 69 env vars
-- `docs/explanation/decisions/` — 41 ADRs, one per file; check **Status** before trusting one
+- `docs/explanation/decisions/` — 44 ADRs, one per file; check **Status** before trusting one
 - `docs/reference/api/lakira-backend-openapi.json` — generated, CI-drift-gated, never hand-edited
 
-`docs/internal/audits/saas-readiness/` tracks **open** P0s — current risk, not history.
+`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` is the live risk status (as of 2026-09-24: no open P0s, all C1–C6 caveats closed).
 
 ## Task Defaults
 
-Before proposing model, effort, plan mode, or subagent strategy for a non-trivial task, consult the **effort + model matrix** in user memory (`feedback-effort-model-matrix`). Currently in experimental trial through **2026-07-02** — flag friction (delegation misfires, re-work, context loss) so the review has data.
+Before proposing model, effort, plan mode, or subagent strategy for a non-trivial task, consult the **effort + model matrix** in user memory (`feedback-effort-model-matrix`). It was introduced as an experimental trial through **2026-07-02**; that date has passed and no review outcome is recorded here, so confirm with the user before treating it as settled. Keep flagging friction (delegation misfires, re-work, context loss).
 
 **Commit & PR ownership:** Claude does not run `git commit`, `git push`, or `gh pr create`. Only the user does these manually. End every completed task with a ready-to-use PR message instead. Full rule: `.claude/rules/workflow.md` § Commit & PR Ownership.

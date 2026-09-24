@@ -57,10 +57,12 @@ describe("MyUseCase", () => {
 ## Integration Test Setup
 
 - Server auto-starts on `jest.setup.ts` (port 4000+workerId)
-- All tables truncated before each test (except SequelizeMeta)
+- All tables truncated before each test (except `SequelizeMeta` and `SequelizeData`)
 - Use `supertest` for HTTP assertions
-- DB fixtures available in `__tests__/helpers/db-fixtures.js`
-- Domain factories: `makeUser()`, `makeMetric()` for test data
+- DB fixtures in `__tests__/integration/helpers/db-fixtures.ts` (`createUserRow`, `createMetricRow`,
+  `truncateAllTables`, …)
+- There are no shared domain factories: unit tests build entities locally (e.g. `makeUser` inside
+  each auth test); `__tests__/unit/factories/` holds only `metric-settings.ts`
 
 ## Test File Relaxations
 

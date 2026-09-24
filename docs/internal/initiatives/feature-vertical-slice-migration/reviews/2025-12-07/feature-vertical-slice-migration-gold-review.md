@@ -174,6 +174,6 @@ Shared middleware has been formalized under `src/shared/middleware`, outside the
 
 ## Final Recommendation
 
-- **Gold Decision:** ✅ Ready – All remediation findings show “Resolved,” acceptance criteria/tests validated (`SKIP_DB_LIFECYCLE=true npm run jest -- __tests__/features/metric-category/application/GenerateDummyCategories.test.ts` and `SKIP_DB_LIFECYCLE=true npm run jest -- __tests__/features/metric-settings/infrastructure/http/schema.zod.test.ts`, plus the broader regression suites executed during stabilization).
+- **Gold Decision:** Ready – All remediation findings show “Resolved,” acceptance criteria/tests validated (`SKIP_DB_LIFECYCLE=true npm run jest -- __tests__/features/metric-category/application/GenerateDummyCategories.test.ts` and `SKIP_DB_LIFECYCLE=true npm run jest -- __tests__/features/metric-settings/infrastructure/http/schema.zod.test.ts`, plus the broader regression suites executed during stabilization).
 - **Next Steps:** Merge stabilization branch to main, monitor the next deployment for analytics/metric read-path performance (no additional code work required).
 - **Sign-off:** Reviewed by Codex (2025-12-06). No outstanding findings; ready for release.

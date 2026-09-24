@@ -1,8 +1,16 @@
 # ADR-0020 — Move JWT verification through the `TokenProvider` port
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-09-24 — implementation verified in code; see the status note)
 - **Date:** 2026-05-02
 - **Origin:** `ADR-002` in the JWT kit — [`jwt`](../../internal/initiatives/jwt/decisions.md)
+
+> **Status note (2026-09-24).** Moved from Proposed by the `docs-sweep` kit
+> ([D-03](../../internal/initiatives/docs-sweep/decisions.md)): the decision below is in the code.
+> Evidence: `TokenProvider.verify()` implemented by `JwtTokenProvider`; `authMiddleware` is built by
+> `makeAuthMiddleware(...)` and calls `tokenProvider.verify(token)`.
+> **Differs from point 2:** `InvalidTokenError` now extends `DomainError`, not `AppError`
+> ([ADR-0044](./adr-0044-feature-boundaries-and-their-frozen-exceptions.md) moved HTTP status
+> codes out of the domain); the error middleware still maps it to 401.
 
 ---
 

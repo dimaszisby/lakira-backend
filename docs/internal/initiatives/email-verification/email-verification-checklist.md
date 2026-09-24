@@ -43,5 +43,5 @@
 ## Wrap-up
 
 - [ ] `npm run typecheck && npm run lint && npm run format:write && npm test`.
-- [ ] Audit re-run shows P1-1.2 marked ✅.
-- [ ] Update `iteration-plan.md` Phase 3 status to ✅ Done with PR link.
+- [ ] Audit re-run shows P1-1.2 marked Pass.
+- [ ] Update `iteration-plan.md` Phase 3 status to Pass Done with PR link.

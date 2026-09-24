@@ -5,8 +5,7 @@ This guide explains how Lakira Backend’s automation works and what a junior de
 ## 1. Pipeline Overview
 
 1. **Static Checks (job: `checks`)**
-   - `npm run lint`
-   - `npm run lint:tests` (fast guardrail for `__tests__/**`)
+   - `npm run lint` (covers `__tests__/**` too; `npm run lint:tests` is a faster local subset, not a CI step)
    - `npm run format:check`
    - `npm run typecheck`
    - `npm run docs:openapi:check`
@@ -16,15 +15,19 @@ This guide explains how Lakira Backend’s automation works and what a junior de
    - `npm run security:gate:evaluate`
    - Uploads artifacts from `tmp/security/*` as CI artifact `backend-security-delta`.
    - Soft gate rule: CI fails on unresolved **High/Critical** findings only.
-3. **Unit Tests**
-   - `npm run test:unit` (enforces ≥ 60 % statements / ≥ 40 % branches / ≥ 55 % functions / ≥ 60 % lines via `jest.config.mjs`)
-   - `npm run test:unit:coverage` (coverage artifacts moved to `coverage/jest-unit` and `coverage/junit/unit.xml`, both uploaded)
-4. **Integration Tests**
-   - `npm run test:integration` (runs sequentially with `NODE_ENV=test`)
-5. **Contract / E2E (optional per PR)**
-   - `npm run test:contract:schemathesis:local` once the OpenAPI spec is regenerated to fuzz every documented path.
+3. **Unit and Integration Tests (job: `tests`, needs `checks` and `security_delta`)**
+   - `npm run build`, `npm run db:migrate:test`
+   - `npm run test:unit`, then `npm run test:integration` (sequential, `NODE_ENV=test`)
+   - `npm run test:unit:coverage` and `npm run test:integration:coverage` — these are the runs that
+     enforce the coverage thresholds in `jest.config.mjs` (unit ≥ 60 % statements / ≥ 40 % branches /
+     ≥ 55 % functions / ≥ 60 % lines). Plain `test:unit` collects no coverage and enforces nothing.
+     Artifacts land in `coverage/jest-unit` and `coverage/jest-integration`, both uploaded
+4. **Contract Tests (job: `contract_local`, needs `tests`)**
+   - Seeds fixtures, boots the built server, runs Schemathesis against the spec.
+5. **Deploy (`deploy_staging` → `smoke_staging` on `staging`; `deploy_production` on `main`)**
 
-Jobs run in the order above; a failure in any stage blocks later jobs so issues are caught early.
+`checks` and `security_delta` run in parallel; everything after waits on both. A failure in any
+job blocks the jobs that need it.
 
 ## 1.1 Security Gate Quick Reference
 
@@ -71,7 +74,7 @@ Before committing or opening a PR:
 3. `npm run lint:tests` – quickly validate the Jest env guardrail.
 4. `npm run format:write` – fix formatting locally before `format:check` runs in CI.
 5. `npm run typecheck` – catch TS errors.
-6. `npm run test:unit` (always; fails fast if coverage slips below thresholds) and `npm run test:unit:coverage` if touching high-risk paths.
+6. `npm run test:unit` (always) and `npm run test:unit:coverage` when you need the coverage thresholds checked — only the `:coverage` scripts enforce them.
 7. `npm run test:integration` when persistence, HTTP wiring, or migrations are touched.
 8. For API/schema updates: `npm run docs:openapi:check` and commit spec changes if needed.
 9. Run `npm run test:unit:security-framework` after changing security templates/scripts/policies.
@@ -97,13 +100,13 @@ Document command outputs or screenshots in the PR description for easier reviewe
 | Security gate     | Unresolved High/Critical findings from delta checks     | Run `npm run security:delta:gate`, inspect `tmp/security/security-gate-result.json`, remediate blockers, then re-run.                               |
 | Unit tests        | Missing coverage, flaky mocks, updated business logic   | Add/update suites under `__tests__/unit/**`, ensure `withTestEnv` usage.                                                                            |
 | Integration tests | DB migrations, Sequelize schema drift, HTTP regressions | Re-run `npm run test:integration`, check migrations and seed data.                                                                                  |
-| Contract/E2E      | API schema mismatch, environment drift                  | Rerun `npm run docs:openapi:generate`, refresh contract seeds, export a Schemathesis token (see §8), and ensure `DISABLE_RATE_LIMITING=true` in CI. |
+| Contract/E2E      | API schema mismatch, environment drift                  | Rerun `npm run docs:openapi:generate`, refresh contract seeds, export a Schemathesis token (see §7), and ensure `DISABLE_RATE_LIMITING=true` in CI. |
 
 Always push fixes to the same branch; reruns are automatic once CI detects new commits.
 
 ## 5. Branching & PR Hygiene
 
-- Branch from `development` (or the branch the team specifies).
+- Branch from `dev` (or the branch the team specifies), named `<type>/<slug>` — see `.claude/rules/workflow.md`.
 - Align commit messages with the issue/ticket ID when possible.
 - Keep PRs small and focused; describe changes + commands you ran.
 - If you skip a test due to timeline pressure, note it in the PR and create a TODO in `docs/internal/todos/`.
@@ -167,7 +170,7 @@ Always push fixes to the same branch; reruns are automatic once CI detects new c
 
 ## 8. Escalation & Support
 
-- **Docs**: `docs/tests/**`, `docs/ci-cd/backend/**`, `docs/internal/initiatives/**`.
+- **Docs**: `docs/how-to/testing/`, `docs/reference/ci-pipeline/`, `docs/internal/initiatives/**`.
 - **Owner**: Backend Platform (@dimaspramudya). Reach out for CI failures or infrastructure issues.
 - **Incident logging**: If an issue reaches `main`/production, record it in `docs/internal/incidents/` with root cause and remediation steps.
 

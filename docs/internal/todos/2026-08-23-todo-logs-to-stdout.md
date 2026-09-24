@@ -1,6 +1,6 @@
 # Todo — Factor XI: logs as an event stream on stdout (ADR-0041)
 
-- **Status:** Complete
+- **Status:** Complete — delivered by #65 (`47854e2`)
 - **Created:** 2026-08-23
 - **Completed:** 2026-08-23
 - **Owner:** dimaszisby

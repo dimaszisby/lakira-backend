@@ -53,7 +53,7 @@
 
 ### Status – 2025-12-05
 
-- ✅ Feature bootstrap: `feature.ts` now composes the Sequelize repo + Redis cache and exposes create/list/get/update/delete use cases.
-- ✅ HTTP router/controllers now invoke the feature use cases for CRUD flows; the dummy endpoint now uses the feature factory instead of the legacy service.
-- ✅ Legacy folder retired: `src/features/metric-category/legacies/**` and the deprecated `application/queries` helpers have been removed; downstream mappers/types reference the feature-owned DTOs.
-- ⏳ Follow-up: keep regression coverage fresh and update any docs/tests that previously pointed to the legacy folder (most notably the metric feature README + cross-domain mapper notes).
+- Feature bootstrap: `feature.ts` now composes the Sequelize repo + Redis cache and exposes create/list/get/update/delete use cases.
+- HTTP router/controllers now invoke the feature use cases for CRUD flows; the dummy endpoint now uses the feature factory instead of the legacy service.
+- Legacy folder retired: `src/features/metric-category/legacies/**` and the deprecated `application/queries` helpers have been removed; downstream mappers/types reference the feature-owned DTOs.
+- Follow-up: keep regression coverage fresh and update any docs/tests that previously pointed to the legacy folder (most notably the metric feature README + cross-domain mapper notes).

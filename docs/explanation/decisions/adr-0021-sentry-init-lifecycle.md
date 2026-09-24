@@ -1,8 +1,14 @@
 # ADR-0021 — Sentry init lifecycle: top of server.ts, env-gated
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-09-24 — implementation verified in code; see the status note)
 - **Date:** 2026-05-02
 - **Origin:** `ADR-002` in the Observability kit — [`observability`](../../internal/initiatives/observability/decisions.md)
+
+> **Status note (2026-09-24).** Moved from Proposed by the `docs-sweep` kit
+> ([D-03](../../internal/initiatives/docs-sweep/decisions.md)): the decision below is in the code.
+> Evidence: `Sentry.init` in `src/server.ts`, gated on `env.SENTRY_DSN`, with `environment` and
+> `release`; `errorHandler` captures 5xx only and tags `requestId`. Events pass through
+> `scrubSentryEvent` first (added later by the log-redaction-coverage kit).
 
 ---
 

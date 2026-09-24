@@ -53,7 +53,7 @@ Do NOT assume what's present — read the actual files.
 
 ## Step 2 — Run the Verifications (Empirical)
 
-Execute and capture results. A category cannot be ✅ if its verification command fails.
+Execute and capture results. A category cannot be Pass if its verification command fails.
 
 ```bash
 npm run typecheck
@@ -87,7 +87,7 @@ The root `SAAS-BASE-CHECKLIST.md` is the public summary (verdict + scorecard + t
 ### Scorecard format (top of both files)
 
 ```
-| Category                                    | ✅ | ⚠️ | ❌ | N/A |
+| Category                                    | PASS | Partial | FAIL | N/A |
 | ------------------------------------------- | -- | -- | -- | --- |
 | 1. Authentication & Authorization           |    |    |    |     |
 | 2. API Design & Contracts                   |    |    |    |     |
@@ -99,11 +99,11 @@ Followed by **P0 / P1 / P2 gap counts** and the **fork-ready verdict** (criteria
 
 ### Gap entry format (in `audit-2026-05-01.md`)
 
-For each ⚠️ / ❌:
+For each Partial / Missing item:
 
 ```
 ### [P0|P1|P2] <Category> · <item>
-- **Status:** ⚠️ | ❌
+- **Status:** Partial | Missing
 - **What's missing/incomplete:** <1–3 sentences>
 - **Why it matters for a SaaS base:** <1–2 sentences>
 - **Recommended fix:** <opinionated, picks specific lib/pattern fitting the existing stack>
@@ -121,7 +121,7 @@ For each ⚠️ / ❌:
 
 ## Step 4 — Checklist Categories
 
-For each item, mark ✅ / ⚠️ / ❌ / N/A and assign P0/P1/P2 if non-✅.
+For each item, mark Pass / Partial / Missing / N/A and assign P0/P1/P2 if non-Yes.
 
 1. **Authentication & Authorization**
    - JWT / session-based auth
@@ -218,10 +218,10 @@ At the very top of `SAAS-BASE-CHECKLIST.md`, include:
 
 - **Audit date** (`2026-05-01`)
 - **One-paragraph verdict:** is this backend ready to fork as a SaaS base today?
-- **Fork-ready exit criteria** (binary — meet all to be ✅):
+- **Fork-ready exit criteria** (binary — meet all to be Pass):
   1. Zero **P0** gaps remaining
   2. Empirical commands all green (`typecheck`, `lint`, `test`, `security:delta:check`)
-  3. Categories 1 (Auth), 4 (Security), 6 (DX), 7 (Testing), 8 (CI/CD), 11 (Forkability) at ≥80% ✅
+  3. Categories 1 (Auth), 4 (Security), 6 (DX), 7 (Testing), 8 (CI/CD), 11 (Forkability) at ≥80% (pass)
   4. `LICENSE` and `.env.example` present
 - **Top 5 P0/P1 gaps** with one-line summaries linking into the dated audit file.
 
@@ -229,7 +229,7 @@ At the very top of `SAAS-BASE-CHECKLIST.md`, include:
 
 ## Output Constraints
 
-- Be honest. Partial implementation is ⚠️ — do not round up to ✅.
+- Be honest. Partial implementation is Partial — do not round up to Pass.
 - N/A is allowed but requires a one-line reason.
 - Documentation only — do NOT change source code.
 - Do NOT compact or reformat anything under `docs/internal/audits/security/` (schema-validated by tests).
