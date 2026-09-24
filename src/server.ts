@@ -12,17 +12,18 @@ import logger, { flushLogs } from "@/utils/logger.js";
 import { APP_NAME } from "@/config/app-name.js";
 
 // Routes
+// Routers are built here, at mount time — importing a feature constructs nothing (ADR-0045).
 import {
-  authRouter,
-  organizationRouter,
-  inviteRouter,
-  membershipRouter,
+  createAuthRouter,
+  createOrganizationRouter,
+  createInviteRouter,
+  createMembershipRouter,
 } from "./features/shared/auth/index.js";
-import { metricRouter } from "./features/public/metric/index.js";
-import { metricLogRouter } from "./features/public/metric-log/index.js";
-import { metricSettingsRouter } from "./features/public/metric-settings/index.js";
-import { metricCategoryRouter } from "./features/public/metric-category/index.js";
-import { visualizationRouter } from "@/features/analytics/infrastructure/http/router.js";
+import { createMetricRouter } from "./features/public/metric/index.js";
+import { createMetricLogRouter } from "./features/public/metric-log/index.js";
+import { createMetricSettingsRouter } from "./features/public/metric-settings/index.js";
+import { createMetricCategoryRouter } from "./features/public/metric-category/index.js";
+import { createVisualizationRouter } from "./features/public/analytics/index.js";
 import { buildMetricLogFeature } from "./features/public/metric-log/feature.js";
 import { overrideMetricLogFeatureForTest } from "./features/public/metric-log/infrastructure/http/controller.js";
 import { AnalyticsVisualizationInvalidationAdapter } from "./features/public/analytics/infrastructure/cache/VisualizationInvalidationAdapter.js";
@@ -194,16 +195,16 @@ app.get("/api/v1/ready", (_req, res) => {
 app.use(globalRateLimiter);
 
 // * Routes
-app.use("/api/v1/auth", authRouter);
-app.use("/api/v1/organizations", organizationRouter);
-app.use("/api/v1/invites", inviteRouter);
-app.use("/api/v1/memberships", membershipRouter);
-app.use("/api/v1/metrics", metricRouter);
-app.use("/api/v1/metric-categories", metricCategoryRouter);
-app.use("/api/v1/metric-settings", metricSettingsRouter);
-app.use("/api/v1/metric-logs", metricLogRouter);
+app.use("/api/v1/auth", createAuthRouter());
+app.use("/api/v1/organizations", createOrganizationRouter());
+app.use("/api/v1/invites", createInviteRouter());
+app.use("/api/v1/memberships", createMembershipRouter());
+app.use("/api/v1/metrics", createMetricRouter());
+app.use("/api/v1/metric-categories", createMetricCategoryRouter());
+app.use("/api/v1/metric-settings", createMetricSettingsRouter());
+app.use("/api/v1/metric-logs", createMetricLogRouter());
 // DDD based routes
-app.use("/api/v1/analytics", visualizationRouter);
+app.use("/api/v1/analytics", createVisualizationRouter());
 
 // * Admin routes — guarded by authMiddleware + org role check
 const adminRouter = express.Router();

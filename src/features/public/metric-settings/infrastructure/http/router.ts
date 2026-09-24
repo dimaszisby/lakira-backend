@@ -147,5 +147,3 @@ export const createMetricSettingsRouter = () => {
 
   return router;
 };
-
-export const metricSettingsRouter = createMetricSettingsRouter();

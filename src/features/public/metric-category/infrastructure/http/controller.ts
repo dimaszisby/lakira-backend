@@ -19,7 +19,9 @@ import { generateDummyMetricCategoriesSchema } from "./schema.zod.js";
 import { pickValidated } from "@/shared/middleware/validated.js";
 
 type Feature = ReturnType<typeof buildMetricCategoryFeature>;
-let feature: Feature = buildMetricCategoryFeature();
+// Built on first use, never at import (ADR-0045).
+let feature: Feature | undefined;
+const getFeature = (): Feature => (feature ??= buildMetricCategoryFeature());
 
 export const overrideMetricCategoryFeatureForTest = (custom: Feature) => {
   feature = custom;
@@ -30,7 +32,7 @@ export const createCategory = catchAsync(
     assertAuthenticated(req);
     const { body } = pickValidated(createMetricCategorySchema)(req);
     const payload = body;
-    const category = await feature.createCategory.execute({
+    const category = await getFeature().createCategory.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       name: payload.name,
@@ -54,7 +56,7 @@ export const listCategories = catchAsync(
     const { limit, sort, q, after, includeTotal, filterName } = query;
     const filter = filterName ? { name: filterName } : undefined;
 
-    const page = await feature.listCategories.execute({
+    const page = await getFeature().listCategories.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       limit,
@@ -83,7 +85,7 @@ export const getCategory = catchAsync(
   async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { params } = pickValidated(getMetricCategorySchema)(req);
-    const category = await feature.getCategory.execute(
+    const category = await getFeature().getCategory.execute(
       req.user.id,
       req.user.organizationId,
       params.id,
@@ -101,7 +103,7 @@ export const updateCategory = catchAsync(
   async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { body, params } = pickValidated(updateMetricCategorySchema)(req);
-    const category = await feature.updateCategory.execute({
+    const category = await getFeature().updateCategory.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       categoryId: params.id,
@@ -123,7 +125,7 @@ export const deleteCategory = catchAsync(
   async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { params } = pickValidated(deleteMetricCategorySchema)(req);
-    await feature.deleteCategory.execute(
+    await getFeature().deleteCategory.execute(
       req.user.id,
       req.user.organizationId,
       params.id,
@@ -136,7 +138,7 @@ export const generateDummyCategories = catchAsync(
   async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { body } = pickValidated(generateDummyMetricCategoriesSchema)(req);
-    const created = await feature.generateDummyCategories.execute({
+    const created = await getFeature().generateDummyCategories.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       count: body.count,

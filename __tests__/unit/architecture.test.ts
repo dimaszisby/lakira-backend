@@ -145,10 +145,11 @@ describe("Architecture enforcement", () => {
   });
 
   // ADR-0044 / decisions.md D-02, D-03: Sequelize models import each other across
-  // features to declare foreign-key associations. They cannot route through index.ts
-  // without risking circular imports between slices, and the real fix — no cross-module
-  // FKs, ID-only references — is a separate initiative. Frozen at an exact count so the
-  // boundary only ever moves deliberately. ESLint exempts these files; this is the ratchet.
+  // features to declare foreign-key associations. Cross-module FKs are the deepest form
+  // of coupling, and the real fix — ID-only references — is a separate initiative.
+  // (The import-cycle reason once given here no longer applies: ADR-0045.) Frozen at an
+  // exact count so the boundary only ever moves deliberately. ESLint exempts these files;
+  // this is the ratchet.
   describe("cross-feature model associations are frozen", () => {
     const FROZEN_MODEL_ASSOCIATION_IMPORTS = 11;
     const MODEL_IMPORT =
@@ -183,6 +184,38 @@ describe("Architecture enforcement", () => {
         );
       }
       expect(found.length).toBe(FROZEN_MODEL_ASSOCIATION_IMPORTS);
+    });
+  });
+
+  // ADR-0045: importing a feature module must construct nothing. A router, feature or
+  // middleware built at module scope runs during import, so a sibling that is still
+  // mid-evaluation hands it `undefined` — "Route.post() requires a callback function"
+  // or "MetricAccessSequelize is not a constructor". Construction belongs in server.ts
+  // (routers) or behind a lazy getter (controllers, authMiddleware).
+  describe("feature modules construct nothing on import", () => {
+    const TOP_LEVEL_CONSTRUCTION =
+      /^(?:export\s+)?(?:const|let|var)\s+\w+(?:\s*:[^=\n]+)?\s*=\s*(?:create\w*(?:Router|Middleware)|build\w*Feature|Router)\s*\(/gm;
+
+    it("has no module-scope router, feature or middleware construction", () => {
+      const offenders: string[] = [];
+      for (const file of getAllTsFiles(SRC_FEATURES)) {
+        const content = fs.readFileSync(file, "utf-8");
+        for (const match of content.match(TOP_LEVEL_CONSTRUCTION) ?? []) {
+          offenders.push(
+            `${path.relative(SRC_FEATURES, file)}: ${match.trim()}`,
+          );
+        }
+      }
+
+      if (offenders.length > 0) {
+        throw new Error(
+          "Feature modules must construct nothing at import time (ADR-0045).\n" +
+            "Export a create*Router factory and call it in src/server.ts, or build the feature\n" +
+            "behind a lazy getter (`feature ??= buildXFeature()`).\n" +
+            `Found:\n  ${offenders.sort().join("\n  ")}`,
+        );
+      }
+      expect(offenders).toEqual([]);
     });
   });
 

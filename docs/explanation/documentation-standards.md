@@ -75,7 +75,7 @@ coordinates the work: phase order, audit cadence, which sweep to run first.
 Statuses are `Proposed` / `Accepted` / `Superseded`, and a record is **immutable** — supersede it
 with a new one rather than editing it. `Proposed` means written down and _not implemented_.
 
-See `docs/explanation/decisions/README.md` for the format; the next free number is the highest `adr-NNNN` file plus one (ADR-0045 as of 2026-09-24).
+See `docs/explanation/decisions/README.md` for the format; the next free number is the highest `adr-NNNN` file plus one (ADR-0046 as of 2026-09-24).
 
 ## Naming and cross-links
 

@@ -23,7 +23,9 @@ import {
 import { z } from "zod";
 
 type AuthFeature = ReturnType<typeof buildAuthFeature>;
-let feature: AuthFeature = buildAuthFeature();
+// Built on first use, never at import (ADR-0045).
+let feature: AuthFeature | undefined;
+const getFeature = (): AuthFeature => (feature ??= buildAuthFeature());
 
 export const overrideAuthFeatureForTest = (custom: AuthFeature) => {
   feature = custom;
@@ -70,7 +72,7 @@ export const register = catchAsync(async (req: Request, res: Response) => {
   const {
     body: { email, username, password, passwordConfirmation, isPublicProfile },
   } = pickCreateUser(req);
-  const result = await feature.registerUser.execute({
+  const result = await getFeature().registerUser.execute({
     email,
     username,
     password,
@@ -80,8 +82,11 @@ export const register = catchAsync(async (req: Request, res: Response) => {
     ip: req.ip ?? null,
   });
 
-  feature.requestEmailVerification
-    .execute({ userId: result.user.id, email: result.user.email })
+  getFeature()
+    .requestEmailVerification.execute({
+      userId: result.user.id,
+      email: result.user.email,
+    })
     .catch((err) =>
       logger.error("Failed to send verification email after registration", {
         userId: result.user.id,
@@ -105,7 +110,7 @@ export const login = catchAsync(async (req: Request, res: Response) => {
   } = pickLoginUser(req);
 
   try {
-    await feature.loginLockout.check(email);
+    await getFeature().loginLockout.check(email);
   } catch (err) {
     if (err instanceof AppError && err.statusCode === 429) {
       res.setHeader("Retry-After", String(LOCKOUT_TTL_SECONDS));
@@ -115,7 +120,7 @@ export const login = catchAsync(async (req: Request, res: Response) => {
 
   let result;
   try {
-    result = await feature.loginUser.execute({
+    result = await getFeature().loginUser.execute({
       email,
       password,
       userAgent: req.headers["user-agent"] ?? null,
@@ -123,12 +128,12 @@ export const login = catchAsync(async (req: Request, res: Response) => {
     });
   } catch (err) {
     if (err instanceof AppError && err.statusCode === 401) {
-      await feature.loginLockout.recordFailedAttempt(email);
+      await getFeature().loginLockout.recordFailedAttempt(email);
     }
     throw err;
   }
 
-  await feature.loginLockout.reset(email);
+  await getFeature().loginLockout.reset(email);
 
   setRefreshCookie(res, result.rawRefreshToken);
 
@@ -141,7 +146,7 @@ export const login = catchAsync(async (req: Request, res: Response) => {
 export const getProfile = catchAsync(
   async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
-    const user = await feature.getProfile.execute(req.user.id);
+    const user = await getFeature().getProfile.execute(req.user.id);
     successResponse(res, 200, toUserResponseDTO(user));
   },
 );
@@ -152,7 +157,7 @@ export const updateProfile = catchAsync(
     const {
       body: { email, username, password, isPublicProfile },
     } = pickUpdateUser(req);
-    const updated = await feature.updateProfile.execute({
+    const updated = await getFeature().updateProfile.execute({
       userId: req.user.id,
       email,
       username,
@@ -175,7 +180,7 @@ export const refresh = catchAsync(async (req: Request, res: Response) => {
     throw new AppError("Unauthorized: No refresh token provided", 401);
   }
 
-  const result = await feature.rotateRefreshToken.execute({
+  const result = await getFeature().rotateRefreshToken.execute({
     rawToken,
     userAgent: req.headers["user-agent"] ?? null,
     ip: req.ip ?? null,
@@ -191,7 +196,7 @@ export const logout = catchAsync(async (req: Request, res: Response) => {
 
   if (rawToken) {
     try {
-      await feature.revokeRefreshTokenFamily.execute(rawToken);
+      await getFeature().revokeRefreshTokenFamily.execute(rawToken);
     } catch (err) {
       logger.warn("auth.logout.revoke_failed", { err });
     }
@@ -206,7 +211,7 @@ export const forgotPassword = catchAsync(
     const {
       body: { email },
     } = pickForgotPassword(req);
-    await feature.requestPasswordReset.execute({ email });
+    await getFeature().requestPasswordReset.execute({ email });
     successResponse(res, 200, null, FORGOT_PASSWORD_RESPONSE);
   },
 );
@@ -215,7 +220,7 @@ export const resetPassword = catchAsync(async (req: Request, res: Response) => {
   const {
     body: { token, password, passwordConfirmation },
   } = pickResetPassword(req);
-  await feature.resetPassword.execute({
+  await getFeature().resetPassword.execute({
     token,
     password,
     passwordConfirmation,
@@ -227,7 +232,7 @@ export const verifyEmail = catchAsync(async (req: Request, res: Response) => {
   const {
     body: { token },
   } = pickVerifyEmail(req);
-  await feature.verifyEmail.execute({ token });
+  await getFeature().verifyEmail.execute({ token });
   successResponse(res, 200, null, "Email verified successfully.");
 });
 
@@ -235,12 +240,14 @@ export const resendVerification = catchAsync(
   async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { id: userId, email } = req.user;
-    feature.requestEmailVerification.execute({ userId, email }).catch((err) =>
-      logger.error("Failed to resend verification email", {
-        userId,
-        error: err instanceof Error ? err.message : String(err),
-      }),
-    );
+    getFeature()
+      .requestEmailVerification.execute({ userId, email })
+      .catch((err) =>
+        logger.error("Failed to resend verification email", {
+          userId,
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
     successResponse(res, 200, null, RESEND_VERIFICATION_RESPONSE);
   },
 );
@@ -251,7 +258,7 @@ export const switchOrg = catchAsync(async (req: AuthRequest, res: Response) => {
     body: { organizationId },
   } = pickSwitchOrg(req);
 
-  const result = await feature.switchOrganization.execute({
+  const result = await getFeature().switchOrganization.execute({
     userId: req.user.id,
     organizationId,
     userAgent: req.headers["user-agent"] ?? null,

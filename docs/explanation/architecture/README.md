@@ -33,6 +33,6 @@ recomputable state; PostgreSQL is the sole system of record.
 ## Where decisions are recorded
 
 Every architectural choice above has an entry in
-[`../decisions/`](../decisions/) — 44 records, one per file. When code and diagram disagree, check
+[`../decisions/`](../decisions/) — 45 records, one per file. When code and diagram disagree, check
 the ADR's status first: `Proposed` means written down but **not implemented**, which is exactly
 the case for the persistence-layout drift noted at the bottom of the Level 3 page.

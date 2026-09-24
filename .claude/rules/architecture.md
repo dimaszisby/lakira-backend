@@ -26,7 +26,8 @@ features/{name}/
 │   ├── providers/       # Port implementations (JwtTokenProvider, BcryptPasswordHasher)
 │   └── mappers/         # XMapper with toDomain() / toPersistence()
 ├── feature.ts           # buildXFeature() — manual DI wiring
-└── index.ts             # Public exports only
+├── index.ts             # Router factories + buildXFeature, for src/server.ts only
+└── public.ts            # What other features may import
 ```
 
 ## Dependency Rules
@@ -72,6 +73,14 @@ export function buildAuthFeature() {
 
 ## Export Convention
 
-- Features export through `index.ts` only
+Two surfaces per feature (ADR-0045):
+
+- **`index.ts` is for `src/server.ts` only.** It exports the router factories (`createXRouter`) and
+  `buildXFeature`. `server.ts` calls the factories at mount time.
+- **`public.ts` is what other features import** — a deliberately narrow set (mappers, DTO
+  helpers, `authMiddleware`). ESLint rejects a feature importing another feature's `index.ts`,
+  bare alias or `feature.ts`.
+- **Importing a feature module constructs nothing.** No router, feature or middleware is built at
+  module scope; controllers build their feature on first use (`feature ??= buildXFeature()`).
+  `__tests__/unit/architecture.test.ts` enforces this.
 - Use `.js` extensions in all import paths (ESM)
-- Re-export the factory (`buildXFeature`) and the router

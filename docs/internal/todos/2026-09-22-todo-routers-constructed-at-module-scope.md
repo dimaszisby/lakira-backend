@@ -1,6 +1,6 @@
 # Todo — feature barrels construct routers at module scope
 
-- **Status:** Open
+- **Status:** Complete (2026-09-24) — delivered by the `routers-at-module-scope` kit ([ADR-0045](../../explanation/decisions/adr-0045-feature-modules-construct-nothing-on-import.md)). The scope below proved too small: controllers and `authMiddleware` also constructed at import, and were made lazy too. `public.ts` was kept, by choice; the association freeze stays (ADR-0044 decision 4).
 - **Created:** 2026-09-22
 - **Owner:** unassigned
 - **Origin:** diagnosed implementing the `feature-boundaries` kit; see its

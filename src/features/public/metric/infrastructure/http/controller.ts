@@ -23,14 +23,20 @@ import { buildAnalyticsFeature } from "@/features/analytics/feature.js";
 import { pickValidated } from "@/shared/middleware/validated.js";
 
 type MetricFeature = ReturnType<typeof buildMetricFeature>;
-let metricFeature: MetricFeature = buildMetricFeature();
+// Built on first use, never at import (ADR-0045).
+let metricFeature: MetricFeature | undefined;
+const getMetricFeature = (): MetricFeature =>
+  (metricFeature ??= buildMetricFeature());
 
 export const overrideMetricFeatureForTest = (feature: MetricFeature) => {
   metricFeature = feature;
 };
 
 type AnalyticsFeature = ReturnType<typeof buildAnalyticsFeature>;
-let analyticsFeature: AnalyticsFeature = buildAnalyticsFeature();
+// Built on first use, never at import (ADR-0045).
+let analyticsFeature: AnalyticsFeature | undefined;
+const getAnalyticsFeature = (): AnalyticsFeature =>
+  (analyticsFeature ??= buildAnalyticsFeature());
 
 export const overrideMetricTrendFeatureForTest = (
   feature: AnalyticsFeature,
@@ -52,7 +58,7 @@ export const createMetric = catchAsync(
       isPublic,
     } = body;
 
-    const metricDomain = await metricFeature.createMetric.execute({
+    const metricDomain = await getMetricFeature().createMetric.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       categoryId,
@@ -75,7 +81,7 @@ export const getUserMetricLibrariesViaCursor = catchAsync(
     const { query } = pickValidated(getAllMetricsViaCursorSchema)(req);
     const { limit, sort, q, after, includeTotal, filter } = query;
 
-    const page = await metricFeature.listMetrics.execute({
+    const page = await getMetricFeature().listMetrics.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       limit,
@@ -120,7 +126,7 @@ export const getUserDetailMetricById = catchAsync(
 
     const logsLimit = query.logsLimit ?? 20;
 
-    const metric = await metricFeature.getMetricDetail.execute({
+    const metric = await getMetricFeature().getMetricDetail.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId: params.id,
@@ -153,7 +159,7 @@ export const updateMetric = catchAsync(
     assertAuthenticated(req);
 
     const { body, params } = pickValidated(updateMetricSchema)(req);
-    const updatedMetricDomain = await metricFeature.updateMetric.execute({
+    const updatedMetricDomain = await getMetricFeature().updateMetric.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId: params.id,
@@ -170,7 +176,7 @@ export const deleteMetric = catchAsync(
     assertAuthenticated(req);
 
     const { params } = pickValidated(deleteMetricSchema)(req);
-    const metricDomain = await metricFeature.deleteMetric.execute({
+    const metricDomain = await getMetricFeature().deleteMetric.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId: params.id,
@@ -187,7 +193,7 @@ export const generateDummyMetrics = catchAsync(
     const { body } = pickValidated(generateDummyMetricsSchema)(req);
     const { count } = body;
 
-    const dummyMetrics = await metricFeature.generateDummyMetrics.execute({
+    const dummyMetrics = await getMetricFeature().generateDummyMetrics.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       count,
@@ -213,7 +219,7 @@ export const handleMetricTrend = catchAsync(
       throw new AppError("Metric id is required", 400);
     }
 
-    const data = await analyticsFeature.getMetricTrend.execute({
+    const data = await getAnalyticsFeature().getMetricTrend.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId,

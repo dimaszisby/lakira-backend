@@ -10,25 +10,27 @@ import catchAsync from "@/utils/catch-async.js";
 import { analyticsRateLimiter } from "@/shared/middleware/rate-limiter.js";
 import { methodNotAllowed } from "@/shared/middleware/method-guard.js";
 
-const router = Router();
+export const createVisualizationRouter = () => {
+  const router = Router();
 
-router.use(authMiddleware);
+  router.use(authMiddleware);
 
-router.get(
-  "/dashboard",
-  analyticsRateLimiter,
-  validate(getDashboardVizSchema),
-  catchAsync(handleGetDashboardVisualization),
-);
+  router.get(
+    "/dashboard",
+    analyticsRateLimiter,
+    validate(getDashboardVizSchema),
+    catchAsync(handleGetDashboardVisualization),
+  );
 
-router.get(
-  "/metrics/:metricId",
-  analyticsRateLimiter,
-  validate(getVisualizationSchema),
-  catchAsync(handleGetVisualization),
-);
+  router.get(
+    "/metrics/:metricId",
+    analyticsRateLimiter,
+    validate(getVisualizationSchema),
+    catchAsync(handleGetVisualization),
+  );
 
-router.all("/dashboard", methodNotAllowed(["GET"]));
-router.all("/metrics/:metricId", methodNotAllowed(["GET"]));
+  router.all("/dashboard", methodNotAllowed(["GET"]));
+  router.all("/metrics/:metricId", methodNotAllowed(["GET"]));
 
-export { router as visualizationRouter };
+  return router;
+};

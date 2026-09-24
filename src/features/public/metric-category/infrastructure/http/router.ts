@@ -116,5 +116,3 @@ export const createMetricCategoryRouter = () => {
 
   return router;
 };
-
-export const metricCategoryRouter = createMetricCategoryRouter();

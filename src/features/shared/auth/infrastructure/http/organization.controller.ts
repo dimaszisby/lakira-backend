@@ -17,7 +17,9 @@ import {
 import { buildAuthFeature } from "../../feature.js";
 
 type OrgFeature = ReturnType<typeof buildAuthFeature>;
-let feature: OrgFeature = buildAuthFeature();
+// Built on first use, never at import (ADR-0045).
+let feature: OrgFeature | undefined;
+const getFeature = (): OrgFeature => (feature ??= buildAuthFeature());
 
 export const overrideOrgFeatureForTest = (custom: OrgFeature) => {
   feature = custom;
@@ -46,7 +48,7 @@ export const createInvite = catchAsync(
     }
     assertHasOrgRole(req, "owner", "admin");
 
-    await feature.inviteUserToOrganization.execute({
+    await getFeature().inviteUserToOrganization.execute({
       organizationId,
       email,
       role,
@@ -65,7 +67,7 @@ export const acceptInvite = catchAsync(
       body: { token },
     } = pickAcceptInvite(req);
 
-    await feature.acceptInvite.execute({
+    await getFeature().acceptInvite.execute({
       rawToken: token,
       userId: req.user.id,
     });
@@ -83,7 +85,7 @@ export const removeMembership = catchAsync(
 
     assertHasOrgRole(req, "owner");
 
-    await feature.removeMembership.execute({
+    await getFeature().removeMembership.execute({
       membershipId,
       organizationId: req.membership.organizationId,
       actorRole: req.membership.role,
@@ -104,7 +106,7 @@ export const changeMemberRole = catchAsync(
 
     assertHasOrgRole(req, "owner");
 
-    await feature.changeMemberRole.execute({
+    await getFeature().changeMemberRole.execute({
       membershipId,
       organizationId: req.membership.organizationId,
       newRole: role,
@@ -127,7 +129,7 @@ export const listMembers = catchAsync(
     }
 
     const members =
-      await feature.listOrganizationMembers.execute(organizationId);
+      await getFeature().listOrganizationMembers.execute(organizationId);
 
     successResponse(res, 200, { members });
   },
