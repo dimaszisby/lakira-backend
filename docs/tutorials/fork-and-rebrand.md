@@ -30,15 +30,15 @@ It is idempotent, so running it twice with the same name changes nothing.
 
 What it does:
 
-|                                  |                                                                                       |
-| -------------------------------- | ------------------------------------------------------------------------------------- |
-| `lakira-backend` → `my-app`      | `package.json`, `package-lock.json`, `docker-compose.test.yml`, CI workflows, scripts |
-| `lakira` → `my-app` (short name) | queue topology, database names, CI database references                                |
-| Rotates `JWT_SECRET`             | in `.env`, created from `.env.example` if absent                                      |
-| Sets `APP_NAME=my-app`           | in `.env`                                                                             |
-| Creates `.env.test`              | from `.env.test.example`, so `npm test` runs out of the box                           |
-| Removes `docs/internal/`         | the upstream project's working material — pass `--keep-internal` to keep it           |
-| Writes `FORKED-FROM.md`          | recording `git rev-parse HEAD` (see step 1)                                           |
+|                                  |                                                                             |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| `lakira-backend` → `my-app`      | `package.json`, `package-lock.json`, `.env.example`, CI workflows           |
+| `lakira` → `my-app` (short name) | queue topology, database names, CI database references                      |
+| Rotates `JWT_SECRET`             | in `.env`, created from `.env.example` if absent                            |
+| Sets `APP_NAME=my-app`           | in `.env`                                                                   |
+| Creates `.env.test`              | from `.env.test.example`, so `npm test` runs out of the box                 |
+| Removes `docs/internal/`         | the upstream project's working material — pass `--keep-internal` to keep it |
+| Writes `FORKED-FROM.md`          | recording `git rev-parse HEAD` (see step 1)                                 |
 
 The script's short name is the full name minus a trailing `-backend` or `-api`, so
 `my-app-backend` becomes `my-app`, and it is used for queue and database names. At runtime,

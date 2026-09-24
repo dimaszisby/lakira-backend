@@ -111,7 +111,7 @@ This repo is designed to be forked and rebranded. After cloning, run the bootstr
 
 The script:
 
-- Replaces `lakira-backend` → `my-app` in `package.json`, `package-lock.json`, `docker-compose.test.yml`, and CI workflow files.
+- Replaces `lakira-backend` → `my-app` in `package.json`, `package-lock.json`, `.env.example`, and CI workflow files.
 - Derives a short name (`my-app` → removes `-backend` / `-api` suffix) for queue topology and DB name prefixes.
 - Rotates `JWT_SECRET` in `.env` via `openssl rand -hex 32`.
 - Sets `APP_NAME=my-app` in `.env`.

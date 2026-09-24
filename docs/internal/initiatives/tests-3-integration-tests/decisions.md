@@ -6,6 +6,7 @@
 - **Decision:** Standardize on the Docker Compose stack defined in `docker-compose.yml` + `docker-compose.test.yml` (Postgres + Redis) for local runs, and keep CI provisioning aligned via `.github/workflows/backend-ci.yml`. Developers run `docker compose ... up -d db redis`, followed by `npm run db:migrate:test` before executing `npm run test:integration`.
 - **Consequences:** Contributors—and Codex—have deterministic steps to boot dependencies. CI mirrors the same commands, so failures are reproducible. Future infra changes must update both the compose files and README to maintain parity.
 - **References:** `docs/internal/initiatives/tests-3-integration-tests/README.md`, `.github/workflows/backend-ci.yml`, `scripts/test-ci.sh`, `docker-compose.yml`, `docker-compose.test.yml`.
+- **Note (2026-09-24):** the procedure above still stands and needs only `docker-compose.yml` (its init script creates `lakira_test_db`). `docker-compose.test.yml` and `scripts/test-ci.sh` were retired — see [`retire-test-ci` D-01](../retire-test-ci/decisions.md).
 
 ## INT-ADR-002 – Raw SQL Truncation Between Specs (Accepted 2026-01-09)
 

@@ -1,10 +1,10 @@
-# Dockerfile.dev — development image used by docker-compose.yml (local dev
-# loop) and docker-compose.test.yml (test:ci). The production `Dockerfile` is
-# a hardened multi-stage build (dumb-init, USER node, no devDependencies,
-# dist/ only) and cannot run migrations or Jest, which need src/ and
-# devDependencies. This image trades that hardening for full source +
-# devDependencies so both local dev (`npm run dev` via tsx watch, source
-# bind-mounted) and CI test runs work.
+# Dockerfile.dev — development image used by docker-compose.yml for the local
+# dev loop (the `app` and `worker` services). The production `Dockerfile` is a
+# hardened multi-stage build (dumb-init, USER node, no devDependencies, dist/
+# only) and cannot run migrations or Jest, which need src/ and devDependencies.
+# This image trades that hardening for full source + devDependencies so local
+# dev (`npm run dev` via tsx watch, source bind-mounted) works. Tests run on the
+# host against the Compose services; there is no containerised test image.
 #
 # Not used in production. If you change the production build flow, edit
 # `Dockerfile`, not this file.

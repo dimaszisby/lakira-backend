@@ -13,12 +13,13 @@ npm run migrate:development     # apply migrations
 npm run dev                     # tsx watch, port 5000
 ```
 
-| Command          | Does                                                    |
-| ---------------- | ------------------------------------------------------- |
-| `npm run dev`    | Dev server with hot reload                              |
-| `npm run build`  | Compile to `dist/` and rewrite path aliases             |
-| `npm start`      | Production server from `dist/`                          |
-| `npm run worker` | RabbitMQ consumer process (`worker:dev` for watch mode) |
+| Command                | Does                                                                                          |
+| ---------------------- | --------------------------------------------------------------------------------------------- |
+| `npm run dev`          | Dev server with hot reload                                                                    |
+| `npm run build`        | Compile to `dist/` and rewrite path aliases                                                   |
+| `npm run docker:build` | Build the production `Dockerfile` as `lakira-backend:local` — CI does not build it yet (TF-2) |
+| `npm start`            | Production server from `dist/`                                                                |
+| `npm run worker`       | RabbitMQ consumer process (`worker:dev` for watch mode)                                       |
 
 ## Quality gates
 
@@ -117,23 +118,22 @@ The spec is a build artifact — see [`api/README.md`](./api/README.md).
 
 Less common, but real — several are what CI or deployment calls.
 
-| Command                                                                           | Does                                                                                                                                                                                                                                                       |
-| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run start:test`                                                              | Run the built server for tests (`ALLOW_TEST_HTTP_SERVER=true`); used by CI                                                                                                                                                                                 |
-| `npm run start:staging`                                                           | Migrate, then run the built server with `NODE_ENV=staging`                                                                                                                                                                                                 |
-| `npm run staging` / `npm run prod` / `npm run worker:staging`                     | Run from source via `ts-node` against `.env.staging` / `.env.production`                                                                                                                                                                                   |
-| `npm run test:dev`                                                                | Jest in watch mode against local Postgres                                                                                                                                                                                                                  |
-| `npm run test:ci`                                                                 | `scripts/test-ci.sh`: runs the suites inside Compose (unit, integration, integration coverage). It runs `docker compose down -v` before and after, which **deletes the Compose volumes**, local dev data included. It does **not** forward extra arguments |
-| `npm run test:unit:coverage` / `npm run test:integration:coverage`                | One project with coverage thresholds; used by CI                                                                                                                                                                                                           |
-| `npm run lint:tests`                                                              | ESLint over `__tests__/` only                                                                                                                                                                                                                              |
-| `npm run jest`                                                                    | The ESM Jest launcher the `test:*` scripts call; not usually run directly                                                                                                                                                                                  |
-| `npm run test:contract:schemathesis:local:{quick,gate,full,exploratory}`          | Schemathesis at one profile, against a running server                                                                                                                                                                                                      |
-| `npm run contract:local:exploratory`                                              | Build, seed, boot, run Schemathesis at the exploratory profile                                                                                                                                                                                             |
-| `npm run test:contract:schemathesis:staging`                                      | Schemathesis against staging                                                                                                                                                                                                                               |
-| `npm run migrate:test`                                                            | Apply migrations to the test database (`.env.test`)                                                                                                                                                                                                        |
-| `npm run migrate:{staging,production}:ci`                                         | Apply migrations in CI/deploy, env from the platform                                                                                                                                                                                                       |
-| `npm run migrate:{test,staging,production}:undo`                                  | Undo the last migration in that environment                                                                                                                                                                                                                |
-| `npm run migrate:undo:all` / `npm run migrate:{test,staging,production}:undo:all` | Undo **every** migration — destructive                                                                                                                                                                                                                     |
+| Command                                                                           | Does                                                                       |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `npm run start:test`                                                              | Run the built server for tests (`ALLOW_TEST_HTTP_SERVER=true`); used by CI |
+| `npm run start:staging`                                                           | Migrate, then run the built server with `NODE_ENV=staging`                 |
+| `npm run staging` / `npm run prod` / `npm run worker:staging`                     | Run from source via `ts-node` against `.env.staging` / `.env.production`   |
+| `npm run test:dev`                                                                | Jest in watch mode against local Postgres                                  |
+| `npm run test:unit:coverage` / `npm run test:integration:coverage`                | One project with coverage thresholds; used by CI                           |
+| `npm run lint:tests`                                                              | ESLint over `__tests__/` only                                              |
+| `npm run jest`                                                                    | The ESM Jest launcher the `test:*` scripts call; not usually run directly  |
+| `npm run test:contract:schemathesis:local:{quick,gate,full,exploratory}`          | Schemathesis at one profile, against a running server                      |
+| `npm run contract:local:exploratory`                                              | Build, seed, boot, run Schemathesis at the exploratory profile             |
+| `npm run test:contract:schemathesis:staging`                                      | Schemathesis against staging                                               |
+| `npm run migrate:test`                                                            | Apply migrations to the test database (`.env.test`)                        |
+| `npm run migrate:{staging,production}:ci`                                         | Apply migrations in CI/deploy, env from the platform                       |
+| `npm run migrate:{test,staging,production}:undo`                                  | Undo the last migration in that environment                                |
+| `npm run migrate:undo:all` / `npm run migrate:{test,staging,production}:undo:all` | Undo **every** migration — destructive                                     |
 
 ## Git hooks
 

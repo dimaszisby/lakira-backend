@@ -102,8 +102,7 @@ Related secret names:
   - Password: `${{ secrets.POSTGRES_PASSWORD_TEST }}`
 
 > **Postgres version is pinned to the same major everywhere: `postgres:18`.** Render's managed
-> Postgres runs 18, so dev Compose, `docker-compose.test.yml` (which inherits the base image), and
-> the CI services all match it. Before 2026-08-23 these were 17 / 17 / 15 respectively — the gate
+> Postgres runs 18, so dev Compose and the CI services both match it. Before 2026-08-23 these were 17 / 17 / 15 respectively — the gate
 > that decides whether a change merges ran two majors behind production.
 >
 > The images are deliberately **not** the `-alpine` variant. Alpine is musl-based and Render is
