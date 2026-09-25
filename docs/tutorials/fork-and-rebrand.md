@@ -126,7 +126,7 @@ Green means the rebrand did not break anything. Then walk
 
 ## What you now own
 
-A Node 20 / Express / TypeScript API with multi-tenant auth, refresh-token rotation, Zod-validated
+A Node 24 / Express / TypeScript API with multi-tenant auth, refresh-token rotation, Zod-validated
 config and requests, a generated and CI-gated OpenAPI contract, four test layers including
 contract fuzzing, a security audit framework, and a deployment pipeline.
 

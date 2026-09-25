@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Lakira Backend is an Express.js REST API built with TypeScript using Domain-Driven Design (DDD) with feature slices. It uses Sequelize ORM with PostgreSQL, JWT authentication, Zod validation, and Redis caching.
 
-**Node version**: 20.x (see `.nvmrc`)
+**Node version**: 24.x (see `.nvmrc`)
 **Module system**: ESM (`"type": "module"`)
 
 ## Rules & Conventions

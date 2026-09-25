@@ -4,7 +4,7 @@ REST API backend for Lakira, a personal metrics tracking platform. Built with Ex
 
 ## Tech Stack
 
-- **Runtime**: Node.js 20 (ESM)
+- **Runtime**: Node.js 24 (ESM)
 - **Framework**: Express.js + TypeScript
 - **ORM**: Sequelize (PostgreSQL)
 - **Auth**: JWT (HS256 via `jsonwebtoken`) — short-lived access token plus a rotating refresh token in an httpOnly cookie
@@ -15,7 +15,7 @@ REST API backend for Lakira, a personal metrics tracking platform. Built with Ex
 
 ## Prerequisites
 
-- Node.js 20 (`nvm use` will pick the right version from `.nvmrc`)
+- Node.js 24 (`nvm use` will pick the right version from `.nvmrc`)
 - Docker & Docker Compose (for PostgreSQL, Redis, and RabbitMQ)
 
 ## Quick Start

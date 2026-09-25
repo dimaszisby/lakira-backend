@@ -1,7 +1,7 @@
 # Commands
 
 Every script below exists in `package.json` as of 2026-09-24 — nothing checks this automatically,
-so update this page in the same change as any script. Node 20 (`.nvmrc`) is the supported
+so update this page in the same change as any script. Node 24 (`.nvmrc`) is the supported
 version and what CI runs; migrations also work on newer runtimes since sequelize-cli paths are
 passed explicitly rather than through a `.sequelizerc`.
 

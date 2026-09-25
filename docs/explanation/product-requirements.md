@@ -28,7 +28,7 @@ Lakira backend provides authenticated, organization-scoped APIs for:
 - Metric logs and aggregate stats
 - Analytics visualizations (dashboard and per-metric)
 
-Service stack: Node.js 20 + Express + TypeScript, PostgreSQL persistence, Redis for cache, rate limits and login lockout (required outside tests unless `REDIS_REQUIRED=false`), optional RabbitMQ for background jobs, Zod validation, and a generated OpenAPI contract.
+Service stack: Node.js 24 + Express + TypeScript, PostgreSQL persistence, Redis for cache, rate limits and login lockout (required outside tests unless `REDIS_REQUIRED=false`), optional RabbitMQ for background jobs, Zod validation, and a generated OpenAPI contract.
 
 ## 3. Source of Truth and Precedence
 
