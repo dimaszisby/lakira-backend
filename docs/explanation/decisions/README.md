@@ -83,10 +83,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0043](./adr-0043-session-issuance-at-every-authenticated-entry-point.md)    | Session issuance belongs to every authenticated entry point                                                      | Accepted               | 2026-09-20 | registration-session D-01         |
 | [ADR-0044](./adr-0044-feature-boundaries-and-their-frozen-exceptions.md)         | Feature boundaries, and the exceptions that are frozen rather than blessed                                       | Accepted               | 2026-09-23 | feature-boundaries D-02/D-03/D-06 |
 | [ADR-0045](./adr-0045-feature-modules-construct-nothing-on-import.md)            | Feature modules construct nothing on import; `index.ts` serves the composition root, `public.ts` serves siblings | Accepted               | 2026-09-24 | routers-at-module-scope D-01/D-02 |
+| [ADR-0046](./adr-0046-node-24-runtime.md)                                        | The runtime is Node 24; CI reads the version from `.nvmrc`                                                       | Accepted               | 2026-09-25 | node-24-runtime D-01..D-04        |
 
 ## Adding one
 
-Take the next free number — **ADR-0046** as of 2026-09-24 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0047** as of 2026-09-25 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 

@@ -22,7 +22,7 @@ Run this SOP when:
 
 ## Pre-Run Prerequisites
 
-1. Ensure Node is `20.x`.
+1. Ensure Node is `24.x`.
 2. Pull latest target branch and install dependencies.
 3. Ensure local `.env` values are valid for test/security scripts.
 

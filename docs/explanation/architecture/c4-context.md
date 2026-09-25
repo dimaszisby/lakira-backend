@@ -8,7 +8,7 @@ graph TB
     admin["Organization owner / admin<br/><small>invites members, manages roles</small>"]
 
     subgraph boundary [" "]
-        api["<b>Lakira Backend</b><br/>REST API + async worker<br/><small>Node 20 · Express · TypeScript</small>"]
+        api["<b>Lakira Backend</b><br/>REST API + async worker<br/><small>Node 24 · Express · TypeScript</small>"]
     end
 
     web["Web frontend<br/><small>separate Next.js repository</small>"]

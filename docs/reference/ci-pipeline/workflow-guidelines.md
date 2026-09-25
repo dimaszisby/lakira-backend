@@ -148,13 +148,13 @@ Avoid unbounded runtimes; keep timeouts visible and justifiable.
 
 ### 4.1 Node.js Setup
 
-Use `actions/setup-node@v4` with a fixed version and npm caching:
+Use `actions/setup-node@v4` with the version read from `.nvmrc` and npm caching:
 
 ```yaml
-- name: Use Node.js 20
+- name: Use Node.js
   uses: actions/setup-node@v4
   with:
-    node-version: 20
+    node-version-file: .nvmrc
     cache: npm
 ```
 
@@ -363,7 +363,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npm run lint
@@ -412,7 +412,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npm run build
@@ -461,7 +461,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npm run build

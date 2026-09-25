@@ -9,7 +9,7 @@ Establish a predictable, portfolio-grade process for evaluating, triaging, and r
 - **Runtime dependencies** (packages shipped with the service: the Docker image, and today's Render deployment).
 - **Dev/test tooling** (lint, jest, schemathesis, etc.) — still tracked, but lower priority unless they compromise CI.
 - Direct and transitive packages listed in `package.json` / `package-lock.json`.
-- Node.js runtime itself (pinned to `20.x` via `.nvmrc`, `.node-version`, and CI env).
+- Node.js runtime itself (pinned to `24.x` via `.nvmrc`, `.node-version`, `package.json "engines"` and the Dockerfiles; CI reads `.nvmrc`).
 
 ## Roles & Ownership
 
@@ -112,7 +112,7 @@ Rules for adding an override:
 
 ## References
 
-- Node 20 pinning: `.nvmrc`, `.node-version`, `package.json "engines"`.
+- Node 24 pinning: `.nvmrc`, `.node-version`, `package.json "engines"`, `Dockerfile`, `Dockerfile.dev`.
 - CI enforcement: `.github/workflows/backend-ci.yml`.
 - Security audit artifacts: `docs/internal/audits/security/`.
 

@@ -48,10 +48,10 @@ git checkout dev
 git pull origin dev
 ```
 
-2. Use Node 20 and install dependencies:
+2. Use Node 24 and install dependencies:
 
 ```bash
-nvm use 20
+nvm use          # reads .nvmrc
 npm ci
 ```
 
@@ -85,7 +85,7 @@ git pull origin staging
 2. Prepare environment:
 
 ```bash
-nvm use 20
+nvm use          # reads .nvmrc
 npm ci
 export NODE_ENV=test
 export DATABASE_URL=postgres://postgres:postgres@localhost:5432/lakira_ci

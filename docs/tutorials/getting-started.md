@@ -7,11 +7,11 @@ live in [`../explanation/`](../explanation/); alternatives live in [`../how-to/`
 
 ## Before you start
 
-- **Node 20** — what `.nvmrc` pins and what CI runs. Newer versions work for the steps below,
-  but 20 is the only version the full pipeline is verified against.
+- **Node 24** — what `.nvmrc` pins and what CI runs. Newer versions work for the steps below,
+  but 24 is the only version the full pipeline is verified against.
   ```bash
   nvm use          # reads .nvmrc
-  node --version   # expect v20.x
+  node --version   # expect v24.x
   ```
 - **Docker**, for PostgreSQL and Redis.
 

@@ -73,7 +73,7 @@ Other workflows:
 4. **Check environment differences** between local and CI:
    - CI uses `postgres:18`, `redis:7-alpine` and `rabbitmq:3.13-management-alpine` (the same as Compose)
    - `DISABLE_RATE_LIMITING=true` in `security_delta`, `tests` and `contract_local`; `REDIS_REQUIRED=false` in `security_delta` (elsewhere it defaults to false under `NODE_ENV=test`)
-   - CI uses Node 20.x (check `.nvmrc` matches)
+   - CI uses the Node version in `.nvmrc` (24.x); every `setup-node` step reads it through `node-version-file`
    - CI concurrency: one run per branch (`group: backend-ci-${{ github.ref }}`)
 
 5. **Reproduce locally**:

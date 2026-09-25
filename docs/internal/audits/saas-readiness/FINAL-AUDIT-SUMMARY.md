@@ -311,7 +311,7 @@ the list still reads as the history it is.
    does not gate the verdict.
 5. **Next: produce a new dated `audit-YYYY-MM-DD.md` per ADR-002** and, if it holds, re-state the
    verdict as clean **GOLD** and point the root `SAAS-BASE-CHECKLIST.md` at it. Run its gates on
-   Node 20, which is what CI and Docker use. What gates the GOLD restatement is C1–C6, per ADR-008 —
+   Node 24, which is what CI and Docker use. What gates the GOLD restatement is C1–C6, per ADR-008 —
    not the remaining N- and F-rows in § 7, which stay tracked as open findings
    ([`saas-audit-closeout` D-02](../../initiatives/saas-audit-closeout/decisions.md)).
 6. Phase 8 (subscription/billing) remains the only deferred initiative — open its kit when
