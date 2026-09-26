@@ -488,6 +488,34 @@ export const MemberListResponseSchema = registerSchema(
   ),
 );
 
+export const UserOrganizationSchema = registerSchema(
+  "UserOrganization",
+  z.object({
+    organizationId: UuidSchema,
+    name: z.string().openapi({ example: "Acme" }),
+    slug: z.string().openapi({ example: "acme" }),
+    role: z.enum(["owner", "admin", "member"]).openapi({ example: "owner" }),
+    joinedAt: z
+      .string()
+      .datetime()
+      .openapi({ example: "2025-01-15T09:30:00Z" }),
+    isCurrent: z.boolean().openapi({
+      description:
+        "True for the organization the presented access token is scoped to.",
+      example: true,
+    }),
+  }),
+);
+
+export const UserOrganizationListResponseSchema = registerSchema(
+  "UserOrganizationListResponse",
+  successEnvelope(
+    z.object({
+      organizations: z.array(UserOrganizationSchema),
+    }),
+  ),
+);
+
 export const RegisterRequestSchema = registerSchema(
   "RegisterRequest",
   z

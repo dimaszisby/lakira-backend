@@ -62,6 +62,7 @@ const build = () => {
   };
   const orgRepo: jest.Mocked<OrganizationRepository> = {
     findById: jest.fn(),
+    findByIds: jest.fn(),
     findBySlug: jest.fn(),
     existsBySlug: jest.fn(),
     create: jest.fn(),

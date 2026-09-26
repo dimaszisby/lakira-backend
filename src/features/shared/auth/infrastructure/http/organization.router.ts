@@ -5,6 +5,7 @@ import {
   removeMembership,
   changeMemberRole,
   listMembers,
+  listMyOrganizations,
 } from "./organization.controller.js";
 import { authMiddleware } from "./authMiddleware.js";
 import { userRateLimiter } from "@/shared/middleware/rate-limiter.js";
@@ -21,6 +22,8 @@ import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.j
 
 export const createOrganizationRouter = () => {
   const router = Router();
+
+  router.get("/", userRateLimiter, authMiddleware, listMyOrganizations);
 
   router.post(
     "/:id/invites",
@@ -39,6 +42,7 @@ export const createOrganizationRouter = () => {
     listMembers,
   );
 
+  router.all("/", methodNotAllowed(["GET"]));
   router.all("/:id/invites", methodNotAllowed(["POST"]));
   router.all("/:id/members", methodNotAllowed(["GET"]));
 

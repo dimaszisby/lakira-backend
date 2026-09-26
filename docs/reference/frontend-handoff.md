@@ -63,6 +63,10 @@ Secret naming already used in docs:
   The FE should also drop its in-memory access token.
 - Other auth routes: `/forgot-password`, `/reset-password`, `/verify-email`,
   `/resend-verification`, `/switch-org` (all under `/api/v1/auth`).
+- `GET /api/v1/organizations` lists the caller's organizations, each with `organizationId`,
+  `name`, `slug`, `role`, `joinedAt` and `isCurrent` (true for the one the token is scoped to).
+  Any listed `organizationId` is a valid body for `POST /api/v1/auth/switch-org`, which returns a
+  new `data.token` and refresh cookie scoped to that organization.
 
 ### CORS behavior
 

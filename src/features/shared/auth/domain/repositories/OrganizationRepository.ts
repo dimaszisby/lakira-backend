@@ -8,6 +8,7 @@ export type CreateOrganizationDTO = {
 
 export interface OrganizationRepository {
   findById(id: string): Promise<Organization | null>;
+  findByIds(ids: string[]): Promise<Organization[]>;
   findBySlug(slug: string): Promise<Organization | null>;
   existsBySlug(slug: string): Promise<boolean>;
   create(

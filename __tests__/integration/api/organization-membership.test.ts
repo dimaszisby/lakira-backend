@@ -291,4 +291,135 @@ describe("Organization Membership API", () => {
       expect(deleteRes.status).toBe(404);
     });
   });
+
+  describe("GET /api/v1/organizations", () => {
+    // The owner invites a fresh user, who registers and accepts: the invitee
+    // then belongs to their own personal organization and to the owner's.
+    const joinOwnerOrg = async () => {
+      const owner = await createTestUser();
+      const ownerOrgId = decodeOrgId(owner.token);
+      const inviteePayload = buildUserPayload();
+
+      await api
+        .post(`/api/v1/organizations/${ownerOrgId}/invites`)
+        .set("Authorization", authHeader(owner.token))
+        .send({ email: inviteePayload.email, role: "member" });
+      const rawToken = emailCapture.lastToken();
+
+      const invitee = await createTestUser({
+        email: inviteePayload.email,
+        username: inviteePayload.username,
+      });
+      const acceptRes = await api
+        .post("/api/v1/invites/accept")
+        .set("Authorization", authHeader(invitee.token))
+        .send({ token: rawToken });
+      expect(acceptRes.status).toBe(200);
+
+      return { owner, ownerOrgId, invitee, inviteePayload };
+    };
+
+    const listOrgs = (token: string) =>
+      api.get("/api/v1/organizations").set("Authorization", authHeader(token));
+
+    it("lists the single personal organization of a new user", async () => {
+      const { token } = await createTestUser();
+
+      const res = await listOrgs(token);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.organizations).toEqual([
+        expect.objectContaining({
+          organizationId: decodeOrgId(token),
+          role: "owner",
+          isCurrent: true,
+        }),
+      ]);
+    });
+
+    it("lists both organizations after an accepted invite", async () => {
+      const { ownerOrgId, invitee } = await joinOwnerOrg();
+      const inviteeOrgId = decodeOrgId(invitee.token);
+
+      const res = await listOrgs(invitee.token);
+
+      expect(res.status).toBe(200);
+      const orgs = res.body.data.organizations;
+      expect(orgs).toHaveLength(2);
+      expect(orgs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            organizationId: inviteeOrgId,
+            role: "owner",
+            isCurrent: true,
+          }),
+          expect.objectContaining({
+            organizationId: ownerOrgId,
+            role: "member",
+            isCurrent: false,
+          }),
+        ]),
+      );
+    });
+
+    it("moves isCurrent after switching organization", async () => {
+      const { ownerOrgId, invitee } = await joinOwnerOrg();
+
+      const switchRes = await api
+        .post("/api/v1/auth/switch-org")
+        .set("Authorization", authHeader(invitee.token))
+        .send({ organizationId: ownerOrgId });
+      expect(switchRes.status).toBe(200);
+      const switchedToken = switchRes.body.data.token;
+
+      const res = await listOrgs(switchedToken);
+
+      expect(res.status).toBe(200);
+      const current = res.body.data.organizations.filter(
+        (o: any) => o.isCurrent,
+      );
+      expect(current).toHaveLength(1);
+      expect(current[0].organizationId).toBe(ownerOrgId);
+    });
+
+    it("stops listing an organization the user was removed from", async () => {
+      const { owner, ownerOrgId, invitee, inviteePayload } =
+        await joinOwnerOrg();
+
+      const membersRes = await api
+        .get(`/api/v1/organizations/${ownerOrgId}/members`)
+        .set("Authorization", authHeader(owner.token));
+      const inviteeMember = membersRes.body.data.members.find(
+        (m: any) => m.email === inviteePayload.email,
+      );
+      const deleteRes = await api
+        .delete(`/api/v1/memberships/${inviteeMember.membershipId}`)
+        .set("Authorization", authHeader(owner.token));
+      expect(deleteRes.status).toBe(200);
+
+      const res = await listOrgs(invitee.token);
+
+      expect(res.status).toBe(200);
+      expect(
+        res.body.data.organizations.map((o: any) => o.organizationId),
+      ).toEqual([decodeOrgId(invitee.token)]);
+    });
+
+    it("returns 401 without auth", async () => {
+      const res = await api.get("/api/v1/organizations");
+
+      expect(res.status).toBe(401);
+    });
+
+    it("returns 405 for other methods", async () => {
+      const { token } = await createTestUser();
+
+      const res = await api
+        .post("/api/v1/organizations")
+        .set("Authorization", authHeader(token))
+        .send({});
+
+      expect(res.status).toBe(405);
+    });
+  });
 });

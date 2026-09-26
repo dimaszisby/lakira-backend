@@ -38,18 +38,22 @@ Full workflow: [`../../how-to/development/regenerate-the-openapi-spec.md`](../..
 
 ## Coverage
 
-**46 documented operations** (counted from the committed spec on 2026-09-24) across `Auth` (11),
-`Organizations` (5), `Metric Categories` (5), `Metrics` (5), `Metric Logs` (6), `Metric Settings`
+**47 documented operations** (counted from the committed spec on 2026-09-25) across `Auth` (11),
+`Organizations` (6), `Metric Categories` (5), `Metrics` (5), `Metric Logs` (6), `Metric Settings`
 (7), `Dummy Data` (3), `Analytics` (2), `Trends` (1) and `Admin` (1).
 
-Two routes are served but intentionally absent from the spec, and one is documented but excluded
-from fuzzing:
+Two routes are served but intentionally absent from the spec. Separately, the local contract run
+fuzzes only the tags in `DEFAULT_TAGS` (`tests/contract/schemathesis/scripts/run-local.js`), so
+three documented tags are never fuzzed: `Admin` (1), `Organizations` (6) and `Dummy Data` (3). That
+is why the gate reports 37 of 47 operations selected.
 
-| Route                     | Why                                                                                                                                                                    |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/v1/health`      | liveness probe, not part of the API contract                                                                                                                           |
-| `GET /api/v1/ready`       | readiness probe — pings Postgres and Redis                                                                                                                             |
-| `GET /api/v1/admin/_ping` | documented under the `Admin` tag, which is **excluded from the contract-test tag set** — the seeded fixtures hold no admin role, so fuzzing it would only produce 403s |
+| Route                              | Why                                                                                                                                                                                |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/health`               | liveness probe, not part of the API contract                                                                                                                                       |
+| `GET /api/v1/ready`                | readiness probe — pings Postgres and Redis                                                                                                                                         |
+| `GET /api/v1/admin/_ping`          | documented under the `Admin` tag, which is **excluded from the contract-test tag set** — the seeded fixtures hold no admin role, so fuzzing it would only produce 403s             |
+| `Organizations` tag (6 operations) | no recorded reason; the tag list predates the organization routes. Covered by integration tests only. Tracked in `docs/internal/todos/2026-09-25-todo-fuzz-organization-routes.md` |
+| `Dummy Data` tag (3 operations)    | no recorded reason                                                                                                                                                                 |
 
 ## Known gaps
 

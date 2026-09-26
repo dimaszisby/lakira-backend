@@ -525,6 +525,69 @@
           }
         ]
       },
+      "UserOrganization": {
+        "type": "object",
+        "properties": {
+          "organizationId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "Acme"
+          },
+          "slug": {
+            "type": "string",
+            "example": "acme"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["owner", "admin", "member"],
+            "example": "owner"
+          },
+          "joinedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2025-01-15T09:30:00Z"
+          },
+          "isCurrent": {
+            "type": "boolean",
+            "description": "True for the organization the presented access token is scoped to.",
+            "example": true
+          }
+        },
+        "required": [
+          "organizationId",
+          "name",
+          "slug",
+          "role",
+          "joinedAt",
+          "isCurrent"
+        ]
+      },
+      "UserOrganizationListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SuccessResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "organizations": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/UserOrganization"
+                    }
+                  }
+                },
+                "required": ["organizations"]
+              }
+            }
+          }
+        ]
+      },
       "RegisterRequest": {
         "type": "object",
         "properties": {
@@ -2553,6 +2616,36 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/organizations": {
+      "get": {
+        "tags": ["Organizations"],
+        "summary": "List the caller's organizations",
+        "description": "Returns the organizations the authenticated user holds an active membership in, oldest membership first, with the caller's role in each. `isCurrent` marks the organization the access token is scoped to; pass any listed `organizationId` to `POST /auth/switch-org`. Scoped to the caller: it takes no parameters and never lists another user's organizations.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's organizations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOrganizationListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"

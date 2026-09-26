@@ -57,6 +57,7 @@ import {
   AcceptInviteRequestSchema,
   ChangeMemberRoleRequestSchema,
   MemberListResponseSchema,
+  UserOrganizationListResponseSchema,
   successEnvelope,
 } from "./openapi-schemas.js";
 import {
@@ -536,6 +537,36 @@ registry.registerPath({
     },
     409: {
       $ref: "#/components/responses/ConflictError",
+    },
+    500: {
+      $ref: "#/components/responses/InternalServerError",
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/organizations",
+  tags: ["Organizations"],
+  summary: "List the caller's organizations",
+  description:
+    "Returns the organizations the authenticated user holds an active membership in, " +
+    "oldest membership first, with the caller's role in each. `isCurrent` marks the " +
+    "organization the access token is scoped to; pass any listed `organizationId` to " +
+    "`POST /auth/switch-org`. Scoped to the caller: it takes no parameters and never " +
+    "lists another user's organizations.",
+  security: [{ BearerAuth: [] }],
+  responses: {
+    200: {
+      description: "The caller's organizations",
+      content: {
+        "application/json": {
+          schema: UserOrganizationListResponseSchema,
+        },
+      },
+    },
+    401: {
+      $ref: "#/components/responses/UnauthorizedError",
     },
     500: {
       $ref: "#/components/responses/InternalServerError",
