@@ -134,3 +134,17 @@ export const listMembers = catchAsync(
     successResponse(res, 200, { members });
   },
 );
+
+export const listMyOrganizations = catchAsync(
+  async (req: AuthRequest, res: Response) => {
+    assertAuthenticated(req);
+
+    // Scoped by the verified token only; the route takes no parameters.
+    const organizations = await getFeature().listUserOrganizations.execute({
+      userId: req.user.id,
+      currentOrganizationId: req.membership.organizationId,
+    });
+
+    successResponse(res, 200, { organizations });
+  },
+);

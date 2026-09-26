@@ -40,3 +40,17 @@ Record the Node version, whether it was the first run after an install, and whet
 failed. Two occurrences on 24 and none on 20 would justify bisecting; a hit on 20 settles it as
 pre-existing. Compare [`2026-09-24-todo-queue-test-intermittent-401.md`](2026-09-24-todo-queue-test-intermittent-401.md),
 the other intermittent integration failure seen once.
+
+## A second, different intermittent failure (2026-09-25, later)
+
+On `feat/list-user-organizations`, one full `npm test` run on Node 24.21.0 failed
+`metric-category.test.ts` › rejects invalid tokens. It failed not in an assertion but in the
+shared setup's `TRUNCATE TABLE ... RESTART IDENTITY CASCADE` (`jest.setup.ts:88`), with a Sequelize
+database error whose message printed empty. It ran directly after `analytics-caching.test.ts`. Three
+further full integration runs passed (202 passed, 5 skipped), one of them with `metric-category`
+running right after `organization-membership`.
+
+Two different one-off failures in the same week, both in the integration project and neither
+reproducible, point at shared test infrastructure (connection or lock state between suites) more
+than at either test. If either recurs, capture the full Postgres error first: the empty message is
+the missing evidence.

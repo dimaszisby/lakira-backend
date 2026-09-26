@@ -1,4 +1,4 @@
-import { Transaction } from "sequelize";
+import { Op, Transaction } from "sequelize";
 import { models } from "@/infrastructure/db/models.js";
 import { Organization } from "../../domain/entities/Organization.js";
 import { PersistenceTransaction } from "../../application/ports/TransactionPort.js";
@@ -22,6 +22,14 @@ export class OrganizationRepositorySequelize implements OrganizationRepository {
   async findById(id: string): Promise<Organization | null> {
     const row = await models.Organization.findByPk(id);
     return row ? toDomain(row) : null;
+  }
+
+  async findByIds(ids: string[]): Promise<Organization[]> {
+    if (ids.length === 0) return [];
+    const rows = await models.Organization.findAll({
+      where: { id: { [Op.in]: ids } },
+    });
+    return rows.map(toDomain);
   }
 
   async findBySlug(slug: string): Promise<Organization | null> {

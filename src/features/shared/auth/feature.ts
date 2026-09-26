@@ -35,6 +35,7 @@ import { AcceptInvite } from "./application/use-cases/AcceptInvite.js";
 import { RemoveMembership } from "./application/use-cases/RemoveMembership.js";
 import { ChangeMemberRole } from "./application/use-cases/ChangeMemberRole.js";
 import { ListOrganizationMembers } from "./application/queries/ListOrganizationMembers.js";
+import { ListUserOrganizations } from "./application/queries/ListUserOrganizations.js";
 import { OrganizationInviteRepositorySequelize } from "./infrastructure/persistence/OrganizationInviteRepositorySequelize.js";
 import { RefreshTokenCrypto } from "./infrastructure/providers/RefreshTokenCrypto.js";
 import { buildPasswordResetEmail } from "./infrastructure/email/templates/password-reset.js";
@@ -164,6 +165,7 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
     removeMembership: new RemoveMembership(membershipRepo),
     changeMemberRole: new ChangeMemberRole(membershipRepo),
     listOrganizationMembers: new ListOrganizationMembers(membershipRepo, repo),
+    listUserOrganizations: new ListUserOrganizations(membershipRepo, orgRepo),
     loginLockout,
   };
 };
