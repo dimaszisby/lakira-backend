@@ -36,17 +36,17 @@ secrets to end in one of the suffix words, or add a term to that module.
 
 ## Core
 
-| Variable                 | Type                                                 | Default                                         |
-| ------------------------ | ---------------------------------------------------- | ----------------------------------------------- |
-| `NODE_ENV`               | `development` \| `test` \| `staging` \| `production` | `development`                                   |
-| `PORT`                   | number                                               | `5000`                                          |
-| `JWT_SECRET`             | string                                               | **required**                                    |
-| `ACCESS_TOKEN_TTL_SEC`   | number                                               | `900` (15 min)                                  |
-| `REFRESH_TOKEN_TTL_DAYS` | number                                               | `30`                                            |
-| `CORS_ORIGIN`            | string                                               | optional — comma-separated allowlist            |
-| `TRUST_PROXY`            | number                                               | optional — hops to trust behind a load balancer |
-| `REQUEST_BODY_LIMIT`     | string                                               | `1mb`                                           |
-| `DEFAULT_TZ`             | string                                               | `Asia/Jakarta`                                  |
+| Variable                 | Type                                                 | Default                                                          |
+| ------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------- |
+| `NODE_ENV`               | `development` \| `test` \| `staging` \| `production` | `development`; the production image sets `production` (ADR-0050) |
+| `PORT`                   | number                                               | `5000`                                                           |
+| `JWT_SECRET`             | string                                               | **required**                                                     |
+| `ACCESS_TOKEN_TTL_SEC`   | number                                               | `900` (15 min)                                                   |
+| `REFRESH_TOKEN_TTL_DAYS` | number                                               | `30`                                                             |
+| `CORS_ORIGIN`            | string                                               | optional — comma-separated allowlist                             |
+| `TRUST_PROXY`            | number                                               | optional — hops to trust behind a load balancer                  |
+| `REQUEST_BODY_LIMIT`     | string                                               | `1mb`                                                            |
+| `DEFAULT_TZ`             | string                                               | `Asia/Jakarta`                                                   |
 
 ## Database
 
