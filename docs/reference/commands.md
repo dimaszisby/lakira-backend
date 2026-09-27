@@ -8,7 +8,7 @@ passed explicitly rather than through a `.sequelizerc`.
 ## Daily loop
 
 ```bash
-docker compose up -d db redis   # infrastructure
+docker compose up -d db redis mailpit   # infrastructure; mail at http://localhost:8025
 npm run migrate:development     # apply migrations
 npm run dev                     # tsx watch, port 5000
 ```

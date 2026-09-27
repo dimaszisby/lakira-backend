@@ -24,7 +24,8 @@ verbatim from a clean clone.
 
 ## How-to guides — task-oriented
 
-- [`development/`](./how-to/development/) — regenerate the OpenAPI spec, run Postgres in Docker
+- [`development/`](./how-to/development/) — regenerate the OpenAPI spec, run Postgres in Docker,
+  read application logs, read outbound email locally
 - [`testing/`](./how-to/testing/) — run the test suites
 - [`ci-cd/`](./how-to/ci-cd/) — the daily pipeline playbook
 - [`security/`](./how-to/security/) — run an audit, the release delta SOP, the branch model

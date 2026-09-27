@@ -27,7 +27,7 @@ graph TB
     subgraph inf ["infrastructure — adapters"]
         repos["persistence/<br/><small>*RepositorySequelize</small>"]
         models["persistence/models/<br/><small>Sequelize models</small>"]
-        prov["providers/<br/><small>JwtTokenProvider<br/>BcryptPasswordHasher<br/>Resend/ConsoleEmailSender</small>"]
+        prov["providers/<br/><small>JwtTokenProvider<br/>BcryptPasswordHasher<br/>Resend/Mailpit/ConsoleEmailSender</small>"]
         maps["mappers/<br/><small>row ⇄ entity</small>"]
     end
 

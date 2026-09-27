@@ -15,7 +15,7 @@ graph TB
     pg[("PostgreSQL<br/><small>system of record</small>")]
     redis[("Redis<br/><small>cache · rate limits · lockout</small>")]
     mq["RabbitMQ<br/><small>async jobs</small>"]
-    mail["Resend<br/><small>transactional email</small>"]
+    mail["Resend<br/><small>transactional email · Mailpit locally</small>"]
     sentry["Sentry<br/><small>error tracking</small>"]
 
     user --> web
@@ -50,7 +50,8 @@ different deployment. See [ADR-0030](../decisions/adr-0030-membership-role-repla
 
 **Three of the six externals are optional.** RabbitMQ is off unless `RABBITMQ_ENABLED=true` (a
 no-op queue is substituted). Sentry is off unless `SENTRY_DSN` is set. Email falls back to a
-console adapter unless `EMAIL_PROVIDER=resend`. Redis is required by default but the app degrades
+console adapter unless `EMAIL_PROVIDER` is `resend`, or `mailpit`, a local catcher that is
+refused in production (ADR-0048). Redis is required by default but the app degrades
 to in-memory rate limiting when `REDIS_REQUIRED=false`.
 
 That optionality is deliberate: a fork should boot with only PostgreSQL running. See

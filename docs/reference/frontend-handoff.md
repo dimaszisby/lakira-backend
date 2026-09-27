@@ -137,6 +137,17 @@ Minimum gate before FE production promotion:
 - Staging: use a dedicated synthetic test account (documented example: `staging-tester@lakira.app`). The CI smoke suite needs no account or token
 - Do not commit staging credentials; store them only in GitHub/Vercel secrets
 
+### Reading emailed tokens (verify, reset, invite)
+
+- **Local:** the backend's Compose stack runs Mailpit, and every email the API sends lands there.
+  The inbox is at `http://localhost:8025`; the API is `GET /api/v1/search?query=to:"<address>"`,
+  then `GET /api/v1/message/{ID}`, whose `Text` holds the link with `token=`. `DELETE
+/api/v1/messages` empties the inbox between tests. Recipe and a Cypress helper:
+  [`../how-to/development/read-outbound-email.md`](../how-to/development/read-outbound-email.md).
+- **Staging (Render):** still delivers through Resend, so tokens arrive only in real inboxes. The
+  VPS staging stack (ADR-0042) can run Mailpit too; `EMAIL_PROVIDER=mailpit` is allowed there.
+- **Production:** `EMAIL_PROVIDER=mailpit` is refused at startup (ADR-0048).
+
 ### Example post-deploy smoke sequence
 
 ```bash

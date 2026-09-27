@@ -95,7 +95,7 @@ The two findings that used to sit here are **closed**:
   ([ADR-0035](../explanation/decisions/adr-0035-tenant-scoped-cache-keys.md)), and an
   architecture test fails CI if a new cache key omits the organization segment.
 - Production-unsafe env switches — `DISABLE_RATE_LIMITING`, `ALLOW_TEST_HTTP_SERVER`,
-  `SWAGGER_REQUIRE_AUTH=false`, `SKIP_DB_LIFECYCLE`, `LOG_LEVEL=silly`, and default `guest`
+  `SWAGGER_REQUIRE_AUTH=false`, `SKIP_DB_LIFECYCLE`, `LOG_LEVEL=silly`, `EMAIL_PROVIDER=mailpit`, and default `guest`
   RabbitMQ credentials — are refused at startup when `NODE_ENV=production`
   ([ADR-0036](../explanation/decisions/adr-0036-refuse-production-unsafe-env-switches.md)).
 
