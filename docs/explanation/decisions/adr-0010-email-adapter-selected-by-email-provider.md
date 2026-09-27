@@ -22,3 +22,9 @@ Introduce `EMAIL_PROVIDER` enum (`console | resend`). Default by `NODE_ENV` but 
 ## Consequences
 
 Two env vars must stay in sync (`EMAIL_PROVIDER` + `RESEND_API_KEY`). Mitigated by the fail-fast boot guard.
+
+> **2026-09-27:** selection by `EMAIL_PROVIDER` still holds, but staging can no longer override to
+> `console`: [ADR-0049](./adr-0049-console-email-adapter-confined-to-dev-and-test.md) refuses it
+> unless `NODE_ENV` is `development` or `test`, because it logs email bodies, tokens included. A
+> staging environment uses `resend`, or `mailpit` on the VPS stack
+> ([ADR-0048](./adr-0048-mailpit-for-local-outbound-email.md)).

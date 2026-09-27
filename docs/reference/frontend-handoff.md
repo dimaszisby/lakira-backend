@@ -146,7 +146,9 @@ Minimum gate before FE production promotion:
   [`../how-to/development/read-outbound-email.md`](../how-to/development/read-outbound-email.md).
 - **Staging (Render):** still delivers through Resend, so tokens arrive only in real inboxes. The
   VPS staging stack (ADR-0042) can run Mailpit too; `EMAIL_PROVIDER=mailpit` is allowed there.
-- **Production:** `EMAIL_PROVIDER=mailpit` is refused at startup (ADR-0048).
+- **Production:** `EMAIL_PROVIDER=mailpit` is refused at startup (ADR-0048), and
+  `EMAIL_PROVIDER=console`, which logs email bodies, is refused in staging and production
+  (ADR-0049).
 
 ### Example post-deploy smoke sequence
 

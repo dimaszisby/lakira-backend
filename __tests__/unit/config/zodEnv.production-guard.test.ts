@@ -23,6 +23,9 @@ const PRODUCTION_BASE: Record<string, string> = {
   // npm run test:unit exports SKIP_DB_LIFECYCLE=true, and it is refused in production —
   // without this every case would trip on the ambient value instead of the rule under test.
   SKIP_DB_LIFECYCLE: "false",
+  // loadEnv falls back to .env for anything .env.test leaves unset, and a developer's
+  // .env commonly says EMAIL_PROVIDER=console, which production refuses (ADR-0049).
+  EMAIL_PROVIDER: "resend",
 };
 
 const inProduction = (overrides: Record<string, string>) =>
@@ -124,6 +127,32 @@ describe("zodEnv production-unsafe switch refusal (ADR-0036)", () => {
       }),
     ).resolves.toBeUndefined();
   });
+
+  it.each(["production", "staging"])(
+    'refuses EMAIL_PROVIDER="console" when NODE_ENV=%s (ADR-0049)',
+    async (nodeEnv) => {
+      await expect(
+        withTestEnv(noop, {
+          overrides: {
+            ...PRODUCTION_BASE,
+            NODE_ENV: nodeEnv,
+            EMAIL_PROVIDER: "console",
+          },
+        }),
+      ).rejects.toMatchObject(refusalFor("EMAIL_PROVIDER"));
+    },
+  );
+
+  it.each(["development", "test"])(
+    'allows EMAIL_PROVIDER="console" when NODE_ENV=%s',
+    async (nodeEnv) => {
+      await expect(
+        withTestEnv(noop, {
+          overrides: { NODE_ENV: nodeEnv, EMAIL_PROVIDER: "console" },
+        }),
+      ).resolves.toBeUndefined();
+    },
+  );
 
   it("catches a capitalized NODE_ENV, which a raw process.env check would miss", async () => {
     await expect(

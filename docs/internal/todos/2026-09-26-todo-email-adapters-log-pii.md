@@ -1,6 +1,8 @@
 # Todo — the email adapters log recipients, and the console adapter logs tokens
 
-- **Status:** Open
+- **Status:** Done on `fix/email-adapters-log-pii` (off `origin/dev` 0a7920c), 2026-09-27 —
+  see [ADR-0049](../../explanation/decisions/adr-0049-console-email-adapter-confined-to-dev-and-test.md)
+  and the [`email-adapters-log-pii`](../initiatives/email-adapters-log-pii/README.md) kit
 - **Created:** 2026-09-26
 - **Owner:** unassigned
 - **Origin:** found in review by the `dev-mail-catcher` kit, whose new adapter avoided the same
@@ -30,3 +32,8 @@ for development and test, but nothing stops `EMAIL_PROVIDER=console` being set i
   that Mailpit covers local reading. Either refuse it outside `development`/`test` (another
   ADR-0036 row), or stop logging `text` and `to`. If it keeps logging the body for local use,
   confine that to `NODE_ENV=development`.
+
+## Outcome
+
+The user chose the first option: `console` is refused unless `NODE_ENV` is `development` or
+`test`, and keeps logging the body there. `ResendEmailSender` no longer logs `to`.
