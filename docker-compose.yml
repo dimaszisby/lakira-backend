@@ -84,6 +84,24 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  mailpit: # Local mail catcher: every email the app sends lands here (ADR-0048)
+    # Inbox and HTTP API at http://localhost:8025 — see
+    # docs/how-to/development/read-outbound-email.md. The app delivers through Mailpit's
+    # HTTP send API; SMTP on 1025 is published only for tools that speak SMTP.
+    image: axllent/mailpit:v1.31
+    container_name: mailpit
+    restart: always
+    ports:
+      - "8025:8025" # Web inbox and HTTP API
+      - "1025:1025" # SMTP
+    networks:
+      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   app: # Node.js backend application service
     build: # Define build context and Dockerfile
       context: .
@@ -107,6 +125,9 @@ services:
       DEVELOPMENT_DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       REDIS_HOST: redis
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+      # Mail goes to the mailpit service, whatever .env says (ADR-0048, D-04).
+      EMAIL_PROVIDER: mailpit
+      MAILPIT_URL: http://mailpit:8025
     depends_on: # Ensure dependencies are running before starting the app
       db:
         condition: service_healthy
@@ -114,6 +135,8 @@ services:
         condition: service_started # Redis doesn't have a built-in healthcheck like postgres
       rabbitmq:
         condition: service_healthy
+      mailpit:
+        condition: service_healthy # The image ships its own healthcheck
     ports: # Expose the application port
       # Host 8001 -> container 5000. Host 5000 collides with AirPlay Receiver on macOS.
       - "8001:5000"

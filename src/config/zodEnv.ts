@@ -304,7 +304,7 @@ const envSchema = z
     EMAIL_PROVIDER: z
       .preprocess(
         (val) => (typeof val === "string" ? val.toLowerCase() : val),
-        z.enum(["console", "resend"]),
+        z.enum(["console", "resend", "mailpit"]),
       )
       .default(
         ["development", "test"].includes(process.env.NODE_ENV ?? "")
@@ -312,6 +312,8 @@ const envSchema = z
           : "resend",
       ),
     RESEND_API_KEY: z.string().optional(),
+    // Base URL of a Mailpit instance, used only when EMAIL_PROVIDER=mailpit (ADR-0048).
+    MAILPIT_URL: z.string().url().default("http://localhost:8025"),
     EMAIL_FROM: z.string().default("onboarding@resend.dev"),
     FRONTEND_RESET_URL: z
       .string()
@@ -449,6 +451,13 @@ const envSchema = z
       refuse(
         "LOG_LEVEL",
         'LOG_LEVEL cannot be "silly" when NODE_ENV=production — it is a firehose and would bury real signal in the log stream.',
+      );
+    }
+
+    if (data.EMAIL_PROVIDER === "mailpit") {
+      refuse(
+        "EMAIL_PROVIDER",
+        'EMAIL_PROVIDER cannot be "mailpit" when NODE_ENV=production — every email, tokens included, would go to a local catcher instead of its recipient (ADR-0048).',
       );
     }
 

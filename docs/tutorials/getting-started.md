@@ -51,11 +51,14 @@ node -e "console.log('JWT_SECRET=' + require('crypto').randomBytes(32).toString(
 Paste the output over the `JWT_SECRET=` line in `.env`. Every other variable has a working
 default — see [`../reference/configuration.md`](../reference/configuration.md).
 
-## 3. Start PostgreSQL and Redis
+## 3. Start PostgreSQL, Redis and Mailpit
 
 ```bash
-docker compose up -d db redis
+docker compose up -d db redis mailpit
 ```
+
+Mailpit catches every email the API sends: open <http://localhost:8025> to read them
+([`../how-to/development/read-outbound-email.md`](../how-to/development/read-outbound-email.md)).
 
 Compose reads `DB_USER`, `DB_PASSWORD`, and `DB_NAME` from `.env` to create the database, so step
 2 has to come first. Wait for the healthcheck:
@@ -119,6 +122,9 @@ The response carries a token **and** a user. Note the `organizationId` inside th
 creates a personal organization and makes you its owner. Every row you create from here belongs to
 that organization. That is the multi-tenancy model doing its job invisibly —
 [`../explanation/architecture/c4-components-auth.md`](../explanation/architecture/c4-components-auth.md).
+
+Registering also sends a verification email. It is in Mailpit at <http://localhost:8025>; the
+link's `token` value is what `POST /api/v1/auth/verify-email` takes.
 
 ## 7. Log in and keep the token
 

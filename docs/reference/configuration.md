@@ -149,25 +149,34 @@ worker before `npm test`, because it would consume the test's messages.
 > production-unsafe switches listed in
 > [ADR-0036](../explanation/decisions/adr-0036-refuse-production-unsafe-env-switches.md):
 > `ALLOW_TEST_HTTP_SERVER=true`, `SWAGGER_REQUIRE_AUTH=false`, `SKIP_DB_LIFECYCLE=true`,
-> `LOG_LEVEL=silly`, and default `guest` RabbitMQ credentials when `RABBITMQ_ENABLED=true`. The process exits before binding a
+> `LOG_LEVEL=silly`, `EMAIL_PROVIDER=mailpit` (ADR-0048), and default `guest` RabbitMQ credentials when `RABBITMQ_ENABLED=true`. The process exits before binding a
 > listener and logs a structured `[ENV_ERROR]` line naming the offending variable.
 
 ## Email
 
-| Variable                     | Type                  | Default                                       |
-| ---------------------------- | --------------------- | --------------------------------------------- |
-| `EMAIL_PROVIDER`             | `console` \| `resend` | `console` in development/test, else `resend`  |
-| `RESEND_API_KEY`             | string                | optional — required when provider is `resend` |
-| `EMAIL_FROM`                 | string                | `onboarding@resend.dev`                       |
-| `FRONTEND_RESET_URL`         | string                | `http://localhost:3000/reset-password`        |
-| `FRONTEND_VERIFY_URL`        | string                | `http://localhost:3000/verify-email`          |
-| `FRONTEND_INVITE_URL`        | string                | `http://localhost:3000/invites/accept`        |
-| `EMAIL_VERIFICATION_TTL_SEC` | number                | `86400` (24 h)                                |
-| `INVITE_TOKEN_TTL_DAYS`      | number                | `7`                                           |
+| Variable                     | Type                               | Default                                                   |
+| ---------------------------- | ---------------------------------- | --------------------------------------------------------- |
+| `EMAIL_PROVIDER`             | `console` \| `resend` \| `mailpit` | `console` in development/test, else `resend`              |
+| `RESEND_API_KEY`             | string                             | optional — required when provider is `resend`             |
+| `MAILPIT_URL`                | URL                                | `http://localhost:8025` — used when provider is `mailpit` |
+| `EMAIL_FROM`                 | string                             | `onboarding@resend.dev`                                   |
+| `FRONTEND_RESET_URL`         | string                             | `http://localhost:3000/reset-password`                    |
+| `FRONTEND_VERIFY_URL`        | string                             | `http://localhost:3000/verify-email`                      |
+| `FRONTEND_INVITE_URL`        | string                             | `http://localhost:3000/invites/accept`                    |
+| `EMAIL_VERIFICATION_TTL_SEC` | number                             | `86400` (24 h)                                            |
+| `INVITE_TOKEN_TTL_DAYS`      | number                             | `7`                                                       |
 
 The provider is chosen by `EMAIL_PROVIDER`, not by `NODE_ENV`, so a staging environment can send
-real mail without pretending to be production. The `console` adapter prints the message instead
-of sending it.
+real mail without pretending to be production. The `console` adapter logs the message instead of
+sending it. The development log format drops the body, so use `mailpit` to read tokens.
+
+`mailpit` delivers every email to a local [Mailpit](https://mailpit.axllent.org) catcher through
+its HTTP API, so tokens can be read in its inbox or from a test
+([`../how-to/development/read-outbound-email.md`](../how-to/development/read-outbound-email.md)).
+It is refused when `NODE_ENV=production` and allowed in staging for the VPS stack
+([ADR-0048](../explanation/decisions/adr-0048-mailpit-for-local-outbound-email.md)). The Compose
+`app` service always uses it. `MAILPIT_URL` ends in `url`, so it is masked in environment dumps
+like every other URL.
 
 ## Analytics & visualization
 

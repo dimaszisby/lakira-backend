@@ -85,10 +85,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0045](./adr-0045-feature-modules-construct-nothing-on-import.md)            | Feature modules construct nothing on import; `index.ts` serves the composition root, `public.ts` serves siblings | Accepted               | 2026-09-24 | routers-at-module-scope D-01/D-02  |
 | [ADR-0046](./adr-0046-node-24-runtime.md)                                        | The runtime is Node 24; CI reads the version from `.nvmrc`                                                       | Accepted               | 2026-09-25 | node-24-runtime D-01..D-04         |
 | [ADR-0047](./adr-0047-caller-organizations-collection-route.md)                  | The caller's organizations are a collection route, `GET /organizations`, scoped by the token                     | Accepted               | 2026-09-25 | list-user-organizations D-01..D-03 |
+| [ADR-0048](./adr-0048-mailpit-for-local-outbound-email.md)                       | Outbound email is readable locally through Mailpit; the `mailpit` provider is refused in production              | Accepted               | 2026-09-26 | dev-mail-catcher D-01..D-04        |
 
 ## Adding one
 
-Take the next free number — **ADR-0048** as of 2026-09-25 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0049** as of 2026-09-26 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 

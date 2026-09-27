@@ -45,3 +45,7 @@ Any environment variable whose `true` value would weaken a production security c
 - `.claude/rules/security.md` (which will reference this ADR)
 
 ---
+
+> **2026-09-26:** [ADR-0048](./adr-0048-mailpit-for-local-outbound-email.md) adds
+> `EMAIL_PROVIDER=mailpit` to the refused set. The table above is the original set; the live list
+> is the `superRefine` block in `src/config/zodEnv.ts`, which also refuses `LOG_LEVEL=silly`.

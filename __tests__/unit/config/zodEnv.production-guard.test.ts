@@ -111,6 +111,20 @@ describe("zodEnv production-unsafe switch refusal (ADR-0036)", () => {
     ).resolves.toBeUndefined();
   });
 
+  it('refuses EMAIL_PROVIDER="mailpit" in production (ADR-0048)', async () => {
+    await expect(
+      inProduction({ EMAIL_PROVIDER: "mailpit" }),
+    ).rejects.toMatchObject(refusalFor("EMAIL_PROVIDER"));
+  });
+
+  it('allows EMAIL_PROVIDER="mailpit" in staging, for the VPS stack', async () => {
+    await expect(
+      withTestEnv(noop, {
+        overrides: { NODE_ENV: "staging", EMAIL_PROVIDER: "mailpit" },
+      }),
+    ).resolves.toBeUndefined();
+  });
+
   it("catches a capitalized NODE_ENV, which a raw process.env check would miss", async () => {
     await expect(
       withTestEnv(noop, {

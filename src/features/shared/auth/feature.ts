@@ -14,6 +14,7 @@ import { BcryptPasswordHasher } from "./infrastructure/providers/BcryptPasswordH
 import { JwtTokenProvider } from "./infrastructure/providers/JwtTokenProvider.js";
 import { ConsoleEmailSender } from "./infrastructure/providers/ConsoleEmailSender.js";
 import { ResendEmailSender } from "./infrastructure/providers/ResendEmailSender.js";
+import { MailpitEmailSender } from "./infrastructure/providers/MailpitEmailSender.js";
 import { EmailSender } from "./application/ports/EmailSender.js";
 import { OrganizationRepositorySequelize } from "./infrastructure/persistence/OrganizationRepositorySequelize.js";
 import { MembershipRepositorySequelize } from "./infrastructure/persistence/MembershipRepositorySequelize.js";
@@ -50,6 +51,9 @@ const buildEmailSender = (): EmailSender => {
       );
     }
     return new ResendEmailSender(env.RESEND_API_KEY, env.EMAIL_FROM);
+  }
+  if (env.EMAIL_PROVIDER === "mailpit") {
+    return new MailpitEmailSender(env.MAILPIT_URL, env.EMAIL_FROM);
   }
   return new ConsoleEmailSender();
 };

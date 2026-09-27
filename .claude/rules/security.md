@@ -64,6 +64,8 @@ and limits stop being shared across instances (twelve-factor TF-12).
   redacts credential headers, drops cookies, and applies the same pattern to the body, `extra` and
   `contexts`
 - Never log passwords, tokens, or PII
+- `EMAIL_PROVIDER=mailpit` sends every email, tokens included, to a local catcher. Startup
+  refuses it when `NODE_ENV=production` (ADR-0048); staging may use it.
 - Passwords hashed with bcrypt via `PasswordHasher` port
 
 ## Security CI Pipeline
