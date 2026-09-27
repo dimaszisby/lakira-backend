@@ -73,12 +73,15 @@ reading once. To start a test from an empty inbox, call `DELETE http://localhost
 
 ## Where it is allowed
 
-| `NODE_ENV`    | `EMAIL_PROVIDER=mailpit`                                                  |
-| ------------- | ------------------------------------------------------------------------- |
-| `development` | yes; the recommended local setting                                        |
-| `test`        | allowed, but `.env.test.example` pins `console` so tests never need it    |
-| `staging`     | allowed, for the VPS Compose stack (ADR-0042); Render staging uses Resend |
-| `production`  | **refused at startup**: the process exits before listening (ADR-0036)     |
+| `NODE_ENV`    | `EMAIL_PROVIDER=mailpit`                                                  | `EMAIL_PROVIDER=console`          |
+| ------------- | ------------------------------------------------------------------------- | --------------------------------- |
+| `development` | yes; the recommended local setting                                        | allowed; the schema default       |
+| `test`        | allowed, but `.env.test.example` pins `console` so tests never need it    | allowed; the pinned test setting  |
+| `staging`     | allowed, for the VPS Compose stack (ADR-0042); Render staging uses Resend | **refused at startup** (ADR-0049) |
+| `production`  | **refused at startup**: the process exits before listening (ADR-0048)     | **refused at startup** (ADR-0049) |
+
+`console` logs every email body, tokens included, so it may only run where the log stays on your
+own machine.
 
 The test suites inject a fake `EmailSender` or use `console`, and CI runs no Mailpit. Add
 `EMAIL_PROVIDER=console` to your own `.env.test` if it predates this change: `loadEnv` falls back

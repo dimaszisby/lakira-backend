@@ -149,7 +149,7 @@ worker before `npm test`, because it would consume the test's messages.
 > production-unsafe switches listed in
 > [ADR-0036](../explanation/decisions/adr-0036-refuse-production-unsafe-env-switches.md):
 > `ALLOW_TEST_HTTP_SERVER=true`, `SWAGGER_REQUIRE_AUTH=false`, `SKIP_DB_LIFECYCLE=true`,
-> `LOG_LEVEL=silly`, `EMAIL_PROVIDER=mailpit` (ADR-0048), and default `guest` RabbitMQ credentials when `RABBITMQ_ENABLED=true`. The process exits before binding a
+> `LOG_LEVEL=silly`, `EMAIL_PROVIDER=mailpit` (ADR-0048), `EMAIL_PROVIDER=console` (ADR-0049; refused in staging too), and default `guest` RabbitMQ credentials when `RABBITMQ_ENABLED=true`. The process exits before binding a
 > listener and logs a structured `[ENV_ERROR]` line naming the offending variable.
 
 ## Email
@@ -167,8 +167,12 @@ worker before `npm test`, because it would consume the test's messages.
 | `INVITE_TOKEN_TTL_DAYS`      | number                             | `7`                                                       |
 
 The provider is chosen by `EMAIL_PROVIDER`, not by `NODE_ENV`, so a staging environment can send
-real mail without pretending to be production. The `console` adapter logs the message instead of
-sending it. The development log format drops the body, so use `mailpit` to read tokens.
+real mail without pretending to be production. The `console` adapter logs the message, body and
+recipient included, instead of sending it. Because the body carries verify, reset and invite
+tokens, `console` is **refused unless `NODE_ENV` is `development` or `test`**
+([ADR-0049](../explanation/decisions/adr-0049-console-email-adapter-confined-to-dev-and-test.md)).
+The development log format drops the body anyway, so use `mailpit` to read tokens. The Resend
+adapter logs only the subject and error when a send fails, never the recipient.
 
 `mailpit` delivers every email to a local [Mailpit](https://mailpit.axllent.org) catcher through
 its HTTP API, so tokens can be read in its inbox or from a test

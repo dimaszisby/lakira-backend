@@ -49,3 +49,7 @@ Any environment variable whose `true` value would weaken a production security c
 > **2026-09-26:** [ADR-0048](./adr-0048-mailpit-for-local-outbound-email.md) adds
 > `EMAIL_PROVIDER=mailpit` to the refused set. The table above is the original set; the live list
 > is the `superRefine` block in `src/config/zodEnv.ts`, which also refuses `LOG_LEVEL=silly`.
+
+> **2026-09-27:** [ADR-0049](./adr-0049-console-email-adapter-confined-to-dev-and-test.md) adds
+> `EMAIL_PROVIDER=console`, refused unless `NODE_ENV` is `development` or `test`. It is the first
+> entry that also applies in staging.

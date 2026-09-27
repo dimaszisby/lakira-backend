@@ -414,10 +414,24 @@ const envSchema = z
     //
     // Reads the normalized `data.NODE_ENV` rather than raw process.env so that
     // `NODE_ENV=Production` is caught too (the schema lowercases it on the way in).
-    if (data.NODE_ENV !== "production") return;
-
     const refuse = (path: string, message: string) =>
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+
+    // ADR-0049: the console adapter logs every email body, reset and invite tokens
+    // included, so it may only run where logs stay on a developer's machine. This one
+    // also covers staging, so it sits above the production-only return below.
+    if (
+      data.EMAIL_PROVIDER === "console" &&
+      data.NODE_ENV !== "development" &&
+      data.NODE_ENV !== "test"
+    ) {
+      refuse(
+        "EMAIL_PROVIDER",
+        `EMAIL_PROVIDER cannot be "console" when NODE_ENV=${data.NODE_ENV} — it logs every email body, reset and invite tokens included (ADR-0049). Use "resend", or "mailpit" in staging.`,
+      );
+    }
+
+    if (data.NODE_ENV !== "production") return;
 
     if (data.DISABLE_RATE_LIMITING) {
       refuse(
