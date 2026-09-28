@@ -34,7 +34,18 @@ const hookFilePath = path.join(
 
 const DEFAULT_TAGS =
   process.env.SCHEMATHESIS_LOCAL_ENDPOINT_TAGS ??
-  "Auth,Analytics,Metrics,Metric Logs,Metric Settings,Metric Categories,Trends";
+  "Auth,Analytics,Metrics,Metric Logs,Metric Settings,Metric Categories,Trends,Organizations";
+// Operations inside an included tag that the gate cannot fuzz meaningfully. Each is
+// passed as --exclude-name, and each carries its reason (fuzz-organization-routes kit).
+const EXCLUDED_OPERATIONS = [
+  {
+    name: "POST /invites/accept",
+    // A valid token exists only in an invite email, so every generated body is a random
+    // token the API rightly answers with 400. Included, it passes but tests only that
+    // rejection and adds a "schema validation mismatch" warning (observed 2026-09-29).
+    reason: "no reachable valid token; would test only the 400 path",
+  },
+];
 const HEALTH_TIMEOUT_MS = Number(
   process.env.SCHEMATHESIS_HEALTH_TIMEOUT_MS ?? 10000,
 );
@@ -293,6 +304,10 @@ async function main() {
   const tags = buildTags(DEFAULT_TAGS);
   tags.forEach((tag) => {
     args.push("--include-tag", tag);
+  });
+
+  EXCLUDED_OPERATIONS.forEach(({ name }) => {
+    args.push("--exclude-name", name);
   });
 
   if (process.env.SCHEMATHESIS_LOCAL_ENDPOINTS) {

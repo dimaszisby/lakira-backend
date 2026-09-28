@@ -1,6 +1,7 @@
 # Todo — the `Organizations` routes are never contract-fuzzed
 
-- **Status:** Open
+- **Status:** Done on `test/fuzz-organization-routes` (off `origin/dev` cdc9090), 2026-09-29 —
+  see the [`fuzz-organization-routes`](../initiatives/fuzz-organization-routes/README.md) kit
 - **Created:** 2026-09-25
 - **Owner:** unassigned
 - **Origin:** found by the `list-user-organizations` kit, whose new route the gate did not select
@@ -46,3 +47,11 @@ a seeding or skip decision, and the gate's `Selected` figure and runtime will ch
 Start with the read-only pair, `GET /organizations` and `GET /organizations/{id}/members`, using
 `SCHEMATHESIS_LOCAL_ENDPOINTS`, or split the tag. Decide the write routes one at a time. Record
 the new `Selected` figure in `docs/reference/api/README.md`.
+
+## Outcome
+
+`Organizations` is in `DEFAULT_TAGS`. Five of its six operations are fuzzed: the two reads, invites,
+and both membership writes, against the seeded primary organization, 41 seeded members and a
+deletable-membership pool. `POST /invites/accept` is excluded by name; this todo guessed it would
+need a real token, and in practice it passes with random ones but tests only the 400 path. The gate
+went from 37/47 to 42/47 selected, passing, with the warnings unchanged.

@@ -43,17 +43,20 @@ Full workflow: [`../../how-to/development/regenerate-the-openapi-spec.md`](../..
 (7), `Dummy Data` (3), `Analytics` (2), `Trends` (1) and `Admin` (1).
 
 Two routes are served but intentionally absent from the spec. Separately, the local contract run
-fuzzes only the tags in `DEFAULT_TAGS` (`tests/contract/schemathesis/scripts/run-local.js`), so
-three documented tags are never fuzzed: `Admin` (1), `Organizations` (6) and `Dummy Data` (3). That
-is why the gate reports 37 of 47 operations selected.
+fuzzes only the tags in `DEFAULT_TAGS`, minus the operations named in `EXCLUDED_OPERATIONS` (both in
+`tests/contract/schemathesis/scripts/run-local.js`). Two documented tags are not fuzzed, `Admin` (1)
+and `Dummy Data` (3), and one operation is excluded by name, so the gate reports **42 of 47**
+operations selected (seed 42, as of 2026-09-29). The organization routes are fuzzed against the
+seeded primary organization, its members and a pool of deletable memberships
+([`fuzz-organization-routes`](../../internal/initiatives/fuzz-organization-routes/README.md)).
 
-| Route                              | Why                                                                                                                                                                                |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/v1/health`               | liveness probe, not part of the API contract                                                                                                                                       |
-| `GET /api/v1/ready`                | readiness probe — pings Postgres and Redis                                                                                                                                         |
-| `GET /api/v1/admin/_ping`          | documented under the `Admin` tag, which is **excluded from the contract-test tag set** — the seeded fixtures hold no admin role, so fuzzing it would only produce 403s             |
-| `Organizations` tag (6 operations) | no recorded reason; the tag list predates the organization routes. Covered by integration tests only. Tracked in `docs/internal/todos/2026-09-25-todo-fuzz-organization-routes.md` |
-| `Dummy Data` tag (3 operations)    | no recorded reason                                                                                                                                                                 |
+| Route                           | Why                                                                                                                                                                                                                                                |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/health`            | liveness probe, not part of the API contract                                                                                                                                                                                                       |
+| `GET /api/v1/ready`             | readiness probe — pings Postgres and Redis                                                                                                                                                                                                         |
+| `GET /api/v1/admin/_ping`       | documented under the `Admin` tag, which is **excluded from the contract-test tag set** — the seeded fixtures hold no admin role, so fuzzing it would only produce 403s                                                                             |
+| `POST /api/v1/invites/accept`   | excluded by name: a valid token exists only in an invite email, so every generated body is a random token the API rightly answers with 400. Included, it passes but tests only that rejection. The accept path is covered by the integration suite |
+| `Dummy Data` tag (3 operations) | no recorded reason                                                                                                                                                                                                                                 |
 
 ## Known gaps
 
