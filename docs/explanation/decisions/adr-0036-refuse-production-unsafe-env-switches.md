@@ -53,3 +53,7 @@ Any environment variable whose `true` value would weaken a production security c
 > **2026-09-27:** [ADR-0049](./adr-0049-console-email-adapter-confined-to-dev-and-test.md) adds
 > `EMAIL_PROVIDER=console`, refused unless `NODE_ENV` is `development` or `test`. It is the first
 > entry that also applies in staging.
+
+> **2026-09-28:** every refusal here is keyed on `NODE_ENV`. The production image now defaults it to
+> `production` ([ADR-0050](./adr-0050-production-image-defaults-node-env.md)), so the refusals hold
+> even when a deployer sets nothing.

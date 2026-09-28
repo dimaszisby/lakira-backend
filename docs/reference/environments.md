@@ -229,5 +229,9 @@ the VPS rather than Render.
 - **Database:** `lakira_prod` with stricter access controls.
 - **Secrets the `deploy_production` job reads:** `RENDER_PRODUCTION_DEPLOY_HOOK_URL`, `PRODUCTION_HEALTH_URL`, `PRODUCTION_DATABASE_URL`, `JWT_SECRET_PRODUCTION`.
 - **Contract tests:** You may run **read-only** contract tests against prod, but **avoid destructive requests** (no DELETE / PUT that modify data) unless using a dedicated prod test tenant.
+- **`NODE_ENV`:** the production image defaults it to `production`
+  ([ADR-0050](../explanation/decisions/adr-0050-production-image-defaults-node-env.md)), so a
+  container that sets nothing still gets every production startup refusal. A staging container must
+  set `NODE_ENV=staging` explicitly; forgetting it fails safe, under production rules.
 
 Document those here once created.

@@ -8,6 +8,10 @@ RUN npm run build
 
 # ── Stage 2: runtime ────────────────────────────────────────────────────────
 FROM node:24-alpine AS runtime
+# Fail safe (ADR-0050): without this, NODE_ENV defaults to development and every
+# ADR-0036 startup refusal is off. A runtime value still wins, so staging sets
+# NODE_ENV=staging. Runtime stage only: the build stage's npm ci needs devDependencies.
+ENV NODE_ENV=production
 RUN apk add --no-cache dumb-init
 WORKDIR /app
 COPY --from=build /app/dist ./dist

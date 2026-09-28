@@ -13,13 +13,13 @@ npm run migrate:development     # apply migrations
 npm run dev                     # tsx watch, port 5000
 ```
 
-| Command                | Does                                                                                          |
-| ---------------------- | --------------------------------------------------------------------------------------------- |
-| `npm run dev`          | Dev server with hot reload                                                                    |
-| `npm run build`        | Compile to `dist/` and rewrite path aliases                                                   |
-| `npm run docker:build` | Build the production `Dockerfile` as `lakira-backend:local` — CI does not build it yet (TF-2) |
-| `npm start`            | Production server from `dist/`                                                                |
-| `npm run worker`       | RabbitMQ consumer process (`worker:dev` for watch mode)                                       |
+| Command                | Does                                                                                                                                                  |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`          | Dev server with hot reload                                                                                                                            |
+| `npm run build`        | Compile to `dist/` and rewrite path aliases                                                                                                           |
+| `npm run docker:build` | Build the production `Dockerfile` as `lakira-backend:local` — CI does not build it yet (TF-2). The image defaults to `NODE_ENV=production` (ADR-0050) |
+| `npm start`            | Production server from `dist/`                                                                                                                        |
+| `npm run worker`       | RabbitMQ consumer process (`worker:dev` for watch mode)                                                                                               |
 
 ## Quality gates
 
