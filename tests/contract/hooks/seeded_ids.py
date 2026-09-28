@@ -52,6 +52,9 @@ DELETABLE = SEED_DATA.get("deletable") or {}
 PRIMARY_USER = SEED_DATA.get("primaryUser") or {}
 PRIMARY_USER_EMAIL = PRIMARY_USER.get("email")
 PRIMARY_USER_PASSWORD = PRIMARY_USER.get("password")
+# The organization the primary token is scoped to. Organization routes answer 403 for any
+# other id, so fuzzing them with random UUIDs would only exercise the rejection.
+PRIMARY_ORG_ID = PRIMARY_USER.get("organizationId")
 
 
 def _pick_metric(keys: tuple[str, ...]) -> Optional[Dict[str, Any]]:
@@ -96,6 +99,8 @@ DELETABLE_SETTINGS_IDS = _rotate_ids_for_worker(
     list(DELETABLE.get("metricSettingsIds") or [])
 )
 DELETABLE_LOG_IDS = _rotate_ids_for_worker(list(DELETABLE.get("metricLogIds") or []))
+DELETABLE_MEMBERSHIP_IDS = _rotate_ids_for_worker(list(DELETABLE.get("membershipIds") or []))
+PATCH_MEMBERSHIP_ID = SEED_DATA.get("patchMembershipId")
 CREATED_METRIC_IDS: list[str] = []
 CREATED_CATEGORY_IDS: list[str] = []
 CREATED_LOG_IDS: list[str] = []
@@ -548,6 +553,28 @@ def inject_seeded_ids(context, case, kwargs) -> None:  # kwargs unused but requi
             body.setdefault("color", "#10B981")
             body.setdefault("icon", "🧪")
             _set_case_body(case, body)
+
+    # Organization routes (fuzz-organization-routes kit)
+    if _is_path(case, "/organizations/{id}/members"):
+        case.path_parameters = _update(case.path_parameters, {"id": PRIMARY_ORG_ID})
+    if _is_path(case, "/memberships/{id}"):
+        if method == "DELETE":
+            membership_id = _pop_deletable(DELETABLE_MEMBERSHIP_IDS, "membership")
+        else:
+            membership_id = PATCH_MEMBERSHIP_ID
+            body = case.body if isinstance(case.body, dict) else {}
+            if body.get("role") not in ("admin", "member"):
+                body["role"] = "member"
+            _set_case_body(case, body)
+        case.path_parameters = _update(case.path_parameters, {"id": membership_id})
+    if method == "POST" and _is_path(case, "/organizations/{id}/invites"):
+        case.path_parameters = _update(case.path_parameters, {"id": PRIMARY_ORG_ID})
+        body = case.body if isinstance(case.body, dict) else {}
+        # A unique address per case: a repeat is (correctly) a 409 pending-invite conflict.
+        body["email"] = f"invitee-{_unique_suffix()}@example.com"
+        if body.get("role") not in ("admin", "member"):
+            body["role"] = "member"
+        _set_case_body(case, body)
 
     # Analytics dashboard range normalization (no seed data required).
     if _is_path(case, "/analytics/dashboard"):
