@@ -60,3 +60,13 @@ and `index.ts` exports that follow.
 
 `npx eslint src` must be clean, and the rule must be **seen to reject** a deliberate violation added
 outside `src/features/` before it is trusted — the failure this whole kit exists to prevent.
+
+## Audience-prefixed paths bypass the rule (2026-09-29)
+
+`audit-2026-09-29.md` §4.1 (C4, reopened at P2): the patterns in `eslint.config.mjs:70,79-83` match
+one path segment after `features/`, so `@/features/shared/auth/domain/...` and
+`@/features/public/metric/application/...` pass. A throwaway file linted clean with the first, while
+`@/features/metric/application/...` was rejected. Nine live imports of
+`@/features/public/metric/application/ports/MetricAccessPort.js` use this route (ADR-0023 decision 1
+says consumers own that port). Fix with audience-aware patterns, and persist the negative cases
+ADR-0044 decision 6 asks for, as a unit test that feeds known-bad imports to ESLint's `Linter` API.

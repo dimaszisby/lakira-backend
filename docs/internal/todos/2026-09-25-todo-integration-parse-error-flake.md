@@ -123,3 +123,25 @@ takes it: have the setup wait for in-flight background work before truncating, o
 fire-and-forget calls observable to tests (for example, a tracked promise the test harness can
 drain). Changing the handler to await the email would alter the API's latency contract and is a
 product decision, not a test fix.
+
+## The parse error, second occurrence (2026-09-29)
+
+During the `saas-gold-reaudit` gate runs, on Node 24.21.0 at `b12ec62`, the **first
+`npm run test:integration` after a fresh `npm ci`** failed one test:
+
+```
+● Analytics HTTP caching › rejects an unsupported bucket
+  Parse Error: Expected HTTP/, RTSP/ or ICE/
+```
+
+Two further full integration runs passed (202 passed, 5 skipped). The details the section above
+asks for when it recurs: Node 24.21.0; the first run after an install; **a different test** from
+the first occurrence (`metric-settings.test.ts`). Both occurrences are now first-run-after-install,
+and none has been seen on Node 20 (three runs there, all before the first occurrence). Unlike the
+`TRUNCATE` failures, the database is not involved: over the run's window (04:18 to 04:20 UTC),
+`docker compose logs db` shows only duplicate-key errors on `processed_messages_pkey` and
+`uq_metric_settings_metric`, the same two kinds logged during the 2026-09-28 runs, and no deadlock.
+The bytes that are not an HTTP status line reach `llhttp` in the test process itself.
+
+The `TRUNCATE` deadlock's cause is now audit finding R3 (P2) in `audit-2026-09-29.md` §6, and
+test-database isolation is graded Partial there on the strength of it.
