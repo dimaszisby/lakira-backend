@@ -1,7 +1,7 @@
 import { describe, it, expect, jest, beforeEach } from "@jest/globals";
 import AppError from "@/utils/AppError.js";
 import { GetMetricTrend } from "@/features/analytics/application/queries/GetMetricTrend.js";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "@/features/public/analytics/application/ports/MetricAccessPort.js";
 import type {
   TrendRepository,
   TrendPoint,

@@ -1,6 +1,6 @@
 # Fork test credentials
 
-**Status:** Complete locally; AC-5 (Fork Smoke green on the PR) waits on the PR. Promoted to [ADR-0051](../../../explanation/decisions/adr-0051-fork-proven-in-ci.md).
+**Status:** Complete. Merged in #122 (`39c1e09`); `Fork Smoke` green on the PR. Promoted to [ADR-0051](../../../explanation/decisions/adr-0051-fork-proven-in-ci.md).
 **Slug:** `fork-test-credentials` · **Branch:** `fix/fork-test-credentials`
 
 Lean kit — no plan; acceptance criteria live in the checklist. Closes caveat C1 as reopened by

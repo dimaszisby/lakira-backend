@@ -73,8 +73,9 @@ Lean kit: the acceptance criteria are stated here, not in a plan. Checked agains
       ran cleanly against Postgres. _Why:_ the tutorial's own example.
 - [x] **AC-4** — The unit test fails on the pre-change script (6 of 10) and passes on the new one.
       _Why:_ a guard never seen failing proves nothing.
-- [ ] **AC-5** — `Fork Smoke` is green on this PR's own run. _Why:_ the regression guard for the
-      whole class; locally it could only be approximated. Pending the PR.
+- [x] **AC-5** — `Fork Smoke` is green on this PR's own run. _Why:_ the regression guard for the
+      whole class; locally it could only be approximated. Result: passed on #122, runs
+      `36592001328` (2m57s) and `36592011288` (2m36s).
 - [x] **AC-6** — ADR-0051 exists, is Accepted in the registry, and links back to this kit. _Why:_ a
       new CI gate and a change to generated identifiers.
 

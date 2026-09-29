@@ -8,7 +8,7 @@ import { DeleteMetricSettings } from "./application/use-cases/DeleteMetricSettin
 import { UpdateGoalAchievement } from "./application/use-cases/UpdateGoalAchievement.js";
 import { UpdateDisplayOptions } from "./application/use-cases/UpdateDisplayOptions.js";
 import { ListMetricSettingsViaCursor } from "./application/queries/ListMetricSettingsViaCursor.js";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "./application/ports/MetricAccessPort.js";
 import type { CacheInvalidationPort } from "./application/ports/CacheInvalidationPort.js";
 
 export type MetricSettingsFeatureOverrides = {

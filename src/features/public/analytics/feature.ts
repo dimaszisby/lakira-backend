@@ -5,7 +5,7 @@ import { VisualizationReadRepoSequelize } from "./infrastructure/persistence/Vis
 import { VisualizationCacheRedis } from "./infrastructure/cache/VisualizationCacheRedis.js";
 import { TrendRepoSequelize } from "./infrastructure/persistence/TrendRepoSequelize.js";
 import { MetricAccessSequelize } from "@/features/metric/public.js";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "./application/ports/MetricAccessPort.js";
 import type { TrendRepository } from "./application/ports/TrendRepository.js";
 import type { VisualizationCachePort } from "./application/ports/VisualizationCachePort.js";
 import type { VisualizationReadRepository } from "./application/ports/VisualizationReadRepository.js";

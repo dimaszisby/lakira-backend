@@ -1,4 +1,4 @@
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "../ports/MetricAccessPort.js";
 import type {
   MetricLogStatsPort,
   MetricLogStats,

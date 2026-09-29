@@ -1,6 +1,7 @@
 # Todo — the feature-boundary rule stops at `src/features/`
 
-- **Status:** Open
+- **Status:** Open — scope-widening only; the audience-path gap closed on 2026-09-29 (see the last
+  section)
 - **Created:** 2026-09-22
 - **Owner:** unassigned
 - **Origin:** discovered implementing the `feature-boundaries` kit (PR 1); see its checklist
@@ -62,6 +63,11 @@ and `index.ts` exports that follow.
 outside `src/features/` before it is trusted — the failure this whole kit exists to prevent.
 
 ## Audience-prefixed paths bypass the rule (2026-09-29)
+
+**Done (2026-09-29)** by the
+[`feature-boundary-audience-paths`](../initiatives/feature-boundary-audience-paths/README.md) kit:
+audience-aware patterns, the port moved to its consumers, and the negative cases persisted. The
+scope question above (widening the rule beyond `src/features/`) is still open.
 
 `audit-2026-09-29.md` §4.1 (C4, reopened at P2): the patterns in `eslint.config.mjs:70,79-83` match
 one path segment after `features/`, so `@/features/shared/auth/domain/...` and

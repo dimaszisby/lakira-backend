@@ -1,6 +1,6 @@
 import { jest } from "@jest/globals";
 import { GenerateDummyMetricLogs } from "@/features/metric-log/application/use-cases/GenerateDummyMetricLogs.js";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "@/features/public/metric-log/application/ports/MetricAccessPort.js";
 import { CachePort } from "@/features/metric-log/application/ports/CachePort.js";
 import { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import type { MetricLogRepository } from "@/features/metric-log/domain/repositories/MetricLogRepository.js";

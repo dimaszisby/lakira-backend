@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "../ports/MetricAccessPort.js";
 import type { MetricLogRepository } from "../../domain/repositories/MetricLogRepository.js";
 import { CachePort } from "../ports/CachePort.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
