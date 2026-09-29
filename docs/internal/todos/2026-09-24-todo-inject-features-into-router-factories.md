@@ -28,3 +28,10 @@ module-level slots go away, and tests pass a stubbed feature straight to the fac
 
 It rewrites every controller and roughly 40 test call sites of the override hooks. ADR-0045 needed
 only the lazy getter to remove the import-time hazard, so the larger diff was kept out of that PR.
+
+## The worker is the second composition root (2026-09-29)
+
+`audit-2026-09-29.md` §6 R5 (P2): `src/worker.ts:42-50` hand-wires the metric-log handler with
+`NoopVisualizationInvalidation`, so a queued dummy-log job leaves `viz`/`vizdash` cached until TTL,
+while the HTTP path invalidates them. Whatever replaces `overrideMetricLogFeatureForTest` should also
+give the worker its handler from `buildMetricLogFeature`, with the real invalidation adapter.

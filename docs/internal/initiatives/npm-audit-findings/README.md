@@ -1,6 +1,6 @@
 # npm audit findings
 
-**Status:** Complete locally; gates green on Node 24.21.0. Waiting on the PR.
+**Status:** Complete. Merged in #120 (`b12ec62`).
 **Slug:** `npm-audit-findings` · **Branch:** `fix/npm-audit-findings`
 
 Lean kit — no plan; acceptance criteria live in the checklist. No ADR: the work applies the
