@@ -3,7 +3,7 @@ import AppError from "@/utils/AppError.js";
 import { CreateMetricSettings } from "@/features/metric-settings/application/use-cases/CreateMetricSettings.js";
 import { MetricSettingsRepository } from "@/features/metric-settings/domain/repositories/MetricSettingsRepository.js";
 import { CacheInvalidationPort } from "@/features/metric-settings/application/ports/CacheInvalidationPort.js";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "@/features/public/metric-settings/application/ports/MetricAccessPort.js";
 import { buildMetricSettings } from "../../../factories/metric-settings.js";
 
 type RepoMock = jest.Mocked<MetricSettingsRepository>;

@@ -1,7 +1,7 @@
 import { jest } from "@jest/globals";
 import { CreateMetricLog } from "@/features/metric-log/application/use-cases/CreateMetricLog.js";
 import { MetricLogRepository } from "@/features/metric-log/domain/repositories/MetricLogRepository.js";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "@/features/public/metric-log/application/ports/MetricAccessPort.js";
 import { CachePort } from "@/features/metric-log/application/ports/CachePort.js";
 import { MetricLog } from "@/features/metric-log/domain/entities/MetricLog.js";
 import AppError from "@/utils/AppError.js";

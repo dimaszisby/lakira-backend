@@ -192,6 +192,13 @@ workflow that bootstraps and runs `npm test` on every push
 ([ADR-0051](../../../explanation/decisions/adr-0051-fork-proven-in-ci.md)). The row above stays
 "Reopened" until a dated run confirms it (ADR-002).
 
+**C4 — fix landed, not yet re-audited (2026-09-29).** The
+[`feature-boundary-audience-paths`](../../initiatives/feature-boundary-audience-paths/README.md) kit
+makes every boundary pattern check both import spellings, moves `MetricAccessPort` to its consumers
+(ADR-0023, now Accepted), persists ADR-0044's negative cases as a lint test, and catches relative
+cross-feature imports in `architecture.test.ts`. The row above stays "Reopened" until a dated run
+confirms it (ADR-002).
+
 > **Fix-status convention:** flip `Open` → `Fixed (<commit SHA>)` as each lands; a caveat closed
 > by decision rather than code cites the decision entry instead of a SHA. (Written with emoji
 > markers until 2026-09-24.) When all six are closed, the verdict can be re-stated as **GOLD** and
@@ -341,13 +348,13 @@ the list still reads as the history it is.
    ([`saas-audit-closeout` D-02](../../initiatives/saas-audit-closeout/decisions.md)).
 6. Phase 8 (subscription/billing) remains the only deferred initiative — open its kit when
    billing is up next.
-7. **Next: close C1**
-   ([`2026-09-29-todo-fork-test-credentials.md`](../../todos/2026-09-29-todo-fork-test-credentials.md)),
-   with a CI job that bootstraps an exported tree and runs `npm test`, then a new dated run to
-   restate GOLD. The C3 and C4 residuals
+7. ~~**Close C1**~~ — fix merged in #122 (ADR-0051), with `Fork Smoke` green; pending a dated run
+   to confirm it (ADR-002). **Next: close the C3 and C4 residuals**
    ([`2026-09-29-todo-error-envelope-residuals.md`](../../todos/2026-09-29-todo-error-envelope-residuals.md),
-   [`2026-09-22-todo-feature-boundary-rule-scope.md`](../../todos/2026-09-22-todo-feature-boundary-rule-scope.md))
-   either close first or ride along as P2 caveats. The run's other findings are in its § 6.
+   [`2026-09-22-todo-feature-boundary-rule-scope.md`](../../todos/2026-09-22-todo-feature-boundary-rule-scope.md)),
+   **then** a new dated run to restate GOLD. ADR-008 restates GOLD only when C1–C6 are all closed,
+   so an open C3 or C4 blocks it; they cannot ride along as caveats. (Corrected 2026-09-29: an
+   earlier wording of this item said they could.) The run's other findings are in its § 6.
 
 ---
 

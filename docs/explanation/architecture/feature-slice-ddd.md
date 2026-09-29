@@ -32,7 +32,18 @@ Added 2026-09-24; the guardrails above predate it.
   import-cycle failure that `public.ts` originally worked around.
 - **Enforced by ESLint**, not only by review: `no-restricted-imports` in `eslint.config.mjs` bans
   importing another feature's `domain/`, `application/` or `infrastructure/` directly
-  (`src/features/**` only — see the open todo on widening it).
+  (`src/features/**` only — see the open todo on widening it). Every feature has two import
+  spellings, the short alias (`@/features/metric/...`) and the full path
+  (`@/features/public/metric/...`), and the rule checks both. Until 2026-09-29 it checked only
+  the first, so 9 deep imports passed lint (audit-2026-09-29, C4).
+- **Proven, not assumed.** `__tests__/unit/feature-boundaries.lint.test.ts` runs the real ESLint
+  config over imports that must be rejected and imports that must be allowed, in both spellings
+  (ADR-0044 decision 6). `__tests__/unit/architecture.test.ts` resolves relative imports and fails
+  on one that enters another feature anywhere but its `public.ts`, which a lint pattern cannot
+  judge.
+- **Ports belong to their consumer** (ADR-0023). A feature that needs another's capability declares
+  the interface in its own `application/ports/` and receives the adapter from the provider's
+  `public.ts`.
 - **Domain code raises `DomainError`, not `AppError`**; HTTP status codes live only in the error
   middleware.
 - **The 11 cross-feature Sequelize associations are frozen** at an exact count by

@@ -1,6 +1,6 @@
 # ADR-0023 — Cross-feature metric-access provider: single owner vs shared
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-09-29)
 - **Date:** 2026-05-03
 - **Origin:** `ADR-002` in the Feature vertical-slice migration kit — [`feature-vertical-slice-migration`](../../internal/initiatives/feature-vertical-slice-migration/decisions.md)
 
@@ -25,6 +25,16 @@ Both `metric-log` and `metric-settings` slices need to check metric existence. E
 
 - `buildMetricLogFeature()` and `buildMetricSettingsFeature()` gain an explicit dependency on the metric feature's adapter export.
 - The composition root (`server.ts` or feature wiring) must pass the adapter through.
+
+## Implementation (2026-09-29)
+
+Decision 1 was not implemented when this record was written. `MetricAccessPort` lived only in
+`metric/application/ports/`, and its three consumers deep-imported it, 9 times, through a spelling
+the boundary rule did not check (ADR-0044's 2026-09-29 note). metric-log, metric-settings and
+analytics now each declare their own `application/ports/MetricAccessPort.ts`. `metric` keeps its own
+for its adapter. Decisions 2 and 3 were already live: consumers receive `MetricAccessSequelize` from
+`metric/public.ts`, which satisfies each copy structurally. Accepted in the PR that implemented it:
+[`feature-boundary-audience-paths` D-02](../../internal/initiatives/feature-boundary-audience-paths/decisions.md).
 
 ## Links
 

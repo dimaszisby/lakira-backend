@@ -91,10 +91,21 @@ the code passing; a `!negation` inside a `group` that ESLint accepts and silentl
 `persistence/*` glob matching across path separators, re-banning the models it was meant to exempt.
 None would have surfaced from the rule merely passing — which is precisely the defect C4 described.
 
+**Note (2026-09-29): decision 1 held in one spelling only.** Every feature is importable two ways:
+the short alias (`@/features/metric/...`) and the full path through `@/*`
+(`@/features/public/metric/...`). The globs assumed one segment after `features/`, so decision 6's
+checks, all made in the short spelling, passed while the full spelling was never rejected. Nine
+cross-feature deep imports used it (`audit-2026-09-29.md`, caveat C4 reopened). The patterns are now
+audience-aware regexes, and decision 6 is persisted as
+`__tests__/unit/feature-boundaries.lint.test.ts`, which runs both spellings through the real config.
+Relative imports that cross features are caught by `architecture.test.ts`. Record:
+[`feature-boundary-audience-paths`](../../internal/initiatives/feature-boundary-audience-paths/decisions.md).
+
 ## Links
 
 - `docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` § 4, caveat C4
 - [ADR-0037](./adr-0037-resolve-canonical-ddd-layout-disagreement.md) — the layout this bounds
 - `eslint.config.mjs` — the rules
-- `__tests__/unit/architecture.test.ts` — the frozen count
+- `__tests__/unit/architecture.test.ts` — the frozen count, and relative cross-feature imports
+- `__tests__/unit/feature-boundaries.lint.test.ts` — decision 6, persisted
 - `__tests__/unit/shared/middleware/domain-error-envelope.test.ts` — the envelope characterisation

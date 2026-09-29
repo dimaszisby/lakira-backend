@@ -2,7 +2,7 @@ import type { ConsumeMessage } from "amqplib";
 import AppError from "@/utils/AppError.js";
 import logger from "@/utils/logger.js";
 import { TerminalMessageError } from "@/shared/application/errors/TerminalMessageError.js";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "../ports/MetricAccessPort.js";
 import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import type { MessageContext } from "@/shared/infrastructure/queue/RabbitMQConsumer.js";
 import type { CachePort } from "../ports/CachePort.js";

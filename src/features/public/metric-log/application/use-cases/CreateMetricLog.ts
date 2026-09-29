@@ -2,7 +2,7 @@ import AppError from "@/utils/AppError.js";
 import { parseIsoToDate } from "@/utils/date-io.js";
 import { MetricLogRepository } from "../../domain/repositories/MetricLogRepository.js";
 import { MetricLog } from "../../domain/entities/MetricLog.js";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "../ports/MetricAccessPort.js";
 import { CachePort } from "../ports/CachePort.js";
 
 type Input = {

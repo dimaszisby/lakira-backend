@@ -36,6 +36,35 @@ function getAllTsFiles(dir: string): string[] {
   return results;
 }
 
+// The feature a path belongs to (`src/features/<audience>/<feature>`), or null outside features.
+function owningFeature(file: string): string | null {
+  const rel = path.relative(SRC_FEATURES, file).split(path.sep);
+  if (rel[0] === ".." || rel.length < 3) return null;
+  return path.join(SRC_FEATURES, rel[0], rel[1]);
+}
+
+const RELATIVE_SPECIFIER =
+  /(?:from\s+|import\s*\(\s*|import\s+)"(\.{1,2}\/[^"]+)"/g;
+
+// ADR-0044 / feature-boundary-audience-paths D-04: a relative import that lands in another
+// feature must go through its public.ts. ESLint cannot see this without knowing which feature
+// the importing file is in.
+function crossFeatureRelativeImports(file: string, content: string): string[] {
+  const owner = owningFeature(file);
+  if (!owner) return [];
+  const offenders: string[] = [];
+  for (const [, specifier] of content.matchAll(RELATIVE_SPECIFIER)) {
+    const target = path.resolve(path.dirname(file), specifier);
+    const targetFeature = owningFeature(target);
+    if (!targetFeature || targetFeature === owner) continue;
+    const intoPublic = /^public(?:\.[jt]s)?$/.test(
+      path.relative(targetFeature, target),
+    );
+    if (!intoPublic) offenders.push(specifier);
+  }
+  return offenders;
+}
+
 describe("Architecture enforcement", () => {
   const featureDirs = getFeatureDirs();
 
@@ -144,6 +173,43 @@ describe("Architecture enforcement", () => {
     }
   });
 
+  describe("relative imports stay inside their feature, or use its public.ts", () => {
+    const from = path.join(
+      SRC_FEATURES,
+      "public/metric-log/application/use-cases/Example.ts",
+    );
+
+    it("flags a relative import into another feature's internals", () => {
+      const content = [
+        'import { A } from "../../../metric/application/ports/MetricAccessPort.js";',
+        'import { B } from "../../../metric/public.js";',
+        'import { C } from "../ports/MetricAccessPort.js";',
+        'import { D } from "../../../../shared/auth/domain/entities/AuthUser.js";',
+      ].join("\n");
+      expect(crossFeatureRelativeImports(from, content)).toEqual([
+        "../../../metric/application/ports/MetricAccessPort.js",
+        "../../../../shared/auth/domain/entities/AuthUser.js",
+      ]);
+    });
+
+    it("finds none in src/features", () => {
+      const offenders: string[] = [];
+      for (const featureDir of featureDirs) {
+        for (const file of getAllTsFiles(featureDir)) {
+          for (const specifier of crossFeatureRelativeImports(
+            file,
+            fs.readFileSync(file, "utf-8"),
+          )) {
+            offenders.push(
+              `${path.relative(SRC_FEATURES, file)} -> ${specifier}`,
+            );
+          }
+        }
+      }
+      expect(offenders).toEqual([]);
+    });
+  });
+
   // ADR-0044 / decisions.md D-02, D-03: Sequelize models import each other across
   // features to declare foreign-key associations. Cross-module FKs are the deepest form
   // of coupling, and the real fix — ID-only references — is a separate initiative.
@@ -152,8 +218,23 @@ describe("Architecture enforcement", () => {
   // this is the ratchet.
   describe("cross-feature model associations are frozen", () => {
     const FROZEN_MODEL_ASSOCIATION_IMPORTS = 11;
+    // Both spellings: the short alias (@/features/metric/...) and the full path
+    // (@/features/public/metric/...). Matching only the first let the count undercount.
     const MODEL_IMPORT =
-      /from\s+"@\/features\/[a-z-]+\/infrastructure\/persistence\/models\//g;
+      /from\s+"@\/features\/(?:(?:public|shared)\/)?[a-z-]+\/infrastructure\/persistence\/models\//g;
+    const MODEL_IMPORT_TARGET =
+      /@\/features\/(?:(?:public|shared)\/)?([a-z-]+)\//;
+
+    it("counts a model import in either spelling", () => {
+      const sample = [
+        'import { M } from "@/features/metric/infrastructure/persistence/models/metric.sequelize.js";',
+        'import { M } from "@/features/public/metric/infrastructure/persistence/models/metric.sequelize.js";',
+      ].join("\n");
+      const targets = (sample.match(MODEL_IMPORT) ?? []).map(
+        (m) => m.match(MODEL_IMPORT_TARGET)![1],
+      );
+      expect(targets).toEqual(["metric", "metric"]);
+    });
 
     it(`holds at exactly ${FROZEN_MODEL_ASSOCIATION_IMPORTS} cross-feature model imports`, () => {
       const found: string[] = [];
@@ -162,7 +243,7 @@ describe("Architecture enforcement", () => {
           const owner = path.basename(featureDir);
           const content = fs.readFileSync(file, "utf-8");
           for (const match of content.match(MODEL_IMPORT) ?? []) {
-            const target = match.match(/@\/features\/([a-z-]+)\//)![1];
+            const target = match.match(MODEL_IMPORT_TARGET)![1];
             // A feature reaching its own models through the alias is a separate
             // problem (it should be relative) and is not part of this freeze.
             if (target !== owner) {

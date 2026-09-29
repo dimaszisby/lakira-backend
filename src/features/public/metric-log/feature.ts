@@ -14,7 +14,7 @@ import type { VisualizationInvalidationPort } from "@/shared/application/ports/V
 import { NoopVisualizationInvalidation } from "@/shared/application/ports/VisualizationInvalidationPort.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import { NoopMessageQueue } from "@/shared/infrastructure/queue/NoopMessageQueue.js";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "./application/ports/MetricAccessPort.js";
 import type { MetricLogStatsPort } from "./application/ports/MetricLogStatsPort.js";
 
 export type MetricLogFeatureOverrides = {

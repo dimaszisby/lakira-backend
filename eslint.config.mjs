@@ -62,12 +62,19 @@ const LEGACY_IMPORT_PATTERNS = [
 const FEATURE_BOUNDARY_MESSAGE =
   "Feature internals are private. Import another feature through its public.ts (`@/features/<name>/public.js`), and reach your own feature with a relative path. See .claude/rules/architecture.md § Export Convention.";
 
+// Every feature is reachable by two spellings: the short alias from tsconfig.json
+// (`@/features/metric/...`) and the full path through `@/*` (`@/features/public/metric/...`).
+// Each pattern below takes an optional audience segment so both are checked. Globs assumed one
+// segment after `features/`, which checked the short spelling only; the full one was never
+// rejected (SaaS-readiness caveat C4, audit-2026-09-29). A new audience directory must be added
+// here; __tests__/unit/feature-boundaries.lint.test.ts proves each rule in both spellings.
+const FEATURE = "^@/features/(?:(?:public|shared)/)?[a-z-]+";
+
 // ADR-0045: a sibling may not import another feature's composition root — its index.ts
 // (the bare alias or /index.js) or its feature.ts. index.ts exists for src/server.ts;
-// public.ts is the cross-feature surface. A regex rather than a glob: `@/features/*`
-// as a gitignore-style group would also match everything beneath it, public.ts included.
+// public.ts is the cross-feature surface.
 const SIBLING_COMPOSITION_ROOT = {
-  regex: "^@/features/[a-z-]+(?:/(?:index|feature)(?:\\.js)?)?$",
+  regex: `${FEATURE}(?:/(?:index|feature)(?:\\.js)?)?$`,
   message:
     "Import another feature through its public.ts, not its index.ts or feature.ts — those are the composition root, for src/server.ts only (ADR-0045).",
 };
@@ -76,37 +83,21 @@ const SIBLING_COMPOSITION_ROOT = {
 // alias. Catches both cross-feature imports and a feature importing itself via the
 // alias instead of a relative path.
 const FEATURE_DEEP_IMPORTS = {
-  group: [
-    "@/features/*/domain/**",
-    "@/features/*/application/**",
-    "@/features/*/infrastructure/**",
-  ],
+  regex: `${FEATURE}/(?:domain|application|infrastructure)(?:/|$)`,
   message: FEATURE_BOUNDARY_MESSAGE,
 };
 
 // Same, minus Sequelize model files. Applied only to the files that declare
 // cross-model associations. Those are frozen as a recorded debt — cross-module foreign
 // keys are the deepest coupling, ID-only references the destination (ADR-0044
-// decision 4); the import-cycle reason this comment used to give no longer applies
-// (ADR-0045). The count is frozen at 11 by
-// __tests__/unit/architecture.test.ts — see
+// decision 4). The count is frozen at 11 by __tests__/unit/architecture.test.ts — see
 // docs/internal/initiatives/feature-boundaries/decisions.md D-02 and D-03.
-// Enumerated positively rather than as `@/features/*/infrastructure/**` plus a
-// `!…/models/**` negation: the negation is accepted by the config but has no effect
-// on matching, so every model import was still reported. Verified, not assumed.
+// A lookahead excludes `infrastructure/persistence/models/` and nothing else. The glob
+// version enumerated the allowed subpaths instead, because a `!…/models/**` negation had no
+// effect on matching; that list missed auth's flat `infrastructure/persistence/*Repository*`
+// files. The lint test proves this pattern rejects them.
 const FEATURE_DEEP_IMPORTS_EXCEPT_MODELS = {
-  group: [
-    "@/features/*/domain/**",
-    "@/features/*/application/**",
-    "@/features/*/infrastructure/cache/**",
-    "@/features/*/infrastructure/email/**",
-    "@/features/*/infrastructure/http/**",
-    "@/features/*/infrastructure/mappers/**",
-    "@/features/*/infrastructure/providers/**",
-    "@/features/*/infrastructure/sql/**",
-    "@/features/*/infrastructure/persistence/mappers/**",
-    "@/features/*/infrastructure/persistence/repositories/**",
-  ],
+  regex: `${FEATURE}/(?:domain|application|infrastructure(?!/persistence/models/))(?:/|$)`,
   message: FEATURE_BOUNDARY_MESSAGE,
 };
 

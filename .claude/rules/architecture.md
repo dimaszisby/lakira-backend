@@ -79,7 +79,15 @@ Two surfaces per feature (ADR-0045):
   `buildXFeature`. `server.ts` calls the factories at mount time.
 - **`public.ts` is what other features import** — a deliberately narrow set (mappers, DTO
   helpers, `authMiddleware`). ESLint rejects a feature importing another feature's `index.ts`,
-  bare alias or `feature.ts`.
+  bare alias or `feature.ts`, and anything under its `domain/`, `application/` or
+  `infrastructure/`. Both spellings are checked: the short alias (`@/features/metric/...`) and the
+  full path (`@/features/public/metric/...`). `__tests__/unit/feature-boundaries.lint.test.ts`
+  proves each rule rejects, and `architecture.test.ts` catches a relative import that crosses into
+  another feature.
+- **A port belongs to the feature that consumes it** (ADR-0023). If a feature needs something from
+  another, it declares the interface in its own `application/ports/` and receives the adapter,
+  which the provider exports from its `public.ts`. `MetricAccessPort` is the worked example: one
+  copy each in metric-log, metric-settings and analytics, all satisfied by `MetricAccessSequelize`.
 - **Importing a feature module constructs nothing.** No router, feature or middleware is built at
   module scope; controllers build their feature on first use (`feature ??= buildXFeature()`).
   `__tests__/unit/architecture.test.ts` enforces this.

@@ -1,5 +1,5 @@
 import AppError from "@/utils/AppError.js";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "../ports/MetricAccessPort.js";
 import type { TrendRepository, TrendPoint } from "../ports/TrendRepository.js";
 
 type GetMetricTrendInput = {
