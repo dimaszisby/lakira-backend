@@ -30,18 +30,21 @@ It is idempotent, so running it twice with the same name changes nothing.
 
 What it does:
 
-|                                  |                                                                             |
-| -------------------------------- | --------------------------------------------------------------------------- |
-| `lakira-backend` → `my-app`      | `package.json`, `package-lock.json`, `.env.example`, CI workflows           |
-| `lakira` → `my-app` (short name) | queue topology, database names, CI database references                      |
-| Rotates `JWT_SECRET`             | in `.env`, created from `.env.example` if absent                            |
-| Sets `APP_NAME=my-app`           | in `.env`                                                                   |
-| Creates `.env.test`              | from `.env.test.example`, so `npm test` runs out of the box                 |
-| Removes `docs/internal/`         | the upstream project's working material — pass `--keep-internal` to keep it |
-| Writes `FORKED-FROM.md`          | recording `git rev-parse HEAD` (see step 1)                                 |
+|                                  |                                                                                                |
+| -------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `lakira-backend` → `my-app`      | `package.json`, `package-lock.json`, `.env.example`, CI workflows                              |
+| `lakira` → `my-app` (short name) | queue topology, database names, CI database references                                         |
+| `lakira_` → `my_app_`            | database users and names in `.env.example`, `.env.test.example` and the test-database init SQL |
+| Rotates `JWT_SECRET`             | in `.env`, created from `.env.example` if absent                                               |
+| Sets `APP_NAME=my-app`           | in `.env`                                                                                      |
+| Creates `.env.test`              | from the renamed `.env.test.example`, so it logs in as the user Compose creates from `.env`    |
+| Removes `docs/internal/`         | the upstream project's working material — pass `--keep-internal` to keep it                    |
+| Writes `FORKED-FROM.md`          | recording `git rev-parse HEAD` (see step 1)                                                    |
 
 The script's short name is the full name minus a trailing `-backend` or `-api`, so
-`my-app-backend` becomes `my-app`, and it is used for queue and database names. At runtime,
+`my-app-backend` becomes `my-app`, and it is used for queue names. Database users and names use the
+short name with hyphens turned into underscores (`my_app_user`, `my_app_test_db`), because the
+test database is created by plain SQL, where a hyphen is a syntax error. At runtime,
 `src/config/app-name.ts` derives its own short and display names from `APP_NAME`, and strips only
 `-backend`: a name ending in `-api` keeps the suffix there (`my-app-api` → `My App Api`). Prefer a
 `-backend` name if the two should agree.
@@ -116,10 +119,19 @@ history.
 
 ```bash
 npm ci
-docker compose up -d db redis
+docker compose up -d db redis rabbitmq
 npm run migrate:development
+npm run db:migrate:test
 npm run lint && npm run typecheck && npm test
 ```
+
+`npm test` does not migrate the test database itself, and one integration test needs the broker,
+so both are in the list. This is the same sequence the `Fork Smoke` workflow runs on every push
+(ADR-0051).
+
+Run it on a machine, or at least a Docker volume, that has not run the upstream stack. The Compose
+file fixes its container and volume names, so on a machine that has, `docker compose up` reuses the
+upstream database, its users and its data, and the result does not tell you whether the fork works.
 
 Green means the rebrand did not break anything. Then walk
 [Getting started](./getting-started.md) against your new name.

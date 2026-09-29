@@ -9,7 +9,11 @@
 #   1. Replaces "lakira-backend" with <new-name> in package.json,
 #      package-lock.json, .env.example, and CI workflows.
 #   2. Replaces "lakira" with the derived short name (strip -backend suffix)
-#      in queue-topology references, DB names, and CI DB refs.
+#      in queue-topology references, DB names, and CI DB refs. Database
+#      identifiers use the short name with hyphens turned into underscores
+#      ("my-app" gives my_app_user), so they stay valid in plain SQL. The test
+#      template and the test-database init SQL are rewritten too, so .env.test
+#      logs in as the user Compose creates from .env.
 #   3. Rotates JWT_SECRET in .env (creating it from .env.example if needed).
 #   4. Sets APP_NAME=<new-name> in .env, and creates .env.test from its template.
 #   5. Removes docs/internal/ (upstream working material); --keep-internal opts out.
@@ -59,6 +63,11 @@ fi
 # Derive short name (strip trailing -backend, -api, etc.)
 SHORT_NAME="${NEW_NAME%%-backend}"
 SHORT_NAME="${SHORT_NAME%%-api}"
+
+# Database identifiers (users, database names) must be valid unquoted in SQL:
+# docker/db/init/01-create-dbs.sql runs a plain CREATE DATABASE, where a hyphen
+# is a syntax error.
+DB_SLUG="${SHORT_NAME//-/_}"
 
 # Derive Title-Cased display name from short name (matches src/config/app-name.ts toTitleCase).
 # e.g. "my-app" → "My App", "lakira" → "Lakira"
@@ -129,11 +138,17 @@ FILES_SHORT=(
   "$REPO_ROOT/.github/workflows/backend-prd-drift-warning.yml"
   "$REPO_ROOT/.github/workflows/promote-dev-to-staging.yml"
   "$REPO_ROOT/.env.example"
+  # The test chain: .env.test is copied from this template in step 3b, and the
+  # init SQL creates the database it names. Leaving these out made a fork's
+  # `npm test` log in as the upstream user (SAAS-BASE-CHECKLIST C1, 2026-09-29).
+  "$REPO_ROOT/.env.test.example"
+  "$REPO_ROOT/docker/db/init/01-create-dbs.sql"
 )
 
 for f in "${FILES_SHORT[@]}"; do
-  # DB/queue/identifier slots (case-insensitive prefix match)
-  do_sed "s/[Ll]akira_/${SHORT_NAME}_/g" "$f"
+  # DB identifier slots (case-insensitive prefix match)
+  do_sed "s/[Ll]akira_/${DB_SLUG}_/g" "$f"
+  # Queue and other dotted identifiers
   do_sed "s/[Ll]akira\./${SHORT_NAME}./g" "$f"
   # Human-readable Title Case in workflow names, badge text, etc.
   do_sed "s/Lakira Backend/${DISPLAY_NAME} Backend/g" "$f"
@@ -225,9 +240,10 @@ echo "FORKED-FROM.md created."
 echo ""
 echo "Done! Next steps:"
 echo "  1. Run: npm install"
-echo "  2. Start services: docker compose up -d"
+echo "  2. Start services: docker compose up -d db redis rabbitmq"
 echo "  3. Run: npm run migrate:development"
-echo "  4. Run: npm test"
+echo "  4. Run: npm run db:migrate:test"
+echo "  5. Run: npm test"
 echo ""
 echo "This script already created .env and .env.test from their templates and"
 echo "rotated JWT_SECRET. Review .env before pointing it at anything real."

@@ -185,6 +185,13 @@ persisted (reproduced with ESLint).
 [Todo](../../todos/2026-09-22-todo-feature-boundary-rule-scope.md). Grading reasons:
 [`saas-gold-reaudit` D-03, D-05](../../initiatives/saas-gold-reaudit/decisions.md).
 
+**C1 — fix landed, not yet re-audited (2026-09-29).** The
+[`fork-test-credentials`](../../initiatives/fork-test-credentials/README.md) kit renames the test
+chain at bootstrap, derives database identifiers from an underscore slug, and adds a `Fork Smoke`
+workflow that bootstraps and runs `npm test` on every push
+([ADR-0051](../../../explanation/decisions/adr-0051-fork-proven-in-ci.md)). The row above stays
+"Reopened" until a dated run confirms it (ADR-002).
+
 > **Fix-status convention:** flip `Open` → `Fixed (<commit SHA>)` as each lands; a caveat closed
 > by decision rather than code cites the decision entry instead of a SHA. (Written with emoji
 > markers until 2026-09-24.) When all six are closed, the verdict can be re-stated as **GOLD** and

@@ -1,6 +1,8 @@
 # Todo — a fresh fork's `npm test` fails: `.env.test` keeps the upstream database credentials
 
-- **Status:** Open — **blocks the GOLD restatement** (C1, P1)
+- **Status:** Complete (2026-09-29) — delivered by the
+  [`fork-test-credentials`](../initiatives/fork-test-credentials/README.md) kit (ADR-0051). The
+  GOLD restatement still needs a new dated audit run
 - **Created:** 2026-09-29
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-09-29.md` §4.1 C1, §5; kit `saas-gold-reaudit` D-03
