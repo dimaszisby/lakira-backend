@@ -76,8 +76,12 @@ first on `PATH` for every gate.
 
 - [x] **AC-1** — No Node 20 pin remains outside dated records. _Why:_ the FE request's first
       acceptance line; a stray pin is how the repo ends up describing two runtimes again.
-- [ ] **AC-2** — The full CI run on the PR is green, and `setup-node` logs show `24.x` in every
-      job. _Why:_ proves D-02's `.nvmrc` wiring, not only the edit.
+- [x] **AC-2** — The full CI run on the PR is green, and `setup-node` logs show `24.x` in every
+      job. _Why:_ proves D-02's `.nvmrc` wiring, not only the edit. Result (checked 2026-09-29 by
+      the `npm-audit-findings` kit): on #113's head commit, runs `36109799152` and `36109792437`
+      (Lakira Backend CI) and `36109799158` (Commit Lint) succeeded, and every job that ran (Lint
+      & Typecheck, Security Delta Checks, Unit & Integration Tests, contract_local, Commit Lint)
+      logs `node-version-file: .nvmrc` resolving to `24.21.0`
 - [x] **AC-3** — The production image builds and starts on `node:24-alpine`, bcrypt works inside
       it, and a login round trip succeeds against it. _Why:_ CI never builds the image (TF-2), so
       only this check covers it.

@@ -1,6 +1,8 @@
 # Todo — triage the `npm audit` findings on `dev`
 
-- **Status:** Open
+- **Status:** Complete (2026-09-29) — delivered by the
+  [`npm-audit-findings`](../initiatives/npm-audit-findings/README.md) kit. The four highs came from
+  an exact `js-yaml` override; 3 `uuid`-rooted moderates remain, as accepted by the policy
 - **Created:** 2026-09-25
 - **Owner:** unassigned
 - **Origin:** found by the `node-24-runtime` kit, when `npm install` on 2026-09-25 reported the

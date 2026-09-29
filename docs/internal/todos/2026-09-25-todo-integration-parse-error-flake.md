@@ -1,7 +1,8 @@
 # Todo — intermittent `Parse Error: Expected HTTP/` in the integration suite
 
-- **Status:** Open — the parse error and the `TRUNCATE` failure are still unexplained; a third
-  failure was explained and fixed on 2026-09-27 (see the last section)
+- **Status:** Open — the parse error is still unexplained. The `TRUNCATE` failure was explained
+  on 2026-09-29 (a deadlock with a fire-and-forget write; see the last section) but not fixed. A
+  third failure was explained and fixed on 2026-09-27
 - **Created:** 2026-09-25
 - **Owner:** unassigned
 - **Origin:** the `node-24-runtime` kit's gate runs
@@ -87,3 +88,38 @@ The API was checked for the same collision. `CreateMetricLog` also stamps a miss
 `new Date()`, but it checks for an existing log at that timestamp and answers 409, and a race past
 that check becomes a `UniqueConstraintError`, which the error middleware maps to 409 as well. That
 is the intended one-log-per-timestamp rule, handled without a 500, so no change.
+
+## The `TRUNCATE` failure, explained (2026-09-29)
+
+On `fix/npm-audit-findings`, the first full `npm test` on Node 24.21.0 failed `auth.test.ts` ›
+prevents duplicate registrations in the `TRUNCATE` at `jest.setup.ts:88`, with an empty Sequelize
+message: the same signature as the second failure above. Two further full integration runs passed
+(202 passed, 5 skipped).
+
+`docker compose logs db` held the real error:
+
+```
+ERROR:  deadlock detected
+DETAIL:  Process 292629 waits for AccessExclusiveLock on relation 17220; blocked by process 292630.
+         Process 292630 waits for RowShareLock on relation 16916; blocked by process 292629.
+         Process 292629: TRUNCATE TABLE "users" RESTART IDENTITY CASCADE;
+         Process 292630: INSERT INTO "public"."email_verification_tokens" (...)
+```
+
+In `lakira_test_db`, relation 16916 is `users` and 17220 is `email_verification_tokens`
+(resolved from `pg_class`).
+
+**Cause.** The integration project runs `--runInBand`, so the insert cannot come from a parallel
+suite. It is the register handler's fire-and-forget verification email:
+`src/features/shared/auth/infrastructure/http/controller.ts:85` calls
+`requestEmailVerification.execute(...)` without awaiting it and responds 201. The test ends, the
+next test's `beforeEach` truncates `users` with `CASCADE`, and the still-running token insert,
+which holds a lock on `email_verification_tokens` and needs one on `users` for its foreign key,
+deadlocks with it. Postgres kills the `TRUNCATE`. The resend handler (`controller.ts:243`) has the
+same shape.
+
+**Not fixed here**, since it was out of scope for a dependency change. Options, for whoever
+takes it: have the setup wait for in-flight background work before truncating, or make the
+fire-and-forget calls observable to tests (for example, a tracked promise the test harness can
+drain). Changing the handler to await the email would alter the API's latency contract and is a
+product decision, not a test fix.

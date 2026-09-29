@@ -141,7 +141,42 @@ Rules for adding an override:
 - These dev-only alerts do **not** ship to production builds, but we keep them documented with owners so we can react once upstream fixes exist.
 - Junior devs should reference this table before running `npm audit`; do **not** run `npm audit fix --force` (per policy) because it would downgrade or break the toolchain.
 
-## Current Audit Snapshot (2026-08-31)
+## Current Audit Snapshot (2026-09-29)
+
+Full `npm audit`: **3 moderate, 0 critical, 0 high, 0 low**.
+`npm audit --omit=dev`: **2 moderate, 0 high/critical** — the value the CI gate evaluates.
+
+### What changed
+
+Between 2026-08-31 and 2026-09-25, newly published advisories took the tree to 13 findings
+(4 high, 8 moderate, 1 low) with no lockfile change. The four highs had one cause: the `js-yaml`
+override pinned exactly `3.15.1`, one patch below the fix, so `npm audit fix` could not move it. It
+also forced `@eslint/eslintrc` and `cosmiconfig`, which declare `js-yaml ^4`, down a major. The
+`brace-expansion` override did the same to `minimatch@3` (`^1.1.7`), in the other direction.
+
+Both were removed; each consumer now resolves its own range to a patched release. Then
+`npm audit fix` applied the within-range bumps (production: `express` 4.22.3, `body-parser` 1.20.8,
+`qs` 6.16.0, `morgan` 1.12.1).
+
+| Dropped override        | Consumer                        | Its range | Resolves to |
+| ----------------------- | ------------------------------- | --------- | ----------- |
+| `js-yaml` 3.15.1        | `@eslint/eslintrc`              | `^4.1.1`  | 4.3.2       |
+|                         | `cosmiconfig`                   | `^4.1.0`  | 4.3.2       |
+|                         | `@istanbuljs/load-nyc-config`   | `^3.13.1` | 3.15.2      |
+| `brace-expansion` 2.1.4 | `minimatch@3` (eslint, jest, …) | `^1.1.7`  | 1.1.21      |
+|                         | `minimatch@9`                   | `^2.0.2`  | 2.1.4       |
+
+**`overrides` is now one entry**, `esbuild` 0.28.2. It crosses `tsx`'s `~0.27.0`, a breaking range
+in 0.x, and is kept as a recorded exception to rule 1 because removing it re-opens a low. Revisit:
+`docs/internal/todos/2026-09-29-todo-esbuild-override-crosses-tsx-range.md`.
+
+The remaining three findings are the `uuid` < 11.1.1 root, unchanged and still deliberately not
+overridden; the reasoning is under the 2026-08-31 snapshot below. Full record:
+`docs/internal/initiatives/npm-audit-findings/`.
+
+## Superseded Snapshot (2026-08-31)
+
+> Superseded by the 2026-09-29 snapshot above. Retained as a record of what was true then.
 
 Full `npm audit`: **3 moderate, 0 critical, 0 high, 0 low**.
 `npm audit --production`: **2 moderate, 0 high/critical** — the value the CI gate evaluates,
