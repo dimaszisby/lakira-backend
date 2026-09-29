@@ -1,6 +1,6 @@
 # Node 24 runtime
 
-**Status:** Complete locally; gates green on Node 24.21.0. AC-2 (CI green on 24) waits on the PR.
+**Status:** Complete. Merged in #113; AC-2 (CI green on 24) confirmed from that PR's runs.
 Promoted to [ADR-0046](../../../explanation/decisions/adr-0046-node-24-runtime.md).
 **Slug:** `node-24-runtime` · **Branch:** `chore/node-24-runtime`
 
