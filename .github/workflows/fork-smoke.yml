@@ -1,0 +1,73 @@
+# Fork smoke — ADR-0051.
+#
+# Bootstraps this checkout as a fork, then runs the steps bootstrap-fork.sh prints,
+# against services started from the fork's own Compose file and .env. The chain
+# under test is bootstrap -> .env -> Compose -> .env.test, which service containers
+# (as backend-ci.yml uses) would bypass by fixing the credentials in YAML.
+#
+# SaaS-readiness caveat C1 was closed once, then broke unnoticed, because nothing
+# ran a fork and the break hides on any machine already running the upstream stack
+# (audit-2026-09-29 § 5).
+name: Fork Smoke
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - staging
+      - "feat/**"
+      - "fix/**"
+      - "chore/**"
+      - "ci/**"
+      - "docs/**"
+      - "refactor/**"
+  pull_request:
+    branches:
+      - main
+      - dev
+      - staging
+  workflow_dispatch:
+
+concurrency:
+  group: fork-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fork-smoke:
+    name: Fork bootstrap and npm test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # A hyphenated name, so the database-identifier slug (ADR-0051) is exercised.
+      - name: Bootstrap as a fork
+        run: bash scripts/bootstrap-fork.sh --name my-app
+
+      - name: Start services from the fork's Compose file
+        run: docker compose up -d --wait db redis rabbitmq
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Migrate the development database
+        run: npm run migrate:development
+
+      - name: Migrate the test database
+        run: npm run db:migrate:test
+
+      - name: Test
+        run: npm test
+
+      - name: Service logs
+        if: failure()
+        run: docker compose logs db rabbitmq

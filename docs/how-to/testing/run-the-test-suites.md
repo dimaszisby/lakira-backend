@@ -1,7 +1,7 @@
 # Run the test suites
 
 **Status:** Active
-**Last updated:** 2026-09-24
+**Last updated:** 2026-09-29
 
 How to run the Lakira backend tests locally, and where each test layer is documented. The strategy
 itself is in `docs/explanation/testing-strategy.md`.
@@ -20,6 +20,7 @@ cp .env.test.example .env.test
 
 ```bash
 docker compose up -d db redis rabbitmq   # integration tests need these
+npm run db:migrate:test                  # once, and after every new migration; npm test does not migrate
 npm test                                 # unit, then integration — never combine the projects
 npm run test:unit
 npm run test:integration

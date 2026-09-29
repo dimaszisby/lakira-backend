@@ -1,6 +1,6 @@
 # SaaS GOLD re-audit
 
-**Status:** Complete locally. Result: GOLD WITH CAVEATS reconfirmed; clean GOLD blocked by C1 (see the checklist).
+**Status:** Complete. Merged in #121 (`60b7520`). Result: GOLD WITH CAVEATS reconfirmed; clean GOLD blocked by C1.
 **Slug:** `saas-gold-reaudit` · **Branch:** `docs/saas-gold-reaudit`
 
 Lean kit — no plan; acceptance criteria live in the checklist. The deliverable is a dated audit run

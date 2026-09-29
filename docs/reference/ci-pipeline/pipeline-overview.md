@@ -83,6 +83,11 @@ Later, you may add:
 
 - **Workflow YAML (example):**
   - `.github/workflows/backend-ci.yml`
+  - `.github/workflows/fork-smoke.yml` — `Fork Smoke`, same triggers as `backend-ci.yml`. Bootstraps
+    the checkout as a fork (`bootstrap-fork.sh --name my-app`), starts `db redis rabbitmq` from the
+    fork's own Compose file, then runs `migrate:development`, `db:migrate:test` and `npm test`.
+    It uses Compose rather than service containers on purpose: the credentials must flow from
+    bootstrap through `.env` to `.env.test` (ADR-0051).
 
 - **Supporting scripts (recommended):**
   - `tests/contract/schemathesis/scripts/run-local.js`
