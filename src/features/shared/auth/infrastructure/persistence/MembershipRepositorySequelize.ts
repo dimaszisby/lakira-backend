@@ -1,4 +1,4 @@
-import { Transaction } from "sequelize";
+import { Transaction, type OrderItem } from "sequelize";
 import { models } from "@/infrastructure/db/models.js";
 import {
   Membership,
@@ -21,6 +21,13 @@ const toDomain = (row: MembershipModel): Membership =>
     joinedAt: row.joinedAt,
   });
 
+// Oldest membership first. `id` settles a tie on `joinedAt`, so the default
+// organization chosen at login cannot flip (kit deterministic-query-ordering).
+const ORDER_BY_JOINED: OrderItem[] = [
+  ["joinedAt", "ASC"],
+  ["id", "ASC"],
+];
+
 export class MembershipRepositorySequelize implements MembershipRepository {
   async findById(id: string): Promise<Membership | null> {
     const row = await models.Membership.findByPk(id);
@@ -40,7 +47,7 @@ export class MembershipRepositorySequelize implements MembershipRepository {
   async findDefaultByUser(userId: string): Promise<Membership | null> {
     const row = await models.Membership.findOne({
       where: { userId, status: "active" },
-      order: [["joinedAt", "ASC"]],
+      order: ORDER_BY_JOINED,
     });
     return row ? toDomain(row) : null;
   }
@@ -48,7 +55,7 @@ export class MembershipRepositorySequelize implements MembershipRepository {
   async findAllByUser(userId: string): Promise<Membership[]> {
     const rows = await models.Membership.findAll({
       where: { userId },
-      order: [["joinedAt", "ASC"]],
+      order: ORDER_BY_JOINED,
     });
     return rows.map(toDomain);
   }
@@ -56,7 +63,7 @@ export class MembershipRepositorySequelize implements MembershipRepository {
   async findAllByOrganization(organizationId: string): Promise<Membership[]> {
     const rows = await models.Membership.findAll({
       where: { organizationId },
-      order: [["joinedAt", "ASC"]],
+      order: ORDER_BY_JOINED,
     });
     return rows.map(toDomain);
   }

@@ -1,8 +1,8 @@
 # Error envelope residuals
 
-**Status:** Phase 1 (unknown-route 404, framework client errors as 4xx) complete on
-`fix/error-envelope-residuals`, gates green on Node 24.21.0. Phase 2 (429 envelope) on hold until
-lakira-frontend agrees to the new response shape (plan Q-1).
+**Status:** Phase 1 merged in #124 (`7ea5ec6`). Phase 2 (429 envelope) on hold until
+lakira-frontend agrees to the new response shape (plan Q-1). ADR-0052 went to
+`deterministic-query-ordering`, so Phase 2's ADR takes the next free number when it starts.
 **Slug:** `error-envelope-residuals` · **Branch:** `fix/error-envelope-residuals` (Phase 1),
 `fix/error-envelope-residuals-429` (Phase 2)
 

@@ -290,7 +290,7 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
         AND m.organization_id = :organizationId
         AND COALESCE((ms.display_options->>'showOnDashboard')::boolean, false) = true
         AND COALESCE(ms.is_active, true) = true
-      ORDER BY priority NULLS LAST, ms.created_at DESC
+      ORDER BY priority NULLS LAST, ms.created_at DESC, ms.id DESC
       LIMIT :limit
     `,
       {

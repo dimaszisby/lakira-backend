@@ -10,6 +10,7 @@ import type {
   DashboardVizResponse,
   DashboardVizItem,
 } from "@/features/analytics/domain/types.js";
+import { sequelize } from "@/infrastructure/db/models.js";
 import {
   createUserRow,
   seedDashboardMetric,
@@ -207,5 +208,56 @@ describe("VisualizationReadRepoSequelize (integration)", () => {
     const second = await repo.fetchDashboardVisualization(params);
     expect(second).toBe(first);
     expect(cache.dashboardHitsFromCache).toBe(1);
+  });
+  // Kit deterministic-query-ordering, D-01. Two dashboard metrics tied on
+  // priority and settings created_at, with room for one: the one returned must
+  // be decided by settings id, not by whichever row Postgres read first. The
+  // smaller id is inserted first because the tie-breaker is DESC.
+  it("breaks a priority and created_at tie at the limit by settings id", async () => {
+    const lowSettingsId = "00000000-0000-4000-8000-0000000000c1";
+    const highSettingsId = "ffffffff-ffff-4fff-bfff-ffffffffffc1";
+    const displayOptions = {
+      showOnDashboard: true,
+      priority: 1,
+      chartType: "line" as const,
+      color: "#111111",
+    };
+    const {
+      user,
+      metrics: [, highSeed],
+    } = await seedDashboardWithMetrics({
+      metrics: [
+        {
+          metricOverrides: { name: "Low" },
+          settingsOverrides: { id: lowSettingsId, displayOptions },
+          logs: [{ logValue: 1, loggedAt: new Date("2025-04-10T00:00:00Z") }],
+        },
+        {
+          metricOverrides: { name: "High" },
+          settingsOverrides: { id: highSettingsId, displayOptions },
+          logs: [{ logValue: 2, loggedAt: new Date("2025-04-10T00:00:00Z") }],
+        },
+      ],
+    });
+    await sequelize.query(
+      "UPDATE metric_settings SET created_at = '2025-01-01T00:00:00Z' WHERE id IN (:ids)",
+      { replacements: { ids: [lowSettingsId, highSettingsId] } },
+    );
+
+    const result = await repo.fetchDashboardVisualization({
+      userId: user.id,
+      organizationId: TEST_ORG_ID,
+      startISO: "2025-04-09T00:00:00Z",
+      endISO: "2025-04-13T00:00:00Z",
+      bucket: "1d" as const,
+      bucketSpec,
+      tz: "UTC",
+      fill: "none" as const,
+      limit: 1,
+    });
+
+    expect(result.items.map((item: DashboardVizItem) => item.metricId)).toEqual(
+      [highSeed.metric.id],
+    );
   });
 });

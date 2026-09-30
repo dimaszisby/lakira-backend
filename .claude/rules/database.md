@@ -65,6 +65,28 @@ Mapper:          XMapper.toDomain(sequelizeModel) / XMapper.toPersistence(domain
 - Mappers handle the `snake_case` ↔ `camelCase` translation
 - Repository methods: `create()`, `findById()`, `save()`, `findByX()`, `existsX()`
 
+## Query ordering
+
+ADR-0052. Two rules, both about getting the same rows back in the same order every time.
+
+- **An order that feeds `limit`, pagination, or a "first"/"latest" pick ends with `id`**, in the
+  same direction as the key before it. Postgres returns rows that tie on every sort key in any
+  order, and at a `limit` boundary a tie changes _which_ rows come back. Add `id` even where a
+  unique constraint already makes the leading key unique.
+- **Metric logs are ordered, filtered and dated by `loggedAt`**, never `createdAt`. `loggedAt` is
+  when the value was measured; `createdAt` is when the row was inserted, and they differ for every
+  backfilled log.
+
+```ts
+order: [
+  ["loggedAt", "DESC"],
+  ["id", "DESC"],
+],
+```
+
+The list endpoints' `buildOrder` helpers follow the same shape for every sort field. Raw SQL does
+too: `ORDER BY priority NULLS LAST, ms.created_at DESC, ms.id DESC`.
+
 ## Sequelize CLI Config
 
 - There is no `.sequelizerc`: every `migrate:*` script passes `--config src/config/config.cjs` and

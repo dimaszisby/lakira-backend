@@ -28,16 +28,6 @@ export class EmailVerificationTokenRepositorySequelize implements EmailVerificat
     return row ? toDomainEmailVerificationToken(row) : null;
   }
 
-  async findLatestByUserId(
-    userId: string,
-  ): Promise<EmailVerificationToken | null> {
-    const row = await models.EmailVerificationToken.findOne({
-      where: { userId },
-      order: [["createdAt", "DESC"]],
-    });
-    return row ? toDomainEmailVerificationToken(row) : null;
-  }
-
   async revokeAllForUser(
     userId: string,
     now: Date = new Date(),

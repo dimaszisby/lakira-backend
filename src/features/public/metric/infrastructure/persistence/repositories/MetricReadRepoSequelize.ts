@@ -180,7 +180,12 @@ export class MetricReadRepoSequelize implements MetricReadRepository {
           "createdAt",
           "updatedAt",
         ],
-        order: [["createdAt", "DESC"]],
+        // The latest by when the value was logged, not when the row was inserted,
+        // with `id` so ties cannot reorder (kit deterministic-query-ordering, ADR-0052).
+        order: [
+          ["loggedAt", "DESC"],
+          ["id", "DESC"],
+        ],
         limit: logsLimit,
       });
     }

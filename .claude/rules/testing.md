@@ -61,6 +61,10 @@ describe("MyUseCase", () => {
 - Use `supertest` for HTTP assertions
 - DB fixtures in `__tests__/integration/helpers/db-fixtures.ts` (`createUserRow`, `createMetricRow`,
   `truncateAllTables`, …)
+- A test of an ordered query forces the case it checks: explicit ids and timestamps, arranged so
+  insertion order and index order both disagree with the expected order. Never rely on rows
+  inserted back to back getting distinct timestamps — that passes by luck and fails at random
+  (ADR-0052)
 - There are no shared domain factories: unit tests build entities locally (e.g. `makeUser` inside
   each auth test); `__tests__/unit/factories/` holds only `metric-settings.ts`
 

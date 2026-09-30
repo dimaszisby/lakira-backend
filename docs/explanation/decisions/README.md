@@ -89,10 +89,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0049](./adr-0049-console-email-adapter-confined-to-dev-and-test.md)         | The console email adapter is confined to development and test; email adapters never log the recipient            | Accepted               | 2026-09-27 | email-adapters-log-pii D-01..D-03  |
 | [ADR-0050](./adr-0050-production-image-defaults-node-env.md)                     | The production image defaults `NODE_ENV` to `production`                                                         | Accepted               | 2026-09-28 | docker-image-node-env D-01..D-03   |
 | [ADR-0051](./adr-0051-fork-proven-in-ci.md)                                      | A fork is proven in CI, and its database identifiers are underscore slugs                                        | Accepted               | 2026-09-29 | fork-test-credentials D-01..D-03   |
+| [ADR-0052](./adr-0052-ordered-queries-are-total.md)                              | Ordered queries are total; log queries order by when the value was logged                                        | Accepted               | 2026-09-30 | deterministic-query-ordering D-01  |
 
 ## Adding one
 
-Take the next free number — **ADR-0052** as of 2026-09-29 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0053** as of 2026-09-30 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 
