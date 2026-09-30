@@ -16,11 +16,36 @@ const { env: envMock } = jest.requireMock("@/config/envManager.js") as {
 
 jest.mock("@/utils/logger.js", () => ({
   error: jest.fn(),
+  warn: jest.fn(),
 }));
 
 const loggerMock = jest.requireMock("@/utils/logger.js") as {
   error: jest.Mock;
+  warn: jest.Mock;
 };
+
+jest.mock("@sentry/node", () => ({
+  captureException: jest.fn(),
+}));
+
+const sentryMock = jest.requireMock("@sentry/node") as {
+  captureException: jest.Mock;
+};
+
+// The shape body-parser and raw-body raise: an `http-errors` instance, which is a
+// plain Error carrying `status`, `statusCode`, `expose` and a `type`.
+const httpError = (
+  status: number,
+  message: string,
+  expose = status < 500,
+  type = "test.error",
+) =>
+  Object.assign(new Error(message), {
+    status,
+    statusCode: status,
+    expose,
+    type,
+  });
 
 const createResponse = () => {
   const res = {
@@ -131,6 +156,90 @@ describe("error middleware", () => {
         },
       ],
     });
+  });
+
+  // C3 residual 2 (docs/internal/initiatives/error-envelope-residuals, D-02).
+  // These used to fall through to a masked 500 and a Sentry event.
+  it.each([
+    [413, "request entity too large", "entity.too.large"],
+    [415, 'unsupported charset "KOI8-R"', "charset.unsupported"],
+    [400, "request aborted", "request.aborted"],
+  ])(
+    "passes an exposed %i body-parser error through, even in production",
+    (status, message, type) => {
+      envMock.NODE_ENV = "production";
+      const res = createResponse();
+
+      handler(
+        httpError(status, message, true, type),
+        {} as AuthRequest,
+        res,
+        jest.fn(),
+      );
+
+      expect(res.status).toHaveBeenCalledWith(status);
+      expect(res.json).toHaveBeenCalledWith({ status: "fail", message });
+      expect(loggerMock.warn).toHaveBeenCalled();
+      expect(loggerMock.error).not.toHaveBeenCalled();
+      expect(sentryMock.captureException).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not trust a 4xx status that is not marked exposed", () => {
+    envMock.NODE_ENV = "production";
+    const err = httpError(400, "connection string leaked", false);
+    const res = createResponse();
+
+    handler(err, {} as AuthRequest, res, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "error",
+      message: "Something went wrong!",
+    });
+    expect(sentryMock.captureException).toHaveBeenCalledWith(
+      err,
+      expect.anything(),
+    );
+  });
+
+  // Discovered in review (kit D-04): Express's param decoding raises this, with
+  // a message that quotes the raw parameter, so the reply must not reuse it.
+  it("answers an undecodable path parameter with a fixed 400", () => {
+    envMock.NODE_ENV = "production";
+    const err = Object.assign(new URIError("Failed to decode param '%zz'"), {
+      status: 400,
+      statusCode: 400,
+    });
+    const res = createResponse();
+
+    handler(err, {} as AuthRequest, res, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "fail",
+      message: "Malformed URL",
+    });
+    expect(loggerMock.warn).toHaveBeenCalled();
+    expect(sentryMock.captureException).not.toHaveBeenCalled();
+  });
+
+  it("keeps a 5xx http-error on the masked server-error path", () => {
+    envMock.NODE_ENV = "production";
+    const err = httpError(500, "stream encoding should not be set", true);
+    const res = createResponse();
+
+    handler(err, {} as AuthRequest, res, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "error",
+      message: "Something went wrong!",
+    });
+    expect(sentryMock.captureException).toHaveBeenCalledWith(
+      err,
+      expect.anything(),
+    );
   });
 
   it("emits a message alongside field errors for ZodError", () => {

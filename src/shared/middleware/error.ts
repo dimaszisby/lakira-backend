@@ -51,6 +51,35 @@ const isBodyParseError = (
   );
 };
 
+const MALFORMED_URL_MESSAGE = "Malformed URL";
+
+/**
+ * Errors raised by the framework that describe a client mistake, mapped to the
+ * 4xx they deserve instead of a masked 500 and a Sentry event (C3 residual 2).
+ * Returns `undefined` for anything else, which stays on the server-error path.
+ *
+ * - The `http-errors` contract, which body-parser and raw-body follow (413, 415,
+ *   400): `expose` is the raiser's promise that the message is safe to show.
+ *   Recognised by shape, so any middleware that keeps the contract is covered.
+ * - Express's undecodable path parameter: a `URIError` with status 400 but no
+ *   `expose`, whose message quotes the parameter, so the reply uses a fixed one.
+ *
+ * See `docs/internal/initiatives/error-envelope-residuals/decisions.md` D-02, D-04.
+ */
+const toClientError = (error: Error): AppError | undefined => {
+  const { status, expose } = error as { status?: unknown; expose?: unknown };
+  if (typeof status !== "number" || status < 400 || status >= 500) {
+    return undefined;
+  }
+  if (expose === true) {
+    return new AppError(error.message, status);
+  }
+  if (error instanceof URIError && status === 400) {
+    return new AppError(MALFORMED_URL_MESSAGE, 400);
+  }
+  return undefined;
+};
+
 export const createErrorHandler =
   () =>
   (err: Error, req: AuthRequest, res: Response, next: NextFunction): void => {
@@ -71,9 +100,14 @@ export const createErrorHandler =
       return;
     }
 
+    const clientError = toClientError(err);
+
     if (err instanceof DatabaseError) {
       const dbMessage = err.original?.message ?? err.message;
       logger.error(`Database error: ${dbMessage}`, err);
+    } else if (clientError) {
+      // The client's mistake, not ours: no stack, not at error level.
+      logger.warn(`Client error ${clientError.statusCode}: ${err.message}`);
     } else {
       logger.error(`Error Occurred: ${err.message}`, err);
     }
@@ -85,7 +119,7 @@ export const createErrorHandler =
           ? new AppError(err.message, DOMAIN_ERROR_STATUS[err.kind])
           : err instanceof UniqueConstraintError
             ? new AppError("Duplicate value", 409)
-            : new AppError("Internal Server Error", 500);
+            : (clientError ?? new AppError("Internal Server Error", 500));
 
     if (appError.statusCode >= 500) {
       Sentry.captureException(err, {
