@@ -38,7 +38,6 @@ const build = () => {
   const tokenRepo: jest.Mocked<EmailVerificationTokenRepository> = {
     save: jest.fn(),
     findByTokenHash: jest.fn(),
-    findLatestByUserId: jest.fn(),
     revokeAllForUser: jest.fn(),
     markUsed: jest.fn(),
   };

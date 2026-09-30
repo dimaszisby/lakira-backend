@@ -145,3 +145,20 @@ The bytes that are not an HTTP status line reach `llhttp` in the test process it
 
 The `TRUNCATE` deadlock's cause is now audit finding R3 (P2) in `audit-2026-09-29.md` §6, and
 test-database isolation is graded Partial there on the strength of it.
+
+## A fourth failure, explained and fixed (2026-09-30)
+
+Fork Smoke run `36695083548` (PR #124, `pull_request` event, attempt 1) failed the same test,
+`MetricReadRepoSequelize.integration.test.ts` › limits logs when fetching metric detail, with
+`[20, 30]` instead of `[30, 20]`. The rerun passed.
+
+**Cause.** The 2026-09-27 fix made the fixture's `loggedAt` unique, but the query under test
+ordered by `createdAt DESC` with a `LIMIT`. `createdAt` is stamped by Sequelize at insert time and
+still collides within a millisecond, and Postgres returns tied rows in any order. The defect was in
+the query, not the fixture: it also ranked a backfilled log as the newest.
+
+**Fix.** Kit
+[`deterministic-query-ordering`](../initiatives/deterministic-query-ordering/README.md) and
+ADR-0052: log queries order by `loggedAt`, then `id`, and every ordered query that feeds a limit
+ends with `id`. The test now inserts logs out of `loggedAt` order, fails every time on the old
+query, and passed 20 of 20 runs on the new one.

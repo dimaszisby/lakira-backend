@@ -9,7 +9,6 @@ export type CreateEmailVerificationTokenDTO = {
 export interface EmailVerificationTokenRepository {
   save(data: CreateEmailVerificationTokenDTO): Promise<EmailVerificationToken>;
   findByTokenHash(hash: string): Promise<EmailVerificationToken | null>;
-  findLatestByUserId(userId: string): Promise<EmailVerificationToken | null>;
   revokeAllForUser(userId: string, now?: Date): Promise<void>;
   markUsed(id: string, usedAt: Date): Promise<void>;
 }

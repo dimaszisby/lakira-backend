@@ -999,7 +999,11 @@ export const MetricDetailResponseSchema = registerSchema(
 export const TrendDataPointSchema = registerSchema(
   "TrendDataPoint",
   z.object({
-    date: z.string().openapi({ example: "2023-01-01" }),
+    date: z.string().openapi({
+      example: "2023-01-01",
+      description:
+        "When the value was logged (the log's loggedAt), not when it was recorded. Points are in ascending date order.",
+    }),
     value: z.number().openapi({ example: 7500 }),
   }),
 );
