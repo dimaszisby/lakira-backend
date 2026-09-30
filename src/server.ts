@@ -30,6 +30,7 @@ import { AnalyticsVisualizationInvalidationAdapter } from "./features/public/ana
 
 // Other Setup
 import { globalRateLimiter } from "@/shared/middleware/rate-limiter.js";
+import { notFoundHandler } from "@/shared/middleware/not-found.js";
 import { errorHandler } from "@/shared/middleware/error.js";
 import { disconnectRedis, redisClient } from "./utils/redis-client.js";
 import {
@@ -231,7 +232,8 @@ app.use(
   swaggerUi.setup(openApiDocument),
 );
 
-// * Global Error Handler
+// * Unmatched routes, then the global error handler
+app.use(notFoundHandler);
 app.use(errorHandler);
 
 // HTTP Server Reference

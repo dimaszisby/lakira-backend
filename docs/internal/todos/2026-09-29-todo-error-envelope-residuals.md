@@ -1,6 +1,9 @@
 # Todo — error responses that still bypass the envelope
 
-- **Status:** Open (C3 residual, P2)
+- **Status:** Open (C3 residual, P2) — in progress in kit
+  [`error-envelope-residuals`](../initiatives/error-envelope-residuals/README.md). Phase 1 fixes the
+  unknown-route 404 and the body-parser 4xx (branch `fix/error-envelope-residuals`); the 429 shape
+  is Phase 2, on hold for lakira-frontend. Stays Open until Phase 2 merges.
 - **Created:** 2026-09-29
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-09-29.md` §4.1 C3; kit `saas-gold-reaudit` D-05

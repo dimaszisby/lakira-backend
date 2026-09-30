@@ -38,7 +38,9 @@ importing a feature must construct nothing (ADR-0045).
 4. `validate(schema)` — Zod validation
 5. Controller handler (wrapped in `catchAsync()`)
 6. `methodNotAllowed([...methods])` — 405 for unsupported methods
-7. Global `errorHandler` — catches all thrown errors
+7. App-level `notFoundHandler` — JSON 404 for any route nothing matched
+8. Global `errorHandler` — catches all thrown errors; framework client errors (oversized body,
+   bad charset, undecodable path parameter) keep their 4xx instead of becoming a 500
 
 ## Request Types
 
@@ -85,6 +87,8 @@ wired in (C3, `docs/internal/todos/2026-09-01-todo-error-envelope.md`).
 - **404**: Resource not found
 - **405**: Method not allowed
 - **409**: Conflict (duplicate unique constraint)
+- **413**: Request body larger than `REQUEST_BODY_LIMIT`
+- **415**: Unsupported request charset or content encoding
 - **429**: Rate limit exceeded
 - **500**: Internal server error
 

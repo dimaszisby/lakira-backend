@@ -1,6 +1,6 @@
 # Feature boundary audience paths
 
-**Status:** Complete locally; gates green on Node 24.21.0.
+**Status:** Complete. Merged in #123 (`ed54562`).
 **Slug:** `feature-boundary-audience-paths` · **Branch:** `fix/feature-boundary-audience-paths`
 
 Lean kit — no plan; acceptance criteria live in the checklist. Closes the C4 residual reopened by
