@@ -1,6 +1,7 @@
 import { jest } from "@jest/globals";
 import { createMetricRouter } from "@/features/metric/infrastructure/http/router.js";
 import * as controllerModule from "@/features/metric/infrastructure/http/controller.js";
+import { metricsCursorCacheKey } from "@/features/metric/infrastructure/http/cache-keys.js";
 
 type RouterDouble = {
   use: jest.Mock;
@@ -241,42 +242,17 @@ describe("metric router", () => {
     );
   });
 
-  it("builds cursor cache keys deterministically", () => {
+  // This used to call the key builder with a flat "filter[name]" query key,
+  // which Express never produces, so it passed while every filter shared one
+  // cache entry (audit R2). Key building is now tested against the real schema
+  // in cache-keys.test.ts; this only checks the list route uses that builder.
+  it("caches the list route under metricsCursorCacheKey", () => {
     buildRouter();
-    const cursorBuilder = cacheMiddlewareMock.mock.calls[0][0] as (
-      req: any,
-    ) => string;
 
-    const req: any = {
-      user: { id: "user-99", organizationId: "org-1" },
-      query: {
-        limit: "50",
-        sort: "createdAt",
-        q: "search",
-        "filter[name]": "Metric A",
-        "filter[categoryId]": "cat-7",
-        after: "cursor",
-        includeTotal: "true",
-      },
-    };
-
-    const key = cursorBuilder(req);
-    expect(buildCursorCacheKeyMock).toHaveBeenCalledWith({
-      feature: "metrics",
-      version: 2,
-      userId: "user-99",
-      organizationId: "org-1",
-      segments: [
-        ["l", 50],
-        ["s", "createdAt"],
-        ["q", "search"],
-        ["fn", "Metric A"],
-        ["fc", "cat-7"],
-        ["after", "cursor"],
-        ["it", "true"],
-      ],
-    });
-    expect(key).toBe("metrics-cursor-key");
+    expect(cacheMiddlewareMock.mock.calls[0]).toEqual([
+      metricsCursorCacheKey,
+      60,
+    ]);
   });
 
   it("builds resource cache keys with normalized include query", () => {

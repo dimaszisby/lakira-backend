@@ -1,6 +1,6 @@
 # Deterministic query ordering
 
-**Status:** Complete on `fix/deterministic-query-ordering`; gates green on Node 24.21.0. D-01 and
+**Status:** Complete. Merged in #125 (`2fd4e29`). D-01 and
 D-02 promoted to [ADR-0052](../../../explanation/decisions/adr-0052-ordered-queries-are-total.md).
 **Slug:** `deterministic-query-ordering` · **Branch:** `fix/deterministic-query-ordering`
 

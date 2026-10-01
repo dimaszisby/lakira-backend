@@ -78,6 +78,20 @@ There is no `errorResponse()` helper. One existed in `response-formatter.ts` wit
 and a body shape incompatible with everything the API actually sent; it was removed rather than
 wired in (C3, `docs/internal/todos/2026-09-01-todo-error-envelope.md`).
 
+## Response caching
+
+- A cache key generator reads the request through `pickValidated(schema)(req)` — the value the
+  handler queries with — never raw `req.query`. Express nests `?filter[name]=x` as
+  `req.query.filter.name`, so a key built from `req.query["filter[name]"]` silently drops the
+  filter (audit R2; kit `list-cache-key-filters`). Every field that changes the result is a
+  segment. Examples: `src/features/public/metric/infrastructure/http/cache-keys.ts`,
+  `…/metric-settings/infrastructure/http/cache-keys.ts`
+- Keys are tenant-scoped through `buildCursorCacheKey` (ADR-0035). Bump the feature's
+  `*_CURSOR_VERSION` when a key's meaning changes, so entries written under the old key are never
+  read
+- One cache layer per route: do not wrap a route in `cacheMiddleware` when its use case already
+  caches. Writes invalidate the list namespace as `cursor:<feature>:v*:<user>:org:<org>:*`
+
 ## HTTP Status Codes
 
 - **200**: Successful GET/PUT/DELETE
