@@ -45,8 +45,8 @@ consult it before creating any document.
 Frequently needed:
 
 - `docs/reference/commands.md` — canonical npm scripts (do not keep a second copy elsewhere)
-- `docs/reference/configuration.md` — all 70 env vars
-- `docs/explanation/decisions/` — 45 ADRs, one per file; check **Status** before trusting one
+- `docs/reference/configuration.md` — all 71 env vars
+- `docs/explanation/decisions/` — 53 ADRs, one per file; check **Status** before trusting one
 - `docs/reference/api/lakira-backend-openapi.json` — generated, CI-drift-gated, never hand-edited
 
 `docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` is the live risk status (as of 2026-09-24: no open P0s, all C1–C6 caveats closed).

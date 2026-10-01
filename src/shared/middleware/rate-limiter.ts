@@ -296,3 +296,36 @@ export const createEmailVerificationIpRateLimiter = () =>
 
 export const emailVerificationIpRateLimiter =
   createEmailVerificationIpRateLimiter();
+
+/**
+ * `POST /auth/register` — unauthenticated, and every registration emails the
+ * address it is given. Keyed by IP because an attacker chooses the address; one
+ * hour, like the other email-sending limiters (ADR-0053, audit R1).
+ */
+export const createRegisterIpRateLimiter = () =>
+  env.DISABLE_RATE_LIMITING
+    ? (maybeLogDisableNotice(), noopRateLimiter)
+    : rateLimit({
+        keyGenerator: (req: AuthRequest): string =>
+          `register-ip:${req.ip || "anonymous"}`,
+        store: maybeCreateStore(),
+        windowMs: 60 * 60 * 1000,
+        max: env.RATE_LIMIT_REGISTER_IP_MAX,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: {
+          status: 429,
+          message: "Too many registration attempts, please try again later.",
+        },
+        handler: (
+          req: AuthRequest,
+          res: Response,
+          next: NextFunction,
+          options,
+        ) => {
+          logger.warn(`Registration IP rate limit hit for ${req.ip}`);
+          res.status(options.statusCode).json(options.message);
+        },
+      });
+
+export const registerIpRateLimiter = createRegisterIpRateLimiter();

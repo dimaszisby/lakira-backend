@@ -20,6 +20,7 @@ import {
   switchOrgRateLimiter,
   emailVerificationEmailRateLimiter,
   emailVerificationIpRateLimiter,
+  registerIpRateLimiter,
 } from "@/shared/middleware/rate-limiter.js";
 import { validate } from "@/shared/middleware/validation.js";
 import {
@@ -39,6 +40,7 @@ export const createAuthRouter = () => {
 
   router.post(
     "/register",
+    registerIpRateLimiter,
     requireJsonObjectBody(),
     validate(createUserSchema),
     register,

@@ -28,6 +28,8 @@ Per route (`src/shared/middleware/rate-limiter.ts`):
 - **User**: 50 req / 15 min (user ID or IP fallback), `RATE_LIMIT_USER_MAX`
 - **Analytics**: 30 req / 1 min (user ID or IP fallback), `RATE_LIMIT_ANALYTICS_MAX`
 - **Switch org**: per 15 min, `RATE_LIMIT_SWITCH_ORG_MAX`
+- **Registration**: per hour, per client IP, first in the `POST /auth/register` chain,
+  `RATE_LIMIT_REGISTER_IP_MAX` (ADR-0053)
 - **Password reset** and **email verification**: per hour, each keyed both by email and by IP
   (`RATE_LIMIT_PASSWORD_RESET_{EMAIL,IP}_MAX`, `RATE_LIMIT_EMAIL_VERIFICATION_{EMAIL,IP}_MAX`)
 

@@ -2152,6 +2152,16 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           },
+          "429": {
+            "description": "Too many registration attempts from this IP (RATE_LIMIT_REGISTER_IP_MAX per hour)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitError"
+                }
+              }
+            }
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }

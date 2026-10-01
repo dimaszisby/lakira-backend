@@ -99,6 +99,15 @@ registry.registerPath({
     409: {
       $ref: "#/components/responses/ConflictError",
     },
+    429: {
+      description:
+        "Too many registration attempts from this IP (RATE_LIMIT_REGISTER_IP_MAX per hour)",
+      content: {
+        "application/json": {
+          schema: RateLimitErrorSchema,
+        },
+      },
+    },
     500: {
       $ref: "#/components/responses/InternalServerError",
     },

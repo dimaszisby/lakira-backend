@@ -397,6 +397,19 @@ const envSchema = z
         return parsed;
       })
       .default("10"),
+    // POST /auth/register, per IP per hour (ADR-0053).
+    RATE_LIMIT_REGISTER_IP_MAX: z
+      .string()
+      .transform((val) => {
+        const parsed = parseInt(val, 10);
+        if (isNaN(parsed) || parsed <= 0) {
+          throw new Error(
+            "RATE_LIMIT_REGISTER_IP_MAX must be a positive number",
+          );
+        }
+        return parsed;
+      })
+      .default("10"),
 
     // Analytics / Visualization
     VIZ_MAX_BUCKETS: z.coerce.number().int().positive().default(400),

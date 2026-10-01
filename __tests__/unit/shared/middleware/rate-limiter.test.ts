@@ -7,6 +7,7 @@ import {
   createAnalyticsRateLimiter,
   createEmailVerificationEmailRateLimiter,
   createEmailVerificationIpRateLimiter,
+  createRegisterIpRateLimiter,
 } from "@/shared/middleware/rate-limiter.js";
 
 // Replace the real middleware factories with simple stubs so we can assert on the config that's passed in.
@@ -43,6 +44,7 @@ jest.mock("@/config/envManager.js", () => ({
     RATE_LIMIT_ANALYTICS_MAX: 25,
     RATE_LIMIT_EMAIL_VERIFICATION_EMAIL_MAX: 3,
     RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX: 10,
+    RATE_LIMIT_REGISTER_IP_MAX: 7,
     DISABLE_RATE_LIMITING: false,
   },
 }));
@@ -56,6 +58,7 @@ const { env: envMock } = jest.requireMock("@/config/envManager.js") as {
     RATE_LIMIT_ANALYTICS_MAX: number;
     RATE_LIMIT_EMAIL_VERIFICATION_EMAIL_MAX: number;
     RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX: number;
+    RATE_LIMIT_REGISTER_IP_MAX: number;
     DISABLE_RATE_LIMITING: boolean;
   };
 };
@@ -253,20 +256,54 @@ describe("rate limiter middleware", () => {
     expect(res.json).toHaveBeenCalledWith(options.message);
   });
 
+  // Audit R1 (kit register-rate-limiter, D-01): registration emails the address
+  // it is given, so it gets an hourly per-IP budget of its own.
+  it("uses per-IP key, hourly window and configured max for the register limiter", () => {
+    redisClient.isOpen = true;
+    const limiter = unwrapLimiter(createRegisterIpRateLimiter());
+    const res = createResponse();
+    const req = { ip: "9.9.9.9" } as AuthRequest;
+
+    expect(limiter.keyGenerator(req)).toBe("register-ip:9.9.9.9");
+    expect(limiter.max).toBe(envMock.RATE_LIMIT_REGISTER_IP_MAX);
+    expect(limiter.windowMs).toBe(60 * 60 * 1000);
+    expect(limiter.store).toEqual(
+      expect.objectContaining({ storeOptions: expect.anything() }),
+    );
+
+    const options = {
+      statusCode: 429,
+      message: {
+        status: 429,
+        message: "Too many registration attempts, please try again later.",
+      },
+    };
+    expect(limiter.message).toEqual(options.message);
+    limiter.handler(req, res, jest.fn(), options);
+
+    expect(loggerMock.warn).toHaveBeenCalledWith(
+      "Registration IP rate limit hit for 9.9.9.9",
+    );
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith(options.message);
+  });
+
   it("returns a no-op middleware when DISABLE_RATE_LIMITING is true", () => {
     envMock.DISABLE_RATE_LIMITING = true;
 
     const globalLimiter = createGlobalRateLimiter();
     const userLimiter = createUserRateLimiter();
     const analyticsLimiter = createAnalyticsRateLimiter();
+    const registerLimiter = createRegisterIpRateLimiter();
     const next = jest.fn();
     const res = createResponse();
 
     globalLimiter({} as AuthRequest, res, next);
     userLimiter({} as AuthRequest, res, next);
     analyticsLimiter({} as AuthRequest, res, next);
+    registerLimiter({} as AuthRequest, res, next);
 
-    expect(next).toHaveBeenCalledTimes(3);
+    expect(next).toHaveBeenCalledTimes(4);
     expect(rateLimitFactory).not.toHaveBeenCalled();
     expect(loggerMock.info).toHaveBeenCalledWith(
       "[RATE LIMITER] DISABLE_RATE_LIMITING=true — skipping throttling (contract tests / fuzzing runs).",
