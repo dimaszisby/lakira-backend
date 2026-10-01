@@ -42,14 +42,15 @@ describe("MetricSettingsCacheInvalidator", () => {
 
     await sut.invalidate("user-1", "org-1", "metric-1", "settings-1");
 
-    expect(keySpy).toHaveBeenCalledTimes(2);
-    expect(patternSpy).toHaveBeenCalledWith("metricSettings:org-1:user-1:*");
-    expect(keySpy).toHaveBeenNthCalledWith(
-      1,
-      "metricSettings:org-1:user-1:metric-1",
+    // Kit list-cache-key-filters, D-05. This used to assert a
+    // `metricSettings:org-1:user-1:*` pattern, a key format nothing writes; the
+    // list cache lives under the cursor namespace and was never cleared.
+    expect(patternSpy).toHaveBeenCalledTimes(1);
+    expect(patternSpy).toHaveBeenCalledWith(
+      "cursor:metric-settings:v*:user-1:org:org-1:*",
     );
-    expect(keySpy).toHaveBeenNthCalledWith(
-      2,
+    expect(keySpy).toHaveBeenCalledTimes(1);
+    expect(keySpy).toHaveBeenCalledWith(
       "metricSetting:org-1:user-1:settings-1",
     );
     expect(logSpy).toHaveBeenCalledWith("metric-settings-cache", {

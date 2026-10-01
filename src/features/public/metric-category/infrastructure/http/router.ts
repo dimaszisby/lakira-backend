@@ -21,40 +21,8 @@ import {
   generateDummyMetricCategoriesSchema,
 } from "./schema.zod.js";
 import { AuthRequest } from "@/types/request.context.js";
-import { buildCursorCacheKey } from "@/shared/cache/keys.js";
-import {
-  METRIC_CATEGORY_CURSOR_FEATURE,
-  METRIC_CATEGORY_CURSOR_VERSION,
-} from "../../application/cache.constants.js";
 import { methodNotAllowed } from "@/shared/middleware/method-guard.js";
 import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.js";
-
-const getQueryString = (value: unknown): string | undefined =>
-  typeof value === "string" ? value : undefined;
-
-const categoriesCacheKey = (req: AuthRequest) => {
-  const limitParam = getQueryString(req.query.limit);
-  const sortParam = getQueryString(req.query.sort);
-  const qParam = getQueryString(req.query.q);
-  const afterParam = getQueryString(req.query.after);
-  const filterName = getQueryString(req.query["filter[name]"]);
-  const includeTotal = getQueryString(req.query.includeTotal) ?? "false";
-
-  return buildCursorCacheKey({
-    feature: METRIC_CATEGORY_CURSOR_FEATURE,
-    version: METRIC_CATEGORY_CURSOR_VERSION,
-    userId: req.user?.id,
-    organizationId: req.user?.organizationId,
-    segments: [
-      ["l", Number(limitParam ?? 20)],
-      ["s", sortParam ?? "-createdAt"],
-      ["q", qParam ?? ""],
-      ["fn", filterName ?? ".js"],
-      ["after", afterParam ?? ""],
-      ["it", includeTotal],
-    ],
-  });
-};
 
 const categoryCacheKey = (req: AuthRequest) =>
   `category:${req.user?.organizationId}:${req.user?.id}:${req.params.id}`;
@@ -74,7 +42,9 @@ export const createMetricCategoryRouter = () => {
   router.get(
     "/",
     validate(getAllMetricCategoriesSchema),
-    cacheMiddleware(categoriesCacheKey, 300),
+    // No cacheMiddleware: ListCategories caches this page itself under a key
+    // built from the normalized filter. A second, router-level layer keyed on
+    // raw req.query ignored the filter (kit list-cache-key-filters, D-02).
     listCategories,
   );
 

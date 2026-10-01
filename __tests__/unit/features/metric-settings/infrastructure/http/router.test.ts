@@ -1,6 +1,7 @@
 import { jest } from "@jest/globals";
 import { createMetricSettingsRouter } from "@/features/metric-settings/infrastructure/http/router.js";
 import * as controllerModule from "@/features/metric-settings/infrastructure/http/controller.js";
+import { metricSettingsCursorCacheKey } from "@/features/metric-settings/infrastructure/http/cache-keys.js";
 
 type RouterDouble = {
   use: jest.Mock;
@@ -235,43 +236,15 @@ describe("metric settings router", () => {
     );
   });
 
-  it("generates deterministic cursor cache keys using request filters", () => {
+  // Key building is tested against the real schema in cache-keys.test.ts (kit
+  // list-cache-key-filters, D-04); this only checks the list route uses it.
+  it("caches the list route under metricSettingsCursorCacheKey", () => {
     buildRouter();
-    const listKeyFn = cacheMiddlewareMock.mock.calls[0][0] as (
-      req: any,
-    ) => string;
 
-    const req: any = {
-      user: { id: "user-1", organizationId: "org-1" },
-      query: {
-        filter: { metricId: "metric-42" },
-        limit: "50",
-        sort: "createdAt",
-        after: "cursor-123",
-        includeTotal: "true",
-      },
-    };
-
-    const key = listKeyFn(req);
-
-    expect(buildCursorCacheKeyMock).toHaveBeenCalledWith({
-      feature: "metric-settings",
-      version: 2,
-      userId: "user-1",
-      organizationId: "org-1",
-      segments: [
-        ["l", 50],
-        ["s", "createdAt"],
-        ["fm", "metric-42"],
-        ["after", "cursor-123"],
-        ["it", "1"],
-      ],
-    });
-    expect(loggerDebugMock).toHaveBeenCalledWith(
-      "[CACHE] Generated metric settings cursor key",
-      { key: "cursor-key" },
-    );
-    expect(key).toBe("cursor-key");
+    expect(cacheMiddlewareMock.mock.calls[0]).toEqual([
+      metricSettingsCursorCacheKey,
+      300,
+    ]);
   });
 
   it("builds cache keys for detail routes using user + metricSetting ids", () => {

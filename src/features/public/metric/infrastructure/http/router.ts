@@ -23,43 +23,12 @@ import {
 } from "./schema.zod.js";
 import { AuthRequest } from "@/types/request.context.js";
 import { env } from "@/config/envManager.js";
-import { buildCursorCacheKey } from "@/shared/cache/keys.js";
 import { methodNotAllowed } from "@/shared/middleware/method-guard.js";
 import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.js";
+import { metricsCursorCacheKey } from "./cache-keys.js";
 
 const asString = (value: unknown): string | undefined =>
   typeof value === "string" ? value : undefined;
-
-import {
-  METRIC_CURSOR_FEATURE,
-  METRIC_CURSOR_VERSION,
-} from "../../application/cache.constants.js";
-
-const metricsCursorCacheKey = (req: AuthRequest) => {
-  const limit = Number(asString(req.query.limit) ?? 20);
-  const sort = asString(req.query.sort) ?? "-createdAt";
-  const search = asString(req.query.q) ?? "";
-  const fname = asString(req.query["filter[name]"]) ?? "";
-  const fcat = asString(req.query["filter[categoryId]"]) ?? "";
-  const after = asString(req.query.after) ?? "";
-  const includeTotal = asString(req.query.includeTotal) ?? "false";
-
-  return buildCursorCacheKey({
-    feature: METRIC_CURSOR_FEATURE,
-    version: METRIC_CURSOR_VERSION,
-    userId: req.user?.id,
-    organizationId: req.user?.organizationId,
-    segments: [
-      ["l", limit],
-      ["s", sort],
-      ["q", search],
-      ["fn", fname],
-      ["fc", fcat],
-      ["after", after],
-      ["it", includeTotal],
-    ],
-  });
-};
 
 const metricCacheKey = (req: AuthRequest) => {
   const includeRaw = asString(req.query.include) ?? "flat";

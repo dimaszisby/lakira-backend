@@ -84,6 +84,7 @@ Also green, and run by CI: `build`, `docs:openapi:check`, `security:delta:gate`,
    [Todo](docs/internal/todos/2026-09-22-todo-feature-boundary-rule-scope.md).
 4. **R2 · Caching (P2)** — list cache keys ignore the name filter, so different filtered lists can
    share a cached page. [Todo](docs/internal/todos/2026-09-29-todo-list-cache-key-nested-filters.md).
+   Fixed in kit `list-cache-key-filters`, pending a dated audit run to confirm it (ADR-002).
 5. **R1 · Security (P2)** — `POST /auth/register` has no per-route rate limiter.
    [Todo](docs/internal/todos/2026-09-29-todo-register-rate-limiter.md).
 
