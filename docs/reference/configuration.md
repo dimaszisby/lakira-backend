@@ -142,7 +142,12 @@ worker before `npm test`, because it would consume the test's messages.
 | `RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX`    | number  | `10`    | per IP           |
 | `RATE_LIMIT_PASSWORD_RESET_EMAIL_MAX`     | number  | `3`     | per email        |
 | `RATE_LIMIT_PASSWORD_RESET_IP_MAX`        | number  | `10`    | per IP           |
+| `RATE_LIMIT_REGISTER_IP_MAX`              | number  | `10`    | 1 h, per IP      |
 | `DISABLE_RATE_LIMITING`                   | boolean | `false` |                  |
+
+> `RATE_LIMIT_REGISTER_IP_MAX` bounds `POST /auth/register` per client IP (ADR-0053). Every per-IP
+> limit is only as good as `req.ip`, which depends on `TRUST_PROXY` matching the real number of
+> proxies in front of the app; see the ADR's consequences.
 
 > `DISABLE_RATE_LIMITING=true` turns off **every** limiter. It exists for test and fuzzing
 > runs. Startup **refuses** it when `NODE_ENV=production`, along with the other

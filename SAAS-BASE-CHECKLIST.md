@@ -87,6 +87,7 @@ Also green, and run by CI: `build`, `docs:openapi:check`, `security:delta:gate`,
    Fixed in kit `list-cache-key-filters`, pending a dated audit run to confirm it (ADR-002).
 5. **R1 · Security (P2)** — `POST /auth/register` has no per-route rate limiter.
    [Todo](docs/internal/todos/2026-09-29-todo-register-rate-limiter.md).
+   Fixed in kit `register-rate-limiter` (ADR-0053), pending a dated audit run to confirm it (ADR-002).
 
 Closed and confirmed on 2026-09-29: C2 (by decision), C5, C6, and the 2026-06-05 P0s N1 and N2
 plus F1. Full evidence (file:line) is in the [dated audit](docs/internal/audits/saas-readiness/audit-2026-09-29.md).

@@ -1,6 +1,7 @@
 # Todo — `POST /auth/register` has no per-route rate limiter
 
-- **Status:** Open (R1, P2)
+- **Status:** Fixed in kit [`register-rate-limiter`](../initiatives/register-rate-limiter/README.md)
+  (ADR-0053); closes on merge. R1 stays open in the audit until a dated run confirms it (ADR-002)
 - **Created:** 2026-09-29
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-09-29.md` §6 R1; kit `saas-gold-reaudit` D-04
