@@ -1,6 +1,6 @@
 # ADR-0054 — Post-response work is tracked and drained
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-02
 - **Related:** audit finding R3 (`docs/internal/audits/saas-readiness/audit-2026-09-29.md` § 6);
   `.claude/rules/architecture.md` § Post-response work; `.claude/rules/testing.md` § Integration

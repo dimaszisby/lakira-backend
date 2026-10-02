@@ -1,8 +1,7 @@
 # Drainable background work
 
-**Status:** Complete on `fix/drainable-background-work`; gates green on Node 24.21.0. D-01 to D-05
-promoted to [ADR-0054](../../../explanation/decisions/adr-0054-post-response-work-is-tracked-and-drained.md)
-(Proposed until merge).
+**Status:** Merged in #128 (`6fc3c00`). D-01 to D-05 promoted to
+[ADR-0054](../../../explanation/decisions/adr-0054-post-response-work-is-tracked-and-drained.md).
 **Slug:** `drainable-background-work` · **Branch:** `fix/drainable-background-work`
 
 Standard kit. Fixes audit finding R3 (`docs/internal/audits/saas-readiness/audit-2026-09-29.md` § 6,

@@ -10,6 +10,12 @@
 - **Origin:** `D-01`..`D-03` in the docker-image-node-env kit —
   [`docker-image-node-env`](../../internal/initiatives/docker-image-node-env/decisions.md)
 
+> **Status note (2026-10-02).** CI now builds the image. Decision 4 says the Dockerfile test
+> exists "because CI does not build the image"; since
+> [ADR-0055](./adr-0055-production-image-built-and-smoked-in-ci.md) the `Image Smoke` workflow
+> starts the built image with no `NODE_ENV` and checks that a production-unsafe switch is refused.
+> The unit test stays as the fast guard.
+
 ---
 
 ## Context

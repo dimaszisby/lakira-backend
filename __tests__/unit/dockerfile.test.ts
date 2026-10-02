@@ -3,8 +3,9 @@ import path from "path";
 
 /**
  * ADR-0050 — the production image defaults NODE_ENV to production, so every ADR-0036
- * startup refusal holds even when the deployer sets nothing. CI never builds the image
- * (twelve-factor TF-2), so this reads the Dockerfile instead.
+ * startup refusal holds even when the deployer sets nothing. This reads the Dockerfile, so
+ * it fails in seconds and needs no Docker; `npm run docker:smoke` proves the same thing on
+ * the built image (ADR-0055).
  */
 const DOCKERFILE = path.resolve(__dirname, "../../Dockerfile");
 
