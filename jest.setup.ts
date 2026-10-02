@@ -11,9 +11,11 @@ import { disconnectRedis } from "./src/utils/redis-client.js";
 import request from "supertest";
 import { env } from "./src/config/envManager.js";
 import logger from "./src/utils/logger.js";
+import { drainBackgroundTasks } from "./src/utils/background-tasks.js";
 
 const skipDbLifecycle = process.env.SKIP_DB_LIFECYCLE === "true";
 jest.setTimeout(40000);
+const DRAIN_TIMEOUT_MS = 5000;
 
 if (skipDbLifecycle) {
   logger.info(
@@ -70,6 +72,10 @@ if (!skipDbLifecycle) {
 if (!skipDbLifecycle) {
   beforeEach(async () => {
     try {
+      // A task still writing would deadlock with the TRUNCATE (ADR-0054).
+      // Bounded, so a stuck task is named in the log instead of timing out.
+      await drainBackgroundTasks(DRAIN_TIMEOUT_MS);
+
       logger.info("🛑 Starting raw SQL table truncation...");
 
       const result = (await sequelize.query(
@@ -111,6 +117,8 @@ afterAll(async () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
       logger.info("[PROCESS] Test server closed.");
     }
+
+    await drainBackgroundTasks(DRAIN_TIMEOUT_MS);
 
     await sequelize.close();
     logger.info("[PROCESS] Database connection closed.");

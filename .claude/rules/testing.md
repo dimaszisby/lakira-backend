@@ -58,6 +58,9 @@ describe("MyUseCase", () => {
 
 - Server auto-starts on `jest.setup.ts` (port 4000+workerId)
 - All tables truncated before each test (except `SequelizeMeta` and `SequelizeData`)
+- The setup drains background work before truncating and before closing the database (ADR-0054).
+  A test that needs work a handler started after responding — the verification email — awaits
+  `drainBackgroundTasks()` from `@/utils/background-tasks.js`. Never a sleep or a polling loop
 - Use `supertest` for HTTP assertions
 - DB fixtures in `__tests__/integration/helpers/db-fixtures.ts` (`createUserRow`, `createMetricRow`,
   `truncateAllTables`, …)

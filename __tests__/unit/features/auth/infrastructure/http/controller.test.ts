@@ -13,6 +13,7 @@ let logout: ControllerModule["logout"];
 let verifyEmail: ControllerModule["verifyEmail"];
 let resendVerification: ControllerModule["resendVerification"];
 let switchOrg: ControllerModule["switchOrg"];
+let drainBackgroundTasks: typeof import("@/utils/background-tasks.js").drainBackgroundTasks;
 let overrideAuthFeatureForTest: ControllerModule["overrideAuthFeatureForTest"];
 
 type AuthFeature = ReturnType<typeof buildAuthFeature>;
@@ -54,6 +55,7 @@ const loadController = async () => {
   resendVerification = controller.resendVerification;
   switchOrg = controller.switchOrg;
   overrideAuthFeatureForTest = controller.overrideAuthFeatureForTest;
+  ({ drainBackgroundTasks } = await import("@/utils/background-tasks.js"));
 };
 
 const buildFeatureMocks = (): AuthFeature =>
@@ -409,6 +411,34 @@ describe("Auth HTTP controller", () => {
         message: expect.stringMatching(/unverified/i),
       }),
     );
+  });
+
+  it("answers 200 even when the verification email fails in the background", async () => {
+    requestEmailVerificationExecute.mockRejectedValueOnce(
+      new Error("smtp down"),
+    );
+    const req = {
+      user: { id: "user-1", email: "user@example.com" },
+      organizationId: "org-1",
+      membership: {
+        id: "mem-1",
+        role: "owner",
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+    } as unknown as AuthRequest;
+
+    const response = res();
+    const errorNext = jest.fn();
+    await resendVerification(req, response, errorNext);
+    await expect(drainBackgroundTasks()).resolves.toBe(0);
+
+    expect(requestEmailVerificationExecute).toHaveBeenCalledWith({
+      userId: "user-1",
+      email: "user@example.com",
+    });
+    expect(response.status).toHaveBeenCalledWith(200);
+    expect(errorNext).not.toHaveBeenCalled();
   });
 
   it("requires authentication for resend verification", async () => {

@@ -1,6 +1,7 @@
 import { Response, NextFunction } from "express";
 import { redisClient } from "@/utils/redis-client.js";
 import logger from "@/utils/logger.js";
+import { runInBackground } from "@/utils/background-tasks.js";
 import { env } from "@/config/envManager.js";
 import { AuthRequest } from "@/types/request.context.js";
 
@@ -41,17 +42,14 @@ export const cacheMiddleware =
 
       const originalJson = res.json.bind(res);
       res.json = ((data: unknown) => {
-        redisClient
-          .setEx(key, duration, JSON.stringify(data))
-          .then(() =>
-            logger.info(`[CACHE] Cached response: ${key} (TTL: ${duration}s)`),
-          )
-          .catch((cacheError) =>
-            logger.error(
-              `[CACHE ERROR] Cache write failed: ${key}`,
-              cacheError,
-            ),
-          );
+        runInBackground(
+          "cache-write",
+          async () => {
+            await redisClient.setEx(key, duration, JSON.stringify(data));
+            logger.info(`[CACHE] Cached response: ${key} (TTL: ${duration}s)`);
+          },
+          { cache: key },
+        );
 
         return originalJson(data);
       }) as typeof res.json;

@@ -92,3 +92,15 @@ Two surfaces per feature (ADR-0045):
   module scope; controllers build their feature on first use (`feature ??= buildXFeature()`).
   `__tests__/unit/architecture.test.ts` enforces this.
 - Use `.js` extensions in all import paths (ESM)
+
+## Post-response work
+
+Work a handler starts but does not await — the verification email, the cache write — goes through
+`runInBackground(label, task, meta)` from `src/utils/background-tasks.ts`, never a bare
+`promise.catch(...)` (ADR-0054). A bare promise cannot be waited for: shutdown closes the database
+underneath it, and the next integration test truncates the tables it is writing to. Shutdown and
+the integration setup both call `drainBackgroundTasks()`.
+
+- The label names the work in logs and in the drain-timeout warning; keep it stable.
+- `meta` is logged on failure. Ids only — never an email address or a token.
+- The work is not durable: a crash loses it. Anything that must not be lost belongs on the queue.

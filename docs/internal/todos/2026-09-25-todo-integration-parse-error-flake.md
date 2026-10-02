@@ -1,8 +1,8 @@
 # Todo — intermittent `Parse Error: Expected HTTP/` in the integration suite
 
 - **Status:** Open — the parse error is still unexplained. The `TRUNCATE` failure was explained
-  on 2026-09-29 (a deadlock with a fire-and-forget write; see the last section) but not fixed. A
-  third failure was explained and fixed on 2026-09-27
+  on 2026-09-29 (a deadlock with a fire-and-forget write) and fixed on 2026-10-02 (see the last
+  section). A third failure was explained and fixed on 2026-09-27
 - **Created:** 2026-09-25
 - **Owner:** unassigned
 - **Origin:** the `node-24-runtime` kit's gate runs
@@ -162,3 +162,18 @@ the query, not the fixture: it also ranked a backfilled log as the newest.
 ADR-0052: log queries order by `loggedAt`, then `id`, and every ordered query that feeds a limit
 ends with `id`. The test now inserts logs out of `loggedAt` order, fails every time on the old
 query, and passed 20 of 20 runs on the new one.
+
+## The `TRUNCATE` failure, fixed (2026-10-02)
+
+Kit [`drainable-background-work`](../initiatives/drainable-background-work/README.md) and ADR-0054.
+The verification email in `register` and `resendVerification` now goes through `runInBackground`
+(`src/utils/background-tasks.ts`), and `jest.setup.ts` drains that work before every `TRUNCATE` and
+before closing the database. Shutdown drains it too.
+
+Two new tests in `auth-verify.test.ts` hold the email open and check that the drain waits for it;
+both failed against the old controller. Five consecutive full integration runs on Node 24.21.0
+passed (219 passed, 5 skipped each), and `docker compose logs db` over that window shows no
+`deadlock detected` — only the two duplicate-key kinds noted above.
+
+This closes the `TRUNCATE` part only. The parse error is a different failure and stays open; audit
+finding R3 stays open in the audit until a dated run confirms the fix (ADR-002).

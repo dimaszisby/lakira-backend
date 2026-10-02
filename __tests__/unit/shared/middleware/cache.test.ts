@@ -1,6 +1,7 @@
 import { describe, beforeEach, it, expect, jest } from "@jest/globals";
 import type { Response } from "express";
 import { cacheMiddleware } from "@/shared/middleware/cache.js";
+import { drainBackgroundTasks } from "@/utils/background-tasks.js";
 import type { AuthRequest } from "@/types/request.context.js";
 
 // Stub env + redis + logger so cache middleware behavior can be driven entirely by the test.
@@ -136,11 +137,15 @@ describe("cacheMiddleware", () => {
 
     await createCachingMiddleware()(request as AuthRequest, res, next);
     await res.json({ data: "value" });
-    await Promise.resolve();
+    await drainBackgroundTasks();
 
     expect(loggerMock.error).toHaveBeenCalledWith(
-      "[CACHE ERROR] Cache write failed: cache:user-42",
-      writeError,
+      "[BACKGROUND] Task failed: cache-write: boom",
+      expect.objectContaining({
+        cache: "cache:user-42",
+        error: "boom",
+        stack: writeError.stack,
+      }),
     );
     expect(res.originalJson).toHaveBeenCalledWith({ data: "value" });
   });

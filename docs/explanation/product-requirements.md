@@ -138,7 +138,7 @@ Reliability and error handling:
 - Optional Sentry error reporting for 5xx (ADR-0021)
 - Optional RabbitMQ worker with retries, a parking-lot queue and idempotent handlers (ADR-0005, ADR-0007)
 - Deterministic 400 behavior for malformed JSON body inputs
-- Graceful shutdown closes HTTP server, DB, and Redis connections
+- Graceful shutdown closes the HTTP server, waits up to 10 s for work started after a response (ADR-0054), then closes DB, Redis, and RabbitMQ connections
 
 Performance and caching:
 
