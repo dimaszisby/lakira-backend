@@ -1,7 +1,7 @@
 # Register rate limiter
 
-**Status:** Complete on `fix/register-rate-limiter`; gates green on Node 24.21.0. D-01 and D-02
-promoted to [ADR-0053](../../../explanation/decisions/adr-0053-registration-rate-limited-per-ip.md).
+**Status:** Merged in #127 (`abb5831`). D-01 and D-02 promoted to
+[ADR-0053](../../../explanation/decisions/adr-0053-registration-rate-limited-per-ip.md).
 **Slug:** `register-rate-limiter` · **Branch:** `fix/register-rate-limiter`
 
 Standard kit. Fixes audit finding R1 (`docs/internal/audits/saas-readiness/audit-2026-09-29.md` § 6,

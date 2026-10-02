@@ -91,10 +91,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0051](./adr-0051-fork-proven-in-ci.md)                                      | A fork is proven in CI, and its database identifiers are underscore slugs                                        | Accepted               | 2026-09-29 | fork-test-credentials D-01..D-03   |
 | [ADR-0052](./adr-0052-ordered-queries-are-total.md)                              | Ordered queries are total; log queries order by when the value was logged                                        | Accepted               | 2026-09-30 | deterministic-query-ordering D-01  |
 | [ADR-0053](./adr-0053-registration-rate-limited-per-ip.md)                       | Registration is rate-limited per client IP, per hour                                                             | Accepted               | 2026-10-02 | register-rate-limiter D-01/D-02    |
+| [ADR-0054](./adr-0054-post-response-work-is-tracked-and-drained.md)              | Work started after the response is tracked, and drained on shutdown                                              | Proposed               | 2026-10-02 | drainable-background-work D-01..05 |
 
 ## Adding one
 
-Take the next free number — **ADR-0054** as of 2026-10-02 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0055** as of 2026-10-02 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 

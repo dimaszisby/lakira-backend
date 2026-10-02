@@ -14,6 +14,7 @@ import {
   EmailMessage,
   EmailSender,
 } from "@/features/auth/application/ports/EmailSender.js";
+import { drainBackgroundTasks } from "@/utils/background-tasks.js";
 
 class CapturingEmailSender implements EmailSender {
   public messages: EmailMessage[] = [];
@@ -22,6 +23,42 @@ class CapturingEmailSender implements EmailSender {
     this.messages.push(message);
   }
 }
+
+// Holds every send until `release()`, so the email is still in flight when
+// the response arrives, however slow the machine is.
+class GatedEmailSender extends CapturingEmailSender {
+  public release!: () => void;
+  private gate = new Promise<void>((resolve) => {
+    this.release = resolve;
+  });
+
+  async send(message: EmailMessage): Promise<void> {
+    await this.gate;
+    await super.send(message);
+  }
+}
+
+const installGatedSender = () => {
+  const sender = new GatedEmailSender();
+  overrideAuthFeatureForTest(buildAuthFeature({ emailSender: sender }));
+  return sender;
+};
+
+// Starts a drain, proves it is still waiting, then releases the email.
+const expectDrainWaitsFor = async (sender: GatedEmailSender) => {
+  expect(sender.messages).toHaveLength(0);
+
+  let drained = false;
+  const drain = drainBackgroundTasks().then(() => {
+    drained = true;
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  expect(drained).toBe(false);
+
+  sender.release();
+  await drain;
+  expect(sender.messages).toHaveLength(1);
+};
 
 const installCapturingSender = (overrides?: AuthFeatureOverrides) => {
   const sender = new CapturingEmailSender();
@@ -41,28 +78,20 @@ const extractTokenFromLink = (link: string): string => {
   return decodeURIComponent(match[1]);
 };
 
+// The email is sent after the response; draining waits for exactly that work
+// instead of guessing how long it takes.
 const waitForEmail = async (
   sender: CapturingEmailSender,
-  maxWaitMs = 1000,
 ): Promise<EmailMessage> => {
-  const start = Date.now();
-  while (sender.messages.length === 0 && Date.now() - start < maxWaitMs) {
-    await new Promise((r) => setTimeout(r, 50));
-  }
-  if (sender.messages.length === 0)
-    throw new Error("No email received within timeout");
+  await drainBackgroundTasks();
+  if (sender.messages.length === 0) throw new Error("No email was sent");
   return sender.messages[0];
 };
 
 const assertNoEmailSent = async (
   sender: CapturingEmailSender,
-  settleMs = 1000,
 ): Promise<void> => {
-  // The controller fires requestEmailVerification as fire-and-forget.
-  // For already-verified users the use case does one DB lookup then returns
-  // early. We wait long enough for that promise to settle, then assert no
-  // email was enqueued.
-  await new Promise((r) => setTimeout(r, settleMs));
+  await drainBackgroundTasks();
   expect(sender.messages).toHaveLength(0);
 };
 
@@ -195,6 +224,33 @@ describe("Email verification API", () => {
         .post("/api/v1/auth/verify-email")
         .send({ token: "" });
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe("background work is drainable (ADR-0054)", () => {
+    it("drain waits for the verification email started by register", async () => {
+      const sender = installGatedSender();
+
+      const res = await api
+        .post("/api/v1/auth/register")
+        .send(buildUserPayload());
+      expect(res.status).toBe(201);
+
+      await expectDrainWaitsFor(sender);
+    });
+
+    it("drain waits for the verification email started by resend", async () => {
+      const capturing = installCapturingSender();
+      const { token } = await createTestUser();
+      await waitForEmail(capturing);
+
+      const sender = installGatedSender();
+      const res = await api
+        .post("/api/v1/auth/resend-verification")
+        .set("Authorization", authHeader(token));
+      expect(res.status).toBe(200);
+
+      await expectDrainWaitsFor(sender);
     });
   });
 

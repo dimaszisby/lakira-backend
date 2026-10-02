@@ -5,6 +5,7 @@ import { successResponse } from "@/utils/response-formatter.js";
 import catchAsync from "@/utils/catch-async.js";
 import AppError from "@/utils/AppError.js";
 import logger from "@/utils/logger.js";
+import { runInBackground } from "@/utils/background-tasks.js";
 import { LOCKOUT_TTL_SECONDS } from "./loginLockout.js";
 import { toUserResponseDTO } from "../../infrastructure/mappers/UserMapper.js";
 import { buildAuthFeature } from "../../feature.js";
@@ -82,17 +83,16 @@ export const register = catchAsync(async (req: Request, res: Response) => {
     ip: req.ip ?? null,
   });
 
-  getFeature()
-    .requestEmailVerification.execute({
-      userId: result.user.id,
-      email: result.user.email,
-    })
-    .catch((err) =>
-      logger.error("Failed to send verification email after registration", {
+  // Not awaited: the response does not wait for the email (ADR-0054).
+  runInBackground(
+    "verification-email:register",
+    () =>
+      getFeature().requestEmailVerification.execute({
         userId: result.user.id,
-        error: err instanceof Error ? err.message : String(err),
+        email: result.user.email,
       }),
-    );
+    { userId: result.user.id },
+  );
 
   setRefreshCookie(res, result.rawRefreshToken);
 
@@ -240,14 +240,11 @@ export const resendVerification = catchAsync(
   async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { id: userId, email } = req.user;
-    getFeature()
-      .requestEmailVerification.execute({ userId, email })
-      .catch((err) =>
-        logger.error("Failed to resend verification email", {
-          userId,
-          error: err instanceof Error ? err.message : String(err),
-        }),
-      );
+    runInBackground(
+      "verification-email:resend",
+      () => getFeature().requestEmailVerification.execute({ userId, email }),
+      { userId },
+    );
     successResponse(res, 200, null, RESEND_VERIFICATION_RESPONSE);
   },
 );

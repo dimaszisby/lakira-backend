@@ -49,6 +49,11 @@ import { sendError } from "@/shared/utils/error-envelope.js";
 import { attachClientErrorHandler } from "@/shared/middleware/client-error.js";
 import * as Sentry from "@sentry/node";
 import { scrubSentryEvent } from "./utils/sentry-scrub.js";
+import {
+  SHUTDOWN_DRAIN_TIMEOUT_MS,
+  drainBackgroundTasks,
+  pendingBackgroundTaskCount,
+} from "./utils/background-tasks.js";
 
 const visualizationInvalidationAdapter =
   new AnalyticsVisualizationInvalidationAdapter();
@@ -273,6 +278,7 @@ const startServer = async () => {
 /**
  * Graceful Shutdown Handling
  * - Capture SIGINT & SIGTERM (Docker, PM2, Kubernetes)
+ * - Drain background tasks (ADR-0054)
  * - Close DB connection
  * - Close Express server
  * - Log shutdown
@@ -284,6 +290,18 @@ const shutdown = async (signal: string, exitCode = 0) => {
     if (server) {
       logger.info("[SERVER] Closing HTTP server...");
       await new Promise((resolve) => server!.close(resolve));
+    }
+
+    // Let work started after a response finish while its connections are open
+    // Not after a crash: the process state is unknown, so exit promptly.
+    if (exitCode === 0) {
+      const pendingTasks = pendingBackgroundTaskCount();
+      if (pendingTasks > 0) {
+        logger.info(
+          `[SERVER] Waiting for ${pendingTasks} background task(s)...`,
+        );
+      }
+      await drainBackgroundTasks(SHUTDOWN_DRAIN_TIMEOUT_MS);
     }
 
     // Close database connection
