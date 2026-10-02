@@ -9,6 +9,17 @@
 - **Origin:** `TF-2`, `TF-3`, `TF-4` in the twelve-factor audit kit —
   [`twelve-factor`](../../internal/audits/twelve-factor/audit-2026-08-17.md)
 
+> **Status note (2026-10-02).** Decided, not implemented. `Accepted` here records the decision
+> taken on 2026-09-15; nothing in the repository runs on a VPS yet. CI still deploys staging
+> through a Render hook (`deploy_staging` in `.github/workflows/backend-ci.yml`), production has
+> never been deployed, and there is no Compose stack for either. The registry's rule is to mark a
+> record `Accepted` in the PR that implements it; this one predates that being applied, and the
+> 2026-09-29 audit (§ 4.3, finding R6) flagged it. The status is kept rather than moved back to
+> `Proposed` because ADR-0039 and ADR-0050 already build on the decision
+> ([D-03](../../internal/initiatives/build-image-in-ci/decisions.md)). The first prerequisite is
+> in place: CI now builds and smoke-tests the image this stack will run
+> ([ADR-0055](./adr-0055-production-image-built-and-smoked-in-ci.md)).
+
 ---
 
 ## Context

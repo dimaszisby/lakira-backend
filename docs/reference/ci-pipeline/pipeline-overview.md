@@ -88,6 +88,12 @@ Later, you may add:
     fork's own Compose file, then runs `migrate:development`, `db:migrate:test` and `npm test`.
     It uses Compose rather than service containers on purpose: the credentials must flow from
     bootstrap through `.env` to `.env.test` (ADR-0051).
+  - `.github/workflows/image-smoke.yml` — `Image Smoke`, same triggers. Runs
+    `scripts/image-smoke.sh`, which builds the production `Dockerfile` and checks the image by
+    running it: non-root user, runtime dependencies only, `NODE_ENV` defaulting to `production`,
+    `/health` and `/ready` served in production mode against its own TLS Postgres and Redis, and a
+    clean stop on SIGTERM (ADR-0055). It is the only place CI builds the image; the image is not
+    pushed or deployed.
 
 - **Supporting scripts (recommended):**
   - `tests/contract/schemathesis/scripts/run-local.js`

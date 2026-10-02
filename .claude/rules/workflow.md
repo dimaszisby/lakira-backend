@@ -110,6 +110,7 @@ skipped is reported as skipped, not omitted.
 | build          | `npm run build`                                                  | always                                         |
 | OpenAPI        | `npm run docs:openapi:check`                                     | any route, Zod schema, or `src/lib/openapi/**` |
 | security delta | `npm run security:delta:gate`                                    | any dependency added, upgraded, or removed     |
+| image smoke    | `npm run docker:smoke`                                           | `Dockerfile`, `.dockerignore`, or dependencies |
 
 Use `npm run test:coverage` instead of `npm test` when coverage thresholds are in scope.
 
@@ -117,6 +118,10 @@ Use `npm run test:coverage` instead of `npm test` when coverage thresholds are i
 run. Validity matters as much as drift: a spec that is self-consistently wrong passes the diff, and
 one did, breaking a downstream repo's type generation. Run `npm run docs:openapi:validate` alone only
 to check the committed spec without regenerating it.
+
+The image smoke builds the production image and runs it, in about two minutes, and needs Docker
+(ADR-0055). CI runs it on every push as `Image Smoke`; run it locally when the change can alter
+what the image contains or how it starts and stops.
 
 The security gate is "soft" only in that Critical/High findings are what trip it — a tripped gate
 exits non-zero and stops the pipeline. See `.claude/rules/security.md`.

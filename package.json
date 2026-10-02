@@ -7,6 +7,7 @@
     "prepare": "husky",
     "build": "tsc -p tsconfig.build.json && node ./scripts/resolve-build-aliases.mjs",
     "docker:build": "docker build -t lakira-backend:local .",
+    "docker:smoke": "bash scripts/image-smoke.sh",
     "start": "NODE_ENV=production node dist/server.js",
     "start:staging": "NODE_ENV=staging npx sequelize-cli db:migrate --config src/config/config.cjs && NODE_ENV=staging node dist/server.js --migrations-path src/migrations",
     "start:test": "ALLOW_TEST_HTTP_SERVER=true NODE_ENV=test node dist/server.js",
