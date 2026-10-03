@@ -446,4 +446,107 @@ describe("Architecture enforcement", () => {
       expect(read("server.ts")).not.toMatch(/ForTest\b/);
     });
   });
+
+  // ADR-0057 (C3 residual 3): every limiter once carried its own handler and its own
+  // `{status: 429, message}` body, and a ninth was added by copying the eighth. They
+  // answer through one helper now, which calls sendError. These checks read source
+  // text: an aliased import of the library or a renamed helper would get past them,
+  // which is why the library may be imported in one file only.
+  describe("rate limiters answer through the error envelope", () => {
+    const SRC = path.resolve(__dirname, "../../src");
+    const LIMITER_FILE = "shared/middleware/rate-limiter.ts";
+
+    // One entry per `rateLimit(` call: the text from that call to the next one.
+    const limiterCalls = (content: string): string[] =>
+      content.split(/\brateLimit\(/).slice(1);
+    const limitersWithoutSharedHandler = (content: string): number =>
+      limiterCalls(content).filter(
+        (call) =>
+          !call.startsWith("{") ||
+          !call.includes("...limitExceeded(") ||
+          /\bhandler\s*:/.test(call) ||
+          /\bmessage\s*:/.test(call),
+      ).length;
+
+    const NUMERIC_BODY_STATUS = /\bstatus:\s*[45]\d\d\b/;
+    const numericStatusBodies = (files: Record<string, string>): string[] =>
+      Object.entries(files)
+        .filter(([, content]) => NUMERIC_BODY_STATUS.test(content))
+        .map(([rel]) => rel);
+
+    it("flags a limiter that does not answer through the shared helper", () => {
+      const shared =
+        'rateLimit({ max: 1, ...limitExceeded("Slow down.", () => "x") })';
+
+      expect(limitersWithoutSharedHandler(shared)).toBe(0);
+      expect(
+        limitersWithoutSharedHandler(
+          [
+            shared,
+            "rateLimit({ handler: (req, res) => res.status(429).json({}) })",
+            'rateLimit({ message: "Slow down." })',
+            "rateLimit(options)",
+            'rateLimit({ ...limitExceeded("a", () => "x"), message: {} })',
+            'rateLimit({ ...limitExceeded("a", () => "x"), handler: own })',
+            shared,
+          ].join("\n"),
+        ),
+      ).toBe(5);
+    });
+
+    it("every rateLimit() in src/ answers through limitExceeded", () => {
+      const offenders = getAllTsFiles(SRC)
+        .map((file) => ({
+          file: path.relative(SRC, file).split(path.sep).join("/"),
+          missing: limitersWithoutSharedHandler(fs.readFileSync(file, "utf-8")),
+        }))
+        .filter(({ missing }) => missing !== 0);
+
+      expect(offenders).toEqual([]);
+      expect(
+        limiterCalls(fs.readFileSync(path.join(SRC, LIMITER_FILE), "utf-8")),
+      ).toHaveLength(9);
+    });
+
+    it("only rate-limiter.ts imports express-rate-limit", () => {
+      const importers = getAllTsFiles(SRC)
+        .filter((file) =>
+          /from\s+"express-rate-limit"/.test(fs.readFileSync(file, "utf-8")),
+        )
+        .map((file) => path.relative(SRC, file).split(path.sep).join("/"));
+
+      expect(importers).toEqual([LIMITER_FILE]);
+    });
+
+    it("limitExceeded answers through sendError", () => {
+      const content = fs.readFileSync(path.join(SRC, LIMITER_FILE), "utf-8");
+      const helper = content.slice(
+        content.indexOf("const limitExceeded ="),
+        content.indexOf("const maybeCreateStore"),
+      );
+
+      expect(helper).toContain("sendError(res, options.statusCode, message)");
+      expect(helper).not.toMatch(/\.json\(/);
+    });
+
+    it("flags a numeric status written into a body", () => {
+      expect(
+        numericStatusBodies({
+          "a.ts": 'message: { status: 429, message: "Slow down." }',
+          "b.ts": 'res.status(429).json({ status: "fail" })',
+          "c.ts": "{ status: 500 }",
+        }),
+      ).toEqual(["a.ts", "c.ts"]);
+    });
+
+    it("no file in src/ writes a numeric status into a body", () => {
+      const files = Object.fromEntries(
+        getAllTsFiles(SRC).map((file) => [
+          path.relative(SRC, file).split(path.sep).join("/"),
+          fs.readFileSync(file, "utf-8"),
+        ]),
+      );
+      expect(numericStatusBodies(files)).toEqual([]);
+    });
+  });
 });

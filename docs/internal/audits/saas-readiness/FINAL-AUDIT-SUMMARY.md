@@ -199,6 +199,15 @@ makes every boundary pattern check both import spellings, moves `MetricAccessPor
 cross-feature imports in `architecture.test.ts`. The row above stays "Reopened" until a dated run
 confirms it (ADR-002).
 
+**C3 — fix landed, not yet re-audited (2026-10-03).** The
+[`error-envelope-residuals`](../../initiatives/error-envelope-residuals/README.md) kit closed the
+three residuals in two parts. #124 (`7ea5ec6`) gave unknown routes a JSON 404 and mapped
+body-parser's client errors to their own 4xx. The second part moves all nine rate limiters onto the
+envelope through one shared handler, with the spec updated and lakira-frontend's agreement recorded
+([ADR-0057](../../../explanation/decisions/adr-0057-rate-limiters-answer-through-the-error-envelope.md)).
+The readiness probe's 503 body is named there as the one exception. The row above stays "Reopened"
+until a dated run confirms it (ADR-002).
+
 > **Fix-status convention:** flip `Open` → `Fixed (<commit SHA>)` as each lands; a caveat closed
 > by decision rather than code cites the decision entry instead of a SHA. (Written with emoji
 > markers until 2026-09-24.) When all six are closed, the verdict can be re-stated as **GOLD** and
@@ -355,6 +364,8 @@ the list still reads as the history it is.
    **then** a new dated run to restate GOLD. ADR-008 restates GOLD only when C1–C6 are all closed,
    so an open C3 or C4 blocks it; they cannot ride along as caveats. (Corrected 2026-09-29: an
    earlier wording of this item said they could.) The run's other findings are in its § 6.
+   **Update 2026-10-03:** both residual fixes have landed: C4 in #123, C3 in #124 and the
+   `fix/error-envelope-residuals-429` change (ADR-0057). **Next: the dated run.**
 
 ---
 

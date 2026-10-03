@@ -199,11 +199,8 @@ export const openApiDocument = {
           },
         },
       },
-      // The rate limiters do not go through the shared envelope: express-rate-limit
-      // renders its own `message` option, which sends `status` as the number 429
-      // rather than the string "fail". This documents what the code actually
-      // returns. Unifying it would change a deployed response shape for no gain
-      // that C3 was about, so it is left as the one deliberate exception.
+      // Every limiter answers through the shared envelope (ADR-0057). Until
+      // 2026-10-03 this documented `status` as the number 429.
       TooManyRequestsError: {
         description: "Rate limit exceeded",
         content: {
@@ -212,7 +209,7 @@ export const openApiDocument = {
               type: "object",
               required: ["status", "message"],
               properties: {
-                status: { type: "number", example: 429 },
+                status: { type: "string", example: "fail" },
                 message: {
                   type: "string",
                   example: "Too many requests, please try again later.",

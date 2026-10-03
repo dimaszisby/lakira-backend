@@ -1,8 +1,11 @@
 # Error envelope residuals
 
-**Status:** Phase 1 merged in #124 (`7ea5ec6`). Phase 2 (429 envelope) on hold until
-lakira-frontend agrees to the new response shape (plan Q-1). ADR-0052 went to
-`deterministic-query-ordering`, so Phase 2's ADR takes the next free number when it starts.
+**Status:** Phase 1 merged in #124 (`7ea5ec6`). Phase 2 (429 envelope) complete on
+`fix/error-envelope-residuals-429`; gates green on Node 24.21.0. Plan Q-1 was answered on
+2026-10-03. D-03, D-05 and D-07 promoted to
+[ADR-0057](../../../explanation/decisions/adr-0057-rate-limiters-answer-through-the-error-envelope.md).
+The frontend handoff is the Notion record "Rate-limit (429) body moves into the error envelope"
+(D-06).
 **Slug:** `error-envelope-residuals` · **Branch:** `fix/error-envelope-residuals` (Phase 1),
 `fix/error-envelope-residuals-429` (Phase 2)
 

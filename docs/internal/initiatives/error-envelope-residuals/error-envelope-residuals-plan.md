@@ -1,6 +1,7 @@
 # Error Envelope Residuals — Plan
 
-- **Status:** Approved (Phase 1); Phase 2 on hold for lakira-frontend
+- **Status:** Done — Phase 1 merged in #124; Phase 2 approved 2026-10-03, complete on
+  `fix/error-envelope-residuals-429`
 - **Appetite:** 1 day per phase — past that, cut scope rather than extend
 - **Date:** 2026-09-30
 
@@ -41,11 +42,20 @@ When both land, every non-2xx JSON body the API emits has the envelope shape.
 - **AC-5** (Phase 2) — Every limiter answers `429 {"status":"fail","message":…}` through
   `sendError`, with the `RateLimit-*` headers kept; `TooManyRequestsError` documents that shape
   and the spec validates. _Why:_ C3 residual 3.
+- **AC-6** (Phase 2, added 2026-10-03) — No file under `src/` writes a numeric `status` into an
+  error body, and a test fails if a limiter is added that answers any other way. _Why:_ the
+  residual survived the original C3 fix because nothing guarded it, and R1 added a ninth limiter
+  with the old shape on 2026-10-02.
+- **AC-7** (Phase 2, added 2026-10-03) — lakira-frontend has a record naming the shape change and
+  the actions it needs. _Why:_ D-03 made the change conditional on a cross-repo handoff.
 
 ## Open questions
 
-- [ ] **Q-1** — Phase 2 start: has lakira-frontend agreed to `status: "fail"` on 429? Blocks
-      Phase 2 only.
+- [x] **Q-1** — Phase 2 start: has lakira-frontend agreed to `status: "fail"` on 429? Blocks
+      Phase 2 only. **Answered 2026-10-03: yes**, by the repository owner, who also owns
+      lakira-frontend, on choosing Phase 2 as the next task. A read of lakira-frontend the same
+      day found nothing that reads the body's `status` on a 429: `normalizeApiError.ts`,
+      `handleApiError.ts`, `api.ts` and the list hooks branch on the HTTP status code.
 
 ## Out of scope
 
@@ -58,7 +68,9 @@ When both land, every non-2xx JSON body the API emits has the envelope shape.
 
 - How unknown routes are answered (D-01).
 - How body-parser errors are recognised (D-02).
-- Whether the 429 change ships with Phase 1 (D-03) — promoted to an ADR in Phase 2.
+- Whether the 429 change ships with Phase 1 (D-03) — promoted to ADR-0057 in Phase 2.
+- How the limiters share one answer (D-05), where the frontend handoff lives (D-06), and whether
+  the readiness probe's 503 joins the envelope (D-07) — settled in Phase 2.
 
 ## Phases
 
@@ -72,9 +84,12 @@ When both land, every non-2xx JSON body the API emits has the envelope shape.
 
 ### Phase 2 — 429 envelope (`fix/error-envelope-residuals-429`)
 
-- `rate-limiter.ts` — one shared handler calling `sendError`.
-- `TooManyRequestsError` rewritten to the envelope; spec regenerated.
-- D-03 promoted to an ADR; `frontend-note.md` in this kit for the cross-repo handoff.
+- `rate-limiter.ts` — one shared handler calling `sendError` (D-05).
+- `TooManyRequestsError` and `RateLimitErrorSchema` rewritten to the envelope; spec regenerated.
+- A test over all nine limiters with the real `express-rate-limit`, and an architecture guard
+  (AC-6).
+- D-03 promoted to an ADR. The cross-repo handoff is a record on the Notion "FE and BE messages"
+  page, not a `frontend-note.md` in this kit (D-06).
 
 ## Risks and trade-offs
 

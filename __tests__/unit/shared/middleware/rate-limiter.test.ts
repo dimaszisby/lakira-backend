@@ -149,7 +149,7 @@ describe("rate limiter middleware", () => {
     expect(limiter.keyGenerator(userReq)).toBe("user:user-7");
     expect(limiter.keyGenerator(anonymousReq)).toBe("127.0.0.1");
 
-    const options = { statusCode: 429, message: { status: 429 } };
+    const options = { statusCode: 429, message: "Slow down." };
     limiter.handler(userReq, res, jest.fn(), options);
     limiter.handler(anonymousReq, res, jest.fn(), options);
 
@@ -160,7 +160,10 @@ describe("rate limiter middleware", () => {
       "Rate limit exceeded for IP: 127.0.0.1",
     );
     expect(res.status).toHaveBeenCalledWith(429);
-    expect(res.json).toHaveBeenCalledWith(options.message);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "fail",
+      message: limiter.message,
+    });
   });
 
   it("uses analytics-specific key and message", () => {
@@ -170,10 +173,7 @@ describe("rate limiter middleware", () => {
     const req = { user: { id: "abc" }, ip: "1.1.1.1" } as AuthRequest;
     const options = {
       statusCode: 429,
-      message: {
-        status: 429,
-        message: "Too many visualization requests, slow down.",
-      },
+      message: "Too many visualization requests, slow down.",
     };
 
     expect(limiter.keyGenerator(req)).toBe("analytics:abc");
@@ -184,7 +184,10 @@ describe("rate limiter middleware", () => {
       "Analytics rate limit exceeded for abc",
     );
     expect(res.status).toHaveBeenCalledWith(429);
-    expect(res.json).toHaveBeenCalledWith(options.message);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "fail",
+      message: limiter.message,
+    });
   });
 
   it("falls back to IP for analytics key when user missing", () => {
@@ -214,11 +217,7 @@ describe("rate limiter middleware", () => {
 
     const options = {
       statusCode: 429,
-      message: {
-        status: 429,
-        message:
-          "Too many verification email requests, please try again later.",
-      },
+      message: "Too many verification email requests, please try again later.",
     };
     limiter.handler(authedReq, res, jest.fn(), options);
 
@@ -226,7 +225,10 @@ describe("rate limiter middleware", () => {
       "Email verification email rate limit hit for test@example.com",
     );
     expect(res.status).toHaveBeenCalledWith(429);
-    expect(res.json).toHaveBeenCalledWith(options.message);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "fail",
+      message: limiter.message,
+    });
   });
 
   it("uses per-IP key and configured max for email verification IP limiter", () => {
@@ -241,11 +243,7 @@ describe("rate limiter middleware", () => {
 
     const options = {
       statusCode: 429,
-      message: {
-        status: 429,
-        message:
-          "Too many verification email requests, please try again later.",
-      },
+      message: "Too many verification email requests, please try again later.",
     };
     limiter.handler(req, res, jest.fn(), options);
 
@@ -253,7 +251,10 @@ describe("rate limiter middleware", () => {
       "Email verification IP rate limit hit for 5.6.7.8",
     );
     expect(res.status).toHaveBeenCalledWith(429);
-    expect(res.json).toHaveBeenCalledWith(options.message);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "fail",
+      message: limiter.message,
+    });
   });
 
   // Audit R1 (kit register-rate-limiter, D-01): registration emails the address
@@ -273,10 +274,7 @@ describe("rate limiter middleware", () => {
 
     const options = {
       statusCode: 429,
-      message: {
-        status: 429,
-        message: "Too many registration attempts, please try again later.",
-      },
+      message: "Too many registration attempts, please try again later.",
     };
     expect(limiter.message).toEqual(options.message);
     limiter.handler(req, res, jest.fn(), options);
@@ -285,7 +283,10 @@ describe("rate limiter middleware", () => {
       "Registration IP rate limit hit for 9.9.9.9",
     );
     expect(res.status).toHaveBeenCalledWith(429);
-    expect(res.json).toHaveBeenCalledWith(options.message);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "fail",
+      message: limiter.message,
+    });
   });
 
   it("returns a no-op middleware when DISABLE_RATE_LIMITING is true", () => {

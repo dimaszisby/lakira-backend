@@ -1,10 +1,11 @@
 import { env } from "@/config/envManager.js";
-import rateLimit from "express-rate-limit";
+import rateLimit, { type Options } from "express-rate-limit";
 import RedisStore from "rate-limit-redis";
 import { Response, NextFunction, type RequestHandler } from "express";
 import { redisClient } from "@/utils/redis-client.js";
 import { AuthRequest } from "@/types/request.context.js";
 import logger from "@/utils/logger.js";
+import { sendError } from "@/shared/utils/error-envelope.js";
 
 const noopRateLimiter: RequestHandler = (_req, _res, next) => next();
 let disableNoticeLogged = false;
@@ -17,6 +18,24 @@ const maybeLogDisableNotice = () => {
     disableNoticeLogged = true;
   }
 };
+
+/**
+ * The one way a limiter answers: log who was throttled, then the shared error
+ * envelope — `429 {status: "fail", message}`. express-rate-limit sets the
+ * `RateLimit-*` headers before it calls a handler, so they are kept. Every
+ * limiter below spreads this into its options; `architecture.test.ts` fails on
+ * one that does not (ADR-0057).
+ */
+const limitExceeded = (
+  message: string,
+  logLine: (req: AuthRequest) => string,
+): Pick<Options, "message" | "handler"> => ({
+  message,
+  handler: (req: AuthRequest, res: Response, _next: NextFunction, options) => {
+    logger.warn(logLine(req));
+    sendError(res, options.statusCode, message);
+  },
+});
 
 const maybeCreateStore = () => {
   if (env.NODE_ENV === "test") return undefined;
@@ -42,19 +61,10 @@ export const createGlobalRateLimiter = () =>
         max: env.RATE_LIMIT_GLOBAL_MAX,
         standardHeaders: true,
         legacyHeaders: false,
-        message: {
-          status: 429,
-          message: "Too many requests, please try again later.",
-        },
-        handler: (
-          req: AuthRequest,
-          res: Response,
-          next: NextFunction,
-          options,
-        ) => {
-          logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
-          res.status(options.statusCode).json(options.message);
-        },
+        ...limitExceeded(
+          "Too many requests, please try again later.",
+          (req) => `Rate limit exceeded for IP: ${req.ip}`,
+        ),
       });
 
 export const globalRateLimiter = createGlobalRateLimiter();
@@ -71,23 +81,11 @@ export const createUserRateLimiter = () =>
         max: env.RATE_LIMIT_USER_MAX,
         standardHeaders: true,
         legacyHeaders: false,
-        message: {
-          status: 429,
-          message: "Too many requests, please try again later.",
-        },
-        handler: (
-          req: AuthRequest,
-          res: Response,
-          next: NextFunction,
-          options,
-        ) => {
-          if (req.user) {
-            logger.warn(`Rate limit exceeded for User ID: ${req.user.id}`);
-          } else {
-            logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
-          }
-          res.status(options.statusCode).json(options.message);
-        },
+        ...limitExceeded("Too many requests, please try again later.", (req) =>
+          req.user
+            ? `Rate limit exceeded for User ID: ${req.user.id}`
+            : `Rate limit exceeded for IP: ${req.ip}`,
+        ),
       });
 
 export const userRateLimiter = createUserRateLimiter();
@@ -106,20 +104,11 @@ export const createAnalyticsRateLimiter = () =>
         max: env.RATE_LIMIT_ANALYTICS_MAX,
         standardHeaders: true,
         legacyHeaders: false,
-        message: {
-          status: 429,
-          message: "Too many visualization requests, slow down.",
-        },
-        handler: (
-          req: AuthRequest,
-          res: Response,
-          next: NextFunction,
-          options,
-        ) => {
-          const identifier = req.user?.id ?? req.ip ?? "anonymous";
-          logger.warn(`Analytics rate limit exceeded for ${identifier}`);
-          res.status(options.statusCode).json(options.message);
-        },
+        ...limitExceeded(
+          "Too many visualization requests, slow down.",
+          (req) =>
+            `Analytics rate limit exceeded for ${req.user?.id ?? req.ip ?? "anonymous"}`,
+        ),
       });
 
 export const analyticsRateLimiter = createAnalyticsRateLimiter();
@@ -138,21 +127,11 @@ export const createSwitchOrgRateLimiter = () =>
         max: env.RATE_LIMIT_SWITCH_ORG_MAX,
         standardHeaders: true,
         legacyHeaders: false,
-        message: {
-          status: 429,
-          message:
-            "Too many organization switch requests, please try again later.",
-        },
-        handler: (
-          req: AuthRequest,
-          res: Response,
-          next: NextFunction,
-          options,
-        ) => {
-          const identifier = req.user?.id ?? req.ip ?? "anonymous";
-          logger.warn(`Switch-org rate limit exceeded for ${identifier}`);
-          res.status(options.statusCode).json(options.message);
-        },
+        ...limitExceeded(
+          "Too many organization switch requests, please try again later.",
+          (req) =>
+            `Switch-org rate limit exceeded for ${req.user?.id ?? req.ip ?? "anonymous"}`,
+        ),
       });
 
 export const switchOrgRateLimiter = createSwitchOrgRateLimiter();
@@ -180,24 +159,15 @@ export const createPasswordResetEmailRateLimiter = () =>
         max: env.RATE_LIMIT_PASSWORD_RESET_EMAIL_MAX,
         standardHeaders: true,
         legacyHeaders: false,
-        message: {
-          status: 429,
-          message: "Too many password reset requests, please try again later.",
-        },
-        handler: (
-          req: AuthRequest,
-          res: Response,
-          next: NextFunction,
-          options,
-        ) => {
-          const email = normalizeEmailKey(
-            (req.body as { email?: unknown } | undefined)?.email,
-          );
-          logger.warn(
-            `Password reset email rate limit hit for ${email ?? req.ip}`,
-          );
-          res.status(options.statusCode).json(options.message);
-        },
+        ...limitExceeded(
+          "Too many password reset requests, please try again later.",
+          (req) => {
+            const email = normalizeEmailKey(
+              (req.body as { email?: unknown } | undefined)?.email,
+            );
+            return `Password reset email rate limit hit for ${email ?? req.ip}`;
+          },
+        ),
       });
 
 export const passwordResetEmailRateLimiter =
@@ -214,19 +184,10 @@ export const createPasswordResetIpRateLimiter = () =>
         max: env.RATE_LIMIT_PASSWORD_RESET_IP_MAX,
         standardHeaders: true,
         legacyHeaders: false,
-        message: {
-          status: 429,
-          message: "Too many password reset requests, please try again later.",
-        },
-        handler: (
-          req: AuthRequest,
-          res: Response,
-          next: NextFunction,
-          options,
-        ) => {
-          logger.warn(`Password reset IP rate limit hit for ${req.ip}`);
-          res.status(options.statusCode).json(options.message);
-        },
+        ...limitExceeded(
+          "Too many password reset requests, please try again later.",
+          (req) => `Password reset IP rate limit hit for ${req.ip}`,
+        ),
       });
 
 export const passwordResetIpRateLimiter = createPasswordResetIpRateLimiter();
@@ -247,21 +208,11 @@ export const createEmailVerificationEmailRateLimiter = () =>
         max: env.RATE_LIMIT_EMAIL_VERIFICATION_EMAIL_MAX,
         standardHeaders: true,
         legacyHeaders: false,
-        message: {
-          status: 429,
-          message:
-            "Too many verification email requests, please try again later.",
-        },
-        handler: (
-          req: AuthRequest,
-          res: Response,
-          next: NextFunction,
-          options,
-        ) => {
-          const email = req.user?.email ?? req.ip;
-          logger.warn(`Email verification email rate limit hit for ${email}`);
-          res.status(options.statusCode).json(options.message);
-        },
+        ...limitExceeded(
+          "Too many verification email requests, please try again later.",
+          (req) =>
+            `Email verification email rate limit hit for ${req.user?.email ?? req.ip}`,
+        ),
       });
 
 export const emailVerificationEmailRateLimiter =
@@ -278,20 +229,10 @@ export const createEmailVerificationIpRateLimiter = () =>
         max: env.RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX,
         standardHeaders: true,
         legacyHeaders: false,
-        message: {
-          status: 429,
-          message:
-            "Too many verification email requests, please try again later.",
-        },
-        handler: (
-          req: AuthRequest,
-          res: Response,
-          next: NextFunction,
-          options,
-        ) => {
-          logger.warn(`Email verification IP rate limit hit for ${req.ip}`);
-          res.status(options.statusCode).json(options.message);
-        },
+        ...limitExceeded(
+          "Too many verification email requests, please try again later.",
+          (req) => `Email verification IP rate limit hit for ${req.ip}`,
+        ),
       });
 
 export const emailVerificationIpRateLimiter =
@@ -313,19 +254,10 @@ export const createRegisterIpRateLimiter = () =>
         max: env.RATE_LIMIT_REGISTER_IP_MAX,
         standardHeaders: true,
         legacyHeaders: false,
-        message: {
-          status: 429,
-          message: "Too many registration attempts, please try again later.",
-        },
-        handler: (
-          req: AuthRequest,
-          res: Response,
-          next: NextFunction,
-          options,
-        ) => {
-          logger.warn(`Registration IP rate limit hit for ${req.ip}`);
-          res.status(options.statusCode).json(options.message);
-        },
+        ...limitExceeded(
+          "Too many registration attempts, please try again later.",
+          (req) => `Registration IP rate limit hit for ${req.ip}`,
+        ),
       });
 
 export const registerIpRateLimiter = createRegisterIpRateLimiter();

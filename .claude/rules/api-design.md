@@ -74,6 +74,12 @@ importing a feature must construct nothing (ADR-0045).
 there is field-level detail, and `field` is a dotted path (`"body.name"`), never an array of
 segments. This is what the OpenAPI `BadRequestError` component documents.
 
+Rate limits answer the same way: `429 {"status": "fail", "message": "..."}` with the `RateLimit-*`
+headers. A new limiter goes in `src/shared/middleware/rate-limiter.ts` and spreads
+`limitExceeded(message, logLine)` into its options; it never sets its own `message` or `handler`
+(ADR-0057). The one body outside the envelope is the readiness probe's
+`503 {"status": "degraded", "checks": {...}}`, which is a probe document, not an error.
+
 There is no `errorResponse()` helper. One existed in `response-formatter.ts` with zero callers
 and a body shape incompatible with everything the API actually sent; it was removed rather than
 wired in (C3, `docs/internal/todos/2026-09-01-todo-error-envelope.md`).

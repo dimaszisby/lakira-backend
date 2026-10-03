@@ -79,6 +79,7 @@ Also green, and run by CI: `build`, `docs:openapi:check`, `security:delta:gate`,
 2. **C3 · API Contracts (P2)** — unknown routes return an HTML 404; oversized or badly-encoded
    bodies return a masked 500; limiters answer outside the envelope.
    [Todo](docs/internal/todos/2026-09-29-todo-error-envelope-residuals.md).
+   Fixed in kit `error-envelope-residuals` (#124 and ADR-0057), pending a dated audit run to confirm it (ADR-002).
 3. **C4 · Architecture (P2)** — audience-prefixed deep imports (`@/features/shared/...`) pass the
    feature-boundary rule; nine live instances; no persisted negative tests.
    [Todo](docs/internal/todos/2026-09-22-todo-feature-boundary-rule-scope.md).
