@@ -10,12 +10,9 @@ import {
 import { env } from "@/config/envManager.js";
 import { models } from "@/infrastructure/db/models.js";
 import { buildMetricLogFeature } from "@/features/metric-log/feature.js";
+import { buildWiredMetricLogFeature } from "@/composition/metric-log.js";
 import { overrideMetricLogFeatureForTest } from "@/features/metric-log/infrastructure/http/controller.js";
-import { GenerateDummyMetricLogsHandler } from "@/features/metric-log/application/use-cases/GenerateDummyMetricLogsHandler.js";
-import { MetricLogCacheRedis } from "@/features/metric-log/infrastructure/cache/MetricLogCacheRedis.js";
-import { MetricLogRepoSequelize } from "@/features/metric-log/infrastructure/persistence/repositories/MetricLogRepoSequelize.js";
 import { MetricAccessSequelize } from "@/features/metric/infrastructure/providers/MetricAccessSequelize.js";
-import { NoopVisualizationInvalidation } from "@/shared/application/ports/VisualizationInvalidationPort.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import {
   connectRabbitMQ,
@@ -23,7 +20,6 @@ import {
 } from "@/shared/infrastructure/queue/RabbitMQConnection.js";
 import { RabbitMQConsumer } from "@/shared/infrastructure/queue/RabbitMQConsumer.js";
 import { RabbitMQPublisher } from "@/shared/infrastructure/queue/RabbitMQPublisher.js";
-import { SequelizeMessageIdempotency } from "@/shared/infrastructure/queue/SequelizeMessageIdempotency.js";
 import {
   EXCHANGES,
   QUEUES,
@@ -36,7 +32,7 @@ import {
  * The queued path of POST /metric-logs/:metricId/dummy: publisher → jobs exchange →
  * routing key → queue → RabbitMQConsumer → GenerateDummyMetricLogsHandler → metric_logs.
  *
- * The consumer runs in-process, built exactly as src/worker.ts builds it, against a real
+ * The consumer runs in-process, with the handler src/worker.ts runs (ADR-0056), against a real
  * broker. Nothing here calls the handler directly; that would prove nothing about
  * topology, bindings, routing or acking.
  *
@@ -81,12 +77,7 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
   const startConsumer = (
     retry: { maxRetries?: number } = {},
   ): RabbitMQConsumer => {
-    const handler = new GenerateDummyMetricLogsHandler(
-      new MetricAccessSequelize(),
-      new MetricLogCacheRedis(new NoopVisualizationInvalidation()),
-      new SequelizeMessageIdempotency(),
-      new MetricLogRepoSequelize(),
-    );
+    const { dummyLogsHandler: handler } = buildWiredMetricLogFeature();
     consumer = new RabbitMQConsumer({
       queue: QUEUES.METRIC_LOG_GENERATE_DUMMY,
       handler: (msg, context) => {

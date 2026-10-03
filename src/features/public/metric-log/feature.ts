@@ -7,6 +7,7 @@ import { UpdateMetricLog } from "./application/use-cases/UpdateMetricLog.js";
 import { DeleteMetricLog } from "./application/use-cases/DeleteMetricLog.js";
 import { GetMetricLogStats } from "./application/queries/GetMetricLogStats.js";
 import { GenerateDummyMetricLogs } from "./application/use-cases/GenerateDummyMetricLogs.js";
+import { GenerateDummyMetricLogsHandler } from "./application/use-cases/GenerateDummyMetricLogsHandler.js";
 import { MetricLogQueryRepoSequelize } from "./infrastructure/persistence/repositories/MetricLogQueryRepoSequelize.js";
 import { MetricLogStatsRepoSequelize } from "./infrastructure/persistence/repositories/MetricLogStatsRepoSequelize.js";
 import { ListMetricLogs } from "./application/queries/ListMetricLogs.js";
@@ -14,6 +15,8 @@ import type { VisualizationInvalidationPort } from "@/shared/application/ports/V
 import { NoopVisualizationInvalidation } from "@/shared/application/ports/VisualizationInvalidationPort.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import { NoopMessageQueue } from "@/shared/infrastructure/queue/NoopMessageQueue.js";
+import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
+import { SequelizeMessageIdempotency } from "@/shared/infrastructure/queue/SequelizeMessageIdempotency.js";
 import type { MetricAccessPort } from "./application/ports/MetricAccessPort.js";
 import type { MetricLogStatsPort } from "./application/ports/MetricLogStatsPort.js";
 
@@ -22,6 +25,7 @@ export type MetricLogFeatureOverrides = {
   messageQueue?: MessageQueuePort;
   metricAccess?: MetricAccessPort;
   statsRepo?: MetricLogStatsPort;
+  idempotency?: MessageIdempotencyPort;
 };
 
 export const buildMetricLogFeature = (deps: MetricLogFeatureOverrides = {}) => {
@@ -33,6 +37,7 @@ export const buildMetricLogFeature = (deps: MetricLogFeatureOverrides = {}) => {
   const queue = deps.messageQueue ?? new NoopMessageQueue();
   const queryRepo = new MetricLogQueryRepoSequelize();
   const statsRepo = deps.statsRepo ?? new MetricLogStatsRepoSequelize();
+  const idempotency = deps.idempotency ?? new SequelizeMessageIdempotency();
 
   return {
     createLog: new CreateMetricLog(repo, access, cache),
@@ -42,5 +47,13 @@ export const buildMetricLogFeature = (deps: MetricLogFeatureOverrides = {}) => {
     getStats: new GetMetricLogStats(access, statsRepo),
     generateDummyLogs: new GenerateDummyMetricLogs(access, cache, queue, repo),
     listLogs: new ListMetricLogs(queryRepo),
+    // The queue side of generateDummyLogs. Built here, from the same cache and
+    // repository, so the worker cannot wire it differently (ADR-0056).
+    dummyLogsHandler: new GenerateDummyMetricLogsHandler(
+      access,
+      cache,
+      idempotency,
+      repo,
+    ),
   };
 };

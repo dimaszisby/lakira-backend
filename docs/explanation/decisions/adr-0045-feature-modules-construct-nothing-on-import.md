@@ -8,6 +8,12 @@
 - **Origin:** `D-01` and `D-02` in the routers-at-module-scope kit —
   [`routers-at-module-scope`](../../internal/initiatives/routers-at-module-scope/decisions.md)
 
+> **Status note (2026-10-03).** Widened by
+> [ADR-0056](./adr-0056-one-wiring-per-feature-for-every-entry-point.md). This record reserves a
+> feature's `index.ts` and `feature.ts` for `src/server.ts`. `src/composition/` now also imports
+> `feature.ts`, so that the server and the worker share one wiring; it may not import `index.ts`,
+> which would load the HTTP stack into the worker.
+
 ---
 
 ## Context

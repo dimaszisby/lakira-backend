@@ -1,8 +1,8 @@
 # Build image in CI
 
-**Status:** Complete on `ci/build-image-in-ci`; gates green on Node 24.21.0. D-01 and D-02 promoted
-to [ADR-0055](../../../explanation/decisions/adr-0055-production-image-built-and-smoked-in-ci.md).
-The workflow's first run is checked once the branch is pushed.
+**Status:** Merged in #129 (`8222829`). D-01 and D-02 promoted to
+[ADR-0055](../../../explanation/decisions/adr-0055-production-image-built-and-smoked-in-ci.md).
+`Image Smoke` passed on the PR and on `dev`.
 **Slug:** `build-image-in-ci` · **Branch:** `ci/build-image-in-ci`
 
 Lean kit. Fixes audit finding R6 (`docs/internal/audits/saas-readiness/audit-2026-09-29.md` § 6,

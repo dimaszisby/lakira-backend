@@ -313,4 +313,137 @@ describe("Architecture enforcement", () => {
       expect(fs.existsSync(adminDir)).toBe(false);
     });
   });
+
+  // ADR-0056 (audit R5): the worker once wired the metric-log handler by hand, with a
+  // no-op where the HTTP server had the real analytics invalidator, so queued jobs left
+  // charts stale. Entry points take the feature from src/composition/ instead.
+  describe("entry points share one wiring", () => {
+    const SRC = path.resolve(__dirname, "../../src");
+    const read = (rel: string) => fs.readFileSync(path.join(SRC, rel), "utf-8");
+
+    const IMPORT_SPECIFIER = /(?:from\s+|import\s*\(\s*|import\s+)"([^"]+)"/g;
+    const featureInternalImports = (content: string): string[] =>
+      [...content.matchAll(IMPORT_SPECIFIER)]
+        .map(([, specifier]) => specifier)
+        .filter((specifier) =>
+          /features\/.*\/(?:domain|application|infrastructure)\//.test(
+            specifier,
+          ),
+        );
+
+    const NOOP = "NoopVisualizationInvalidation";
+    const NOOP_ALLOWED = [
+      "shared/application/ports/VisualizationInvalidationPort.ts",
+      "features/public/metric-log/feature.ts",
+    ];
+    const noopReferences = (files: Record<string, string>): string[] =>
+      Object.entries(files)
+        .filter(
+          ([rel, content]) =>
+            content.includes(NOOP) && !NOOP_ALLOWED.includes(rel),
+        )
+        .map(([rel]) => rel);
+
+    it("flags an import into a feature's internals, in either spelling", () => {
+      expect(
+        featureInternalImports(
+          [
+            'import { A } from "@/features/metric-log/infrastructure/cache/A.js";',
+            'import { B } from "./features/public/metric-log/application/B.js";',
+            'import { C } from "./composition/metric-log.js";',
+            'import { D } from "@/features/metric-log/index.js";',
+          ].join("\n"),
+        ),
+      ).toEqual([
+        "@/features/metric-log/infrastructure/cache/A.js",
+        "./features/public/metric-log/application/B.js",
+      ]);
+    });
+
+    it("src/worker.ts imports no feature internals", () => {
+      expect(featureInternalImports(read("worker.ts"))).toEqual([]);
+    });
+
+    it("flags the no-op invalidator outside its two allowed files", () => {
+      expect(
+        noopReferences({
+          "worker.ts": `new MetricLogCacheRedis(new ${NOOP}())`,
+          "features/public/metric-log/feature.ts": `new ${NOOP}()`,
+          "server.ts": "nothing here",
+        }),
+      ).toEqual(["worker.ts"]);
+    });
+
+    it("no file in src/ reaches for the no-op invalidator", () => {
+      const files = Object.fromEntries(
+        getAllTsFiles(SRC).map((file) => [
+          path.relative(SRC, file).split(path.sep).join("/"),
+          fs.readFileSync(file, "utf-8"),
+        ]),
+      );
+      expect(noopReferences(files)).toEqual([]);
+    });
+
+    it.each(["server.ts", "worker.ts"])(
+      "%s takes the metric-log feature from the shared wiring",
+      (entry) => {
+        const content = read(entry);
+        expect(content).toContain("buildWiredMetricLogFeature(");
+        expect(content).not.toMatch(/\bbuildMetricLogFeature\(/);
+      },
+    );
+
+    it.each(["server.ts", "worker.ts"])(
+      "%s neither imports the metric-log factory nor builds its cache",
+      (entry) => {
+        const content = read(entry);
+        const specifiers = [...content.matchAll(IMPORT_SPECIFIER)].map(
+          ([, specifier]) => specifier,
+        );
+        expect(
+          specifiers.filter((s) => /metric-log\/feature(?:\.js)?$/.test(s)),
+        ).toEqual([]);
+        expect(content).not.toContain("MetricLogCacheRedis");
+      },
+    );
+
+    // index.ts exports the router, which loads express and every rate limiter. The
+    // worker imports src/composition/, so that must stay out of its import chain.
+    const viaIndex = (content: string): string[] =>
+      [...content.matchAll(IMPORT_SPECIFIER)]
+        .map(([, specifier]) => specifier)
+        .filter(
+          (s) =>
+            /features\//.test(s) && !/\/(?:feature|public)(?:\.js)?$/.test(s),
+        );
+
+    it("flags a composition import through a feature's index.ts or internals", () => {
+      expect(
+        viaIndex(
+          [
+            'import { A } from "@/features/analytics/index.js";',
+            'import { B } from "@/features/analytics";',
+            'import { C } from "@/features/analytics/infrastructure/cache/C.js";',
+            'import { D } from "@/features/analytics/public.js";',
+            'import { E } from "@/features/metric-log/feature.js";',
+          ].join("\n"),
+        ),
+      ).toEqual([
+        "@/features/analytics/index.js",
+        "@/features/analytics",
+        "@/features/analytics/infrastructure/cache/C.js",
+      ]);
+    });
+
+    it("src/composition/ imports features through feature.ts or public.ts only", () => {
+      const offenders = getAllTsFiles(path.join(SRC, "composition")).flatMap(
+        (file) => viaIndex(fs.readFileSync(file, "utf-8")),
+      );
+      expect(offenders).toEqual([]);
+    });
+
+    it("src/server.ts calls no test hook", () => {
+      expect(read("server.ts")).not.toMatch(/ForTest\b/);
+    });
+  });
 });

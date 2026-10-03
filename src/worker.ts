@@ -7,14 +7,9 @@ import {
 import { RabbitMQConsumer } from "./shared/infrastructure/queue/RabbitMQConsumer.js";
 import { RabbitMQPublisher } from "./shared/infrastructure/queue/RabbitMQPublisher.js";
 import { QUEUES } from "./shared/infrastructure/queue/topology.js";
-import { SequelizeMessageIdempotency } from "./shared/infrastructure/queue/SequelizeMessageIdempotency.js";
 import { loadModels } from "./infrastructure/db/models.js";
 import sequelize from "./config/db.js";
-import { MetricAccessSequelize } from "@/features/metric/infrastructure/providers/MetricAccessSequelize.js";
-import { MetricLogCacheRedis } from "@/features/metric-log/infrastructure/cache/MetricLogCacheRedis.js";
-import { MetricLogRepoSequelize } from "./features/public/metric-log/infrastructure/persistence/repositories/MetricLogRepoSequelize.js";
-import { NoopVisualizationInvalidation } from "./shared/application/ports/VisualizationInvalidationPort.js";
-import { GenerateDummyMetricLogsHandler } from "@/features/metric-log/application/use-cases/GenerateDummyMetricLogsHandler.js";
+import { buildWiredMetricLogFeature } from "./composition/metric-log.js";
 
 if (!env.RABBITMQ_ENABLED) {
   logger.error(
@@ -39,15 +34,8 @@ const startWorker = async (): Promise<void> => {
 
   // --- Consumers ---
 
-  const access = new MetricAccessSequelize();
-  const cache = new MetricLogCacheRedis(new NoopVisualizationInvalidation());
-  const idempotency = new SequelizeMessageIdempotency();
-  const dummyLogsHandler = new GenerateDummyMetricLogsHandler(
-    access,
-    cache,
-    idempotency,
-    new MetricLogRepoSequelize(),
-  );
+  // Handlers come from the feature, wired as the HTTP server wires it (ADR-0056).
+  const { dummyLogsHandler } = buildWiredMetricLogFeature();
 
   retryPublisher = new RabbitMQPublisher();
 

@@ -35,3 +35,10 @@ only the lazy getter to remove the import-time hazard, so the larger diff was ke
 `NoopVisualizationInvalidation`, so a queued dummy-log job leaves `viz`/`vizdash` cached until TTL,
 while the HTTP path invalidates them. Whatever replaces `overrideMetricLogFeatureForTest` should also
 give the worker its handler from `buildMetricLogFeature`, with the real invalidation adapter.
+
+**Done (2026-10-03).** Kit
+[`worker-composition-root`](../initiatives/worker-composition-root/README.md) and ADR-0056: the
+handler is built by `buildMetricLogFeature`, both entry points take the feature from
+`buildWiredMetricLogFeature` in `src/composition/metric-log.ts`, and `server.ts` installs it through
+`installMetricLogFeature` (the test hook is now an alias of it). What remains of this todo is the
+router-factory injection itself: the module-level slots and the `override…ForTest` hooks.

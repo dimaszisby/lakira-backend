@@ -71,12 +71,32 @@ export function buildAuthFeature() {
 }
 ```
 
+A feature's queue handlers are built by the same factory, from the same dependencies as its use
+cases (`dummyLogsHandler` in `buildMetricLogFeature`), so no process can wire them differently.
+
+### One wiring for every entry point (ADR-0056)
+
+The application runs as two processes, `src/server.ts` and `src/worker.ts`. When a feature needs
+an adapter that another feature provides, it is wired once in `src/composition/`
+(`buildWiredMetricLogFeature`), and both entry points call that function.
+
+- An entry point never calls such a feature's `buildXFeature` itself, and `src/worker.ts` imports
+  nothing from a feature's `domain/`, `application/` or `infrastructure/`.
+- `src/composition/` imports a feature through its `feature.ts` or `public.ts`, never `index.ts`:
+  `index.ts` exports the router, which loads express and every rate limiter into the worker.
+- A factory's no-op defaults (`NoopVisualizationInvalidation`) are for tests. They are not
+  referenced anywhere else in `src/`.
+
+`__tests__/unit/architecture.test.ts` › "entry points share one wiring" enforces all three. The
+worker once built its handler by hand with the no-op, and queued jobs left charts stale (audit R5).
+
 ## Export Convention
 
 Two surfaces per feature (ADR-0045):
 
 - **`index.ts` is for `src/server.ts` only.** It exports the router factories (`createXRouter`) and
-  `buildXFeature`. `server.ts` calls the factories at mount time.
+  `buildXFeature`. `server.ts` calls the factories at mount time. `feature.ts` may also be
+  imported by `src/composition/` (ADR-0056).
 - **`public.ts` is what other features import** — a deliberately narrow set (mappers, DTO
   helpers, `authMiddleware`). ESLint rejects a feature importing another feature's `index.ts`,
   bare alias or `feature.ts`, and anything under its `domain/`, `application/` or

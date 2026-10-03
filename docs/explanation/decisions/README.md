@@ -93,10 +93,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0053](./adr-0053-registration-rate-limited-per-ip.md)                       | Registration is rate-limited per client IP, per hour                                                             | Accepted               | 2026-10-02 | register-rate-limiter D-01/D-02    |
 | [ADR-0054](./adr-0054-post-response-work-is-tracked-and-drained.md)              | Work started after the response is tracked, and drained on shutdown                                              | Accepted               | 2026-10-02 | drainable-background-work D-01..05 |
 | [ADR-0055](./adr-0055-production-image-built-and-smoked-in-ci.md)                | CI builds the production image and smoke-tests it in production mode                                             | Accepted               | 2026-10-02 | build-image-in-ci D-01/D-02        |
+| [ADR-0056](./adr-0056-one-wiring-per-feature-for-every-entry-point.md)           | Every entry point takes a feature from one shared wiring                                                         | Accepted               | 2026-10-03 | worker-composition-root D-01..06   |
 
 ## Adding one
 
-Take the next free number — **ADR-0056** as of 2026-10-02 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0057** as of 2026-10-03 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 
