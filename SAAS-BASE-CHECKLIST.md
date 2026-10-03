@@ -95,6 +95,10 @@ Also green, and run by CI: `build`, `docs:openapi:check`, `security:delta:gate`,
 7. **R6 · CI/CD (P2)** — CI never builds the production image, and ADR-0042 is Accepted without
    being implemented. [Todo](docs/internal/todos/2026-09-29-todo-build-image-in-ci.md).
    Fixed in kit `build-image-in-ci` (ADR-0055), pending a dated audit run to confirm it (ADR-002).
+8. **R5 · Architecture (P2)** — the worker is a second, hand-wired composition root with a no-op
+   visualization invalidator, so queued dummy-log jobs leave analytics stale until TTL.
+   [Todo](docs/internal/todos/2026-09-24-todo-inject-features-into-router-factories.md).
+   Fixed in kit `worker-composition-root` (ADR-0056), pending a dated audit run to confirm it (ADR-002).
 
 Closed and confirmed on 2026-09-29: C2 (by decision), C5, C6, and the 2026-06-05 P0s N1 and N2
 plus F1. Full evidence (file:line) is in the [dated audit](docs/internal/audits/saas-readiness/audit-2026-09-29.md).

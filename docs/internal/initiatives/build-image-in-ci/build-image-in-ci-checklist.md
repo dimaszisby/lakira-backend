@@ -35,8 +35,9 @@ A Lean kit has no plan, so the criteria are stated here.
 ## Phase 2 — Workflow (applied by the maintainer; the path is protected from Claude)
 
 - [x] `.git/image-smoke.yml` written and shown; Prettier-clean
-- [ ] Copied to `.github/workflows/image-smoke.yml` — the first command of the handover
-- [ ] First run green on the PR — checked with `gh` after the push
+- [x] Copied to `.github/workflows/image-smoke.yml` — in #129
+- [x] First run green on the PR — runs `36990709430` (push) and `36990715853` (pull request) at
+      `eba69a4`, and `37043971353` on `dev` at `8222829`
 
 ## Phase 3 — Review, then fix
 
@@ -74,7 +75,7 @@ A Lean kit has no plan, so the criteria are stated here.
 - [x] AC-1 — `npm run docker:smoke`, final script, final tree: six PASS lines, exit 0
 - [x] AC-2 — both broken variants, exit 1 at the named check
 - [x] AC-3 — leftovers check above
-- [ ] AC-4 — the copy is the first handover command; the first run is checked after the push
+- [x] AC-4 — the workflow is in #129; its first runs on a GitHub runner passed (Phase 2)
 - [x] AC-5 — ADR-0042 status note
 - [x] AC-6 — Phase 4
 

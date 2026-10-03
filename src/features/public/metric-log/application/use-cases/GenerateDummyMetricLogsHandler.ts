@@ -80,10 +80,11 @@ export class GenerateDummyMetricLogsHandler {
         messageId,
         queue,
       });
-      return;
     }
 
-    // After commit, so a reader cannot re-cache the pre-commit state.
+    // After commit, so a reader cannot re-cache the pre-commit state. On a duplicate
+    // too: if the first delivery committed and then failed here, its retry arrives as
+    // a duplicate, and skipping this would leave the caches stale until their TTL.
     if (this.cache.isEnabled()) {
       await this.cache.invalidate(userId, organizationId, metricId);
     }

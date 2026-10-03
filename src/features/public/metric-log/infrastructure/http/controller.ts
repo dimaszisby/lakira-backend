@@ -24,9 +24,12 @@ let metricLogFeature: MetricLogFeature | undefined;
 const getMetricLogFeature = (): MetricLogFeature =>
   (metricLogFeature ??= buildMetricLogFeature());
 
-export const overrideMetricLogFeatureForTest = (feature: MetricLogFeature) => {
+/** How src/server.ts supplies the wired feature (ADR-0056). */
+export const installMetricLogFeature = (feature: MetricLogFeature) => {
   metricLogFeature = feature;
 };
+
+export const overrideMetricLogFeatureForTest = installMetricLogFeature;
 
 export const createMetricLog = catchAsync(
   async (req: AuthRequest, res: Response) => {

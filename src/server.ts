@@ -24,9 +24,8 @@ import { createMetricLogRouter } from "./features/public/metric-log/index.js";
 import { createMetricSettingsRouter } from "./features/public/metric-settings/index.js";
 import { createMetricCategoryRouter } from "./features/public/metric-category/index.js";
 import { createVisualizationRouter } from "./features/public/analytics/index.js";
-import { buildMetricLogFeature } from "./features/public/metric-log/feature.js";
-import { overrideMetricLogFeatureForTest } from "./features/public/metric-log/infrastructure/http/controller.js";
-import { AnalyticsVisualizationInvalidationAdapter } from "./features/public/analytics/infrastructure/cache/VisualizationInvalidationAdapter.js";
+import { installMetricLogFeature } from "./features/public/metric-log/infrastructure/http/controller.js";
+import { buildWiredMetricLogFeature } from "./composition/metric-log.js";
 
 // Other Setup
 import { globalRateLimiter } from "@/shared/middleware/rate-limiter.js";
@@ -55,11 +54,8 @@ import {
   pendingBackgroundTaskCount,
 } from "./utils/background-tasks.js";
 
-const visualizationInvalidationAdapter =
-  new AnalyticsVisualizationInvalidationAdapter();
-overrideMetricLogFeatureForTest(
-  buildMetricLogFeature({
-    visualizationInvalidator: visualizationInvalidationAdapter,
+installMetricLogFeature(
+  buildWiredMetricLogFeature({
     messageQueue: env.RABBITMQ_ENABLED ? new RabbitMQPublisher() : undefined,
   }),
 );
