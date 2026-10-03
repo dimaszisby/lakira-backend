@@ -95,6 +95,9 @@ wired in (C3, `docs/internal/todos/2026-09-01-todo-error-envelope.md`).
 - Keys are tenant-scoped through `buildCursorCacheKey` (ADR-0035). Bump the feature's
   `*_CURSOR_VERSION` when a key's meaning changes, so entries written under the old key are never
   read
+- `cacheMiddleware` stores a response only when its status is 200, because a hit is always
+  replayed as a 200. Errors are never cached (audit S1: a 404 was stored and came back as a 200).
+  Do not put it on a route whose success status is anything else
 - One cache layer per route: do not wrap a route in `cacheMiddleware` when its use case already
   caches. Writes invalidate the list namespace as `cursor:<feature>:v*:<user>:org:<org>:*`
 
