@@ -130,3 +130,25 @@ re-grading them now would make the scorecards incomparable.
 evidence.
 **Consequences.** The scorecard is 49 pass, 12 partial, 4 fail. Each difference from an agent's
 grade is listed in the audit's § 7.
+
+## D-07 — S1 fix: the response cache stores a 200 and nothing else
+
+- **Status:** Accepted
+- **Date:** 2026-10-04
+
+Micro entry for audit finding S1 (P1), fixed on branch `fix/cache-replays-error-responses`; the
+commit SHA is on the todo once it merges.
+
+**Context.** `cacheMiddleware` stored whatever reached `res.json`, and `sendError` writes error
+bodies through the same `res.json`. A hit is replayed with `res.status(200)`, so a stored 404 or
+masked 500 came back as a 200 until its key expired.
+**Decision.** The wrapper stores a response only when `res.statusCode === 200`.
+**Options considered.** Any 2xx: rejected, a hit is always replayed as 200, so a stored 201 or 204
+would come back with a different status than it was sent with. Storing the status beside the body
+and replaying it: rejected, it changes the cached value's shape for no route that needs it, and
+caching errors is how a transient failure outlives its cause. Having `sendError` bypass the wrapper:
+rejected, the cache should not depend on how a handler writes its error.
+**Consequences.** Errors are never cached, so a client that hammers a missing id reaches the
+handler every time; the rate limiters bound that. Entries poisoned before the fix expire on their
+own within the longest TTL, 600 s. The other cache findings of the same audit (S12: unencoded key
+segments, keys in log lines) are not touched.

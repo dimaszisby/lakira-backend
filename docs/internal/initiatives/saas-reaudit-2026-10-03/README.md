@@ -1,6 +1,6 @@
 # SaaS re-audit, 2026-10-03
 
-**Status:** Complete on `docs/saas-reaudit-2026-10-03`. Result: GOLD WITH CAVEATS reconfirmed; C1 and C3
+**Status:** Complete. Merged in #132 (`fe35132`). Result: GOLD WITH CAVEATS reconfirmed; C1 and C3
 confirmed closed; clean GOLD blocked by C4 (P2) and two new P1 findings, S1 and S2.
 **Slug:** `saas-reaudit-2026-10-03` · **Branch:** `docs/saas-reaudit-2026-10-03`
 

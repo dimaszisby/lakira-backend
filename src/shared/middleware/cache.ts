@@ -40,16 +40,22 @@ export const cacheMiddleware =
 
       logger.info(`[CACHE PROCESS] Cache miss for key: ${key}`);
 
+      // A hit is replayed as a 200 (above), so only a 200 may be stored. Error
+      // bodies reach this wrapper too: sendError writes through res.json.
       const originalJson = res.json.bind(res);
       res.json = ((data: unknown) => {
-        runInBackground(
-          "cache-write",
-          async () => {
-            await redisClient.setEx(key, duration, JSON.stringify(data));
-            logger.info(`[CACHE] Cached response: ${key} (TTL: ${duration}s)`);
-          },
-          { cache: key },
-        );
+        if (res.statusCode === 200) {
+          runInBackground(
+            "cache-write",
+            async () => {
+              await redisClient.setEx(key, duration, JSON.stringify(data));
+              logger.info(
+                `[CACHE] Cached response: ${key} (TTL: ${duration}s)`,
+              );
+            },
+            { cache: key },
+          );
+        }
 
         return originalJson(data);
       }) as typeof res.json;

@@ -235,6 +235,11 @@ stores error bodies and replays them with status 200.
 C1–C6; why these count is recorded in
 [`saas-reaudit-2026-10-03` D-05](../../initiatives/saas-reaudit-2026-10-03/decisions.md).
 
+**S1 — fix landed, not yet re-audited (2026-10-04).** The response cache now stores a response
+only when its status is 200, so an error body is never stored or replayed
+([`saas-reaudit-2026-10-03` D-07](../../initiatives/saas-reaudit-2026-10-03/decisions.md)). S1 stays
+open until a dated run confirms it (ADR-002). S2 and the C4 residual are still open.
+
 > **Fix-status convention:** flip `Open` → `Fixed (<commit SHA>)` as each lands; a caveat closed
 > by decision rather than code cites the decision entry instead of a SHA. (Written with emoji
 > markers until 2026-09-24.) When all six are closed, the verdict can be re-stated as **GOLD** and
