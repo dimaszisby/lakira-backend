@@ -1,8 +1,7 @@
 # Todo — list cache keys ignore the name filter
 
 - **Status:** Fixed in kit [`list-cache-key-filters`](../initiatives/list-cache-key-filters/README.md)
-  (branch `fix/list-cache-key-filters`); closes on merge. R2 stays open in the audit until a dated
-  run confirms it (ADR-002)
+  merged in #126. **Confirmed by the dated run of 2026-10-03** (R2 closed-confirmed)
 - **Created:** 2026-09-29
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-09-29.md` §6 R2

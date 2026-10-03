@@ -2,7 +2,9 @@
 
 - **Status:** Complete (2026-09-29) — delivered by the
   [`fork-test-credentials`](../initiatives/fork-test-credentials/README.md) kit (ADR-0051). The
-  GOLD restatement still needs a new dated audit run
+  fix was **confirmed by the dated run of 2026-10-03** (C1 closed-confirmed; the printed flow was
+  executed through `npm test`). What that run found beside it is in
+  `2026-10-03-todo-fork-openapi-gate-and-bootstrap-order.md`
 - **Created:** 2026-09-29
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-09-29.md` §4.1 C1, §5; kit `saas-gold-reaudit` D-03

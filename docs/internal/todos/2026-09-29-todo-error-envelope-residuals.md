@@ -2,9 +2,9 @@
 
 - **Status:** Fixed in kit
   [`error-envelope-residuals`](../initiatives/error-envelope-residuals/README.md). Phase 1 (#124,
-  `7ea5ec6`) fixed the unknown-route 404 and the body-parser 4xx. Phase 2 (branch
-  `fix/error-envelope-residuals-429`, ADR-0057) moves every limiter onto the envelope. C3 stays
-  "Reopened" in the audit summary until a dated run confirms it (ADR-002).
+  `7ea5ec6`) fixed the unknown-route 404 and the body-parser 4xx. Phase 2 (#131, `582c1b5`,
+  ADR-0057) moved every limiter onto the envelope. **Confirmed by the dated run of 2026-10-03**: C3
+  is closed-confirmed.
 - **Created:** 2026-09-29
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-09-29.md` §4.1 C3; kit `saas-gold-reaudit` D-05

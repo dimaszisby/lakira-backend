@@ -18,6 +18,14 @@ finds the C1–C6 closures narrower than claimed: **C1 is open again at P1** (a 
 **C3 and C4 are open again at P2**. C2, C5 and C6 are confirmed closed. The table in § 4 carries the
 current status. Next step: close C1, then another dated run.
 
+**2026-10-03 re-audit: GOLD WITH CAVEATS reconfirmed again; C1 and C3 are closed, clean GOLD still
+not earned.** The dated run [`audit-2026-10-03.md`](./audit-2026-10-03.md) passes the ADR-001 gate
+on Node 24 (zero P0, no flake) and executes a fresh fork's printed steps end to end. It confirms C1
+and C3 closed, with C2, C5 and C6. **C4 stays open at P2** on two routes the last fix did not cover.
+It also records **two new P1 findings that block a clean GOLD**: S1, the response cache replays
+error bodies with status 200, and S2, a fork's OpenAPI gate cannot pass. Next step: fix S1, S2 and
+the C4 residual, then another dated run.
+
 The **Status** paragraph at the top records the closures as they stood on 2026-09-24, when all six
 were believed closed.
 
@@ -27,10 +35,11 @@ audits) but surfaced two **NEW P0** (cache-layer cross-tenant scoping) and one *
 (`DISABLE_RATE_LIMITING` has no production guard) findings that all three prior audits missed.
 The repo is **not safely shippable** as a SaaS base until N1+N2+F1 land (cumulative ≤2h);
 the original C1–C6 caveats remain open-unchanged.
-**As of:** 2026-09-29 · **Branch:** `docs/saas-gold-reaudit` @ `b12ec62`
-**Authoritative audit:** [`audit-2026-09-29.md`](./audit-2026-09-29.md) (delta, fresh pass, fork
-dry-run and full 65-item re-grade, on Node 24).
-Prior authoritative audit: [`audit-2026-06-05.md`](./audit-2026-06-05.md).
+**As of:** 2026-10-03 · **Branch:** `docs/saas-reaudit-2026-10-03` @ `582c1b5`
+**Authoritative audit:** [`audit-2026-10-03.md`](./audit-2026-10-03.md) (delta, fresh pass, fork
+dry-run through `npm test` and full 65-item re-grade, on Node 24).
+Prior authoritative audits: [`audit-2026-09-29.md`](./audit-2026-09-29.md),
+[`audit-2026-06-05.md`](./audit-2026-06-05.md).
 This file is the human-readable capstone that ties the whole SaaS-readiness initiative
 together; the dated audits are the evidence of record.
 
@@ -137,14 +146,14 @@ Each is scoped to ≤1 day. None blocks the ADR-001 gate or represents an exploi
 **Recommended order:** C1 and C3 first (a forker / API consumer hits these first), then the
 fast hardening wins C2/C5/C6, then C4.
 
-| ID     | Caveat                                                                                                                                                                                                                                                                                      | Sev | Scope | Status                       |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ----- | ---------------------------- |
-| **C1** | **Fork flow doesn't work as printed** — `bootstrap-fork.sh` rotates `JWT_SECRET` / sets `APP_NAME` only in `.env.development` (gitignored, absent on fresh clone → silent no-op); its printed step 4 `npm test` fails out-of-box (84 suites) without `.env.test`, which is never mentioned. | P1  | ≤1d   | **Reopened 2026-09-29 (P1)** |
-| **C2** | **Lakira branding leaks into the forked runtime** — `src/config/app-name.ts:4` defaults to `"lakira-backend"`; because C1's `APP_NAME` write misses, a fresh fork brands logs/OpenAPI/queues/emails as "lakira-backend".                                                                    | P2  | ≤1h   | Fixed (D-01) — note          |
-| **C3** | **Error envelope inconsistent + undocumented** — `error.ts` hand-rolls 3 shapes (incl. an undocumented `"fail"` status), bypassing `errorResponse()`, violating `api-design.md`; OpenAPI documents no 4xx/5xx schema (only 429).                                                            | P1  | ≤1d   | **Reopened 2026-09-29 (P2)** |
-| **C4** | **Architecture test too weak** — enforces only 3 narrow checks, no negative cases; real app→infra ORM writes, `AppError` in domain entities, and cross-feature deep imports pass green.                                                                                                     | P1  | ≤1d   | **Reopened 2026-09-29 (P2)** |
-| **C5** | **Sentry has no PII scrubbing** — `Sentry.init()` lacks a `beforeSend` to strip `authorization`/`cookie`/body secrets before egress.                                                                                                                                                        | P2  | ≤1h   | Fixed (`b28381a`) — note     |
-| **C6** | **Log-redaction suffix-anchored** — `SENSITIVE_KEY_PATTERN` misses `authorization`, `cookie`, `bearer`, `passwordHash` (latent: nothing logs them today).                                                                                                                                   | P2  | ≤1h   | Fixed (`b28381a`)            |
+| ID     | Caveat                                                                                                                                                                                                                                                                                      | Sev | Scope | Status                         |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ----- | ------------------------------ |
+| **C1** | **Fork flow doesn't work as printed** — `bootstrap-fork.sh` rotates `JWT_SECRET` / sets `APP_NAME` only in `.env.development` (gitignored, absent on fresh clone → silent no-op); its printed step 4 `npm test` fails out-of-box (84 suites) without `.env.test`, which is never mentioned. | P1  | ≤1d   | Fixed (#122) — confirmed       |
+| **C2** | **Lakira branding leaks into the forked runtime** — `src/config/app-name.ts:4` defaults to `"lakira-backend"`; because C1's `APP_NAME` write misses, a fresh fork brands logs/OpenAPI/queues/emails as "lakira-backend".                                                                    | P2  | ≤1h   | Fixed (D-01) — note            |
+| **C3** | **Error envelope inconsistent + undocumented** — `error.ts` hand-rolls 3 shapes (incl. an undocumented `"fail"` status), bypassing `errorResponse()`, violating `api-design.md`; OpenAPI documents no 4xx/5xx schema (only 429).                                                            | P1  | ≤1d   | Fixed (#124, #131) — confirmed |
+| **C4** | **Architecture test too weak** — enforces only 3 narrow checks, no negative cases; real app→infra ORM writes, `AppError` in domain entities, and cross-feature deep imports pass green.                                                                                                     | P1  | ≤1d   | **Open (P2), 2026-10-03**      |
+| **C5** | **Sentry has no PII scrubbing** — `Sentry.init()` lacks a `beforeSend` to strip `authorization`/`cookie`/body secrets before egress.                                                                                                                                                        | P2  | ≤1h   | Fixed (`b28381a`) — note       |
+| **C6** | **Log-redaction suffix-anchored** — `SENSITIVE_KEY_PATTERN` misses `authorization`, `cookie`, `bearer`, `passwordHash` (latent: nothing logs them today).                                                                                                                                   | P2  | ≤1h   | Fixed (`b28381a`)              |
 
 **C2 — note (2026-09-17).** This row's stated cause is _"because C1's `APP_NAME` write misses"_,
 and that is no longer true: `bootstrap-fork.sh:183-191` now writes `APP_NAME` into `.env`, which the
@@ -208,6 +217,24 @@ envelope through one shared handler, with the spec updated and lakira-frontend's
 The readiness probe's 503 body is named there as the one exception. The row above stays "Reopened"
 until a dated run confirms it (ADR-002).
 
+**C1, C3 — confirmed closed; C4 — still open (2026-10-03).** The dated run
+[`audit-2026-10-03.md`](./audit-2026-10-03.md) § 4.1 re-tested each. **C1:** the five printed steps
+were executed on a fresh fork against services carrying the fork's own settings, and `npm test`
+passed (its § 5). **C3:** every error path answers through the envelope, rate limits included;
+graded by an independent pass, with the readiness probe's 503 as the one named exception
+(ADR-0057). **C4:** what was reopened on 2026-09-29 is fixed, but cross-feature imports through
+`src/types/` and application code importing infrastructure still pass green.
+[Todo](../../todos/2026-10-03-todo-boundary-rule-types-and-application-infra.md). Grading reasons:
+[`saas-reaudit-2026-10-03` D-03, D-04, D-06](../../initiatives/saas-reaudit-2026-10-03/decisions.md).
+
+**Two P1 findings outside C1–C6 also block a clean GOLD (2026-10-03).** S1: the response cache
+stores error bodies and replays them with status 200.
+[Todo](../../todos/2026-10-03-todo-cache-replays-error-responses.md). S2: a fork's
+`npm run docs:openapi:check` exits 128.
+[Todo](../../todos/2026-10-03-todo-fork-openapi-gate-and-bootstrap-order.md). ADR-008 names only
+C1–C6; why these count is recorded in
+[`saas-reaudit-2026-10-03` D-05](../../initiatives/saas-reaudit-2026-10-03/decisions.md).
+
 > **Fix-status convention:** flip `Open` → `Fixed (<commit SHA>)` as each lands; a caveat closed
 > by decision rather than code cites the decision entry instead of a SHA. (Written with emoji
 > markers until 2026-09-24.) When all six are closed, the verdict can be re-stated as **GOLD** and
@@ -238,13 +265,14 @@ defects to fix blindly:
 
 ## 6. Audit lineage
 
-| Date       | File                                                                   | Verdict                                                       | Scorecard                                                                                                                  |
-| ---------- | ---------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| 2026-05-01 | [`audit-2026-05-01.md`](./audit-2026-05-01.md)                         | NOT fork-ready                                                | 26 pass / 21 partial / 18 fail — 7 P0, 17 P1, 11 P2                                                                        |
-| 2026-05-20 | [`audit-2026-05-20.md`](./audit-2026-05-20.md)                         | Shippable; not strictly fork-ready (self-audit)               | 52 pass / 9 partial / 4 fail — 0 P0, 4 P1, 9 P2                                                                            |
-| 2026-05-24 | [`audit-2026-05-24-independent.md`](./audit-2026-05-24-independent.md) | **GOLD WITH CAVEATS** (independent)                           | ADR-001 gate **PASS**; 6 caveats + 8 judgment items                                                                        |
-| 2026-06-05 | [`audit-2026-06-05.md`](./audit-2026-06-05.md)                         | **GOLD WITH CAVEATS — DOWNGRADED PENDING N1+N2+F1**           | All six gates re-run green; 2 new P0, 1 new HIGH, 6 P1, 6 P2, 4 P3 found                                                   |
-| 2026-09-29 | [`audit-2026-09-29.md`](./audit-2026-09-29.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C1) | ADR-001 gate **PASS** on Node 24; 47 pass / 14 partial / 4 fail; C1 reopened P1, C3 + C4 reopened P2; 0 P0, 6 new P2, 7 P3 |
+| Date       | File                                                                   | Verdict                                                               | Scorecard                                                                                                                  |
+| ---------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-01 | [`audit-2026-05-01.md`](./audit-2026-05-01.md)                         | NOT fork-ready                                                        | 26 pass / 21 partial / 18 fail — 7 P0, 17 P1, 11 P2                                                                        |
+| 2026-05-20 | [`audit-2026-05-20.md`](./audit-2026-05-20.md)                         | Shippable; not strictly fork-ready (self-audit)                       | 52 pass / 9 partial / 4 fail — 0 P0, 4 P1, 9 P2                                                                            |
+| 2026-05-24 | [`audit-2026-05-24-independent.md`](./audit-2026-05-24-independent.md) | **GOLD WITH CAVEATS** (independent)                                   | ADR-001 gate **PASS**; 6 caveats + 8 judgment items                                                                        |
+| 2026-06-05 | [`audit-2026-06-05.md`](./audit-2026-06-05.md)                         | **GOLD WITH CAVEATS — DOWNGRADED PENDING N1+N2+F1**                   | All six gates re-run green; 2 new P0, 1 new HIGH, 6 P1, 6 P2, 4 P3 found                                                   |
+| 2026-09-29 | [`audit-2026-09-29.md`](./audit-2026-09-29.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C1)         | ADR-001 gate **PASS** on Node 24; 47 pass / 14 partial / 4 fail; C1 reopened P1, C3 + C4 reopened P2; 0 P0, 6 new P2, 7 P3 |
+| 2026-10-03 | [`audit-2026-10-03.md`](./audit-2026-10-03.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C4, S1, S2) | ADR-001 gate **PASS** on Node 24; 49 pass / 12 partial / 4 fail; C1 + C3 closed, C4 open P2; 0 P0, 2 new P1, 8 new P2      |
 
 **Key disagreements the independent run raised with the 05-20 self-audit** (full evidence in
 the dated file): security findings 1→8 medium; `svix` present transitively via `resend`;
@@ -364,14 +392,20 @@ the list still reads as the history it is.
    **then** a new dated run to restate GOLD. ADR-008 restates GOLD only when C1–C6 are all closed,
    so an open C3 or C4 blocks it; they cannot ride along as caveats. (Corrected 2026-09-29: an
    earlier wording of this item said they could.) The run's other findings are in its § 6.
-   **Update 2026-10-03:** both residual fixes have landed: C4 in #123, C3 in #124 and the
-   `fix/error-envelope-residuals-429` change (ADR-0057). **Next: the dated run.**
+   **Update 2026-10-03:** both residual fixes landed: C4 in #123, C3 in #124 and #131 (`582c1b5`,
+   ADR-0057). ~~**Next: the dated run.**~~ Done, see item 8.
+8. **Dated run of 2026-10-03** — [`audit-2026-10-03.md`](./audit-2026-10-03.md). C1 and C3 are
+   confirmed closed. It did **not** restate GOLD. **Next, in this order:** S1 (the cache replays
+   error bodies as 200), S2 with S3 and S4 (a fork's OpenAPI gate and bootstrap ordering), the C4
+   residual (S5, S6), **then** another dated run. Each has a todo dated 2026-10-03; the run's other
+   findings are in its § 6.
 
 ---
 
 ## 9. Related documents
 
-- [`audit-2026-09-29.md`](./audit-2026-09-29.md) — **current authoritative audit** (delta, fresh pass, fork dry-run, full re-grade on Node 24)
+- [`audit-2026-10-03.md`](./audit-2026-10-03.md) — **current authoritative audit** (delta, fresh pass, fork dry-run through `npm test`, full re-grade on Node 24)
+- [`audit-2026-09-29.md`](./audit-2026-09-29.md) — prior authoritative audit
 - [`audit-2026-06-05.md`](./audit-2026-06-05.md) — prior authoritative audit
 - [`audit-2026-05-24-independent.md`](./audit-2026-05-24-independent.md) — earlier authoritative audit
 - [`audit-2026-05-20.md`](./audit-2026-05-20.md) · [`audit-2026-05-01.md`](./audit-2026-05-01.md) — prior runs

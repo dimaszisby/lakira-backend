@@ -87,9 +87,11 @@ docs/explanation/product-requirements.md
 The script removed `docs/internal/`, which held the upstream SaaS-readiness audit — the honest
 assessment of this template. To read it, re-run step 2 with `--keep-internal` on a fresh copy, or
 read it in the upstream repository; its live status is
-`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of 2026-09-24 it lists
-**no open P0 or HIGH findings**, and all six of its C1–C6 caveats are closed. Remaining open
-findings are P1/P2 hardening (for example request-id propagation across RabbitMQ, and an unbounded
+`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of 2026-10-03 it lists
+**no open P0 findings**. One of its six caveats (C4, architecture rules) is still open at P2, and
+two P1 findings are open: the response cache replays error bodies with status 200, and a fork's
+`npm run docs:openapi:check` fails, because bootstrap renames the spec's path in `package.json`
+but not the file. Other open findings are P2/P3 hardening (for example request-id propagation across RabbitMQ, and an unbounded
 date range on `/metric-logs/stats`).
 
 The two findings that used to sit here are **closed**:
