@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import fsSync from "node:fs";
 import { spawn } from "node:child_process";
 import logger from "../../../../scripts/logger.js";
+import { OPENAPI_SPEC_FILE } from "../../../../scripts/openapi-spec-path.js";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "../../../..");
@@ -14,13 +15,7 @@ const schemathesisDir = path.join(
   "contract",
   "schemathesis",
 );
-const specPath = path.join(
-  repoRoot,
-  "docs",
-  "reference",
-  "api",
-  "lakira-backend-openapi.json",
-);
+const specPath = OPENAPI_SPEC_FILE;
 
 const DEFAULT_TAGS =
   process.env.SCHEMATHESIS_STAGING_ENDPOINT_TAGS ??

@@ -76,11 +76,12 @@ Also green, and run by CI: `build`, `docs:openapi:check`, `security:delta:gate`,
 1. **S1 · Caching (P1)** — the response cache stores error bodies and replays them with status 200
    (reproduced: a 404 came back as 200 for the next minute).
    [Todo](docs/internal/todos/2026-10-03-todo-cache-replays-error-responses.md).
-   Fixed on `fix/cache-replays-error-responses` (the cache stores a 200 only), pending a dated audit run to confirm it (ADR-002).
+   Fixed in #133 (`50258e4`; the cache stores a 200 only), pending a dated audit run to confirm it (ADR-002).
 2. **S2 · Forkability (P1)** — a fork's `npm run docs:openapi:check` exits 128, because bootstrap
    renames the spec path in `package.json` but not the file, so the fork's CI fails on first push.
    With it: bootstrap ordering (S3, S4) and unrotated service passwords (S10).
    [Todo](docs/internal/todos/2026-10-03-todo-fork-openapi-gate-and-bootstrap-order.md).
+   S2, S3 and S4 fixed in kit `fork-openapi-gate`, pending a dated audit run to confirm them (ADR-002); S10 is still open.
 3. **C4 · Architecture (P2)** — the boundary rule misses cross-feature imports through `src/types/`
    and application code importing infrastructure.
    [Todo](docs/internal/todos/2026-10-03-todo-boundary-rule-types-and-application-infra.md).

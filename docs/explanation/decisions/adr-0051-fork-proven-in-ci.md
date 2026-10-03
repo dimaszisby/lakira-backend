@@ -10,6 +10,14 @@
 
 ---
 
+> **Status note (2026-10-04).** Two additions, from audit findings S2 to S4 of 2026-10-03 (kit
+> [`fork-openapi-gate`](../../internal/initiatives/fork-openapi-gate/decisions.md)). `Fork Smoke`
+> now also runs lint, typecheck and `docs:openapi:check` on the bootstrapped tree: it used to prove
+> a fork's tests and not its gates, and a fork's OpenAPI gate was failing unseen. And the generated
+> spec's filename follows the package name, from `scripts/openapi-spec-path.js`, so bootstrap
+> renames the file with the package. The bootstrap script also renames an existing `.env`, and a
+> second run creates missing env files without rotating a secret that is in use.
+
 ## Context
 
 `bootstrap-fork.sh` turns this template into a fork: it renames identifiers, writes `.env` and

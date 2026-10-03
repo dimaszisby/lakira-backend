@@ -1,6 +1,7 @@
 # Fork smoke — ADR-0051.
 #
-# Bootstraps this checkout as a fork, then runs the steps bootstrap-fork.sh prints,
+# Bootstraps this checkout as a fork, then runs the gates a fork's CI runs and the
+# steps bootstrap-fork.sh prints,
 # against services started from the fork's own Compose file and .env. The chain
 # under test is bootstrap -> .env -> Compose -> .env.test, which service containers
 # (as backend-ci.yml uses) would bypass by fixing the credentials in YAML.
@@ -58,6 +59,18 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # The gates the fork's own CI runs, not only its tests. A fork's
+      # docs:openapi:check failed for as long as this job skipped them
+      # (audit 2026-10-03, S2): bootstrap renamed the spec's path and not the file.
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: OpenAPI spec consistency
+        run: npm run docs:openapi:check
 
       - name: Migrate the development database
         run: npm run migrate:development

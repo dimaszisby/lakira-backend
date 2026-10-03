@@ -18,6 +18,11 @@ Generated artifact:
 
 - `docs/reference/api/lakira-backend-openapi.json`
 
+The filename is `<package name>-openapi.json`. It comes from `package.json`'s `name` through
+`scripts/openapi-spec-path.js`, which the generator, the normalizer, the validator and the contract
+runners all import. A fork's spec is therefore named after the fork; do not write the filename into
+a script.
+
 Runtime docs endpoints:
 
 - `GET /api/v1/docs`

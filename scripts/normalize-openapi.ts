@@ -1,15 +1,7 @@
 import * as fs from "fs";
-import * as path from "path";
-import { fileURLToPath } from "url";
 import prettier from "prettier";
 import logger from "./logger.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const outputFile = path.join(
-  __dirname,
-  "../docs/reference/api/lakira-backend-openapi.json",
-);
+import { OPENAPI_SPEC_FILE as outputFile } from "./openapi-spec-path.js";
 
 async function normalizeOpenApiSpec() {
   const raw = fs.readFileSync(outputFile, "utf-8");
