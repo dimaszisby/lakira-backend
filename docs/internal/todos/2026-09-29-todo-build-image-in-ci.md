@@ -1,7 +1,7 @@
 # Todo — CI never builds the production image
 
 - **Status:** Fixed in kit [`build-image-in-ci`](../initiatives/build-image-in-ci/README.md)
-  (ADR-0055), merged in #129. R6 stays open in the audit until a dated run confirms it (ADR-002)
+  (ADR-0055), merged in #129. **Confirmed by the dated run of 2026-10-03** (R6 closed-confirmed)
 - **Created:** 2026-09-29
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-09-29.md` §6 R6, §4.3 ADR-0042

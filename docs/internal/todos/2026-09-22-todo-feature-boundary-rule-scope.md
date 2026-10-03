@@ -1,7 +1,8 @@
 # Todo — the feature-boundary rule stops at `src/features/`
 
 - **Status:** Open — scope-widening only; the audience-path gap closed on 2026-09-29 (see the last
-  section)
+  section) and was confirmed by the dated run of 2026-10-03. That run keeps C4 open on two other
+  routes, tracked in `2026-10-03-todo-boundary-rule-types-and-application-infra.md`
 - **Created:** 2026-09-22
 - **Owner:** unassigned
 - **Origin:** discovered implementing the `feature-boundaries` kit (PR 1); see its checklist

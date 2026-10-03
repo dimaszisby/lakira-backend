@@ -1,7 +1,7 @@
 # Error envelope residuals
 
-**Status:** Phase 1 merged in #124 (`7ea5ec6`). Phase 2 (429 envelope) complete on
-`fix/error-envelope-residuals-429`; gates green on Node 24.21.0. Plan Q-1 was answered on
+**Status:** Phase 1 merged in #124 (`7ea5ec6`). Phase 2 (429 envelope) merged in #131
+(`582c1b5`). C3 was confirmed closed by the dated run of 2026-10-03. Plan Q-1 was answered on
 2026-10-03. D-03, D-05 and D-07 promoted to
 [ADR-0057](../../../explanation/decisions/adr-0057-rate-limiters-answer-through-the-error-envelope.md).
 The frontend handoff is the Notion record "Rate-limit (429) body moves into the error envelope"

@@ -177,3 +177,9 @@ passed (219 passed, 5 skipped each), and `docker compose logs db` over that wind
 
 This closes the `TRUNCATE` part only. The parse error is a different failure and stays open; audit
 finding R3 stays open in the audit until a dated run confirms the fix (ADR-002).
+
+## 2026-10-03 — not seen in the dated run
+
+The dated run of 2026-10-03 ran `npm test` as the first run after `npm ci` on Node 24.21.0, the
+condition both earlier sightings shared, and it passed. Five other full runs the same day also
+passed. The parse error is still unexplained, and this todo stays open (audit R4).
