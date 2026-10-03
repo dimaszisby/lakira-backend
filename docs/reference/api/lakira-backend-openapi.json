@@ -207,8 +207,8 @@
               "required": ["status", "message"],
               "properties": {
                 "status": {
-                  "type": "number",
-                  "example": 429
+                  "type": "string",
+                  "example": "fail"
                 },
                 "message": {
                   "type": "string",
@@ -232,8 +232,8 @@
         "type": "object",
         "properties": {
           "status": {
-            "type": "number",
-            "example": 429
+            "type": "string",
+            "example": "fail"
           },
           "message": {
             "type": "string",

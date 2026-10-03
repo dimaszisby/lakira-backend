@@ -1,6 +1,6 @@
 # Worker composition root
 
-**Status:** Complete on `fix/worker-composition-root`; gates green on Node 24.21.0. D-01, D-02, D-05
+**Status:** Complete. Merged in #130 (`b1398cc`); gates green on Node 24.21.0. D-01, D-02, D-05
 and D-06 promoted to
 [ADR-0056](../../../explanation/decisions/adr-0056-one-wiring-per-feature-for-every-entry-point.md).
 **Slug:** `worker-composition-root` · **Branch:** `fix/worker-composition-root`

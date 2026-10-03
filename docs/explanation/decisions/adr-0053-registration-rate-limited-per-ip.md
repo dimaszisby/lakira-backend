@@ -9,6 +9,11 @@
 
 ---
 
+> **Status note (2026-10-03).** The last consequence below describes the 429 body as
+> `{status: 429, message}`. [ADR-0057](./adr-0057-rate-limiters-answer-through-the-error-envelope.md)
+> moved every limiter, this one included, onto the error envelope: the body is now
+> `{status: "fail", message}`. The limit, its key and its window are unchanged.
+
 ## Context
 
 `POST /auth/register` is unauthenticated, and every successful registration emails the address it

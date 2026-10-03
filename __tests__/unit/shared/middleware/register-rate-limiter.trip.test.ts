@@ -49,7 +49,7 @@ describe("register IP rate limiter (real limiter)", () => {
     const blocked = await send();
     expect(blocked.status).toBe(429);
     expect(blocked.body).toEqual({
-      status: 429,
+      status: "fail",
       message: "Too many registration attempts, please try again later.",
     });
     expect(blocked.headers).toHaveProperty("ratelimit-limit", "2");

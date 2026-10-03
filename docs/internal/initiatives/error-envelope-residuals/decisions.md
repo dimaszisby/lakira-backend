@@ -44,17 +44,11 @@ sent, rendered in JSON, and it is what tells the client what to fix.
 
 ## D-03 — The 429 envelope ships in a second PR, after lakira-frontend agrees
 
-- **Status:** Accepted (sequencing); the shape change itself is Proposed until Phase 2
+- **Status:** Accepted
 - **Date:** 2026-09-30
 
-**Context.** Moving the limiters onto the envelope turns `status` from the number `429` into the
-string `"fail"`. The OpenAPI component documents the numeric shape, and lakira-frontend generates
-types from it. `openapi-config.ts` records the old shape as a deliberate exception.
-**Decision.** Phase 1 ships without it. Phase 2 reverses the exception, one shared limiter handler
-through `sendError`, with an ADR and a cross-repo note.
-**Options considered.** One PR for all three residuals: rejected, it would hold two
-contract-neutral fixes hostage to a cross-repo agreement.
-**Consequences.** C3 cannot be restated closed until Phase 2 merges.
+Promoted to the architecture decision registry as **[ADR-0057](../../../explanation/decisions/adr-0057-rate-limiters-answer-through-the-error-envelope.md)**.
+That file is authoritative; this entry is a pointer.
 
 ## D-04 — An undecodable path parameter answers a fixed 400, not a masked 500
 
@@ -73,3 +67,37 @@ Express's message, which reflects the parameter. Leaving it to a follow-up: reje
 same residual class C3 names, and the next dated audit would reopen C3 over it.
 **Consequences.** Any `URIError` with status 400 is treated as a client error. Only Express's
 param decoding raises that combination today.
+
+## D-05 — One shared handler answers for every limiter
+
+- **Status:** Accepted
+- **Date:** 2026-10-03
+
+Promoted to the architecture decision registry as **[ADR-0057](../../../explanation/decisions/adr-0057-rate-limiters-answer-through-the-error-envelope.md)**.
+That file is authoritative; this entry is a pointer.
+
+## D-06 — The frontend handoff is a Notion record, not a file in this kit
+
+- **Status:** Accepted
+- **Date:** 2026-10-03
+
+**Context.** The plan of 2026-09-30 named a `frontend-note.md` in this kit. On 2026-10-01 the owner
+set the Notion page "FE and BE messages" as the channel for anything lakira-frontend must decide or
+act on.
+**Decision.** The record in Part 2 of that page, and no `frontend-note.md`. The record already
+exists: "Rate-limit (429) body moves into the error envelope", raised 2026-10-01 as
+`Needs decision`. It is updated with the answer to Q-1 and what to do after the merge, not
+duplicated. The change qualifies for the page: the frontend has to sync the spec, regenerate its
+types and update two test fixtures.
+**Options considered.** Both a file and a record: rejected, two copies drift. The file alone:
+rejected, the frontend's working queue is the Notion page.
+**Consequences.** The handoff is not in git. The ADR and this kit carry the reasoning; the record
+carries only what the frontend has to do.
+
+## D-07 — The readiness probe's 503 body is a named exception to the envelope
+
+- **Status:** Accepted
+- **Date:** 2026-10-03
+
+Promoted to the architecture decision registry as **[ADR-0057](../../../explanation/decisions/adr-0057-rate-limiters-answer-through-the-error-envelope.md)**.
+That file is authoritative; this entry is a pointer.
