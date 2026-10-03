@@ -136,8 +136,7 @@ grade is listed in the audit's § 7.
 - **Status:** Accepted
 - **Date:** 2026-10-04
 
-Micro entry for audit finding S1 (P1), fixed on branch `fix/cache-replays-error-responses`; the
-commit SHA is on the todo once it merges.
+Micro entry for audit finding S1 (P1), merged in #133 (`50258e4`).
 
 **Context.** `cacheMiddleware` stored whatever reached `res.json`, and `sendError` writes error
 bodies through the same `res.json`. A hit is replayed with `res.status(200)`, so a stored 404 or

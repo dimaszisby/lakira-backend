@@ -1,6 +1,6 @@
 # Todo — the response cache stores error bodies and replays them as 200
 
-- **Status:** Fixed on branch `fix/cache-replays-error-responses` (Micro; kit
+- **Status:** Fixed in #133 (`50258e4`; Micro; kit
   `saas-reaudit-2026-10-03` D-07). S1 stays open in the audit until a dated run confirms it
   (ADR-002). The S12 items named under "Suggested fix" are not part of that change and stay open
 - **Created:** 2026-10-03

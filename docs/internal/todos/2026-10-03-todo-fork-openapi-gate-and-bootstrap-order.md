@@ -1,6 +1,9 @@
 # Todo — a fork's OpenAPI gate cannot pass; bootstrap ordering
 
-- **Status:** Open (P1 for S2; P2 for S3, S4, S10)
+- **Status:** S2, S3 and S4 fixed in kit
+  [`fork-openapi-gate`](../initiatives/fork-openapi-gate/README.md) (branch
+  `fix/fork-openapi-gate`); they stay open in the audit until a dated run confirms them (ADR-002).
+  **S10 is still open (P2)** and is the only item left here
 - **Created:** 2026-10-03
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-10-03.md` § 6, S2, S3, S4, S10; kit `saas-reaudit-2026-10-03` D-03 and D-05

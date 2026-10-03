@@ -49,7 +49,7 @@ Frequently needed:
 - `docs/explanation/decisions/` — 57 ADRs, one per file; check **Status** before trusting one
 - `docs/reference/api/lakira-backend-openapi.json` — generated, CI-drift-gated, never hand-edited
 
-`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` is the live risk status (as of 2026-10-03: GOLD WITH CAVEATS; no open P0; C4 open at P2 and two P1 findings, S1 and S2, block a clean GOLD).
+`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` is the live risk status (as of 2026-10-03: GOLD WITH CAVEATS; no open P0; C4 open at P2 and two P1 findings, S1 and S2, block a clean GOLD; both P1 fixes have merged since and wait for a dated run).
 
 ## Task Defaults
 

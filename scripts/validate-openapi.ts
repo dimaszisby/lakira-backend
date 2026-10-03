@@ -1,7 +1,6 @@
 import * as fs from "fs";
-import * as path from "path";
-import { fileURLToPath } from "url";
 import logger from "./logger.js";
+import { OPENAPI_SPEC_FILE as specFile } from "./openapi-spec-path.js";
 
 /**
  * Structural validation of the generated OpenAPI document.
@@ -15,13 +14,6 @@ import logger from "./logger.js";
  *
  * This checks the document is *valid*, not merely *unchanged*.
  */
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const specFile = path.join(
-  __dirname,
-  "../docs/reference/api/lakira-backend-openapi.json",
-);
 
 type Json = unknown;
 

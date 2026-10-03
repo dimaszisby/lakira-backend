@@ -7,19 +7,25 @@
 #
 # What it does:
 #   1. Replaces "lakira-backend" with <new-name> in package.json,
-#      package-lock.json, .env.example, and CI workflows.
+#      package-lock.json, .env.example, and CI workflows, and renames the
+#      generated OpenAPI spec to <new-name>-openapi.json to match: the spec's
+#      path comes from the package name (scripts/openapi-spec-path.ts).
 #   2. Replaces "lakira" with the derived short name (strip -backend suffix)
 #      in queue-topology references, DB names, and CI DB refs. Database
 #      identifiers use the short name with hyphens turned into underscores
 #      ("my-app" gives my_app_user), so they stay valid in plain SQL. The test
 #      template and the test-database init SQL are rewritten too, so .env.test
-#      logs in as the user Compose creates from .env.
+#      logs in as the user Compose creates from .env. An .env or .env.test that
+#      already exists is rewritten the same way.
 #   3. Rotates JWT_SECRET in .env (creating it from .env.example if needed).
 #   4. Sets APP_NAME=<new-name> in .env, and creates .env.test from its template.
 #   5. Removes docs/internal/ (upstream working material); --keep-internal opts out.
 #   6. Drops FORKED-FROM.md with the upstream commit SHA.
 #
-# The script is idempotent: running it twice with the same name is a no-op.
+# The script is idempotent: running it twice changes nothing, except that a
+# second run creates .env or .env.test if they are missing (a fresh checkout of a
+# fork has neither). A fork is renamed once: a later run with a different --name
+# keeps the name the tree already has.
 
 set -euo pipefail
 
@@ -60,26 +66,6 @@ if ! [[ "$NEW_NAME" =~ ^[a-z][a-z0-9-]*$ ]]; then
   exit 1
 fi
 
-# Derive short name (strip trailing -backend, -api, etc.)
-SHORT_NAME="${NEW_NAME%%-backend}"
-SHORT_NAME="${SHORT_NAME%%-api}"
-
-# Database identifiers (users, database names) must be valid unquoted in SQL:
-# docker/db/init/01-create-dbs.sql runs a plain CREATE DATABASE, where a hyphen
-# is a syntax error.
-DB_SLUG="${SHORT_NAME//-/_}"
-
-# Derive Title-Cased display name from short name (matches src/config/app-name.ts toTitleCase).
-# e.g. "my-app" → "My App", "lakira" → "Lakira"
-DISPLAY_NAME=""
-IFS='-' read -ra _PARTS <<< "$SHORT_NAME"
-for _p in "${_PARTS[@]}"; do
-  [[ -z "$_p" ]] && continue
-  _head="$(printf '%s' "${_p:0:1}" | tr '[:lower:]' '[:upper:]')"
-  DISPLAY_NAME+="${_head}${_p:1} "
-done
-DISPLAY_NAME="${DISPLAY_NAME% }"
-
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # ---------------------------------------------------------------------------
@@ -102,15 +88,71 @@ do_sed() {
 }
 
 # ---------------------------------------------------------------------------
-# Guard: skip if already renamed
+# What state is the tree in?
+#
+#   template         package.json is still "lakira-backend": rename it.
+#   already renamed  it carries a fork's name: skip the renames, the prune and
+#                    FORKED-FROM.md, but not the env files. A fresh checkout of a
+#                    fork has no .env or .env.test, and exiting here left that
+#                    fork's own Fork Smoke run without them (audit 2026-10-03, S4).
+#
+# A fork is renamed once. Asked for a different name later, the script keeps the
+# name the tree has: the template's strings are gone, so a second rename would
+# change APP_NAME and the JWT secret and nothing else.
 # ---------------------------------------------------------------------------
-CURRENT_NAME=$(node -e "process.stdout.write(require('./package.json').name)" 2>/dev/null || echo "")
-if [[ "$CURRENT_NAME" == "$NEW_NAME" ]]; then
-  echo "Already renamed to '$NEW_NAME'. Nothing to do."
-  exit 0
+TEMPLATE_NAME="lakira-backend"
+CURRENT_NAME=$(node -e "process.stdout.write(require(process.argv[1]).name ?? '')" "$REPO_ROOT/package.json" 2>/dev/null || echo "")
+if [[ -z "$CURRENT_NAME" ]]; then
+  echo "Error: could not read the package name from $REPO_ROOT/package.json (is node installed?)." >&2
+  exit 1
 fi
 
-echo "Renaming '$CURRENT_NAME' → '$NEW_NAME' (short: lakira → $SHORT_NAME)"
+# Asking the template to take its own name is also "nothing to rename"; without
+# this it would fall through to the prune and delete docs/internal upstream.
+ALREADY_RENAMED=false
+if [[ "$CURRENT_NAME" != "$TEMPLATE_NAME" || "$NEW_NAME" == "$TEMPLATE_NAME" ]]; then
+  ALREADY_RENAMED=true
+  if [[ "$CURRENT_NAME" != "$NEW_NAME" ]]; then
+    echo "This tree is already renamed to '$CURRENT_NAME'; keeping that name, not '$NEW_NAME'." >&2
+    NEW_NAME="$CURRENT_NAME"
+  fi
+  echo "Already renamed to '$NEW_NAME'. Checking .env and .env.test only."
+fi
+
+# Derive short name (strip trailing -backend, -api, etc.)
+SHORT_NAME="${NEW_NAME%%-backend}"
+SHORT_NAME="${SHORT_NAME%%-api}"
+
+# Database identifiers (users, database names) must be valid unquoted in SQL:
+# docker/db/init/01-create-dbs.sql runs a plain CREATE DATABASE, where a hyphen
+# is a syntax error.
+DB_SLUG="${SHORT_NAME//-/_}"
+
+# Derive Title-Cased display name from short name (matches src/config/app-name.ts toTitleCase).
+# e.g. "my-app" → "My App", "lakira" → "Lakira"
+DISPLAY_NAME=""
+IFS='-' read -ra _PARTS <<< "$SHORT_NAME"
+for _p in "${_PARTS[@]}"; do
+  [[ -z "$_p" ]] && continue
+  _head="$(printf '%s' "${_p:0:1}" | tr '[:lower:]' '[:upper:]')"
+  DISPLAY_NAME+="${_head}${_p:1} "
+done
+DISPLAY_NAME="${DISPLAY_NAME% }"
+
+OLD_SPEC="docs/reference/api/$TEMPLATE_NAME-openapi.json"
+NEW_SPEC="docs/reference/api/$NEW_NAME-openapi.json"
+
+if [[ "$ALREADY_RENAMED" == "false" ]]; then
+  # Refuse before anything is rewritten: failing at the spec rename would leave
+  # package.json and the workflows renamed and the spec not.
+  if [[ -f "$REPO_ROOT/$OLD_SPEC" && -e "$REPO_ROOT/$NEW_SPEC" ]]; then
+    echo "Error: $NEW_SPEC already exists; remove it or pick another name." >&2
+    exit 1
+  fi
+  echo "Renaming '$CURRENT_NAME' → '$NEW_NAME' (short: lakira → $SHORT_NAME)"
+fi
+
+if [[ "$ALREADY_RENAMED" == "false" ]]; then
 
 # ---------------------------------------------------------------------------
 # 1. Replace "lakira-backend" → NEW_NAME in key files
@@ -127,6 +169,39 @@ FILES_FULL=(
 for f in "${FILES_FULL[@]}"; do
   do_sed "s/lakira-backend/$NEW_NAME/g" "$f"
 done
+
+# ---------------------------------------------------------------------------
+# 1b. Rename the generated OpenAPI spec to match
+#
+# Step 1 has just renamed the path in package.json's docs:openapi:check and in
+# the drift workflow. The scripts that write the spec take its name from the
+# package name, so the file follows (audit 2026-10-03, S2). `git mv` when the
+# file is tracked, so the drift check has a staged file to compare against.
+# ---------------------------------------------------------------------------
+if [[ -f "$REPO_ROOT/$OLD_SPEC" ]]; then
+  if git -C "$REPO_ROOT" ls-files --error-unmatch "$OLD_SPEC" >/dev/null 2>&1; then
+    git -C "$REPO_ROOT" mv "$OLD_SPEC" "$NEW_SPEC"
+  else
+    mv "$REPO_ROOT/$OLD_SPEC" "$REPO_ROOT/$NEW_SPEC"
+  fi
+  echo "Renamed the OpenAPI spec to $NEW_SPEC"
+fi
+
+# The docs and the Claude hook that name the file. docs/internal is pruned in
+# step 5, or kept as upstream history, so it is left alone either way. -I skips
+# binary files, which sed could choke on.
+SPEC_MENTIONS=()
+while IFS= read -r f; do
+  SPEC_MENTIONS+=("$f")
+done < <(
+  grep -rlIF --exclude-dir=internal "$TEMPLATE_NAME-openapi.json" \
+    "$REPO_ROOT/docs" "$REPO_ROOT/.claude" "$REPO_ROOT/CLAUDE.md" 2>/dev/null || true
+)
+if (( ${#SPEC_MENTIONS[@]} > 0 )); then
+  for f in "${SPEC_MENTIONS[@]}"; do
+    do_sed "s/$TEMPLATE_NAME-openapi\.json/$NEW_NAME-openapi.json/g" "$f"
+  done
+fi
 
 # ---------------------------------------------------------------------------
 # 2. Replace "lakira" → SHORT_NAME in DB names, CI refs, queue topology refs,
@@ -155,6 +230,22 @@ for f in "${FILES_SHORT[@]}"; do
   do_sed "s/Lakira/${DISPLAY_NAME}/g" "$f"
 done
 
+fi # ALREADY_RENAMED
+
+# ---------------------------------------------------------------------------
+# 2b. Rename database identifiers in an .env or .env.test that already exists
+#
+# docs/tutorials/getting-started.md tells a newcomer to copy both templates, so
+# they can be here before this script runs. Leaving them alone kept the upstream
+# database user in them while the templates and the init SQL were renamed (audit
+# 2026-10-03, S3). Only the identifier prefix is rewritten: these files are the
+# user's own, and the broader patterns above could change a value they set.
+# Runs in both states, and changes nothing once the prefix is gone.
+# ---------------------------------------------------------------------------
+for f in "$REPO_ROOT/.env" "$REPO_ROOT/.env.test"; do
+  do_sed "s/[Ll]akira_/${DB_SLUG}_/g" "$f"
+done
+
 # ---------------------------------------------------------------------------
 # 3. Rotate JWT_SECRET in .env
 #
@@ -164,15 +255,21 @@ done
 # template's JWT secret (SAAS-BASE-CHECKLIST C1).
 # ---------------------------------------------------------------------------
 ENV_FILE="$REPO_ROOT/.env"
+ENV_CREATED=false
 if [[ ! -f "$ENV_FILE" && -f "$REPO_ROOT/.env.example" ]]; then
   cp "$REPO_ROOT/.env.example" "$ENV_FILE"
+  ENV_CREATED=true
   echo "Created .env from .env.example"
 fi
 
-if [[ -f "$ENV_FILE" ]]; then
+# Rotate on the first run, and in a .env this run has just created. A second run
+# must not replace the secret of an .env that is already in use.
+if [[ -f "$ENV_FILE" && ( "$ALREADY_RENAMED" == "false" || "$ENV_CREATED" == "true" ) ]]; then
   NEW_SECRET=$(openssl rand -hex 32)
   do_sed "s|^JWT_SECRET=.*|JWT_SECRET=$NEW_SECRET|" "$ENV_FILE"
   echo "JWT_SECRET rotated in .env"
+elif [[ -f "$ENV_FILE" ]]; then
+  echo "JWT_SECRET left as it is in the existing .env"
 else
   echo "WARNING: no .env and no .env.example — JWT_SECRET not rotated" >&2
 fi
@@ -209,6 +306,8 @@ fi
 # runs, incidents, dev-log, todos, archive. A fork should inherit documentation
 # about the template (the four Diataxis quadrants), not someone else's history.
 # ---------------------------------------------------------------------------
+if [[ "$ALREADY_RENAMED" == "false" ]]; then
+
 INTERNAL_DOCS="$REPO_ROOT/docs/internal"
 if [[ "$KEEP_INTERNAL" == "true" ]]; then
   echo "Keeping docs/internal (--keep-internal)."
@@ -237,6 +336,9 @@ This project was forked from the Lakira Backend template.
 EOF
 
 echo "FORKED-FROM.md created."
+
+fi # ALREADY_RENAMED
+
 echo ""
 echo "Done! Next steps:"
 echo "  1. Run: npm install"

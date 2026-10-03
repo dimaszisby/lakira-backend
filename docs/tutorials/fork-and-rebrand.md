@@ -26,20 +26,24 @@ The name must match `^[a-z][a-z0-9-]*$` — lowercase, digits, hyphens, starting
 script rejects anything else, deliberately: the name is interpolated into `sed` patterns, and a
 `/` or `|` would break them.
 
-It is idempotent, so running it twice with the same name changes nothing.
+It is idempotent: running it twice changes nothing, except that a second run creates `.env` or
+`.env.test` if they are missing, as on a fresh checkout of your fork. A fork is renamed once. A
+later run with a different `--name` keeps the name the tree already has and says so.
 
 What it does:
 
-|                                  |                                                                                                |
-| -------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `lakira-backend` → `my-app`      | `package.json`, `package-lock.json`, `.env.example`, CI workflows                              |
-| `lakira` → `my-app` (short name) | queue topology, database names, CI database references                                         |
-| `lakira_` → `my_app_`            | database users and names in `.env.example`, `.env.test.example` and the test-database init SQL |
-| Rotates `JWT_SECRET`             | in `.env`, created from `.env.example` if absent                                               |
-| Sets `APP_NAME=my-app`           | in `.env`                                                                                      |
-| Creates `.env.test`              | from the renamed `.env.test.example`, so it logs in as the user Compose creates from `.env`    |
-| Removes `docs/internal/`         | the upstream project's working material — pass `--keep-internal` to keep it                    |
-| Writes `FORKED-FROM.md`          | recording `git rev-parse HEAD` (see step 1)                                                    |
+|                                  |                                                                                                                                                          |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lakira-backend` → `my-app`      | `package.json`, `package-lock.json`, `.env.example`, CI workflows                                                                                        |
+| Renames the OpenAPI spec         | `docs/reference/api/lakira-backend-openapi.json` → `my-app-openapi.json`, and the docs that name it; the scripts take the filename from the package name |
+| `lakira` → `my-app` (short name) | queue topology, database names, CI database references                                                                                                   |
+| `lakira_` → `my_app_`            | database users and names in `.env.example`, `.env.test.example` and the test-database init SQL                                                           |
+| Rotates `JWT_SECRET`             | in `.env`, created from `.env.example` if absent                                                                                                         |
+| Sets `APP_NAME=my-app`           | in `.env`                                                                                                                                                |
+| Creates `.env.test`              | from the renamed `.env.test.example`, so it logs in as the user Compose creates from `.env`                                                              |
+| Renames an existing `.env`       | if you copied `.env` or `.env.test` from the templates first, their `lakira_` database names are renamed too; nothing else in them is touched            |
+| Removes `docs/internal/`         | the upstream project's working material — pass `--keep-internal` to keep it                                                                              |
+| Writes `FORKED-FROM.md`          | recording `git rev-parse HEAD` (see step 1)                                                                                                              |
 
 The script's short name is the full name minus a trailing `-backend` or `-api`, so
 `my-app-backend` becomes `my-app`, and it is used for queue names. Database users and names use the
@@ -89,9 +93,9 @@ assessment of this template. To read it, re-run step 2 with `--keep-internal` on
 read it in the upstream repository; its live status is
 `docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of 2026-10-03 it lists
 **no open P0 findings**. One of its six caveats (C4, architecture rules) is still open at P2, and
-two P1 findings are open: the response cache replays error bodies with status 200, and a fork's
-`npm run docs:openapi:check` fails, because bootstrap renames the spec's path in `package.json`
-but not the file. Other open findings are P2/P3 hardening (for example request-id propagation across RabbitMQ, and an unbounded
+two P1 findings were open in that run: the response cache replayed error bodies with status 200,
+and a fork's `npm run docs:openapi:check` failed. Both have been fixed since and wait for the next
+dated run to confirm them. Other open findings are P2/P3 hardening (for example request-id propagation across RabbitMQ, and an unbounded
 date range on `/metric-logs/stats`).
 
 The two findings that used to sit here are **closed**:
@@ -124,12 +128,12 @@ npm ci
 docker compose up -d db redis rabbitmq
 npm run migrate:development
 npm run db:migrate:test
-npm run lint && npm run typecheck && npm test
+npm run lint && npm run typecheck && npm run docs:openapi:check && npm test
 ```
 
 `npm test` does not migrate the test database itself, and one integration test needs the broker,
 so both are in the list. This is the same sequence the `Fork Smoke` workflow runs on every push
-(ADR-0051).
+(ADR-0051), gates included.
 
 Run it on a machine, or at least a Docker volume, that has not run the upstream stack. The Compose
 file fixes its container and volume names, so on a machine that has, `docker compose up` reuses the
