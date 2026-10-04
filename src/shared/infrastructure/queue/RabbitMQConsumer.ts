@@ -13,16 +13,12 @@ import type {
   MessagePayload,
   MessageQueuePort,
 } from "@/shared/application/ports/MessageQueuePort.js";
+import type {
+  MessageContext,
+  MessageHandler,
+} from "@/shared/application/ports/MessageHandlerPort.js";
 
-export interface MessageContext {
-  /** The queue this consumer reads; handlers need it to record processed messages. */
-  queue: string;
-}
-
-export type MessageHandler = (
-  msg: ConsumeMessage,
-  context: MessageContext,
-) => Promise<void>;
+export type { MessageContext, MessageHandler };
 
 export interface ConsumerOptions {
   queue: string;

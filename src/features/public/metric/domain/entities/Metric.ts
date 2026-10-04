@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { MetricDomain } from "@/types/domain/metric.domain.js";
+import { MetricDomain } from "../metric.domain.js";
 import { ValidationError } from "@/shared/domain/errors/DomainError.js";
 import { ZodMessages } from "@/constants/zod/zod-messages.js";
 import {

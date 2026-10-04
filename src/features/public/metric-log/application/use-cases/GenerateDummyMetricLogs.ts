@@ -6,7 +6,7 @@ import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePo
 import {
   EXCHANGES,
   ROUTING_KEYS,
-} from "@/shared/infrastructure/queue/topology.js";
+} from "@/shared/application/messaging/job-routes.js";
 
 type Input = {
   userId: string;

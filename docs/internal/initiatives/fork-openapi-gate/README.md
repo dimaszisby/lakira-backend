@@ -1,8 +1,7 @@
 # Fork OpenAPI gate and bootstrap ordering
 
-**Status:** Complete on `fix/fork-openapi-gate`; gates green on Node 24.21.0. One item is open until
-the branch is pushed: the `Fork Smoke` workflow change is applied by the repository owner, and its
-first run is the proof of AC-5.
+**Status:** Complete. Merged in #134 (`0ce4511`). `Fork Smoke` passed with the new lint, typecheck and
+OpenAPI steps on that PR, on both the push and the pull-request run, which proves AC-5.
 **Slug:** `fork-openapi-gate` · **Branch:** `fix/fork-openapi-gate`
 
 Lean kit — no plan; acceptance criteria live in the checklist. Fixes audit findings S2 (P1), S3 and

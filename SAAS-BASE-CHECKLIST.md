@@ -81,10 +81,11 @@ Also green, and run by CI: `build`, `docs:openapi:check`, `security:delta:gate`,
    renames the spec path in `package.json` but not the file, so the fork's CI fails on first push.
    With it: bootstrap ordering (S3, S4) and unrotated service passwords (S10).
    [Todo](docs/internal/todos/2026-10-03-todo-fork-openapi-gate-and-bootstrap-order.md).
-   S2, S3 and S4 fixed in kit `fork-openapi-gate`, pending a dated audit run to confirm them (ADR-002); S10 is still open.
+   S2, S3 and S4 fixed in kit `fork-openapi-gate` (#134, `0ce4511`), pending a dated audit run to confirm them (ADR-002); S10 is still open.
 3. **C4 · Architecture (P2)** — the boundary rule misses cross-feature imports through `src/types/`
    and application code importing infrastructure.
    [Todo](docs/internal/todos/2026-10-03-todo-boundary-rule-types-and-application-infra.md).
+   Fixed in kit `boundary-rule-residuals` (ADR-0058), pending a dated audit run to confirm it (ADR-002).
 4. **S7 · Data (P2)** — the dashboard's latest value has no tiebreaker (against ADR-0052).
    [Todo](docs/internal/todos/2026-10-03-todo-dashboard-latest-value-tiebreaker.md).
 5. **S8 · Security (P2)** — two rate-limiter log lines carry an email address.

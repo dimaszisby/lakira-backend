@@ -13,6 +13,12 @@
 > and ESLint now enforces that. Decisions 3 and 4 (the frozen associations) are unaffected; the
 > cycle half of their rationale no longer applies, but decision 4 stands alone.
 
+> **Status note (2026-10-04).** Extended by
+> [ADR-0058](./adr-0058-inner-layers-and-shared-code-import-rules.md). The rules here apply to
+> `src/features/**`. Two routes around them stayed open: shared code under `src/types/` importing
+> feature internals, and application code importing infrastructure. ADR-0058 closes both, with one
+> more named exception beside the model files frozen here (`src/utils/db-helper.ts`).
+
 ---
 
 ## Context

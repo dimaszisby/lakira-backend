@@ -2,7 +2,7 @@ import { models } from "@/infrastructure/db/models.js";
 import {
   MetricLibraryDomain,
   MetricDomainExtended,
-} from "@/types/domain/metric.domain.js";
+} from "../../../domain/metric.domain.js";
 import {
   MetricReadRepository,
   ListMetricsResult,

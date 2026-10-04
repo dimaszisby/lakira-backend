@@ -11,7 +11,7 @@ import {
   MetricDomainExtended,
   MetricLibraryDomain,
   MetricLibraryCategoryInfoDomain,
-} from "@/types/domain/metric.domain.js";
+} from "../../../domain/metric.domain.js";
 import logger from "@/utils/logger.js";
 import AppError from "@/utils/AppError.js";
 import { toDomainMetricSettings } from "@/features/metric-settings/public.js";

@@ -245,7 +245,18 @@ open until a dated run confirms it (ADR-002). Merged in #133 (`50258e4`).
 follow the package name from one module, so bootstrap renames the file with the package; renames an
 existing `.env`; and lets a second run create missing env files. `Fork Smoke` now runs lint,
 typecheck and the OpenAPI gate on the bootstrapped tree. They stay open until a dated run confirms
-them (ADR-002). The C4 residual is the last item blocking the GOLD restatement.
+them (ADR-002). Merged in #134 (`0ce4511`); `Fork Smoke` passed with the new steps on that PR.
+
+**C4 — residual fix landed, not yet re-audited (2026-10-04).** The
+[`boundary-rule-residuals`](../../initiatives/boundary-rule-residuals/README.md) kit closes the two
+routes the 2026-10-03 run kept C4 open on. Metric's two type files moved out of `src/types/` into
+the metric feature, and shared code may no longer import a feature. The domain and application
+layers may no longer import infrastructure or a driver package, and the four use cases that did now
+own their input and message types
+([ADR-0058](../../../explanation/decisions/adr-0058-inner-layers-and-shared-code-import-rules.md)).
+The C4 row above stays "Open" until a dated run confirms it (ADR-002). With S1 and S2, every item
+that run named as blocking the GOLD restatement now has a fix merged or in review. **Next: the dated
+run.**
 
 > **Fix-status convention:** flip `Open` → `Fixed (<commit SHA>)` as each lands; a caveat closed
 > by decision rather than code cites the decision entry instead of a SHA. (Written with emoji

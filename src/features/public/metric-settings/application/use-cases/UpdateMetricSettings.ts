@@ -1,8 +1,23 @@
 import AppError from "@/utils/AppError.js";
-import { MetricSettings } from "../../domain/entities/MetricSettings.js";
+import {
+  MetricSettings,
+  type UpdateMetricSettingsProps,
+} from "../../domain/entities/MetricSettings.js";
 import { MetricSettingsRepository } from "../../domain/repositories/MetricSettingsRepository.js";
 import { CacheInvalidationPort } from "../ports/CacheInvalidationPort.js";
-import { UpdateMetricSettingsRequestDTO } from "../../infrastructure/http/dto.js";
+
+/**
+ * What a settings update may carry. The entity's own update props, except that the
+ * two dates may arrive as the strings a request carries; `execute` turns them into
+ * dates.
+ */
+export type UpdateMetricSettingsInput = Omit<
+  UpdateMetricSettingsProps,
+  "startDate" | "deadlineDate"
+> & {
+  startDate?: Date | string | null;
+  deadlineDate?: Date | string | null;
+};
 
 export class UpdateMetricSettings {
   constructor(
@@ -14,7 +29,7 @@ export class UpdateMetricSettings {
     userId: string,
     organizationId: string,
     settingsId: string,
-    payload: Partial<UpdateMetricSettingsRequestDTO>,
+    payload: UpdateMetricSettingsInput,
   ): Promise<MetricSettings> {
     if (!userId) throw new AppError("User not authenticated", 401);
     const settings = await this.repo.findById(
@@ -24,7 +39,7 @@ export class UpdateMetricSettings {
     );
     if (!settings) throw new AppError("Metric Settings not found", 404);
 
-    const update: Partial<UpdateMetricSettingsRequestDTO> = {};
+    const update: UpdateMetricSettingsProps = {};
     if (payload.goalEnabled !== undefined)
       update.goalEnabled = payload.goalEnabled;
     if (payload.goalType !== undefined) update.goalType = payload.goalType;
