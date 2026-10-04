@@ -34,3 +34,30 @@ mocks.
 rejected, it keeps unused code whose name promises "latest", which a random-UUID tie-breaker cannot
 deliver.
 **Consequences.** The port loses a method. A future caller re-adds it with an explicit ordering.
+
+## D-04 — The dashboard's latest value is ranked by `logged_at`, then `id`
+
+- **Status:** Accepted
+- **Date:** 2026-10-04
+
+Micro entry for audit finding S7 (P2). Commits carry `refs: dashboard-latest-value-tiebreaker`.
+
+**Context.** `buildDashboardLifecycleSQL` picked each metric's latest log with
+`row_number() OVER (PARTITION BY l.metric_id ORDER BY l.ts_tz DESC)`, which #125 missed. The
+finding names two logs at the same instant as the cause, and that cannot happen: `metric_logs` is
+unique on `(metric_id, logged_at)`. The tie comes from the sort key. `ts_tz` is
+`timezone(:tz, logged_at)`, a local wall-clock time, and when a zone leaves daylight saving time
+two instants an hour apart get the same one (05:30Z and 06:30Z on 2025-11-02 are both 01:30 in
+`America/New_York`). Postgres may rank either of them first.
+**Decision.** The window orders by `l.logged_at DESC, l.id DESC`. The `logs` CTE selects
+`ml.logged_at` and `ml.id` for it.
+**Options considered.** Appending `l.id DESC` to `l.ts_tz DESC`, as the todo suggested: rejected,
+it is stable and can be stably wrong, because ids are UUIDv4 and the earlier log wins the tie half
+the time. `l.ts_tz DESC, l.logged_at DESC, l.id DESC`: rejected, `ts_tz` is a function of
+`logged_at` that never reverses its order, so it adds nothing and keeps the sort off the
+`(metric_id, logged_at DESC)` index.
+**Consequences.** The latest value is the log with the latest instant, in every time zone. The
+trailing `id` cannot decide anything while the unique constraint stands, so no test can force it;
+it is there because ADR-0052 decision 1 asks for it even where a constraint makes the leading key
+unique. `first_log_at` and `last_log_at` are still the minimum and maximum of `ts_tz` and are not
+changed. No output column changes.

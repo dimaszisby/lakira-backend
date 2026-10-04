@@ -57,17 +57,24 @@ export function buildDashboardLifecycleSQL(spec: BucketSpec) {
       SELECT unnest(:metricIds::uuid[]) AS metric_id
     ),
     logs AS (
-      SELECT ml.metric_id,
+      SELECT ml.id,
+             ml.metric_id,
+             ml.logged_at,
              timezone(:tz, ml.logged_at) AS ts_tz,
              ml.log_value
       FROM metric_logs ml
       JOIN covered_metrics cm ON cm.metric_id = ml.metric_id
     ),
+    -- Ranked by the instant, not by ts_tz. Two instants share a local time
+    -- when a zone leaves daylight saving time (ADR-0052).
     ranked AS (
       SELECT l.metric_id,
              l.ts_tz,
              l.log_value,
-             row_number() OVER (PARTITION BY l.metric_id ORDER BY l.ts_tz DESC) AS rn
+             row_number() OVER (
+               PARTITION BY l.metric_id
+               ORDER BY l.logged_at DESC, l.id DESC
+             ) AS rn
       FROM logs l
     ),
     aggregates AS (

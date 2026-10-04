@@ -260,4 +260,61 @@ describe("VisualizationReadRepoSequelize (integration)", () => {
       [highSeed.metric.id],
     );
   });
+
+  // Kit deterministic-query-ordering, D-04. When New York leaves daylight
+  // saving time, 05:30Z and 06:30Z are both 01:30 local, so the two logs tie on
+  // local time. The latest value must be the later instant. The earlier log is
+  // inserted first and has the higher id, so neither insertion order nor an id
+  // tie-breaker on local time gives the right answer.
+  it("takes the latest value from the later instant when two logs share a local time", async () => {
+    const {
+      user,
+      metrics: [seed],
+    } = await seedDashboardWithMetrics({
+      metrics: [
+        {
+          metricOverrides: { name: "Weight" },
+          settingsOverrides: {
+            displayOptions: {
+              showOnDashboard: true,
+              priority: 1,
+              chartType: "line",
+              color: "#111111",
+            },
+          },
+          logs: [
+            {
+              id: "ffffffff-ffff-4fff-bfff-0000000000d4",
+              logValue: 10,
+              loggedAt: new Date("2025-11-02T05:30:00Z"),
+            },
+            {
+              id: "00000000-0000-4000-8000-0000000000d4",
+              logValue: 20,
+              loggedAt: new Date("2025-11-02T06:30:00Z"),
+            },
+          ],
+        },
+      ],
+    });
+
+    const result = await repo.fetchDashboardVisualization({
+      userId: user.id,
+      organizationId: TEST_ORG_ID,
+      startISO: "2025-11-01T04:00:00Z",
+      endISO: "2025-11-04T05:00:00Z",
+      bucket: "1d" as const,
+      bucketSpec,
+      tz: "America/New_York",
+      fill: "none" as const,
+      limit: 5,
+    });
+
+    expect(
+      result.items.map((item: DashboardVizItem) => [
+        item.metricId,
+        item.latestValue,
+      ]),
+    ).toEqual([[seed.metric.id, 20]]);
+  });
 });

@@ -1,6 +1,6 @@
 # Boundary rule residuals
 
-**Status:** Complete on `fix/boundary-rule-residuals`; gates green on Node 24.21.0. D-02 and D-03
+**Status:** Complete, merged in #135 (`a4973f2`); gates green on Node 24.21.0. D-02 and D-03
 promoted to
 [ADR-0058](../../../explanation/decisions/adr-0058-inner-layers-and-shared-code-import-rules.md).
 **Slug:** `boundary-rule-residuals` · **Branch:** `fix/boundary-rule-residuals`
