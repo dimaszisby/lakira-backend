@@ -1,13 +1,17 @@
-import { UpdateMetricRequestDTO } from "@/types/dtos/metric.dto.js";
 import { MetricRepository } from "../../domain/repositories/MetricRepository.js";
 import { CachePort } from "../ports/CachePort.js";
 import AppError from "@/utils/AppError.js";
+
+import type { Metric } from "../../domain/entities/Metric.js";
+
+/** The fields a metric can be updated with: what the entity's own `update` accepts. */
+export type UpdateMetricData = Parameters<Metric["update"]>[0];
 
 type Input = {
   userId: string;
   organizationId: string;
   metricId: string;
-  data: UpdateMetricRequestDTO;
+  data: UpdateMetricData;
 };
 
 export class UpdateMetric {
@@ -53,7 +57,7 @@ export class UpdateMetric {
       }
     }
 
-    const update: UpdateMetricRequestDTO = {};
+    const update: UpdateMetricData = {};
     if (data.name !== undefined) update.name = data.name;
     if (data.description !== undefined) {
       update.description = data.description ?? null;

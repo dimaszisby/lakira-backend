@@ -11,3 +11,4 @@ export {
   toMetricSettingsResponseDTO,
   toDomainMetricSettings,
 } from "./infrastructure/persistence/mappers/MetricSettingsMapper.js";
+export type { MetricSettingsResponseDTO } from "./infrastructure/http/dto.js";

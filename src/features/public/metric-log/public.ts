@@ -9,3 +9,4 @@
  */
 export { toMetricLogResponseDTO } from "./infrastructure/http/dto.js";
 export { toDomainMetricLog } from "./infrastructure/persistence/mappers/MetricLogReadMapper.js";
+export type { MetricLogResponseDTO } from "./infrastructure/http/dto.js";

@@ -34,6 +34,17 @@ features/{name}/
 
 - **Domain layer** has zero infrastructure imports — only pure types and interfaces
 - **Application layer** depends on domain only, uses port interfaces for external concerns
+- Both are lint-enforced (ADR-0058): in `domain/` and `application/`, an import with an
+  `infrastructure` path segment is rejected, and so are the driver packages (`express`,
+  `sequelize`, `amqplib`, `redis`, `jsonwebtoken`, `bcrypt` and the rest of that list in
+  `eslint.config.mjs`). What to use instead:
+  - a use case declares its own input type; it does not take a DTO type from `infrastructure/http/`
+  - a queue handler takes `IncomingMessage` from `@/shared/application/ports/MessageHandlerPort.js`
+  - exchange and routing-key names come from `@/shared/application/messaging/job-routes.js`
+- **Shared code imports no feature** (ADR-0058): nothing under `src/types/`, `src/shared/`,
+  `src/utils/` or `src/config/` may import from `src/features/`, `public.ts` included. A type that
+  needs a feature's type lives in a feature. Three named exceptions: `src/infrastructure/db/`,
+  `src/lib/openapi/`, and `src/utils/db-helper.ts` for model files
 - **Infrastructure layer** implements domain interfaces and wires to frameworks
 - **feature.ts** is the composition root — instantiates repos, providers, use cases
 

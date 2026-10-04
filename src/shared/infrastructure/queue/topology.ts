@@ -2,18 +2,18 @@ import type { Channel } from "amqplib";
 import { APP_SHORT_NAME } from "@/config/app-name.js";
 import logger from "@/utils/logger.js";
 
-export const EXCHANGES = {
-  JOBS: `${APP_SHORT_NAME}.jobs`,
-  PARKING: `${APP_SHORT_NAME}.jobs.parking`,
-} as const;
+import {
+  EXCHANGES,
+  ROUTING_KEYS,
+} from "@/shared/application/messaging/job-routes.js";
+
+// The names a publisher uses are declared beside the queue port; this module owns
+// what is declared on the broker.
+export { EXCHANGES, ROUTING_KEYS };
 
 export const QUEUES = {
   METRIC_LOG_GENERATE_DUMMY: `${APP_SHORT_NAME}.metric-log.generate-dummy`,
   PARKING: `${APP_SHORT_NAME}.jobs.parking.queue`,
-} as const;
-
-export const ROUTING_KEYS = {
-  METRIC_LOG_GENERATE_DUMMY: "metric-log.generate-dummy",
 } as const;
 
 /** Where a failed message waits out its backoff before returning to `queue` (ADR-0005). */

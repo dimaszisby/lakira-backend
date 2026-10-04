@@ -28,9 +28,8 @@ Lean kit: the acceptance criteria are stated here, not in a plan.
 - [x] `scripts/bootstrap-fork.sh` — spec file and its mentions renamed; identifier renames applied
       to an existing `.env` and `.env.test`; the early exit replaced by a skip of the rename steps;
       header comment updated
-- [ ] `.git/fork-smoke.yml` — `Fork Smoke` with lint, typecheck and `docs:openapi:check` added.
-      Drafted; **copied into `.github/workflows/` by the repository owner at commit time** (the
-      hook blocks edits there), and first run on this branch's push
+- [x] `.git/fork-smoke.yml` — `Fork Smoke` with lint, typecheck and `docs:openapi:check` added.
+      Copied into `.github/workflows/` by the repository owner and merged in #134
 
 ## Discovered
 
@@ -63,10 +62,9 @@ my-app`; lint and typecheck also exit 0 there). _Why:_ S2.
 - [x] **AC-4** — Bootstrap re-run under the fork's own name creates a missing `.env` and
       `.env.test`, and changes nothing when they exist. _Why:_ S4, and the script's idempotence
       promise.
-- [ ] **AC-5** — `Fork Smoke` runs lint, typecheck and the OpenAPI gate on the bootstrapped tree.
-      Proven only when this branch's own `Fork Smoke` run is green; the same three commands pass
-      on a scratch fork locally.
-      _Why:_ S2 survived because the smoke ran the fork's tests and not its gates.
+- [x] **AC-5** — `Fork Smoke` runs lint, typecheck and the OpenAPI gate on the bootstrapped tree:
+      green on #134's push and pull-request runs. _Why:_ S2 survived because the smoke ran the
+      fork's tests and not its gates.
 
 ## Gates
 

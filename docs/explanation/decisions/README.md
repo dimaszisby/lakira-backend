@@ -95,10 +95,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0055](./adr-0055-production-image-built-and-smoked-in-ci.md)                | CI builds the production image and smoke-tests it in production mode                                             | Accepted               | 2026-10-02 | build-image-in-ci D-01/D-02         |
 | [ADR-0056](./adr-0056-one-wiring-per-feature-for-every-entry-point.md)           | Every entry point takes a feature from one shared wiring                                                         | Accepted               | 2026-10-03 | worker-composition-root D-01..06    |
 | [ADR-0057](./adr-0057-rate-limiters-answer-through-the-error-envelope.md)        | Rate limiters answer through the error envelope                                                                  | Accepted               | 2026-10-03 | error-envelope-residuals D-03/05/07 |
+| [ADR-0058](./adr-0058-inner-layers-and-shared-code-import-rules.md)              | The inner layers import no infrastructure, and shared code imports no feature                                    | Accepted               | 2026-10-04 | boundary-rule-residuals D-02/D-03   |
 
 ## Adding one
 
-Take the next free number — **ADR-0058** as of 2026-10-03 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0059** as of 2026-10-04 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 

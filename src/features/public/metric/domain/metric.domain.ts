@@ -6,9 +6,9 @@
  * Domain models are often immutable.
  */
 
-import type { MetricCategory } from "@/features/metric-category/domain/entities/MetricCategory.js";
-import { MetricLogDomain } from "./metric-log.domain.js";
-import { MetricSettingsDomain } from "./metric-settings.domain.js";
+import type { MetricCategory } from "@/features/metric-category/public.js";
+import { MetricLogDomain } from "@/types/domain/metric-log.domain.js";
+import { MetricSettingsDomain } from "@/types/domain/metric-settings.domain.js";
 
 /**
  * @interface MetricDomain

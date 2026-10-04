@@ -1,6 +1,9 @@
 # Todo — the boundary rule misses `src/types/` and application-to-infrastructure imports
 
-- **Status:** Open (C4 residual, P2)
+- **Status:** Fixed in kit
+  [`boundary-rule-residuals`](../initiatives/boundary-rule-residuals/README.md) (branch
+  `fix/boundary-rule-residuals`, ADR-0058). C4 stays open in the audit until a dated run confirms it
+  (ADR-002)
 - **Created:** 2026-10-03
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-10-03.md` § 6, S5, S6; kit `saas-reaudit-2026-10-03` D-04

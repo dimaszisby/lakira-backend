@@ -4,7 +4,7 @@ import type {
   MetricDetailQuery,
   MetricReadRepository,
 } from "../ports/MetricReadRepository.js";
-import type { MetricDomainExtended } from "@/types/domain/metric.domain.js";
+import type { MetricDomainExtended } from "../../domain/metric.domain.js";
 
 type Input = MetricDetailQuery;
 

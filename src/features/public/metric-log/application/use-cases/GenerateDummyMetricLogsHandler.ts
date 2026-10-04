@@ -1,10 +1,12 @@
-import type { ConsumeMessage } from "amqplib";
 import AppError from "@/utils/AppError.js";
 import logger from "@/utils/logger.js";
 import { TerminalMessageError } from "@/shared/application/errors/TerminalMessageError.js";
 import type { MetricAccessPort } from "../ports/MetricAccessPort.js";
 import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
-import type { MessageContext } from "@/shared/infrastructure/queue/RabbitMQConsumer.js";
+import type {
+  IncomingMessage,
+  MessageContext,
+} from "@/shared/application/ports/MessageHandlerPort.js";
 import type { CachePort } from "../ports/CachePort.js";
 import type { MetricLogRepository } from "../../domain/repositories/MetricLogRepository.js";
 
@@ -29,7 +31,7 @@ export class GenerateDummyMetricLogsHandler {
     private repo: MetricLogRepository,
   ) {}
 
-  async handle(msg: ConsumeMessage, { queue }: MessageContext): Promise<void> {
+  async handle(msg: IncomingMessage, { queue }: MessageContext): Promise<void> {
     let payload: JobPayload;
     try {
       payload = JSON.parse(msg.content.toString()) as JobPayload;

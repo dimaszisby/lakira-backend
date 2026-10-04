@@ -1,7 +1,7 @@
 import { jest } from "@jest/globals";
 import AppError from "@/utils/AppError.js";
 import { GetMetricDetail } from "@/features/metric/application/queries/GetMetricDetail.js";
-import type { MetricDomainExtended } from "@/types/domain/metric.domain.js";
+import type { MetricDomainExtended } from "@/features/metric/domain/metric.domain.js";
 
 const TEST_ORG_ID = "org-test-id";
 

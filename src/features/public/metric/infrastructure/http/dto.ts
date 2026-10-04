@@ -2,12 +2,12 @@ import {
   MetricDomain,
   MetricDomainExtended,
   MetricLibraryDomain,
-} from "@/types/domain/metric.domain.js";
+} from "../../domain/metric.domain.js";
 import {
   MetricPreviewResponseDTO,
   MetricResponseDTO,
   UserMetricDetailResponseDTO,
-} from "@/types/dtos/metric.dto.js";
+} from "./metric.dto.js";
 import { toMetricCategoryResponseDTO } from "@/features/metric-category/public.js";
 import { toMetricSettingsResponseDTO } from "@/features/metric-settings/public.js";
 import { toMetricLogResponseDTO } from "@/features/metric-log/public.js";

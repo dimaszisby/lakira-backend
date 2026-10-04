@@ -5,15 +5,15 @@ import {
   createMetricSchema,
   updateMetricSchema,
   generateDummyMetricsSchema,
-} from "@/features/metric/infrastructure/http/schema.zod.js";
+} from "./schema.zod.js";
 
-// Internal DTOs for associations
-import { MetricCategoryResponseDTO } from "@/features/metric-category/infrastructure/http/dto.js";
-import { MetricSettingsResponseDTO } from "@/features/metric-settings/infrastructure/http/dto.js";
-import { MetricLogResponseDTO } from "@/features/metric-log/infrastructure/http/dto.js";
+// DTOs of the associations, through each feature's public surface
+import type { MetricCategoryResponseDTO } from "@/features/metric-category/public.js";
+import type { MetricSettingsResponseDTO } from "@/features/metric-settings/public.js";
+import type { MetricLogResponseDTO } from "@/features/metric-log/public.js";
 
 /**
- * @file src/types/dtos/metric.dto.ts
+ * @file src/features/public/metric/infrastructure/http/metric.dto.ts
  * @description Defines the Data Transfer Objects (DTOs) for Metric-related API contracts.
  * These interfaces and types are used for incoming and outgoing API requests and responses,
  * defining the structure of data exchanged between the client and server.

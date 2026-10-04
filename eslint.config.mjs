@@ -118,6 +118,49 @@ const APPLICATION_LAYER_ORM = {
     "The application layer must not reach the ORM directly. Inject a repository port instead. See .claude/rules/architecture.md § Dependency Rules.",
 };
 
+// ADR-0058: the inner layers import no infrastructure. The models-barrel rule above was
+// the only application-layer rule until 2026-10-04, so HTTP DTO types, the queue topology
+// and amqplib's message type were all imported by use cases and passed green
+// (SaaS-readiness caveat C4, audit-2026-10-03 S6). The regex takes any specifier with an
+// `infrastructure` path segment, so the relative spelling (`../../infrastructure/...`) and
+// both aliased ones (`@/infrastructure/...`, `@/shared/infrastructure/...`) are covered.
+const INNER_LAYER_INFRASTRUCTURE = {
+  regex: "(?:^|/)infrastructure(?:/|$)",
+  message:
+    "The domain and application layers must not import infrastructure. Declare a port or an input type in application/ and let infrastructure satisfy it. See .claude/rules/architecture.md § Dependency Rules (ADR-0058).",
+};
+
+// The same rule for packages that are infrastructure by nature: the broker, the web
+// framework and its middleware, the ORM and its driver, the cache client, the mail
+// provider, and the token and hashing libraries the ports wrap. A regex, not `paths`:
+// `paths` matches a name exactly, so `sequelize/types` or `@redis/client` would pass.
+// The inner layers import no third-party package today except node's own `crypto`.
+const INNER_LAYER_DRIVER_PACKAGES = {
+  regex:
+    "^(?:amqplib|amqp-connection-manager|express|express-rate-limit|cookie-parser|cors|helmet|hpp|xss-clean|swagger-ui-express|sequelize|pg|pg-hstore|redis|@redis/[^/]+|ioredis|rate-limit-redis|resend|jsonwebtoken|bcrypt|@sentry/node)(?:/.*)?$",
+  message:
+    "This package is an infrastructure driver. The domain and application layers reach it through a port (ADR-0058).",
+};
+
+// ADR-0058: shared code depends on no feature. src/types once held two of the metric
+// feature's type files, which imported three other features' internals; the boundary
+// rules above apply to src/features only, so nothing rejected them (audit-2026-10-03 S5).
+// Any feature import is refused here, public.ts included: a shared module that needs a
+// feature belongs to that feature, or to src/composition. The pattern takes any path
+// with a `features/` segment, so a shared directory may not be named `features` either.
+const SHARED_CODE_FEATURE_IMPORT = {
+  regex: "(?:^@/|/)features/",
+  message:
+    "Shared code (src/types, src/shared, src/utils, src/config) must not import a feature. Move the code into the feature that owns it, or wire it in src/composition (ADR-0058).",
+};
+
+// src/utils/db-helper.ts types its helpers with Sequelize model classes. Model files are
+// the frozen cross-feature exception (ADR-0044 decision 4); nothing else is let through.
+const SHARED_CODE_FEATURE_IMPORT_EXCEPT_MODELS = {
+  regex: "(?:^@/|/)features/(?!.*/infrastructure/persistence/models/)",
+  message: SHARED_CODE_FEATURE_IMPORT.message,
+};
+
 export default [
   // Ignore migrations and eslint.config.mjs files
   {
@@ -232,6 +275,8 @@ export default [
             FEATURE_DEEP_IMPORTS,
             SIBLING_COMPOSITION_ROOT,
             DOMAIN_LAYER_HTTP_ERROR,
+            INNER_LAYER_INFRASTRUCTURE,
+            INNER_LAYER_DRIVER_PACKAGES,
           ],
         },
       ],
@@ -248,6 +293,59 @@ export default [
             FEATURE_DEEP_IMPORTS,
             SIBLING_COMPOSITION_ROOT,
             APPLICATION_LAYER_ORM,
+            INNER_LAYER_INFRASTRUCTURE,
+            INNER_LAYER_DRIVER_PACKAGES,
+          ],
+        },
+      ],
+    },
+  },
+  // Shared code (ADR-0058). Two places outside src/features import feature files by
+  // design and are left out of this block: src/infrastructure/db, the ORM registry where
+  // every model meets (ADR-0044's frozen exception), and src/lib/openapi, which assembles
+  // the spec from every feature's schemas. The entry points and src/composition wire
+  // features and are not shared code.
+  {
+    files: [
+      "src/types/**/*.ts",
+      "src/shared/**/*.ts",
+      "src/utils/**/*.ts",
+      "src/config/**/*.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: [...LEGACY_IMPORT_PATTERNS, SHARED_CODE_FEATURE_IMPORT] },
+      ],
+    },
+  },
+  {
+    // The third named exception: model types only.
+    files: ["src/utils/db-helper.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            ...LEGACY_IMPORT_PATTERNS,
+            SHARED_CODE_FEATURE_IMPORT_EXCEPT_MODELS,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // The shared kernel has layers too.
+    files: ["src/shared/domain/**/*.ts", "src/shared/application/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            ...LEGACY_IMPORT_PATTERNS,
+            SHARED_CODE_FEATURE_IMPORT,
+            INNER_LAYER_INFRASTRUCTURE,
+            INNER_LAYER_DRIVER_PACKAGES,
           ],
         },
       ],
