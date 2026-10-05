@@ -3,8 +3,7 @@
 - **Status:** Fixed (Micro; kit
   [`fork-openapi-gate`](../initiatives/fork-openapi-gate/decisions.md) D-04; commits carry
   `refs: fork-spec-describes-upstream`). The generator takes the name from the package, and
-  bootstrap rewrites the spec it renames. T2 stays open in the audit until a dated run confirms it
-  (ADR-002), and that run decides caveat C2's grade
+  bootstrap rewrites the spec it renames. Confirmed closed by the second dated run of 2026-10-05 (`audit-2026-10-05-b.md` § 4.2). That run's grader kept C2 open on a different case: [`2026-10-06-todo-fork-deployed-without-app-name.md`](2026-10-06-todo-fork-deployed-without-app-name.md)
 - **Created:** 2026-10-05
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-10-05.md` § 6, T2; kit

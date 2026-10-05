@@ -92,12 +92,14 @@ docs/explanation/product-requirements.md
 The script removed `docs/internal/`, which held the upstream SaaS-readiness audit — the honest
 assessment of this template. To read it, re-run step 2 with `--keep-internal` on a fresh copy, or
 read it in the upstream repository; its live status is
-`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of 2026-10-05 it lists
-**no open P0 or P1 findings**. One of its six caveats is open at P2 (C6, log redaction): a
-database error is logged with the values bound to its statement, so a duplicate registration can
-write an email address and a password hash to your logs. Fix that before you ship. One more thing
-a fork should know: the bootstrap script rotates `JWT_SECRET` only, not the database, Redis or
-RabbitMQ credentials. Other open findings are P2/P3 hardening (for example request-id propagation across RabbitMQ, and an unbounded
+`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of 2026-10-06 it lists
+**no open P0 or P1 findings**. Two of its six caveats are open. C6 (log redaction, P3): an error
+object nested inside log metadata can be written with its SQL and bound values, though no call in
+the template does that today, so do not pass `{ err }` to a log call whose message has a `%j` or
+`%o` token. C2 (branding, P2): the template's name is the default, so a deployed fork that does not
+set `APP_NAME` as a platform variable names its cookie, its emails and its logs after the template;
+set it, as the list above says. One more thing a fork should know: the bootstrap script rotates
+`JWT_SECRET` only, not the database, Redis or RabbitMQ credentials. Other open findings are P2/P3 hardening (for example request-id propagation across RabbitMQ, and an unbounded
 date range on `/metric-logs/stats`).
 
 The two findings that used to sit here are **closed**:
