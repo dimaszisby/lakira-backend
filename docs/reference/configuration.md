@@ -217,8 +217,13 @@ like every other URL.
 | ---------- | ------ | ---------------- |
 | `APP_NAME` | string | `lakira-backend` |
 
-`APP_NAME` drives the API title, email copy, log service name, and queue names, so a fork
-rebrands by setting one variable. `scripts/bootstrap-fork.sh` sets it for you.
+`APP_NAME` drives the API title, the refresh cookie's name, email copy, log service name, and
+queue names, so a fork rebrands by setting one variable. `scripts/bootstrap-fork.sh` sets it for
+you. The one thing it does not drive is the **committed** OpenAPI spec file, which takes the same
+names from the package name so that the drift gate cannot depend on a shell or an `.env`
+(`scripts/openapi-app-name.js`). The spec served at `/api/v1/docs/openapi.json` follows `APP_NAME`.
+Keep the two equal, as the bootstrap script does, or the committed file describes the package and
+not the deployment.
 
 **This is the one variable not in the Zod schema.** `src/config/app-name.ts` reads
 `process.env.APP_NAME` directly, because `logger.ts` imports it at module load — before

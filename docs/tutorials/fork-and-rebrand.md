@@ -22,7 +22,8 @@ step 2 before dropping `.git`.
 ./scripts/bootstrap-fork.sh --name my-app
 ```
 
-The name must match `^[a-z][a-z0-9-]*$` — lowercase, digits, hyphens, starting with a letter. The
+The name must match `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` — lowercase, digits, single hyphens between
+them, starting with a letter. The
 script rejects anything else, deliberately: the name is interpolated into `sed` patterns, and a
 `/` or `|` would break them.
 
@@ -94,10 +95,9 @@ read it in the upstream repository; its live status is
 `docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of 2026-10-05 it lists
 **no open P0 or P1 findings**. One of its six caveats is open at P2 (C6, log redaction): a
 database error is logged with the values bound to its statement, so a duplicate registration can
-write an email address and a password hash to your logs. Fix that before you ship. Two things a
-fork should also know: the generated OpenAPI spec keeps the upstream title and cookie name until
-you regenerate it with `APP_NAME` set, and the bootstrap script rotates `JWT_SECRET` only, not the
-database, Redis or RabbitMQ credentials. Other open findings are P2/P3 hardening (for example request-id propagation across RabbitMQ, and an unbounded
+write an email address and a password hash to your logs. Fix that before you ship. One more thing
+a fork should know: the bootstrap script rotates `JWT_SECRET` only, not the database, Redis or
+RabbitMQ credentials. Other open findings are P2/P3 hardening (for example request-id propagation across RabbitMQ, and an unbounded
 date range on `/metric-logs/stats`).
 
 The two findings that used to sit here are **closed**:

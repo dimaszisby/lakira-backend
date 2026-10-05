@@ -18,6 +18,12 @@ Generated artifact:
 
 - `docs/reference/api/lakira-backend-openapi.json`
 
+The committed spec describes the package. Its title, its description and the name of the refresh
+cookie it documents are built from the package name, not from `APP_NAME` in your shell or `.env`:
+the generator pins the name before anything reads it (`scripts/openapi-app-name.js`). So the gate
+gives the same answer on every machine. The spec the server serves at `/api/v1/docs/openapi.json`
+is different: it is built at runtime from the runtime `APP_NAME`.
+
 The filename is `<package name>-openapi.json`. It comes from `package.json`'s `name` through
 `scripts/openapi-spec-path.js`, which the generator, the normalizer, the validator and the contract
 runners all import. A fork's spec is therefore named after the fork; do not write the filename into

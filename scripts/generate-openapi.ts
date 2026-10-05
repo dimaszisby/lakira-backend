@@ -1,5 +1,7 @@
 // scripts/generate-openapi.ts
 
+// First, before anything from src/ reads the app's name. See the module.
+import "./openapi-app-name.js";
 import * as fs from "fs";
 import logger from "../src/utils/logger.js";
 

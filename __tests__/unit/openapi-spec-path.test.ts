@@ -76,6 +76,32 @@ describe("the OpenAPI spec path", () => {
     expect(offenders).toEqual([]);
   });
 
+  // Audit 2026-10-05, T2 (kit fork-openapi-gate, D-04). The spec's title and
+  // cookie name are built from APP_NAME. The committed spec describes the
+  // package, so the generator pins APP_NAME to the package name before anything
+  // reads it, whatever the shell exports.
+  it("the generator's app name is the package name, whatever the environment says", () => {
+    const seen = execFileSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        'import "./scripts/openapi-app-name.js"; process.stdout.write(process.env.APP_NAME ?? "");',
+      ],
+      { cwd: ROOT, encoding: "utf-8", env: { APP_NAME: "something-else" } },
+    );
+
+    expect(seen).toBe(packageName);
+  });
+
+  it("the generator imports that module before anything else", () => {
+    const firstImport = read("scripts/generate-openapi.ts")
+      .split("\n")
+      .find((line) => line.startsWith("import "));
+
+    expect(firstImport).toBe('import "./openapi-app-name.js";');
+  });
+
   it("docs:openapi:check diffs the file the scripts write", () => {
     const check = JSON.parse(read("package.json")).scripts[
       "docs:openapi:check"

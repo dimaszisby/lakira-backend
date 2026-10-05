@@ -72,6 +72,23 @@ jobs:
       - name: OpenAPI spec consistency
         run: npm run docs:openapi:check
 
+      # The check above passes on any spec the generator reproduces, the
+      # upstream's included. This proves the spec names the fork, and that the
+      # gate does not depend on what the shell exports (audit 2026-10-05, T2).
+      # The name is read from package.json because a fork's own run of this job
+      # keeps the fork's name, not "my-app".
+      - name: OpenAPI spec describes the fork
+        run: |
+          NAME="$(node -p "require('./package.json').name")"
+          SPEC="docs/reference/api/${NAME}-openapi.json"
+          test "$NAME" != "lakira-backend"
+          grep -q "\"name\": \"${NAME%-backend}_refresh\"" "$SPEC"
+          if grep -q '"title": "Lakira API"' "$SPEC"; then
+            echo "The fork's spec still carries the upstream title." >&2
+            exit 1
+          fi
+          APP_NAME=something-else npm run docs:openapi:check
+
       - name: Migrate the development database
         run: npm run migrate:development
 

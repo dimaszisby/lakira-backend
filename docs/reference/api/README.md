@@ -16,7 +16,8 @@ Both docs endpoints require authentication unless `SWAGGER_REQUIRE_AUTH=false`.
 ## Do not hand-edit the spec
 
 `lakira-backend-openapi.json` is a build artifact, named after the package
-(`scripts/openapi-spec-path.js`). A `.claude/hooks/protect-files.sh` guard
+(`scripts/openapi-spec-path.js`). Its title and the refresh cookie's name follow the package name
+too (`scripts/openapi-app-name.js`), so a fork's spec describes the fork. A `.claude/hooks/protect-files.sh` guard
 blocks writes to it, and CI fails if it drifts from what the generator produces.
 
 Change the source instead:
