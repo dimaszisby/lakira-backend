@@ -5,6 +5,7 @@ import { Response, NextFunction, type RequestHandler } from "express";
 import { redisClient } from "@/utils/redis-client.js";
 import { AuthRequest } from "@/types/request.context.js";
 import logger from "@/utils/logger.js";
+import { hashEmail } from "@/utils/email-hash.js";
 import { sendError } from "@/shared/utils/error-envelope.js";
 
 const noopRateLimiter: RequestHandler = (_req, _res, next) => next();
@@ -165,7 +166,10 @@ export const createPasswordResetEmailRateLimiter = () =>
             const email = normalizeEmailKey(
               (req.body as { email?: unknown } | undefined)?.email,
             );
-            return `Password reset email rate limit hit for ${email ?? req.ip}`;
+            // Never the address itself: message text is not redacted.
+            return email
+              ? `Password reset email rate limit hit for email hash ${hashEmail(email)}`
+              : `Password reset email rate limit hit for ${req.ip ?? "anonymous"}`;
           },
         ),
       });
@@ -211,7 +215,9 @@ export const createEmailVerificationEmailRateLimiter = () =>
         ...limitExceeded(
           "Too many verification email requests, please try again later.",
           (req) =>
-            `Email verification email rate limit hit for ${req.user?.email ?? req.ip}`,
+            req.user?.id
+              ? `Email verification email rate limit hit for user ${req.user.id}`
+              : `Email verification email rate limit hit for ${req.ip ?? "anonymous"}`,
         ),
       });
 

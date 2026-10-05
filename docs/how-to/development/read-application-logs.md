@@ -120,6 +120,16 @@ Any key matching
 covers log **metadata**. It does not rewrite free-text messages or URL strings — which is why access
 logs drop the query string rather than relying on redaction.
 
+For the same reason no message contains an email address. A rate-limiter line names who was
+throttled by user id, by IP, or, for the password-reset limiter, by `email hash <sha256>`. That
+hash is the SHA-256 of the trimmed, lower-cased address (`src/utils/email-hash.ts`), and it is the
+same value as `emailHash` on an `auth.lockout.triggered` line, so the two can be matched for one
+address. To find the lines for an address you already know:
+
+```bash
+printf '%s' 'someone@example.com' | shasum -a 256
+```
+
 ## Startup failures
 
 Environment validation runs before anything binds a port. A bad value exits the process with a

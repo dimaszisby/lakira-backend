@@ -204,7 +204,7 @@ describe("rate limiter middleware", () => {
     const res = createResponse();
 
     const authedReq = {
-      user: { email: "test@example.com" },
+      user: { id: "user-1", email: "test@example.com" },
       ip: "1.2.3.4",
     } as AuthRequest;
     const anonReq = { ip: "1.2.3.4" } as AuthRequest;
@@ -222,7 +222,7 @@ describe("rate limiter middleware", () => {
     limiter.handler(authedReq, res, jest.fn(), options);
 
     expect(loggerMock.warn).toHaveBeenCalledWith(
-      "Email verification email rate limit hit for test@example.com",
+      "Email verification email rate limit hit for user user-1",
     );
     expect(res.status).toHaveBeenCalledWith(429);
     expect(res.json).toHaveBeenCalledWith({

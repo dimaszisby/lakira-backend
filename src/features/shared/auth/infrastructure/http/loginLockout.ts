@@ -1,5 +1,5 @@
-import { createHash } from "crypto";
 import AppError from "@/utils/AppError.js";
+import { hashEmail } from "@/utils/email-hash.js";
 import logger from "@/utils/logger.js";
 
 // Semantics: the Nth failed attempt is allowed through (returns 401) and
@@ -15,9 +15,6 @@ export interface LockoutRedisClient {
   expire(key: string, seconds: number): Promise<unknown>;
   del(key: string | string[]): Promise<unknown>;
 }
-
-const hashEmail = (email: string): string =>
-  createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
 
 const keyFor = (email: string): string => `auth:lockout:${hashEmail(email)}`;
 
