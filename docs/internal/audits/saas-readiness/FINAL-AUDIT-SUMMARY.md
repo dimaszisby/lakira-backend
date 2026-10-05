@@ -284,6 +284,14 @@ gap latent, with nothing logging the keys it missed; this is logged today. Findi
 residual has also grown, without changing its grade: a fork's spec names the upstream cookie
 (T2, [D-04](../../initiatives/saas-reaudit-2026-10-05/decisions.md)).
 
+**C6 — fix landed, not yet re-audited (2026-10-05).** The logger now reduces every error it is
+given to an allowlist of its fields before anything is written, so a database error's SQL and bound
+values no longer reach the log from any of the 17 call sites that pass one
+([ADR-0059](../../../explanation/decisions/adr-0059-an-error-passed-to-the-logger-is-reduced-to-an-allowlist.md)).
+The same race of twelve registrations now logs eleven `Client error 409` lines with no address and
+no hash. The C6 row above stays "Open" until a dated run confirms it (ADR-002), graded by an agent
+and not by the session that wrote the fix. **Next: the dated run.**
+
 > **Fix-status convention:** flip `Open` → `Fixed (<commit SHA>)` as each lands; a caveat closed
 > by decision rather than code cites the decision entry instead of a SHA. (Written with emoji
 > markers until 2026-09-24.) When all six are closed, the verdict can be re-stated as **GOLD** and

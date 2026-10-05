@@ -70,6 +70,10 @@ and limits stop being shared across instances (twelve-factor TF-12).
   into a log message. Name a person by user id; where there is no user, name an email address by
   `hashEmail` (`src/utils/email-hash.ts`), as the login lockout and the rate limiters do. The
   limiter lines carry a user id, an IP, or that hash, and a test trips every limiter to prove it
+- An error may be passed to the logger: it is reduced to an allowlist of its fields before anything
+  is written (`name`, `code`, `statusCode` and the like, plus `db.code`, `db.constraint`,
+  `db.table`), so a database error's SQL and bound values never reach the log (ADR-0059). Do not
+  attach context to an error to get it logged; pass it by name in a metadata object
 - `EMAIL_PROVIDER=console` logs every email body, tokens included. Startup refuses it unless
   `NODE_ENV` is `development` or `test` (ADR-0049). Email adapters never log the recipient.
 - `EMAIL_PROVIDER=mailpit` sends every email, tokens included, to a local catcher. Startup

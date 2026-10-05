@@ -130,6 +130,16 @@ address. To find the lines for an address you already know:
 printf '%s' 'someone@example.com' | shasum -a 256
 ```
 
+An error line carries the message, the stack, and a short allowlist of the error's own fields:
+`name`, `code`, `statusCode` and similar scalars
+([ADR-0059](../../explanation/decisions/adr-0059-an-error-passed-to-the-logger-is-reduced-to-an-allowlist.md)).
+A database error adds `db`, with the SQLSTATE in `db.code` and the schema names in `db.constraint`,
+`db.table` and `db.column`. That is where to look for which constraint or table failed. The SQL
+text, the bound values and the driver's `detail` are never written, so a line will not show you the
+row that failed; reproduce with `DB_LOGGING=true` and `LOG_LEVEL=debug` locally if you need the
+statement. A duplicate that the database rejects is a `warn` line reading
+`Client error 409: Duplicate value`.
+
 ## Startup failures
 
 Environment validation runs before anything binds a port. A bad value exits the process with a

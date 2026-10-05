@@ -38,7 +38,62 @@ const resolveLevel = (): string => {
   return nodeEnv === "production" ? "http" : "debug";
 };
 
+// What an error is allowed to say about itself in a log record, besides its
+// message and stack. Winston copies every own property of an error passed to a
+// log call onto the record, and a database error's own properties are its SQL
+// and bound values. Scalars only, and only these (log-redaction-coverage D-06).
+const ERROR_FIELD_ALLOWLIST: ReadonlySet<string> = new Set([
+  "name",
+  "code",
+  "errno",
+  "syscall",
+  "status",
+  "statusCode",
+  "expose",
+  "type",
+  "kind",
+  "isOperational",
+]);
+
+// Postgres's own description of a failure: the SQLSTATE and schema names, never
+// row data. `detail` is left out on purpose; it quotes the offending values.
+const DB_ERROR_FIELDS = ["code", "constraint", "table", "column"] as const;
+
+const isScalar = (value: unknown): value is string | number | boolean =>
+  typeof value === "string" ||
+  typeof value === "number" ||
+  typeof value === "boolean";
+
+const describeDbError = (error: Error): Record<string, string> | undefined => {
+  const { original } = error as { original?: unknown };
+  if (original === null || typeof original !== "object") return undefined;
+  const source = original as Record<string, unknown>;
+  const db: Record<string, string> = {};
+  for (const field of DB_ERROR_FIELDS) {
+    const value = source[field];
+    if (typeof value === "string") db[field] = value;
+  }
+  return Object.keys(db).length > 0 ? db : undefined;
+};
+
+/** The allowlisted view of an error: its scalar identity fields, and `db`. */
+export function summarizeError(error: Error): Record<string, unknown> {
+  const source = error as unknown as Record<string, unknown>;
+  const summary: Record<string, unknown> = { name: error.name };
+  for (const key of Object.keys(source)) {
+    if (ERROR_FIELD_ALLOWLIST.has(key) && isScalar(source[key])) {
+      summary[key] = source[key];
+    }
+  }
+  const db = describeDbError(error);
+  if (db) summary.db = db;
+  return summary;
+}
+
 export function redactObject(obj: unknown, depth: number): unknown {
+  if (obj instanceof Error) {
+    return { ...summarizeError(obj), message: obj.message };
+  }
   if (depth >= 5 || obj === null || typeof obj !== "object") {
     return obj;
   }
@@ -54,6 +109,80 @@ export function redactObject(obj: unknown, depth: number): unknown {
   }
   return result;
 }
+
+const SPLAT = Symbol.for("splat");
+const LEVEL = Symbol.for("level");
+
+type LogRecord = Record<string | symbol, unknown>;
+
+// What the record owns. An error's key of the same name never replaces these.
+const RECORD_FIELDS: ReadonlySet<string> = new Set([
+  "level",
+  "message",
+  "stack",
+]);
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null &&
+  typeof value === "object" &&
+  !Array.isArray(value) &&
+  !(value instanceof Error);
+
+// First in the chain, so that nothing after it ever holds an error object.
+// Winston copies an error's own properties onto the record in `logger.log`,
+// copies them again in `splat()`, and `splat()` prints an argument whole when
+// the message has a `%j`, `%s` or `%o` token, which a message built from client
+// text can have. So this step undoes the first copy and replaces each error
+// among the call's arguments with its allowlisted view; the later steps then
+// only have that view to work with (log-redaction-coverage D-06).
+const reduceLoggedErrors = format((info) => {
+  const record = info as unknown as LogRecord;
+
+  // `logger.error(err)`: Winston uses the error itself as the record.
+  if (info instanceof Error) {
+    return {
+      ...summarizeError(info),
+      level: record.level,
+      [LEVEL]: record[LEVEL],
+      message: info.message,
+      stack: info.stack,
+      service: APP_NAME,
+      release,
+    } as unknown as typeof info;
+  }
+
+  // `logger.log({ level, message: err })`.
+  if (record.message instanceof Error) {
+    const error = record.message;
+    record.message = error.message;
+    record.stack = error.stack;
+    Object.assign(record, summarizeError(error));
+    return info;
+  }
+
+  const args = record[SPLAT];
+  if (!Array.isArray(args) || !args.some((arg) => arg instanceof Error)) {
+    return info;
+  }
+  for (const arg of args) {
+    if (!(arg instanceof Error)) continue;
+    for (const key of Object.keys(arg)) {
+      if (!RECORD_FIELDS.has(key)) delete record[key];
+    }
+  }
+  // The copy may have replaced the logger's own defaults, or metadata passed
+  // beside the error; put both back, then the allowlisted view of each error.
+  record.service = APP_NAME;
+  record.release = release;
+  const reduced = args.map((arg) =>
+    arg instanceof Error ? summarizeError(arg) : arg,
+  );
+  for (const arg of reduced) {
+    if (isPlainObject(arg)) Object.assign(record, arg);
+  }
+  record[SPLAT] = reduced;
+  return info;
+});
 
 const redactSensitive = format((info) => {
   const infoRecord = info as unknown as Record<string, unknown>;
@@ -83,7 +212,7 @@ const attachRequestId = format((info) => {
 // a valid SGR sequence — which is why the dev console colours never actually rendered.
 // The uncolourised level is still available under winston's LEVEL symbol, so uppercase only
 // that word within the colourised string and leave the escape codes untouched.
-const LEVEL_SYMBOL = Symbol.for("level");
+const LEVEL_SYMBOL = LEVEL;
 
 const logFormat = printf((info) => {
   const { message, timestamp, stack, requestId } = info;
@@ -101,6 +230,7 @@ const logFormat = printf((info) => {
 const logger: Logger = createLogger({
   level: resolveLevel(),
   format: combine(
+    reduceLoggedErrors(),
     timestamp(),
     errors({ stack: true }),
     splat(),

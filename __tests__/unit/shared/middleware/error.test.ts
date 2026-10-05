@@ -3,6 +3,7 @@ import type { AuthRequest } from "@/types/request.context.js";
 import type { Response, NextFunction } from "express";
 import AppError from "@/utils/AppError.js";
 import { z, type ZodError } from "zod";
+import { UniqueConstraintError } from "sequelize";
 import { createErrorHandler } from "@/shared/middleware/error.js";
 
 // Swap env + logger bindings so the middleware can be tested deterministically without touching real config/logging.
@@ -85,6 +86,32 @@ describe("error middleware", () => {
       }),
     );
     expect(next).not.toHaveBeenCalled();
+  });
+
+  // Audit T1, kit log-redaction-coverage D-06. A duplicate is the client's
+  // mistake: answered 409, logged as one, and the error object, which holds the
+  // submitted values, is not handed to the logger at all.
+  it("answers a unique-constraint error with 409 and logs it as a client error", () => {
+    envMock.NODE_ENV = "production";
+    const err = new UniqueConstraintError({
+      fields: { email: "someone@example.com" },
+      message: "Validation error",
+    });
+    const res = createResponse();
+
+    handler(err, {} as AuthRequest, res, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "fail",
+      message: "Duplicate value",
+    });
+    expect(loggerMock.error).not.toHaveBeenCalled();
+    expect(loggerMock.warn).toHaveBeenCalledTimes(1);
+    expect(loggerMock.warn).toHaveBeenCalledWith(
+      "Client error 409: Duplicate value",
+    );
+    expect(sentryMock.captureException).not.toHaveBeenCalled();
   });
 
   it("wraps unknown errors and hides stack outside development", () => {
