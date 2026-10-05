@@ -1,8 +1,8 @@
 # Todo — the boundary rule misses `src/types/` and application-to-infrastructure imports
 
 - **Status:** Fixed in kit
-  [`boundary-rule-residuals`](../initiatives/boundary-rule-residuals/README.md) (branch
-  `fix/boundary-rule-residuals`, ADR-0058). C4 stays open in the audit until a dated run confirms it
+  [`boundary-rule-residuals`](../initiatives/boundary-rule-residuals/README.md) (merged in #135,
+  `a4973f2`, ADR-0058). C4 stays open in the audit until a dated run confirms it
   (ADR-002)
 - **Created:** 2026-10-03
 - **Owner:** unassigned
