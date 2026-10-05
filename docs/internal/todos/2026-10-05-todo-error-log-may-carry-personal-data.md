@@ -1,26 +1,38 @@
-# Todo — the error middleware's log lines may carry personal data
+# Todo — a database error is logged with the values bound to its statement
 
-- **Status:** Open (P3, unverified)
+- **Status:** Open (P2). Confirmed by the dated run of 2026-10-05, where it is finding T1 and
+  reopens caveat C6. It is the one item between the repo and a clean GOLD
 - **Created:** 2026-10-05
 - **Owner:** unassigned
-- **Origin:** a note from the security review of the S8 fix; kit
-  [`log-redaction-coverage`](../initiatives/log-redaction-coverage/decisions.md) D-05
+- **Origin:** a note from the security review of the S8 fix; confirmed in
+  `docs/internal/audits/saas-readiness/audit-2026-10-05.md` § 6, T1; kit
+  [`saas-reaudit-2026-10-05`](../initiatives/saas-reaudit-2026-10-05/decisions.md) D-03
 
 ---
 
 ## What
 
-`src/shared/middleware/error.ts:107-112` writes an error's message into the log message, and for
-the database and unexpected branches passes the error object as metadata. Redaction is by key and
-does not scan message text. Two ways an email address could get through, neither demonstrated:
+`src/shared/middleware/error.ts:105-112` passes the error object to the logger as metadata in two
+branches. Redaction is by key, and none of the keys a Sequelize error carries matches the pattern
+in `src/config/sensitive-keys.ts`:
 
-- A message that quotes user input. No `AppError` built from an address was found.
-- A Sequelize `DatabaseError` passed as metadata. It carries `sql` and `parameters`, and neither
-  key matches the pattern in `src/config/sensitive-keys.ts`. Whether the logger serializes them,
-  and whether a failing auth query has an address among its parameters, was not checked.
+- A `DatabaseError` carries `sql` and `parameters`.
+- A `UniqueConstraintError` has no `status`, so it takes the last branch and is logged whole before
+  being answered as 409. It carries `fields`, `errors[].value`, `errors[].instance.dataValues` and
+  `original.parameters`.
+
+Reproduced on 2026-10-05 against a server in the JSON log format: twelve concurrent registrations
+with one email answered one 201 and eleven 409, and each 409 wrote an `Error Occurred` line holding
+the email address and the bcrypt hash of the submitted password. A double-submitted registration
+form is enough. The development format prints the message only, which is why it was not seen.
 
 ## Suggested fix
 
-First prove or rule out the second case: make an auth query fail in a unit test with the real
-logger format, and read the line. If it leaks, log the database error's name, code and constraint
-and not the object.
+Log a plain object for these errors: name, code, constraint and message, never the error itself.
+Do not rely on adding `sql`, `parameters`, `fields` and `errors` to the redaction pattern alone,
+since the next ORM error shape would get through the same way. Answer the unique-constraint case
+at `warn`, as other client errors are.
+
+Prove it with a unit test that logs a real `UniqueConstraintError` and a real `DatabaseError`
+through the real logger format and asserts the bound values are absent. Integration tests cannot
+see this: they do not read log output. Then a dated audit run to close C6.

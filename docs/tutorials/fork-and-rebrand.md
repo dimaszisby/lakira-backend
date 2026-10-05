@@ -91,11 +91,13 @@ docs/explanation/product-requirements.md
 The script removed `docs/internal/`, which held the upstream SaaS-readiness audit — the honest
 assessment of this template. To read it, re-run step 2 with `--keep-internal` on a fresh copy, or
 read it in the upstream repository; its live status is
-`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of 2026-10-03 it lists
-**no open P0 findings**. One of its six caveats (C4, architecture rules) is still open at P2, and
-two P1 findings were open in that run: the response cache replayed error bodies with status 200,
-and a fork's `npm run docs:openapi:check` failed. Both have been fixed since and wait for the next
-dated run to confirm them. Other open findings are P2/P3 hardening (for example request-id propagation across RabbitMQ, and an unbounded
+`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of 2026-10-05 it lists
+**no open P0 or P1 findings**. One of its six caveats is open at P2 (C6, log redaction): a
+database error is logged with the values bound to its statement, so a duplicate registration can
+write an email address and a password hash to your logs. Fix that before you ship. Two things a
+fork should also know: the generated OpenAPI spec keeps the upstream title and cookie name until
+you regenerate it with `APP_NAME` set, and the bootstrap script rotates `JWT_SECRET` only, not the
+database, Redis or RabbitMQ credentials. Other open findings are P2/P3 hardening (for example request-id propagation across RabbitMQ, and an unbounded
 date range on `/metric-logs/stats`).
 
 The two findings that used to sit here are **closed**:

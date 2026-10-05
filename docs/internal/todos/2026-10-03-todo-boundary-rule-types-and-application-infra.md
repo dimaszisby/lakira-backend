@@ -2,8 +2,7 @@
 
 - **Status:** Fixed in kit
   [`boundary-rule-residuals`](../initiatives/boundary-rule-residuals/README.md) (merged in #135,
-  `a4973f2`, ADR-0058). C4 stays open in the audit until a dated run confirms it
-  (ADR-002)
+  `a4973f2`, ADR-0058). C4 confirmed closed by the dated run of 2026-10-05 (`audit-2026-10-05.md` § 4.1)
 - **Created:** 2026-10-03
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-10-03.md` § 6, S5, S6; kit `saas-reaudit-2026-10-03` D-04

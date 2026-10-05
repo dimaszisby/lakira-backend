@@ -26,6 +26,15 @@ It also records **two new P1 findings that block a clean GOLD**: S1, the respons
 error bodies with status 200, and S2, a fork's OpenAPI gate cannot pass. Next step: fix S1, S2 and
 the C4 residual, then another dated run.
 
+**2026-10-05 re-audit: GOLD WITH CAVEATS reconfirmed a third time; C4, S1 and S2 are closed, and C6
+is open again.** The dated run [`audit-2026-10-05.md`](./audit-2026-10-05.md) passes the ADR-001
+gate on Node 24 (zero P0, first run after a clean install) and confirms every blocker the last run
+named, S1 and S2 against running code. Every fix was graded by a subagent and not by the session
+that wrote it. It does not restate GOLD: **C6 is open again at P2**, because a database error is
+logged with the values bound to its statement, and a double-submitted registration writes the
+email address and the password hash to the log (finding T1). Next step: fix T1, then another dated
+run.
+
 The **Status** paragraph at the top records the closures as they stood on 2026-09-24, when all six
 were believed closed.
 
@@ -35,10 +44,11 @@ audits) but surfaced two **NEW P0** (cache-layer cross-tenant scoping) and one *
 (`DISABLE_RATE_LIMITING` has no production guard) findings that all three prior audits missed.
 The repo is **not safely shippable** as a SaaS base until N1+N2+F1 land (cumulative ≤2h);
 the original C1–C6 caveats remain open-unchanged.
-**As of:** 2026-10-03 · **Branch:** `docs/saas-reaudit-2026-10-03` @ `582c1b5`
-**Authoritative audit:** [`audit-2026-10-03.md`](./audit-2026-10-03.md) (delta, fresh pass, fork
-dry-run through `npm test` and full 65-item re-grade, on Node 24).
-Prior authoritative audits: [`audit-2026-09-29.md`](./audit-2026-09-29.md),
+**As of:** 2026-10-05 · **Branch:** `docs/saas-reaudit-2026-10-05` @ `deb736d`
+**Authoritative audit:** [`audit-2026-10-05.md`](./audit-2026-10-05.md) (delta, fresh pass, fork
+dry-run through `npm test` and the OpenAPI gate, and full 65-item re-grade, on Node 24).
+Prior authoritative audits: [`audit-2026-10-03.md`](./audit-2026-10-03.md),
+[`audit-2026-09-29.md`](./audit-2026-09-29.md),
 [`audit-2026-06-05.md`](./audit-2026-06-05.md).
 This file is the human-readable capstone that ties the whole SaaS-readiness initiative
 together; the dated audits are the evidence of record.
@@ -151,9 +161,9 @@ fast hardening wins C2/C5/C6, then C4.
 | **C1** | **Fork flow doesn't work as printed** — `bootstrap-fork.sh` rotates `JWT_SECRET` / sets `APP_NAME` only in `.env.development` (gitignored, absent on fresh clone → silent no-op); its printed step 4 `npm test` fails out-of-box (84 suites) without `.env.test`, which is never mentioned. | P1  | ≤1d   | Fixed (#122) — confirmed       |
 | **C2** | **Lakira branding leaks into the forked runtime** — `src/config/app-name.ts:4` defaults to `"lakira-backend"`; because C1's `APP_NAME` write misses, a fresh fork brands logs/OpenAPI/queues/emails as "lakira-backend".                                                                    | P2  | ≤1h   | Fixed (D-01) — note            |
 | **C3** | **Error envelope inconsistent + undocumented** — `error.ts` hand-rolls 3 shapes (incl. an undocumented `"fail"` status), bypassing `errorResponse()`, violating `api-design.md`; OpenAPI documents no 4xx/5xx schema (only 429).                                                            | P1  | ≤1d   | Fixed (#124, #131) — confirmed |
-| **C4** | **Architecture test too weak** — enforces only 3 narrow checks, no negative cases; real app→infra ORM writes, `AppError` in domain entities, and cross-feature deep imports pass green.                                                                                                     | P1  | ≤1d   | **Open (P2), 2026-10-03**      |
+| **C4** | **Architecture test too weak** — enforces only 3 narrow checks, no negative cases; real app→infra ORM writes, `AppError` in domain entities, and cross-feature deep imports pass green.                                                                                                     | P1  | ≤1d   | Fixed (#135) — confirmed       |
 | **C5** | **Sentry has no PII scrubbing** — `Sentry.init()` lacks a `beforeSend` to strip `authorization`/`cookie`/body secrets before egress.                                                                                                                                                        | P2  | ≤1h   | Fixed (`b28381a`) — note       |
-| **C6** | **Log-redaction suffix-anchored** — `SENSITIVE_KEY_PATTERN` misses `authorization`, `cookie`, `bearer`, `passwordHash` (latent: nothing logs them today).                                                                                                                                   | P2  | ≤1h   | Fixed (`b28381a`)              |
+| **C6** | **Log-redaction suffix-anchored** — `SENSITIVE_KEY_PATTERN` misses `authorization`, `cookie`, `bearer`, `passwordHash` (latent: nothing logs them today).                                                                                                                                   | P2  | ≤1h   | **Open (P2), 2026-10-05**      |
 
 **C2 — note (2026-09-17).** This row's stated cause is _"because C1's `APP_NAME` write misses"_,
 and that is no longer true: `bootstrap-fork.sh:183-191` now writes `APP_NAME` into `.env`, which the
@@ -258,6 +268,22 @@ The C4 row above stays "Open" until a dated run confirms it (ADR-002). With S1 a
 that run named as blocking the GOLD restatement now has a fix merged or in review. **Next: the dated
 run.**
 
+**2026-10-05 — the dated run.** [`audit-2026-10-05.md`](./audit-2026-10-05.md) confirms all of the
+above. S1: one unknown id answered 404 three times on a live server. S2, S3 and S4: reproduced
+closed on fresh forks, `docs:openapi:check` exit 0. C4: no route around the rule, by grep and by
+lint. S7 and S8 are confirmed as well. Each was graded by a subagent, not by the session that wrote
+the fix ([`saas-reaudit-2026-10-05` D-01](../../initiatives/saas-reaudit-2026-10-05/decisions.md)).
+
+**C6 — open again at P2 (2026-10-05).** The pattern covers the four terms this row names. But
+`src/shared/middleware/error.ts` passes a database error to the logger as metadata, and its `sql`,
+`parameters`, `fields` and `errors` keys match no term. Twelve concurrent registrations with one
+email logged the address and the bcrypt hash of the submitted password eleven times. C6 called its
+gap latent, with nothing logging the keys it missed; this is logged today. Finding T1;
+[todo](../../todos/2026-10-05-todo-error-log-may-carry-personal-data.md); grading reason in
+[`saas-reaudit-2026-10-05` D-03](../../initiatives/saas-reaudit-2026-10-05/decisions.md). C2's
+residual has also grown, without changing its grade: a fork's spec names the upstream cookie
+(T2, [D-04](../../initiatives/saas-reaudit-2026-10-05/decisions.md)).
+
 > **Fix-status convention:** flip `Open` → `Fixed (<commit SHA>)` as each lands; a caveat closed
 > by decision rather than code cites the decision entry instead of a SHA. (Written with emoji
 > markers until 2026-09-24.) When all six are closed, the verdict can be re-stated as **GOLD** and
@@ -296,6 +322,7 @@ defects to fix blindly:
 | 2026-06-05 | [`audit-2026-06-05.md`](./audit-2026-06-05.md)                         | **GOLD WITH CAVEATS — DOWNGRADED PENDING N1+N2+F1**                   | All six gates re-run green; 2 new P0, 1 new HIGH, 6 P1, 6 P2, 4 P3 found                                                   |
 | 2026-09-29 | [`audit-2026-09-29.md`](./audit-2026-09-29.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C1)         | ADR-001 gate **PASS** on Node 24; 47 pass / 14 partial / 4 fail; C1 reopened P1, C3 + C4 reopened P2; 0 P0, 6 new P2, 7 P3 |
 | 2026-10-03 | [`audit-2026-10-03.md`](./audit-2026-10-03.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C4, S1, S2) | ADR-001 gate **PASS** on Node 24; 49 pass / 12 partial / 4 fail; C1 + C3 closed, C4 open P2; 0 P0, 2 new P1, 8 new P2      |
+| 2026-10-05 | [`audit-2026-10-05.md`](./audit-2026-10-05.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C6)         | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; C4, S1, S2 closed; C6 reopened P2; 0 P0, 0 P1, 2 new P2   |
 
 **Key disagreements the independent run raised with the 05-20 self-audit** (full evidence in
 the dated file): security findings 1→8 medium; `svix` present transitively via `resend`;
@@ -422,12 +449,18 @@ the list still reads as the history it is.
    error bodies as 200), S2 with S3 and S4 (a fork's OpenAPI gate and bootstrap ordering), the C4
    residual (S5, S6), **then** another dated run. Each has a todo dated 2026-10-03; the run's other
    findings are in its § 6.
+9. **Dated run of 2026-10-05** — [`audit-2026-10-05.md`](./audit-2026-10-05.md). S1, S2 to S4,
+   the C4 residual, S7 and S8 are confirmed closed. It did **not** restate GOLD: C6 is open again
+   (T1). **Next, in this order:** T1 (a database error is logged with its bound values), **then**
+   another dated run, with C2 put to a grader explicitly. After that T2 (a fork's spec describes
+   the upstream), S9 and S10. The run's other findings are in its § 6.
 
 ---
 
 ## 9. Related documents
 
-- [`audit-2026-10-03.md`](./audit-2026-10-03.md) — **current authoritative audit** (delta, fresh pass, fork dry-run through `npm test`, full re-grade on Node 24)
+- [`audit-2026-10-05.md`](./audit-2026-10-05.md) — **current authoritative audit** (delta, fresh pass, fork dry-run through `npm test` and the OpenAPI gate, full re-grade on Node 24)
+- [`audit-2026-10-03.md`](./audit-2026-10-03.md) — prior authoritative audit
 - [`audit-2026-09-29.md`](./audit-2026-09-29.md) — prior authoritative audit
 - [`audit-2026-06-05.md`](./audit-2026-06-05.md) — prior authoritative audit
 - [`audit-2026-05-24-independent.md`](./audit-2026-05-24-independent.md) — earlier authoritative audit
