@@ -1,8 +1,7 @@
 # Todo — the response cache stores error bodies and replays them as 200
 
 - **Status:** Fixed in #133 (`50258e4`; Micro; kit
-  `saas-reaudit-2026-10-03` D-07). S1 stays open in the audit until a dated run confirms it
-  (ADR-002). The S12 items named under "Suggested fix" are not part of that change and stay open
+  `saas-reaudit-2026-10-03` D-07). Confirmed closed by the dated run of 2026-10-05 (`audit-2026-10-05.md` § 4.2). The S12 items named under "Suggested fix" are not part of that change and stay open
 - **Created:** 2026-10-03
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-10-03.md` § 6, S1; kit `saas-reaudit-2026-10-03` D-05

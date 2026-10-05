@@ -16,7 +16,7 @@ The audit grades against the project's own intended standard (`.claude/rules/*`,
 - `README.md` — this file.
 - `FINAL-AUDIT-SUMMARY.md` — **the live status.** Verdict, open caveats and findings, and the lineage of audit runs. Start here.
 - `audit-2026-05-01.md` — baseline audit run. Contains the scorecard, gap entries (P0/P1/P2), evidence, and recommended fixes.
-- `audit-2026-05-20.md`, `audit-2026-05-24-independent.md`, `audit-2026-06-05.md`, `audit-2026-09-29.md`, `audit-2026-10-03.md` — later dated runs; each is a record of its date. The latest is the authoritative one.
+- `audit-2026-05-20.md`, `audit-2026-05-24-independent.md`, `audit-2026-06-05.md`, `audit-2026-09-29.md`, `audit-2026-10-03.md`, `audit-2026-10-05.md` — later dated runs; each is a record of its date. The latest is the authoritative one.
 - `iteration-plan.md` — master roadmap mapping each remediation phase to its own architecture-folder kit. Read this to know which kit to open when picking up a phase.
 - `decisions.md` — ADR entries for any standards adopted in response to the audit. New decisions append here; do not rewrite history.
 

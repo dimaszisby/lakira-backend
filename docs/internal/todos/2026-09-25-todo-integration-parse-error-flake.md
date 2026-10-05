@@ -203,3 +203,9 @@ tree plus test and doc edits, passed (220 passed, 5 skipped).
 
 This removes the one thing the first two sightings shared. "First run after an install" is no
 longer a condition for the failure.
+
+## 2026-10-05 — not seen in the dated run
+
+The dated run of 2026-10-05 ran `npm test` as the first run after `npm ci` and it passed, as did
+the fork's `npm test`. The sighting above, earlier the same day, stands: three sightings in three
+different tests, one of them not after an install. Still unexplained (audit R4).
