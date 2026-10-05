@@ -66,6 +66,10 @@ and limits stop being shared across instances (twelve-factor TF-12).
   redacts credential headers, drops cookies, and applies the same pattern to the body, `extra` and
   `contexts`
 - Never log passwords, tokens, or PII
+- Redaction is by key and does not scan message text, so nothing personal is ever interpolated
+  into a log message. Name a person by user id; where there is no user, name an email address by
+  `hashEmail` (`src/utils/email-hash.ts`), as the login lockout and the rate limiters do. The
+  limiter lines carry a user id, an IP, or that hash, and a test trips every limiter to prove it
 - `EMAIL_PROVIDER=console` logs every email body, tokens included. Startup refuses it unless
   `NODE_ENV` is `development` or `test` (ADR-0049). Email adapters never log the recipient.
 - `EMAIL_PROVIDER=mailpit` sends every email, tokens included, to a local catcher. Startup

@@ -72,7 +72,8 @@ the per-environment URL is selected by `NODE_ENV`.
 > produces output when `LOG_LEVEL` is `debug` or lower.
 >
 > Logs go to **stdout only**; the app writes no log files (ADR-0041). Access-log lines carry the
-> request path with the query string stripped — redaction covers log metadata, not URL strings.
+> request path with the query string stripped — redaction covers log metadata, not URL strings or
+> message text, so no message carries an email address (a limiter names a user id, an IP or a hash).
 > See [`../how-to/development/read-application-logs.md`](../how-to/development/read-application-logs.md).
 
 > `DB_HOST` defaulting to `db` in test targets the Docker Compose service name. Running tests on

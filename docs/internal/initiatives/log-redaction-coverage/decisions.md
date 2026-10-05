@@ -145,3 +145,44 @@ gates this — the drift that produced this entry would not have been caught by 
 remembering if the pattern changes a third time.
 
 **Commit:** filled on merge — see the PR for this branch (`fix/redaction-doc-drift`).
+
+---
+
+## D-05 — Limiter log lines name a user id or an email hash, never the address
+
+- **Status:** Accepted
+- **Date:** 2026-10-05
+- **Size:** Micro — single commit, no separate kit. Audit finding S8 (P2). Commits carry
+  `refs: limiter-logs-email-address`.
+
+**Context.** Two limiter log lines put an email address in the message text: the password-reset
+email limiter logged the address from the request body, and the email-verification email limiter
+logged `req.user.email`. Redaction is by metadata key (D-01), so text inside a message is never
+masked, and `.claude/rules/security.md` says never to log PII. Both lines predate ADR-0057, which
+kept every limiter line as it was.
+
+**Decision.** The email-verification limiter runs behind authentication and logs the user id, as
+the switch-org limiter does. The password-reset limiter has no user, so it logs
+`hashEmail(address)`: SHA-256 of the trimmed, lower-cased address. That function moves out of
+`loginLockout.ts` into `src/utils/email-hash.ts` and both use it, so a limiter line and an
+`auth.lockout.triggered` line for one address carry the same hash. Each line still falls back to
+the IP.
+
+**Options considered.**
+
+- The IP only: rejected. The limiter is keyed on the address, so the line would no longer say
+  which key was hit, and one address tried from many IPs would look like unrelated events.
+- A masked address such as `s***@example.com`: rejected. It is still personal data, and it does
+  not identify one address.
+- The address as metadata under an `email` key: rejected. The key pattern has no `email` term, so
+  it would be written in the clear, and it would change `limitExceeded`, which ADR-0057 fixes as a
+  message and a line.
+- A second copy of the hash function in `rate-limiter.ts`: rejected. `src/shared/` may not import a
+  feature (ADR-0058), which is why the function moves, and two copies would drift apart and stop
+  matching.
+
+**Consequences.** The hash is unsalted, so someone who holds the logs and guesses an address can
+confirm it. That is pseudonymous, not anonymous; it is the trade `loginLockout` already makes, and
+it is what lets the two lines be matched. The limiter **store keys** still hold the address in
+Redis for the hour of the window; that is not a log line and is filed as
+`docs/internal/todos/2026-10-05-todo-limiter-keys-hold-email-address.md`.

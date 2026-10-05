@@ -183,3 +183,23 @@ finding R3 stays open in the audit until a dated run confirms the fix (ADR-002).
 The dated run of 2026-10-03 ran `npm test` as the first run after `npm ci` on Node 24.21.0, the
 condition both earlier sightings shared, and it passed. Five other full runs the same day also
 passed. The parse error is still unexplained, and this todo stays open (audit R4).
+
+## The parse error, third occurrence (2026-10-05)
+
+On `fix/limiter-logs-email-address`, one full `npm run test:integration` on Node 24.21.0 failed one
+test:
+
+```
+● Auth Refresh Token Flow › POST /auth/logout revokes the refresh token family
+  Parse Error: Expected HTTP/, RTSP/ or ICE/
+```
+
+The details this todo asks for: Node 24.21.0; **not** the first run after an install
+(`node_modules` was last installed days earlier, and the same suite had passed in full the day
+before on `fix/dashboard-latest-value-tiebreaker`); a third different test
+(`auth-refresh.test.ts`). The branch changes two limiter log lines, and integration tests run with
+`DISABLE_RATE_LIMITING=true`, so the change under test is not on the request's path. The next full run of the suite, on the same
+tree plus test and doc edits, passed (220 passed, 5 skipped).
+
+This removes the one thing the first two sightings shared. "First run after an install" is no
+longer a condition for the failure.

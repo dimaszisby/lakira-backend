@@ -1,6 +1,7 @@
 import { describe, it, expect, jest } from "@jest/globals";
 import express, { type RequestHandler } from "express";
 import request from "supertest";
+import { hashEmail } from "@/utils/email-hash.js";
 
 // The real express-rate-limit, as in register-rate-limiter.trip.test.ts: this
 // proves what a throttled client actually receives from every limiter (C3
@@ -39,8 +40,13 @@ const loggerMock = jest.requireMock("@/utils/logger.js") as {
 type LimiterModule = typeof import("@/shared/middleware/rate-limiter.js");
 type FactoryName = Extract<keyof LimiterModule, `create${string}RateLimiter`>;
 
+const BODY_EMAIL = "someone@example.com";
+// Mixed case on purpose: the limiter lower-cases the address before use.
+const USER = { id: "user-1", email: "Member@Example.com" };
+
 // Factory, the message a client gets, and the start of the warn line. Requests
-// here carry no user, so each line names the IP or the email from the body.
+// here carry no user, so each line names the IP, or the hash of the email from
+// the body.
 const LIMITERS: [FactoryName, string, string][] = [
   [
     "createGlobalRateLimiter",
@@ -65,7 +71,7 @@ const LIMITERS: [FactoryName, string, string][] = [
   [
     "createPasswordResetEmailRateLimiter",
     "Too many password reset requests, please try again later.",
-    "Password reset email rate limit hit for someone@example.com",
+    `Password reset email rate limit hit for email hash ${hashEmail(BODY_EMAIL)}`,
   ],
   [
     "createPasswordResetIpRateLimiter",
@@ -89,9 +95,13 @@ const LIMITERS: [FactoryName, string, string][] = [
   ],
 ];
 
-const buildApp = (limiter: RequestHandler) => {
+const buildApp = (limiter: RequestHandler, user?: typeof USER) => {
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    if (user) Object.assign(req, { user });
+    next();
+  });
   app.post("/limited", limiter, (_req, res) => {
     res.status(200).json({ status: "success" });
   });
@@ -112,7 +122,7 @@ describe("rate limiters answer through the error envelope", () => {
     const limiters = await import("@/shared/middleware/rate-limiter.js");
     const app = buildApp(limiters[factory]() as RequestHandler);
     const send = () =>
-      request(app).post("/limited").send({ email: "someone@example.com" });
+      request(app).post("/limited").send({ email: BODY_EMAIL });
 
     expect((await send()).status).toBe(200);
     loggerMock.warn.mockClear();
@@ -127,6 +137,86 @@ describe("rate limiters answer through the error envelope", () => {
     expect(loggerMock.warn).toHaveBeenCalledTimes(1);
     expect(loggerMock.warn).toHaveBeenCalledWith(
       expect.stringContaining(logLine),
+    );
+  });
+
+  // Audit S8, kit log-redaction-coverage D-05. Redaction is by metadata key, so
+  // an address inside a message is never masked. Each limiter is tripped with
+  // an email in the body and one on the user, and may log neither.
+  it.each(LIMITERS)("%s logs no email address", async (factory) => {
+    const limiters = await import("@/shared/middleware/rate-limiter.js");
+    const app = buildApp(limiters[factory]() as RequestHandler, USER);
+    const send = () =>
+      request(app).post("/limited").send({ email: BODY_EMAIL });
+
+    await send();
+    loggerMock.warn.mockClear();
+    expect((await send()).status).toBe(429);
+
+    const logged = JSON.stringify(loggerMock.warn.mock.calls).toLowerCase();
+    expect(logged).not.toContain(BODY_EMAIL);
+    expect(logged).not.toContain(USER.email.toLowerCase());
+    expect(logged).not.toContain("undefined");
+  });
+
+  it("names the email hash in full when the password reset limiter trips", async () => {
+    const limiters = await import("@/shared/middleware/rate-limiter.js");
+    const app = buildApp(
+      limiters.createPasswordResetEmailRateLimiter() as RequestHandler,
+    );
+    const send = () =>
+      request(app).post("/limited").send({ email: " Someone@Example.com " });
+
+    await send();
+    loggerMock.warn.mockClear();
+    expect((await send()).status).toBe(429);
+
+    expect(loggerMock.warn).toHaveBeenCalledWith(
+      `Password reset email rate limit hit for email hash ${hashEmail(BODY_EMAIL)}`,
+    );
+  });
+
+  // The fallback branches: no usable email in the body, and a user with no id.
+  const FALLBACKS: [FactoryName, object, Partial<typeof USER> | undefined][] = [
+    ["createPasswordResetEmailRateLimiter", { email: "   " }, undefined],
+    ["createPasswordResetEmailRateLimiter", { email: 42 }, undefined],
+    ["createEmailVerificationEmailRateLimiter", {}, { email: USER.email }],
+  ];
+
+  it.each(FALLBACKS)(
+    "%s falls back to the IP for %j",
+    async (factory, body, user) => {
+      const limiters = await import("@/shared/middleware/rate-limiter.js");
+      const app = buildApp(
+        limiters[factory]() as RequestHandler,
+        user as typeof USER | undefined,
+      );
+      const send = () => request(app).post("/limited").send(body);
+
+      await send();
+      loggerMock.warn.mockClear();
+      expect((await send()).status).toBe(429);
+
+      const [line] = loggerMock.warn.mock.calls[0] as [string];
+      expect(line).toMatch(/rate limit hit for [0-9a-f:.]+$/);
+      expect(line.toLowerCase()).not.toContain(USER.email.toLowerCase());
+    },
+  );
+
+  it("names the user, not the email, when the verification limiter trips", async () => {
+    const limiters = await import("@/shared/middleware/rate-limiter.js");
+    const app = buildApp(
+      limiters.createEmailVerificationEmailRateLimiter() as RequestHandler,
+      USER,
+    );
+    const send = () => request(app).post("/limited").send({});
+
+    await send();
+    loggerMock.warn.mockClear();
+    expect((await send()).status).toBe(429);
+
+    expect(loggerMock.warn).toHaveBeenCalledWith(
+      `Email verification email rate limit hit for user ${USER.id}`,
     );
   });
 });
