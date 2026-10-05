@@ -186,3 +186,15 @@ confirm it. That is pseudonymous, not anonymous; it is the trade `loginLockout` 
 it is what lets the two lines be matched. The limiter **store keys** still hold the address in
 Redis for the hour of the window; that is not a log line and is filed as
 `docs/internal/todos/2026-10-05-todo-limiter-keys-hold-email-address.md`.
+
+---
+
+## D-06 — An error passed to the logger is reduced to an allowlist of its fields
+
+- **Status:** Accepted
+- **Date:** 2026-10-05
+- **Size:** Micro — single commit, no separate kit. Audit finding T1 (P2), which reopened caveat
+  C6 in the dated run of 2026-10-05. Commits carry `refs: error-log-bound-values`.
+
+Promoted to the architecture decision registry as **[ADR-0059](../../../explanation/decisions/adr-0059-an-error-passed-to-the-logger-is-reduced-to-an-allowlist.md)**.
+That file is authoritative; this entry is a pointer.

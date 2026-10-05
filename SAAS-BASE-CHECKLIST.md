@@ -76,6 +76,7 @@ Also green, and run by CI: `build`, `docs:openapi:check`, `security:delta:gate`,
    Twelve concurrent registrations with one email wrote the address and the bcrypt hash of the
    submitted password to the log eleven times. This is the one item between this repo and a clean
    GOLD. [Todo](docs/internal/todos/2026-10-05-todo-error-log-may-carry-personal-data.md).
+   Fixed in the logger (ADR-0059), pending a dated audit run to confirm it (ADR-002).
 2. **T2 · Forkability (P2)** — a fork's OpenAPI spec keeps the upstream title and documents a
    `lakira_refresh` cookie while the fork's server sets `<name>_refresh`; the gate passes only
    while `APP_NAME` is not exported.

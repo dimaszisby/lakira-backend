@@ -53,6 +53,8 @@ const isBodyParseError = (
 
 const MALFORMED_URL_MESSAGE = "Malformed URL";
 
+const DUPLICATE_VALUE_MESSAGE = "Duplicate value";
+
 /**
  * Errors raised by the framework that describe a client mistake, mapped to the
  * 4xx they deserve instead of a masked 500 and a Sentry event (C3 residual 2).
@@ -102,9 +104,14 @@ export const createErrorHandler =
 
     const clientError = toClientError(err);
 
+    // The logger keeps only an error's allowlisted fields, so passing `err` does
+    // not write its SQL or bound values (log-redaction-coverage D-06).
     if (err instanceof DatabaseError) {
       const dbMessage = err.original?.message ?? err.message;
       logger.error(`Database error: ${dbMessage}`, err);
+    } else if (err instanceof UniqueConstraintError) {
+      // A duplicate is a conflict the client caused, answered 409 below.
+      logger.warn(`Client error 409: ${DUPLICATE_VALUE_MESSAGE}`);
     } else if (clientError) {
       // The client's mistake, not ours: no stack, not at error level.
       logger.warn(`Client error ${clientError.statusCode}: ${err.message}`);
@@ -118,7 +125,7 @@ export const createErrorHandler =
         : err instanceof DomainError
           ? new AppError(err.message, DOMAIN_ERROR_STATUS[err.kind])
           : err instanceof UniqueConstraintError
-            ? new AppError("Duplicate value", 409)
+            ? new AppError(DUPLICATE_VALUE_MESSAGE, 409)
             : (clientError ?? new AppError("Internal Server Error", 500));
 
     if (appError.statusCode >= 500) {

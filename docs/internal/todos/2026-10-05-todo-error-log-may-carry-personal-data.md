@@ -1,7 +1,11 @@
 # Todo — a database error is logged with the values bound to its statement
 
-- **Status:** Open (P2). Confirmed by the dated run of 2026-10-05, where it is finding T1 and
-  reopens caveat C6. It is the one item between the repo and a clean GOLD
+- **Status:** Fixed (Micro; kit
+  [`log-redaction-coverage`](../initiatives/log-redaction-coverage/decisions.md) D-06, promoted to
+  [ADR-0059](../../explanation/decisions/adr-0059-an-error-passed-to-the-logger-is-reduced-to-an-allowlist.md);
+  commits carry `refs: error-log-bound-values`). The fix is in the logger, not in the three calls
+  named below, because 17 call sites pass an error to it. C6 stays open in the audit until a dated
+  run confirms it (ADR-002), and that run must have an agent grade it
 - **Created:** 2026-10-05
 - **Owner:** unassigned
 - **Origin:** a note from the security review of the S8 fix; confirmed in
