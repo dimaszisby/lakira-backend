@@ -29,6 +29,9 @@ if (typeof packageName !== "string" || packageName.length === 0) {
   );
 }
 
+/** The package's name. The spec is named after it, and describes it. */
+export const PACKAGE_NAME = packageName;
+
 export const OPENAPI_SPEC_DIR = path.join(repoRoot, "docs/reference/api");
 
 export const OPENAPI_SPEC_FILE = path.join(

@@ -2,6 +2,7 @@ import { execFileSync } from "child_process";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { withTestEnv } from "@/tests/env-test-utils.js";
 
 /**
  * SaaS-readiness caveat C1 (audit-2026-09-29 § 5): a fresh fork's `npm test` failed because
@@ -289,6 +290,102 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
         "A  docs/reference/api/my-app-openapi.json",
       );
       expect(git(dir, "diff", "--stat", "docs/reference/api")).toBe("");
+      // What is staged is the rewritten spec, not the upstream one under a new name.
+      expect(
+        git(dir, "show", ":docs/reference/api/my-app-openapi.json"),
+      ).toContain('"title": "My App API"');
     });
   });
+
+  // The app title-cases a name by splitting on "-", so an empty part would put
+  // a stray space in the API title that the script's rewrite does not. Such a
+  // name is refused before anything is renamed.
+  it.each(["app-", "a--b", "app--backend", "-app", "App", "my_app"])(
+    "refuses the name %s",
+    (name) => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bootstrap-fork-"));
+      dirs.push(dir);
+      for (const file of FIXTURE_FILES) {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+        fs.copyFileSync(path.join(ROOT, file), path.join(dir, file));
+      }
+
+      expect(() => run(dir, name)).toThrow(/--name must match/);
+      expect(
+        JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf-8"))
+          .name,
+      ).toBe("lakira-backend");
+    },
+  );
+
+  // Audit 2026-10-05, T2 (kit fork-openapi-gate, D-04). The spec's title and
+  // cookie name are derived from the app's name, and a fork's spec kept the
+  // upstream's. Bootstrap cannot run the generator (it runs before npm install),
+  // so it rewrites those strings itself, and has to derive them exactly as
+  // src/config/app-name.ts does. The names here are the ones where the script's
+  // own short name ("acme") and the app's ("acme-api") differ, or agree.
+  describe.each(["my-app", "acme-api", "shop-backend"])(
+    "the spec's content for %s",
+    (name) => {
+      const specPath = `docs/reference/api/${name}-openapi.json`;
+      let dir: string;
+      let raw: string;
+      let derived: { short: string; display: string };
+
+      beforeAll(async () => {
+        dir = bootstrap(name);
+        dirs.push(dir);
+        raw = fs.readFileSync(path.join(dir, specPath), "utf-8");
+        await withTestEnv(
+          async () => {
+            await jest.isolateModulesAsync(async () => {
+              const appName = await import("@/config/app-name.js");
+              derived = {
+                short: appName.APP_SHORT_NAME,
+                display: appName.APP_DISPLAY_NAME,
+              };
+            });
+          },
+          { overrides: { APP_NAME: name } },
+        );
+      });
+
+      it("carries the title and description the app derives from that name", () => {
+        const spec = JSON.parse(raw) as {
+          info: { title: string; description: string };
+        };
+
+        expect(spec.info.title).toBe(`${derived.display} API`);
+        expect(spec.info.description).toBe(
+          `API documentation for the ${derived.display} application.`,
+        );
+      });
+
+      it("names the refresh cookie the server sets, in both places", () => {
+        expect(raw.split(`\`${derived.short}_refresh\``)).toHaveLength(2);
+        expect(raw.split(`"name": "${derived.short}_refresh"`)).toHaveLength(2);
+      });
+
+      it("keeps nothing of the upstream's name", () => {
+        expect(raw).not.toMatch(/lakira/i);
+      });
+
+      it("is still valid JSON with every path the upstream spec has", () => {
+        const upstream = fs.readFileSync(
+          path.join(ROOT, "docs/reference/api/lakira-backend-openapi.json"),
+          "utf-8",
+        );
+
+        expect(Object.keys(JSON.parse(raw).paths)).toEqual(
+          Object.keys(JSON.parse(upstream).paths),
+        );
+      });
+
+      it("is left alone by a second run", () => {
+        run(dir, name);
+
+        expect(fs.readFileSync(path.join(dir, specPath), "utf-8")).toBe(raw);
+      });
+    },
+  );
 });

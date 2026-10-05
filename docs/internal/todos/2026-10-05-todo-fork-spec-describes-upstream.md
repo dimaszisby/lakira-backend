@@ -1,6 +1,10 @@
 # Todo — a fork's OpenAPI spec describes the upstream
 
-- **Status:** Open (P2)
+- **Status:** Fixed (Micro; kit
+  [`fork-openapi-gate`](../initiatives/fork-openapi-gate/decisions.md) D-04; commits carry
+  `refs: fork-spec-describes-upstream`). The generator takes the name from the package, and
+  bootstrap rewrites the spec it renames. T2 stays open in the audit until a dated run confirms it
+  (ADR-002), and that run decides caveat C2's grade
 - **Created:** 2026-10-05
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-10-05.md` § 6, T2; kit
@@ -21,7 +25,10 @@ built. The gate passes for the same reason. With `APP_NAME=acme-api` exported in
 `npm run docs:openapi:check` exits 1 with a diff on the title, the description and the cookie
 name. No workflow sets `APP_NAME` today.
 
-`docs/reference/api/README.md:8,18` also keeps the upstream spec name and link after the rename.
+~~`docs/reference/api/README.md:8,18` also keeps the upstream spec name and link after the rename.~~
+**Corrected 2026-10-05: this was wrong.** Bootstrap renames that README. The auditor had reverted
+it on the scratch fork with a `git checkout` and read the reverted file as a finding (kit
+`fork-openapi-gate` D-04).
 
 ## Suggested fix
 

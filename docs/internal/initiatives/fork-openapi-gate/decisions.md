@@ -87,3 +87,55 @@ name and says so. Refusing was rejected: a fork's `Fork Smoke` calls the script 
 fixed `--name my-app` whatever the fork is called, and has to succeed. The package name is also read
 from the script's own repository, not the working directory, and asking the template to take its
 own name is treated as nothing to rename, so it cannot prune `docs/internal` upstream.
+
+## D-04 — The committed spec describes the package: its title and cookie name follow the package name
+
+- **Status:** Accepted
+- **Date:** 2026-10-05
+- **Size:** Micro — single commit, logged here because it extends D-01. Audit finding T2 (P2) of
+  the dated run of 2026-10-05. Commits carry `refs: fork-spec-describes-upstream`.
+
+**Context.** D-01 made the spec's filename follow the package name. Its content did not. The title,
+the description and the refresh cookie's name are built from `APP_NAME` in
+`src/config/app-name.ts`, and `scripts/generate-openapi.ts` imports the logger first, which
+evaluates that module before any `.env` is loaded. So the generator saw the default name unless
+the shell exported one. On a fork bootstrapped as `acme-api` the spec said "Lakira API" and
+documented a `lakira_refresh` cookie while the server set `acme-api_refresh`, and the gate passed
+only by that import order: with `APP_NAME=acme-api` exported it exited 1 (both reproduced in the
+audit).
+**Decision.** The committed spec is a build artifact of the package. The generator sets `APP_NAME`
+to the package name before anything reads it (`scripts/openapi-app-name.js`, its first import),
+whatever the shell or `.env` says. `bootstrap-fork.sh`, which renames the package, rewrites the
+three name-derived strings in the spec it has just renamed, because it runs before `npm install`
+and cannot run the generator, and the fork's gate compares the generator's output with the staged
+file. It derives the names as `app-name.ts` does, stripping only a trailing `-backend`; the
+script's own short name also strips `-api` and would write "Acme" where the app says "Acme Api".
+The spec the server serves at `/api/v1/docs/openapi.json` is not touched: it is built at runtime
+from the runtime `APP_NAME`.
+**Options considered.** Load `.env` in the generator, so the spec follows `APP_NAME`: rejected, the
+gate would depend on a gitignored file, a developer's local `APP_NAME` would show as drift, and
+CI, which has no `.env`, would generate something else. Stop deriving the title and the cookie
+name from `APP_NAME`: rejected, the cookie's name is a runtime fact, and fixing it to one string
+logs every upstream user out once and changes the spec lakira-frontend syncs. Leave the file and
+tell the forker to regenerate and commit: rejected, their first push fails CI, which is S2 again.
+Have bootstrap run the generator: not possible, it runs before dependencies are installed.
+**Consequences.** Upstream the package is `lakira-backend`, so the spec is byte-identical and
+lakira-frontend has nothing to do. The name derivation now exists in two languages; a unit test
+compares what bootstrap writes with what `app-name.ts` derives for three names, and `Fork Smoke`
+runs the gate on a bootstrapped tree, so a fourth name-derived string added to the spec without
+teaching bootstrap about it fails that job. A deployment that sets `APP_NAME` to something other
+than the package name serves a correct spec and commits one that describes the package.
+
+**Revised in review (2026-10-05).** The script accepted names with a trailing or doubled hyphen
+(`app-`, `a--b`). `app-name.ts` title-cases by splitting on `-`, so an empty part becomes a stray
+space in the title ("App API"), which the script's own loop skips; that fork's gate would have
+failed. `--name` must now match `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`. Changing the script's loop to
+reproduce the stray space was rejected: the name is wrong, not the loop. The first draft of the
+`Fork Smoke` step also used a bare `! grep`, which `set -e` does not act on; it is an `if` now.
+
+**A correction to `audit-2026-10-05.md`.** That audit's § 5 ("A stale link") and the second half
+of its T8 say a fork's `docs/reference/api/README.md` keeps the upstream spec name. It does not.
+On the scratch fork the auditor had run `git checkout -- docs/reference/api` to undo a spec diff,
+which also reverted bootstrap's edit to that README, and the reverted file was then read as a
+finding. The two scratch forks that were not touched have it renamed. Dated audits are immutable
+(ADR-002), so the correction is recorded here and in `FINAL-AUDIT-SUMMARY.md`.

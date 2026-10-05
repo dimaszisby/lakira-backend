@@ -81,6 +81,7 @@ Also green, and run by CI: `build`, `docs:openapi:check`, `security:delta:gate`,
    `lakira_refresh` cookie while the fork's server sets `<name>_refresh`; the gate passes only
    while `APP_NAME` is not exported.
    [Todo](docs/internal/todos/2026-10-05-todo-fork-spec-describes-upstream.md).
+   Fixed in kit `fork-openapi-gate` (D-04), pending a dated audit run to confirm it (ADR-002).
 3. **S9 · Security (P2)** — the readiness probe is unthrottled and checks the database on every
    call. [Todo](docs/internal/todos/2026-10-03-todo-readiness-probe-unthrottled.md).
 4. **S10 · Forkability (P2)** — bootstrap rotates `JWT_SECRET` only, and Compose publishes the

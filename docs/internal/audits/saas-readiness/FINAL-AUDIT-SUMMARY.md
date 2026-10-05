@@ -292,6 +292,22 @@ The same race of twelve registrations now logs eleven `Client error 409` lines w
 no hash. The C6 row above stays "Open" until a dated run confirms it (ADR-002), graded by an agent
 and not by the session that wrote the fix. **Next: the dated run.**
 
+**T2 — fix landed, not yet re-audited (2026-10-05).** The committed spec now describes the package:
+the generator takes the app's name from `package.json`, and `bootstrap-fork.sh` rewrites the title
+and cookie name in the spec it renames
+([`fork-openapi-gate` D-04](../../initiatives/fork-openapi-gate/decisions.md)). On a fresh fork
+named `acme-api` the spec is titled "Acme Api API", the gate exits 0 whatever `APP_NAME` the shell
+exports, and the cookie the server sets is the cookie the spec names. Upstream the spec is
+byte-identical. T2 stays open until a dated run confirms it (ADR-002); that run also grades C2,
+whose residual this was.
+
+**Correction to `audit-2026-10-05.md` (recorded 2026-10-05).** That audit's § 5 "A stale link" and
+the second half of its T8 say a fork's `docs/reference/api/README.md` keeps the upstream spec
+name. It does not: bootstrap renames it. The auditor had run `git checkout -- docs/reference/api`
+on the scratch fork to undo a spec diff, which also reverted bootstrap's edit to that README, and
+read the reverted file as a finding. Two untouched scratch forks, and a fresh one, have it renamed.
+The dated file is immutable (ADR-002) and is left as written; this note is the correction.
+
 > **Fix-status convention:** flip `Open` → `Fixed (<commit SHA>)` as each lands; a caveat closed
 > by decision rather than code cites the decision entry instead of a SHA. (Written with emoji
 > markers until 2026-09-24.) When all six are closed, the verdict can be re-stated as **GOLD** and

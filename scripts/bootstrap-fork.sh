@@ -60,8 +60,11 @@ fi
 
 # Reject anything that isn't a safe slug. Prevents sed-delimiter injection
 # (e.g. names containing '/' or '|') and downstream shell-quoting hazards.
-if ! [[ "$NEW_NAME" =~ ^[a-z][a-z0-9-]*$ ]]; then
-  echo "Error: --name must match ^[a-z][a-z0-9-]*$ (lowercase letters, digits, hyphens; must start with a letter)." >&2
+# No trailing or doubled hyphen: src/config/app-name.ts title-cases the name by
+# splitting on "-", and an empty part there becomes a stray space in the API
+# title, which the rewrite of the spec in step 1b would not reproduce.
+if ! [[ "$NEW_NAME" =~ ^[a-z][a-z0-9]*(-[a-z0-9]+)*$ ]]; then
+  echo "Error: --name must match ^[a-z][a-z0-9]*(-[a-z0-9]+)*$ (lowercase letters, digits, single hyphens between them; must start with a letter)." >&2
   echo "Got: '$NEW_NAME'" >&2
   exit 1
 fi
@@ -139,6 +142,21 @@ for _p in "${_PARTS[@]}"; do
 done
 DISPLAY_NAME="${DISPLAY_NAME% }"
 
+# The names the application derives from APP_NAME (src/config/app-name.ts): it
+# strips only a trailing "-backend", where SHORT_NAME above also strips "-api".
+# For "acme-api" the app sets an "acme-api_refresh" cookie and titles its API
+# "Acme Api", so the generated OpenAPI spec says the same, and step 1b has to
+# write exactly that (audit 2026-10-05, T2).
+APP_SHORT_NAME="${NEW_NAME%-backend}"
+APP_DISPLAY_NAME=""
+IFS='-' read -ra _PARTS <<< "$APP_SHORT_NAME"
+for _p in "${_PARTS[@]}"; do
+  [[ -z "$_p" ]] && continue
+  _head="$(printf '%s' "${_p:0:1}" | tr '[:lower:]' '[:upper:]')"
+  APP_DISPLAY_NAME+="${_head}${_p:1} "
+done
+APP_DISPLAY_NAME="${APP_DISPLAY_NAME% }"
+
 OLD_SPEC="docs/reference/api/$TEMPLATE_NAME-openapi.json"
 NEW_SPEC="docs/reference/api/$NEW_NAME-openapi.json"
 
@@ -185,6 +203,19 @@ if [[ -f "$REPO_ROOT/$OLD_SPEC" ]]; then
     mv "$REPO_ROOT/$OLD_SPEC" "$REPO_ROOT/$NEW_SPEC"
   fi
   echo "Renamed the OpenAPI spec to $NEW_SPEC"
+
+  # The spec's title, description and refresh-cookie name are derived from the
+  # app's name, and the generator now takes that name from package.json. This
+  # script runs before `npm install` and cannot run the generator, so it rewrites
+  # those strings itself; the fork's docs:openapi:check then finds no difference.
+  # Staged when the file is tracked, because that check compares with the index.
+  do_sed "s/\"title\": \"Lakira API\"/\"title\": \"$APP_DISPLAY_NAME API\"/" "$REPO_ROOT/$NEW_SPEC"
+  do_sed "s/for the Lakira application\./for the $APP_DISPLAY_NAME application./" "$REPO_ROOT/$NEW_SPEC"
+  do_sed "s/lakira_refresh/${APP_SHORT_NAME}_refresh/g" "$REPO_ROOT/$NEW_SPEC"
+  if git -C "$REPO_ROOT" ls-files --error-unmatch "$NEW_SPEC" >/dev/null 2>&1; then
+    git -C "$REPO_ROOT" add "$NEW_SPEC"
+  fi
+  echo "Rewrote the spec's title and cookie name for '$NEW_NAME'"
 fi
 
 # The docs and the Claude hook that name the file. docs/internal is pruned in
