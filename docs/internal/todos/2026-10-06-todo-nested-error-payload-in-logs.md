@@ -1,6 +1,13 @@
 # Todo — an error nested in log metadata is still written with its payload
 
-- **Status:** Open (P3). Keeps caveat C6 open, and so blocks a clean GOLD
+- **Status:** Fixed (Micro; kit
+  [`log-redaction-coverage`](../initiatives/log-redaction-coverage/decisions.md) D-07, which amends
+  [ADR-0059](../../explanation/decisions/adr-0059-an-error-passed-to-the-logger-is-reduced-to-an-allowlist.md);
+  commits carry `refs: nested-error-payload-in-logs`). The fix sanitises every argument before the
+  message is formatted and drops what lies below the depth limit, so it also covers a sensitive
+  key behind a token. Not yet confirmed by a dated run. The review of the fix kept C6 open on a
+  different route:
+  [`2026-10-06-todo-cache-key-in-log-message.md`](2026-10-06-todo-cache-key-in-log-message.md)
 - **Created:** 2026-10-06
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-10-05-b.md` § 6, U1; kit

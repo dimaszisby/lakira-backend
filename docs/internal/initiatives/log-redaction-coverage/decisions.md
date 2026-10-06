@@ -198,3 +198,56 @@ Redis for the hour of the window; that is not a log line and is filed as
 
 Promoted to the architecture decision registry as **[ADR-0059](../../../explanation/decisions/adr-0059-an-error-passed-to-the-logger-is-reduced-to-an-allowlist.md)**.
 That file is authoritative; this entry is a pointer.
+
+---
+
+## D-07 — Everything a log call is given is sanitised before any step that can print it
+
+- **Status:** Accepted
+- **Date:** 2026-10-06
+- **Size:** Micro — single commit, no separate kit. Audit finding U1 (P3), which kept caveat C6
+  open in the second dated run of 2026-10-05. Commits carry `refs: nested-error-payload-in-logs`.
+
+**Context.** ADR-0059 (D-06) reduces an error only when it is a top-level argument of a log call.
+The dated run reproduced four shapes that still wrote a database error's SQL, the email address and
+the password hash: an error inside a metadata object or an array, formatted by a `%j` or `%o`
+token, and an error five levels deep. There are two causes. `splat()` prints an argument whole
+through a token before key redaction runs, and `redactObject` returns an object at depth 5 as it
+is. Read against the whole of C6, the same two causes leak more than errors:
+`logger.info("x %j", { password })` writes the password into the message text, because with a
+token in the message Winston does not copy the metadata onto the record and key redaction never
+sees it; and a sensitive key five levels deep is written unredacted. Twice now a fix has closed its
+reproduction and a grader has kept C6 open on what the fix did not reach.
+
+**Decision.** The fix is aimed at the two causes and not at the four shapes.
+
+1. The format at the front of the chain sanitises every argument of the call, and every value
+   Winston has already copied onto the record, before `splat()` runs: errors are reduced to their
+   allowlisted view wherever they sit, and sensitive keys are masked. It writes copies; the
+   caller's objects are not changed.
+2. `redactObject` fails closed at its depth limit. An object or an array at depth 5 is replaced by
+   the string `[Truncated]` and not passed through.
+3. The redaction step at the end of the chain stays, as a second pass over anything a later step
+   adds.
+
+**Options considered.**
+
+- _Walk the arguments to any depth and replace only errors, with a visited set against cycles_ (the
+  todo's suggestion). Rejected: it closes the four shapes and leaves a sensitive key behind a token
+  or below the depth limit, which is C6's own text. An unbounded walk also has an unbounded cost on
+  a log call, where a bounded one that drops what it does not reach has neither problem, and the
+  depth bound already bounds a cycle.
+- _Raise the depth limit._ Rejected: any limit that passes the remainder through has the same gap
+  one level further down.
+- _Move `splat()` behind the redaction step._ Rejected: redaction works on the record's keys, and
+  with a token in the message the metadata is not on the record until `splat()` has run.
+- _Forbid format tokens in log messages, by lint._ Rejected as the mechanism for the same reason
+  ADR-0059 rejected a lint rule: a message can carry a token the caller never wrote.
+
+**Consequences.** A value nested deeper than five levels is no longer logged, nor sent to Sentry in
+`extra`, `contexts` or request data, since the scrubber shares `redactObject`; no call in `src/`
+logs metadata that deep. Each log call copies its metadata once more. ADR-0059 is corrected in the
+same change: its sentence that nothing after the first format holds an error object was not true as
+merged. This amends that record and takes no new number; the boundary and the mechanism are the
+same, and the reach is wider. Message text is still not scanned, and a plain object carrying `sql`
+or `parameters` keys is still metadata that no term matches.

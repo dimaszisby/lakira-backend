@@ -9,6 +9,11 @@
   `.claude/rules/security.md` § Sensitive Data Handling
 - **Origin:** `D-06` in the log-redaction-coverage kit —
   [`log-redaction-coverage`](../../internal/initiatives/log-redaction-coverage/decisions.md)
+- **Amended:** 2026-10-06, by `D-07` in the same kit (audit finding U1). As merged, this record
+  said that nothing after the first format holds an error object. That was not true: an error
+  inside a metadata object or an array was still printed whole through a format token, and an
+  object five levels deep was passed through. Decision items 1, 4, 5 and 6 and two consequences
+  are corrected below to say what the code does; item 8 is new. The rest is as written.
 
 ---
 
@@ -39,27 +44,38 @@ Review of a first fix found two more ways the same payload gets out, both confir
 
 ## Decision
 
-1. **The logger reduces every error it is given, before any other step runs.** A format at the
-   front of the chain in `src/utils/logger.ts` replaces each `Error` among a log call's arguments
-   with an allowlisted view, and removes from the record every key the original error contributed.
-   It handles all three call shapes: an error beside a message, an error as the only argument, and
-   an error as the `message` of a log entry. Nothing after it holds an error object, so nothing
-   after it can copy or print one.
+1. **The logger sanitises everything it is given, before any other step runs.** A format at the
+   front of the chain in `src/utils/logger.ts` replaces every argument of a log call, and every
+   value Winston has already copied onto the record, with a sanitised copy: an `Error` is reduced
+   to an allowlisted view wherever it sits (as an argument, or inside an object, an array or a
+   class instance), and a sensitive key is masked. For an error passed as an argument it also
+   removes from the record the enumerable keys that error contributed. It handles an error beside
+   a message, an error as the only argument, an error as the `message` of a log entry, and the
+   `splat` of a log entry. No later step holds an `Error` instance or an unmasked sensitive key
+   that came from the call, so `splat()` has nothing of the kind to print through a token.
 2. **The allowlist is ten scalar fields**: `name`, `code`, `errno`, `syscall`, `status`,
    `statusCode`, `expose`, `type`, `kind`, `isOperational`. A field is kept only if it is on the
    list and its value is a string, number or boolean.
 3. **A database error also keeps `db: { code, constraint, table, column }`**, taken from the
    driver error it wraps. These are the SQLSTATE and schema names. `detail`, which quotes the
    offending values, is never kept.
-4. **`message` and `stack` are untouched.**
-5. **An error inside a metadata object is reduced the same way**, by `redactObject`, which the
-   Sentry scrubber also uses.
-6. **The record's own fields win.** An error that owns a key named `level`, `message`, `stack`,
-   `service` or `release` does not replace the record's, and a metadata key passed beside an error
-   keeps its value when the error owns a key of the same name.
+4. **`message` and `stack` are not scanned or shortened.** An error passed as an argument keeps
+   both on the record, as Winston puts them there. An error nested in metadata keeps its `message`
+   and not its `stack`.
+5. **An error inside a metadata object is reduced by `redactObject`**, which the Sentry scrubber
+   also uses: the same allowlist, plus the error's `message`. This happens before `splat()` runs,
+   and again at the end of the chain.
+6. **The record's own fields win over an error's.** An error that owns a key named `level`,
+   `message`, `stack`, `service` or `release` does not replace the record's, and a metadata key
+   passed beside an error keeps its value when the error owns a key of the same name. Metadata
+   passed by the caller is not held to this: a `message` key in a metadata object is the caller's
+   own choice, as it is in Winston.
 7. **A duplicate is logged as a client error.** The error middleware logs a
    `UniqueConstraintError` at `warn`, as `Client error 409: Duplicate value`, with no object. The
    409 response is unchanged.
+8. **The walk fails closed at its depth limit.** An object or an array five levels down is
+   replaced by the string `[Truncated]`, not passed through: what has not been walked cannot be
+   vouched for. The limit also bounds a cycle.
 
 ## Options considered
 
@@ -91,11 +107,20 @@ Review of a first fix found two more ways the same payload gets out, both confir
   Postgres quotes a submitted value in a few (`invalid input syntax for type uuid: "…"`). A
   body-parser message quotes the first characters of a malformed body. This residual is accepted:
   the message is what makes the line usable, and the values it can quote are short.
-- **A plain object is not an error.** A rejection reason or a `cause` that is a plain object is
-  redacted by key like any metadata, and an object nested five levels deep is passed through as
-  before. Neither is new, and neither carries an ORM payload today.
+- **A plain object is not an error.** A rejection reason or a `cause` that is a plain object, or
+  an error from another realm that is not an `instanceof Error`, is redacted by key like any
+  metadata. That is not new, and no ORM payload arrives that way today.
+- **Deep metadata is dropped.** A value nested deeper than five levels is written as
+  `[Truncated]`, in the log and in what the Sentry scrubber passes on. No call in `src/` logs
+  metadata that deep.
+- **An object passed as the whole log entry is changed in place.** `logger.info(obj)` makes the
+  caller's object the record, in Winston itself, so masking a key masks it on that object. A
+  metadata object passed beside a message is copied and left as it was. No call in `src/` passes
+  an object as the entry.
 - **The safety is tests on the real logger.** `__tests__/unit/utils/logger-error-payload.test.ts`
   logs real Sequelize error classes through the real format chain and reads the line: each call
   shape, each of four format tokens, a body-parser error with a raw body, an error that owns the
-  record's key names. It fails if the format is removed or moved behind `splat()`.
+  record's key names, an error nested in an object, an array, a class instance and a `cause`, a
+  sensitive key behind a token, and metadata at the depth limit. It fails if the format is removed
+  or moved behind `splat()`.
 - **Revert-safe.** No migration, no stored data, no change to any response.

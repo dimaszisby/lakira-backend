@@ -133,6 +133,9 @@ printf '%s' 'someone@example.com' | shasum -a 256
 An error line carries the message, the stack, and a short allowlist of the error's own fields:
 `name`, `code`, `statusCode` and similar scalars
 ([ADR-0059](../../explanation/decisions/adr-0059-an-error-passed-to-the-logger-is-reduced-to-an-allowlist.md)).
+An error nested in metadata, such as `err` on a background-task line, shows the same fields and its
+message, without a stack. A value of `[Truncated]` means the metadata was nested deeper than five
+levels and the rest was dropped, not that it was empty.
 A database error adds `db`, with the SQLSTATE in `db.code` and the schema names in `db.constraint`,
 `db.table` and `db.column`. That is where to look for which constraint or table failed. The SQL
 text, the bound values and the driver's `detail` are never written, so a line will not show you the
