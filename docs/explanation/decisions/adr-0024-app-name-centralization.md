@@ -9,6 +9,11 @@
 > Evidence: `src/config/app-name.ts` exports `APP_NAME` (default `"lakira-backend"`) and every
 > runtime reference imports it; `scripts/bootstrap-fork.sh` rewrites the build-time references.
 
+> **Status note (2026-10-07).** The default named in decision item 1 no longer holds. With
+> `APP_NAME` unset the constant is the package's name, not the literal `"lakira-backend"`
+> ([ADR-0060](./adr-0060-the-app-takes-its-name-from-its-package.md)). The rest of this record
+> stands: one constant, imported by every runtime reference.
+
 ---
 
 ## Context

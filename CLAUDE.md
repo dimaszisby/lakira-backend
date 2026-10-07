@@ -46,7 +46,7 @@ Frequently needed:
 
 - `docs/reference/commands.md` — canonical npm scripts (do not keep a second copy elsewhere)
 - `docs/reference/configuration.md` — all 71 env vars
-- `docs/explanation/decisions/` — 59 ADRs, one per file; check **Status** before trusting one
+- `docs/explanation/decisions/` — 60 ADRs, one per file; check **Status** before trusting one
 - `docs/reference/api/lakira-backend-openapi.json` — generated, CI-drift-gated, never hand-edited
 
 `docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` is the live risk status (as of 2026-10-06: GOLD WITH CAVEATS; no open P0 or P1; the fixes for T1 and T2 are confirmed; the graders kept two caveats open: C6 at P3, an error nested in log metadata can still be logged with its bound values through two routes nothing reaches today, and C2 at P2, a fork deployed without `APP_NAME` is branded Lakira, a case the owner accepted by decision on 2026-09-24).

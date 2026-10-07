@@ -112,7 +112,7 @@ This repo is designed to be forked and rebranded. After cloning, run the bootstr
 The script:
 
 - Replaces `lakira-backend` → `my-app` in `package.json`, `package-lock.json`, `.env.example`, and CI workflow files.
-- Derives a short name (`my-app` → removes `-backend` / `-api` suffix) for queue topology and DB name prefixes.
+- Derives a short name (`my-app` → removes `-backend` / `-api` suffix) for DB name prefixes.
 - Rotates `JWT_SECRET` in `.env` via `openssl rand -hex 32`.
 - Sets `APP_NAME=my-app` in `.env`.
 - **Removes `docs/internal/`** — the upstream project's working material (doc kits, audit runs,
@@ -120,7 +120,7 @@ The script:
   Pass `--keep-internal` to retain it.
 - Drops a `FORKED-FROM.md` at the repo root recording the upstream commit SHA.
 
-Runtime branding (API title, email copy, log service name, queue names) is controlled by the `APP_NAME` environment variable — set it in your `.env` file. See `.env.example` for the full list.
+Runtime branding (API title, email copy, log service name, queue names) follows the package name, which the script renames, so a deployed fork needs no variable for it. Set `APP_NAME` only to run under a different name. See `.env.example` for the full list.
 
 Full walkthrough, including what the script _cannot_ reach: [`docs/tutorials/fork-and-rebrand.md`](docs/tutorials/fork-and-rebrand.md).
 

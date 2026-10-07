@@ -213,21 +213,32 @@ like every other URL.
 
 ## Branding
 
-| Variable   | Type   | Default          |
-| ---------- | ------ | ---------------- |
-| `APP_NAME` | string | `lakira-backend` |
+| Variable   | Type   | Default                              |
+| ---------- | ------ | ------------------------------------ |
+| `APP_NAME` | string | the `name` in the app's package.json |
 
 `APP_NAME` drives the API title, the refresh cookie's name, email copy, log service name, and
-queue names, so a fork rebrands by setting one variable. `scripts/bootstrap-fork.sh` sets it for
-you. The one thing it does not drive is the **committed** OpenAPI spec file, which takes the same
-names from the package name so that the drift gate cannot depend on a shell or an `.env`
-(`scripts/openapi-app-name.js`). The spec served at `/api/v1/docs/openapi.json` follows `APP_NAME`.
-Keep the two equal, as the bootstrap script does, or the committed file describes the package and
-not the deployment.
+queue names. You do not have to set it: with the variable unset or blank, the app is named after
+its own package, which `scripts/bootstrap-fork.sh` renames for a fork
+([ADR-0060](../explanation/decisions/adr-0060-the-app-takes-its-name-from-its-package.md)). The
+image carries `package.json`, so a deployed fork is named after the fork with no platform variable.
+Set `APP_NAME` only to run under a different name than the package's; a set value always wins, and
+nothing checks it against the package.
+
+The package it reads is the nearest `package.json` at or above the entry script (`dist/server.js`,
+`dist/worker.js`), or the one in the working directory when there is no entry script outside
+`node_modules`, as under test. With no variable and no package name to read, the app refuses to
+start and the error says where it looked.
+
+The **committed** OpenAPI spec file always takes its names from the package name, whatever the
+variable says, so that the drift gate cannot depend on a shell or an `.env`
+(`scripts/openapi-app-name.js`). The spec served at `/api/v1/docs/openapi.json` follows the runtime
+name. If you set `APP_NAME` to something other than the package name, the served spec and the
+committed file describe different names.
 
 **This is the one variable not in the Zod schema.** `src/config/app-name.ts` reads
-`process.env.APP_NAME` directly, because `logger.ts` imports it at module load — before
-`envManager` has initialised — and routing it through the validated env object would create a
-circular initialisation failure. The bypass is deliberate and commented at the source. Two names
+`process.env.APP_NAME` directly, because `logger.ts` imports it at module load and routing it
+through the validated env object would create a circular initialisation failure. The bypass is
+deliberate and commented at the source. Two names
 are derived from it: `APP_SHORT_NAME` (strips a trailing `-backend`) and `APP_DISPLAY_NAME`
 (title-cased).

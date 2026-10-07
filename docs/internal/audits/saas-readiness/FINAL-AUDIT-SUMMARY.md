@@ -355,6 +355,19 @@ changing that decision is the owner's. Finding U2;
 [todo](../../todos/2026-10-06-todo-fork-deployed-without-app-name.md);
 [`saas-reaudit-2026-10-05-b` D-05](../../initiatives/saas-reaudit-2026-10-05-b/decisions.md).
 
+**C2 — fix landed, not yet re-audited (2026-10-07).** The owner chose to change the default, not to
+reaffirm the decision. With `APP_NAME` unset the app is now named after its own package, which
+bootstrap renames and the image carries
+([ADR-0060](../../../explanation/decisions/adr-0060-the-app-takes-its-name-from-its-package.md); kit
+[`app-name-from-package`](../../initiatives/app-name-from-package/README.md)). On a fork bootstrapped
+as `acme-api`, the production image started with no `APP_NAME` logs `service` as `acme-api`; the run
+that reproduced U2 gave `lakira-backend`. A subagent that was not told what the fix does graded U2
+closed. It kept C2 open-progressed on the first version of the fix, which read `package.json` from
+the working directory alone; the merged version reads the entry script's own package first, and
+that version has not been graded. The C2 row above stays as graded until a dated run (ADR-002).
+What the review left is in
+[this todo](../../todos/2026-10-07-todo-app-name-review-leftovers.md).
+
 > **Fix-status convention:** flip `Open` → `Fixed (<commit SHA>)` as each lands; a caveat closed
 > by decision rather than code cites the decision entry instead of a SHA. (Written with emoji
 > markers until 2026-09-24.) When all six are closed, the verdict can be re-stated as **GOLD** and

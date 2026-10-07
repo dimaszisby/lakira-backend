@@ -1,6 +1,12 @@
 # Todo — a fork deployed without `APP_NAME` is branded as the template
 
-- **Status:** Open (P2). **Needs the owner's decision.** A grader kept caveat C2 open on it
+- **Status:** Fixed. The owner chose the third option below on 2026-10-06, in the form "default to
+  the package name" (Lean kit
+  [`app-name-from-package`](../initiatives/app-name-from-package/README.md);
+  [ADR-0060](../../explanation/decisions/adr-0060-the-app-takes-its-name-from-its-package.md);
+  commits carry `refs: app-name-from-package`). The package is named `lakira-backend` upstream, so
+  the template's own behaviour does not change, which answers the objection recorded under that
+  option. Not yet confirmed by a dated run
 - **Created:** 2026-10-06
 - **Owner:** the repository owner
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-10-05-b.md` § 6, U2; kit
