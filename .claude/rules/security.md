@@ -62,6 +62,9 @@ and limits stop being shared across instances (twelve-factor TF-12).
   `***REDACTED***`. The first five terms match anywhere in the key (so `passwordHash` and
   `set-cookie` are caught); the rest are suffix-anchored. Single source:
   `src/config/sensitive-keys.ts`
+- The logger masks metadata before it formats the message, so a `%j` or `%o` token prints the
+  masked copy. Metadata nested deeper than five levels is written as `[Truncated]`, never passed
+  through (ADR-0059)
 - Sentry events pass through `scrubSentryEvent` (`src/utils/sentry-scrub.ts`) before egress, which
   redacts credential headers, drops cookies, and applies the same pattern to the body, `extra` and
   `contexts`
@@ -72,7 +75,8 @@ and limits stop being shared across instances (twelve-factor TF-12).
   limiter lines carry a user id, an IP, or that hash, and a test trips every limiter to prove it
 - An error may be passed to the logger: it is reduced to an allowlist of its fields before anything
   is written (`name`, `code`, `statusCode` and the like, plus `db.code`, `db.constraint`,
-  `db.table`), so a database error's SQL and bound values never reach the log (ADR-0059). Do not
+  `db.table`), so a database error's SQL and bound values never reach the log (ADR-0059). That
+  holds wherever the error sits: as an argument, or nested in a metadata object or an array. Do not
   attach context to an error to get it logged; pass it by name in a metadata object
 - `EMAIL_PROVIDER=console` logs every email body, tokens included. Startup refuses it unless
   `NODE_ENV` is `development` or `test` (ADR-0049). Email adapters never log the recipient.

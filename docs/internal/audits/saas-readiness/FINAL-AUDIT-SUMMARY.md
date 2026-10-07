@@ -332,6 +332,18 @@ corrected with the fix. Finding U1;
 [todo](../../todos/2026-10-06-todo-nested-error-payload-in-logs.md);
 [`saas-reaudit-2026-10-05-b` D-04](../../initiatives/saas-reaudit-2026-10-05-b/decisions.md).
 
+**C6 — U1 fix landed, not yet re-audited (2026-10-06).** The logger now sanitises every argument of
+a log call, and every value already on the record, before the message is formatted: an error is
+reduced wherever it sits, a sensitive key is masked before a token can print it, and an object at
+the depth limit is written as `[Truncated]` and not passed through
+([`log-redaction-coverage` D-07](../../initiatives/log-redaction-coverage/decisions.md); ADR-0059
+amended). The four shapes of U1 write no address, no hash and no SQL. A subagent that was not told
+what the fix does graded U1 closed and **C6 still open-progressed**, on a route that is not an
+error: the cache middleware writes the cache key, which holds the user's search text, into three
+`info` messages, and message text is never scanned
+([todo](../../todos/2026-10-06-todo-cache-key-in-log-message.md)). The C6 row above stays "Open"
+until a dated run grades it (ADR-002).
+
 **C2 — graded open at P2 (2026-10-06); the owner's decision is in question, not a defect newly
 found.** Put to a grader for the first time since it was closed by decision, C2 was kept open on
 one case: a fork deployed without `APP_NAME` as a platform variable is branded Lakira, because the

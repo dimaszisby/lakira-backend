@@ -232,6 +232,150 @@ describe("logger: an error's payload", () => {
 
     expect(lastRecord().jobId).toBe("j-1");
   });
+
+  // Audit U1, kit log-redaction-coverage D-07. An error that is not a top-level
+  // argument: `splat()` prints an argument whole through a token, and the walk
+  // used to pass an object through at its depth limit.
+  describe("an error that is not a top-level argument", () => {
+    it.each(["%j", "%o", "%O", "%s"])(
+      "is not printed from a metadata object through a %s token",
+      (token) => {
+        logger.error(`task failed ${token}`, { err: databaseError() });
+
+        expectNoPayload();
+      },
+    );
+
+    it.each(["%j", "%o"])(
+      "is not printed from an array through a %s token",
+      (token) => {
+        logger.error(`task failed ${token}`, [databaseError()]);
+
+        expectNoPayload();
+      },
+    );
+
+    it("is not written from five levels down", () => {
+      logger.error("task failed", {
+        a: { b: { c: { d: { e: { err: databaseError() } } } } },
+      });
+
+      expectNoPayload();
+    });
+
+    it("is not written from five levels down through a token", () => {
+      logger.error("task failed %j", {
+        a: { b: { c: { d: { e: { err: databaseError() } } } } },
+      });
+
+      expectNoPayload();
+    });
+
+    it.each(["task failed", "task failed %j"])(
+      "is reduced under a cause key (%s)",
+      (message) => {
+        logger.error(message, { cause: uniqueError() });
+
+        expectNoPayload();
+      },
+    );
+
+    it("is reduced inside a class instance", () => {
+      class Job {
+        constructor(
+          public readonly id: string,
+          public readonly err: Error,
+        ) {}
+      }
+      logger.error("task failed %j", new Job("j-1", databaseError()));
+
+      expectNoPayload();
+      expect(String(lastRecord().message)).toContain("j-1");
+    });
+
+    it("is reduced in the splat of a log entry", () => {
+      logger.log({
+        level: "error",
+        message: "task failed %j",
+        splat: [{ err: databaseError() }],
+      });
+
+      expectNoPayload();
+    });
+
+    it("still says what failed when a token prints it", () => {
+      logger.error("task failed %j", { err: databaseError() });
+
+      const message = String(lastRecord().message);
+      expect(message).toContain("SequelizeDatabaseError");
+      expect(message).toContain("users_email");
+    });
+
+    it("still says what failed as metadata", () => {
+      logger.error("task failed", { err: databaseError() });
+
+      expect(lastRecord().err).toMatchObject({
+        name: "SequelizeDatabaseError",
+        db: { code: "23505", constraint: "users_email", table: "users" },
+      });
+    });
+
+    it("leaves the caller's metadata as it was", () => {
+      const err = databaseError();
+      const meta = { label: "verification-email", err };
+      logger.error("task failed %j", meta);
+
+      expect(meta.err).toBe(err);
+      expect(err.parameters).toEqual(["id-1", EMAIL, HASH]);
+    });
+  });
+
+  describe("metadata formatted by a token", () => {
+    it.each(["%j", "%o", "%O"])(
+      "has its sensitive keys masked before a %s token prints it",
+      (token) => {
+        logger.info(`login attempt ${token}`, {
+          userId: "u-1",
+          password: HASH,
+          accessToken: "tok-123456",
+        });
+
+        const line = lines[lines.length - 1];
+        expect(line).not.toContain(HASH);
+        expect(line).not.toContain("tok-123456");
+        expect(line).toContain("u-1");
+      },
+    );
+  });
+
+  describe("metadata at the depth limit", () => {
+    it.each(["sync finished", "sync finished %j"])(
+      "is dropped, not passed through (%s)",
+      (message) => {
+        logger.info(message, {
+          a: { b: { c: { d: { e: { note: EMAIL, password: HASH } } } } },
+        });
+
+        const line = lines[lines.length - 1];
+        expectNoPayload();
+        expect(line).toContain("[Truncated]");
+      },
+    );
+
+    it("keeps what sits above the limit", () => {
+      logger.info("sync finished", { a: { b: { c: { d: { count: 3 } } } } });
+
+      expect(lastRecord().a).toEqual({ b: { c: { d: { count: 3 } } } });
+    });
+  });
+
+  it("writes a date as a date", () => {
+    logger.info("sync finished", {
+      job: { at: new Date("2026-01-02T03:04:05.000Z") },
+    });
+
+    expect(lastRecord().job).toEqual({ at: "2026-01-02T03:04:05.000Z" });
+  });
 });
 
 describe("redactObject: an error value", () => {

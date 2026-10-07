@@ -90,12 +90,25 @@ export function summarizeError(error: Error): Record<string, unknown> {
   return summary;
 }
 
+// What replaces an object or an array the walk does not descend into.
+const TRUNCATED = "[Truncated]";
+const MAX_DEPTH = 5;
+
+/**
+ * A copy of a value that is safe to write: errors reduced to their allowlisted
+ * view, sensitive keys masked. It fails closed at the depth limit: what it has
+ * not walked it drops, since it cannot vouch for it (log-redaction-coverage
+ * D-07). The limit also bounds a cycle.
+ */
 export function redactObject(obj: unknown, depth: number): unknown {
   if (obj instanceof Error) {
     return { ...summarizeError(obj), message: obj.message };
   }
-  if (depth >= 5 || obj === null || typeof obj !== "object") {
+  if (obj === null || typeof obj !== "object" || obj instanceof Date) {
     return obj;
+  }
+  if (depth >= MAX_DEPTH) {
+    return TRUNCATED;
   }
   if (Array.isArray(obj)) {
     return obj.map((item) => redactObject(item, depth + 1));
@@ -109,6 +122,17 @@ export function redactObject(obj: unknown, depth: number): unknown {
   }
   return result;
 }
+
+// The same, for the record itself: its own keys are depth 0.
+const redactRecord = (record: Record<string, unknown>): void => {
+  for (const key of Object.keys(record)) {
+    if (SENSITIVE_KEY_PATTERN.test(key)) {
+      record[key] = "***REDACTED***";
+    } else if (record[key] !== null && typeof record[key] === "object") {
+      record[key] = redactObject(record[key], 1);
+    }
+  }
+};
 
 const SPLAT = Symbol.for("splat");
 const LEVEL = Symbol.for("level");
@@ -128,13 +152,16 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   !Array.isArray(value) &&
   !(value instanceof Error);
 
-// First in the chain, so that nothing after it ever holds an error object.
-// Winston copies an error's own properties onto the record in `logger.log`,
-// copies them again in `splat()`, and `splat()` prints an argument whole when
-// the message has a `%j`, `%s` or `%o` token, which a message built from client
-// text can have. So this step undoes the first copy and replaces each error
-// among the call's arguments with its allowlisted view; the later steps then
-// only have that view to work with (log-redaction-coverage D-06).
+// First in the chain, so that no later step holds anything a log call was
+// given in the form it was given. Winston copies an error's own properties onto
+// the record in `logger.log`, copies them again in `splat()`, and `splat()`
+// prints an argument whole when the message has a `%j`, `%s` or `%o` token,
+// which a message built from client text can have. A token also keeps metadata
+// off the record until `splat()` has run, where key redaction cannot see it.
+// So this step undoes the first copy, and replaces every argument of the call
+// and every value already on the record with a sanitised copy: an error
+// reduced to its allowlisted view wherever it sits, sensitive keys masked,
+// nothing below the depth limit (log-redaction-coverage D-06, D-07).
 const reduceLoggedErrors = format((info) => {
   const record = info as unknown as LogRecord;
 
@@ -157,45 +184,39 @@ const reduceLoggedErrors = format((info) => {
     record.message = error.message;
     record.stack = error.stack;
     Object.assign(record, summarizeError(error));
-    return info;
   }
 
   const args = record[SPLAT];
-  if (!Array.isArray(args) || !args.some((arg) => arg instanceof Error)) {
-    return info;
-  }
-  for (const arg of args) {
-    if (!(arg instanceof Error)) continue;
-    for (const key of Object.keys(arg)) {
-      if (!RECORD_FIELDS.has(key)) delete record[key];
+  if (Array.isArray(args)) {
+    const hasError = args.some((arg) => arg instanceof Error);
+    for (const arg of args) {
+      if (!(arg instanceof Error)) continue;
+      for (const key of Object.keys(arg)) {
+        if (!RECORD_FIELDS.has(key)) delete record[key];
+      }
     }
+    const reduced = args.map((arg) =>
+      arg instanceof Error ? summarizeError(arg) : redactObject(arg, 0),
+    );
+    if (hasError) {
+      // The copy may have replaced the logger's own defaults, or metadata
+      // passed beside the error; put both back, then each error's view.
+      record.service = APP_NAME;
+      record.release = release;
+      for (const arg of reduced) {
+        if (isPlainObject(arg)) Object.assign(record, arg);
+      }
+    }
+    record[SPLAT] = reduced;
   }
-  // The copy may have replaced the logger's own defaults, or metadata passed
-  // beside the error; put both back, then the allowlisted view of each error.
-  record.service = APP_NAME;
-  record.release = release;
-  const reduced = args.map((arg) =>
-    arg instanceof Error ? summarizeError(arg) : arg,
-  );
-  for (const arg of reduced) {
-    if (isPlainObject(arg)) Object.assign(record, arg);
-  }
-  record[SPLAT] = reduced;
+
+  redactRecord(record as Record<string, unknown>);
   return info;
 });
 
+// Last, over the finished record: what `splat()` and the steps between added.
 const redactSensitive = format((info) => {
-  const infoRecord = info as unknown as Record<string, unknown>;
-  for (const key of Object.keys(infoRecord)) {
-    if (SENSITIVE_KEY_PATTERN.test(key)) {
-      infoRecord[key] = "***REDACTED***";
-    } else if (
-      infoRecord[key] !== null &&
-      typeof infoRecord[key] === "object"
-    ) {
-      infoRecord[key] = redactObject(infoRecord[key], 1);
-    }
-  }
+  redactRecord(info as unknown as Record<string, unknown>);
   return info;
 });
 
