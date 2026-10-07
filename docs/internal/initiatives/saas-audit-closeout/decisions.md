@@ -40,6 +40,12 @@ rebrands the runtime correctly. Leave the `app-name.ts` default as it is.
 it, all six of C1–C6 are closed. The residual stays documented in the C2 note, so a later audit
 that disagrees can reopen it deliberately.
 
+> **Note (2026-10-07).** A later audit did disagree: the second dated run of 2026-10-05 graded C2
+> open on the case this entry accepted. "Leave the `app-name.ts` default as it is" is reversed by
+> [ADR-0060](../../../explanation/decisions/adr-0060-the-app-takes-its-name-from-its-package.md):
+> with `APP_NAME` unset the name is now the package's. The rest of this entry stands, including
+> the rejection of a production refusal.
+
 ## D-02 — ADR-008 decides the condition for a clean GOLD verdict; § 8's wording does not
 
 - **Status:** Accepted

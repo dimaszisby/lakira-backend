@@ -11,7 +11,8 @@
 #      generated OpenAPI spec to <new-name>-openapi.json to match: the spec's
 #      path comes from the package name (scripts/openapi-spec-path.ts).
 #   2. Replaces "lakira" with the derived short name (strip -backend suffix)
-#      in queue-topology references, DB names, and CI DB refs. Database
+#      in DB names and CI DB refs. The running app's queue names come from
+#      src/config/app-name.ts, not from here. Database
 #      identifiers use the short name with hyphens turned into underscores
 #      ("my-app" gives my_app_user), so they stay valid in plain SQL. The test
 #      template and the test-database init SQL are rewritten too, so .env.test

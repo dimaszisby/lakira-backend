@@ -14,6 +14,7 @@
 #   5. In production mode it serves /health and /ready against Postgres (over
 #      TLS, as production connects) and Redis, and redirects plain HTTP.
 #   6. It stops cleanly on SIGTERM.
+#   7. With no APP_NAME it is named after its own package (ADR-0060).
 #
 # It needs only Docker and curl. Postgres and Redis are throwaway containers on
 # a private network; nothing is published except the app, on a random localhost
@@ -217,5 +218,19 @@ exit_code="$(docker inspect -f '{{.State.ExitCode}}' "$APP")"
 [[ "$exit_code" == "0" ]] ||
   fail "6. stops cleanly on SIGTERM" "exit code ${exit_code}"
 pass "6. stops cleanly on SIGTERM (exit 0)"
+
+# ---------------------------------------------------------------------------
+# 7. Named after its own package
+# ---------------------------------------------------------------------------
+# APP_ENV sets no APP_NAME and the image has no .env, which is how a fork is
+# deployed when nobody sets the variable. Every log line carries the name as
+# `service`; the stopped container's log is still readable.
+package_name="$(in_image 'node -p "require(\"./package.json\").name.replace(/^@[^\/]+\//, \"\")"')"
+[[ -n "$package_name" ]] ||
+  fail "7. named after its own package" "the image's package.json has no name"
+app_log="$(docker logs "$APP" 2>&1)"
+grep -qF "\"service\":\"${package_name}\"" <<<"$app_log" ||
+  fail "7. named after its own package" "no log line carries \"service\":\"${package_name}\""
+pass "7. named after its own package with no APP_NAME (service ${package_name})"
 
 echo "[image-smoke] all checks passed for ${IMAGE}"

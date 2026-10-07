@@ -37,29 +37,32 @@ What it does:
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `lakira-backend` → `my-app`      | `package.json`, `package-lock.json`, `.env.example`, CI workflows                                                                                        |
 | Renames the OpenAPI spec         | `docs/reference/api/lakira-backend-openapi.json` → `my-app-openapi.json`, and the docs that name it; the scripts take the filename from the package name |
-| `lakira` → `my-app` (short name) | queue topology, database names, CI database references                                                                                                   |
+| `lakira` → `my-app` (short name) | database names and CI database references                                                                                                                |
 | `lakira_` → `my_app_`            | database users and names in `.env.example`, `.env.test.example` and the test-database init SQL                                                           |
 | Rotates `JWT_SECRET`             | in `.env`, created from `.env.example` if absent                                                                                                         |
-| Sets `APP_NAME=my-app`           | in `.env`                                                                                                                                                |
+| Sets `APP_NAME=my-app`           | in `.env`, for local runs; a deployment does not need it (see below)                                                                                     |
 | Creates `.env.test`              | from the renamed `.env.test.example`, so it logs in as the user Compose creates from `.env`                                                              |
 | Renames an existing `.env`       | if you copied `.env` or `.env.test` from the templates first, their `lakira_` database names are renamed too; nothing else in them is touched            |
 | Removes `docs/internal/`         | the upstream project's working material — pass `--keep-internal` to keep it                                                                              |
 | Writes `FORKED-FROM.md`          | recording `git rev-parse HEAD` (see step 1)                                                                                                              |
 
 The script's short name is the full name minus a trailing `-backend` or `-api`, so
-`my-app-backend` becomes `my-app`, and it is used for queue names. Database users and names use the
-short name with hyphens turned into underscores (`my_app_user`, `my_app_test_db`), because the
-test database is created by plain SQL, where a hyphen is a syntax error. At runtime,
-`src/config/app-name.ts` derives its own short and display names from `APP_NAME`, and strips only
-`-backend`: a name ending in `-api` keeps the suffix there (`my-app-api` → `My App Api`). Prefer a
-`-backend` name if the two should agree.
+`my-app-backend` becomes `my-app`. Database users and names use it with hyphens turned into
+underscores (`my_app_user`, `my_app_test_db`), because the test database is created by plain SQL,
+where a hyphen is a syntax error. The running app does not use the script's short name. It takes
+its name from `APP_NAME`, or from the package name when that is unset, and
+`src/config/app-name.ts` derives its own short and display names from it, stripping only
+`-backend`: a name ending in `-api` keeps the suffix there (`my-app-api` → `My App Api`), in the
+cookie's name and the queue names too. Prefer a `-backend` name if the two should agree.
 
 ## 3. Check what it could not reach
 
 The script covers file contents. These are yours:
 
-- **`.env` and `.env.test` are the only env files it writes.** Set `APP_NAME` and a fresh
-  `JWT_SECRET` in every deployed environment (staging, production) yourself.
+- **`.env` and `.env.test` are the only env files it writes.** Set a fresh `JWT_SECRET` in every
+  deployed environment (staging, production) yourself. `APP_NAME` is optional there: a deployment
+  with no `APP_NAME` is named after your package, which the script has renamed. If you do set it,
+  set it to your own name, since a set value wins.
 - **`LICENSE`** still names the original author.
 - **`README.md`** still describes Lakira's domain — metrics, logs, categories.
 - **The domain model itself.** `metrics`, `metric_logs`, `metric_categories`, and
@@ -93,12 +96,12 @@ The script removed `docs/internal/`, which held the upstream SaaS-readiness audi
 assessment of this template. To read it, re-run step 2 with `--keep-internal` on a fresh copy, or
 read it in the upstream repository; its live status is
 `docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of 2026-10-06 it lists
-**no open P0 or P1 findings**. Two of its six caveats are open. C6 (log redaction, P3): an error
-object nested inside log metadata can be written with its SQL and bound values, though no call in
-the template does that today, so do not pass `{ err }` to a log call whose message has a `%j` or
-`%o` token. C2 (branding, P2): the template's name is the default, so a deployed fork that does not
-set `APP_NAME` as a platform variable names its cookie, its emails and its logs after the template;
-set it, as the list above says. One more thing a fork should know: the bootstrap script rotates
+**no open P0 or P1 findings**. Two of its six caveats were open at that date, and both have had a
+fix merged since that no dated audit has yet confirmed. C6 (log redaction, P3): the logger now
+reduces an error wherever it sits in a log call's arguments; what the review of that fix left open
+is that the cache middleware writes the cache key, search text included, into three log messages.
+C2 (branding, P2): a deployed fork with no `APP_NAME` used to be named after the template, and is
+now named after its own package. One more thing a fork should know: the bootstrap script rotates
 `JWT_SECRET` only, not the database, Redis or RabbitMQ credentials. Other open findings are P2/P3 hardening (for example request-id propagation across RabbitMQ, and an unbounded
 date range on `/metric-logs/stats`).
 
