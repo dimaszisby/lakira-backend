@@ -75,3 +75,42 @@ crosses three majors under the ORM, for a bounds check in code paths we do not c
 override. `--force` is a destructive downgrade. Both rejected.
 
 **Consequences.** Three moderates remain (two in production); the CI gate passes on them.
+
+---
+
+## D-05 — Take the `proxy-addr` patch through the lockfile, alone
+
+- **Status:** Accepted
+- **Date:** 2026-10-06
+- **Size:** Micro — single commit, no separate kit. Commits carry
+  `refs: proxy-addr-ip-spoofing-advisory`.
+
+**Context.** GHSA-jqcg-44mw-7w3h (CVE-2026-90711, critical) was published on 2026-10-05 against
+`proxy-addr` 1.1.0 to 2.0.7. The lockfile holds 2.0.7, as a dependency of `express@4.22.3`. From
+the next run, `Security Delta Checks` blocked on `AUTO-NPM-proxy-addr`: on `dev` at `8c1948c`, and
+on every PR, where `Unit & Integration Tests` and `contract_local` depend on that job and were
+skipped. The flaw is in how a trust **subnet** written as an IPv4-mapped IPv6 address with a short
+prefix is compiled: it matches every IPv4 address, so any client is trusted as a proxy and `req.ip`
+becomes whatever `X-Forwarded-For` says. This application sets `trust proxy` to a hop count
+(`src/server.ts:106`, `TRUST_PROXY ?? 1`) and never to a subnet, so it is not exposed. The gate is
+right to block regardless: the policy gives a critical in a runtime dependency 72 hours, and
+exposure is one configuration change away.
+
+**Decision.** Move `proxy-addr` to 2.0.8 in `package-lock.json` and nothing else. `express`
+declares `~2.0.7`, so the patched release is inside the range and `package.json` does not change.
+
+**Options considered.**
+
+- _`npm audit fix`._ Rejected for this change: it would also move `moment`, `axios`,
+  `brace-expansion` and `fast-uri`, and a change whose purpose is to unblock every other PR should
+  be a diff that can be read whole. Those findings do not trip the gate and are filed as
+  `docs/internal/todos/2026-10-06-todo-npm-audit-findings-october.md`.
+- _An `overrides` pin._ Rejected: the range already admits the fix, and the dependency policy keeps
+  overrides for cases where it does not.
+- _An accepted exception, on the ground that the application is not exposed._ Rejected: a fix
+  exists and costs one lockfile entry, and an exception would have to be revisited whenever
+  `TRUST_PROXY` handling changes.
+
+**Consequences.** No ADR: no dependency is added or removed and no declared range changes, the same
+ground this kit recorded for #120. `req.ip` is computed by this package and every rate limiter keys
+on it, so the image smoke and the full test gate run with the change.
