@@ -27,7 +27,7 @@ Outside development every line is one JSON object:
 ```json
 {
   "level": "info",
-  "message": "[CACHE PROCESS] Cache HIT: viz:org-1:user-9:metric-2:1d:pXpV",
+  "message": "[CACHE] hit cursor:metrics:v3#107e70e049e5",
   "requestId": "3f7c1e88-0f9d-4a2e-9a1e-2b6c4d5e6f70",
   "service": "lakira-backend",
   "timestamp": "2026-08-23T15:41:28.324Z"
@@ -142,6 +142,19 @@ text, the bound values and the driver's `detail` are never written, so a line wi
 row that failed; reproduce with `DB_LOGGING=true` and `LOG_LEVEL=debug` locally if you need the
 statement. A duplicate that the database rejects is a `warn` line reading
 `Client error 409: Duplicate value`.
+
+### Cache and validation lines
+
+A cache line names its entry and never prints the key, because a list key holds the user's search
+text: `[CACHE] miss cursor:metrics:v3#107e70e049e5`. The part before `#` is the key's namespace and
+the part after is the first 12 hex characters of the SHA-256 of the whole key, so the `miss`,
+`stored` and `hit` lines of one entry carry the same name. Use the `requestId` on the line to find
+which request it was. An invalidation reports how many entries it deleted.
+
+A rejected request is logged by field and rule, not by value: `Validation Errors:` carries
+`issues`, each with a `field` and Zod's issue `code` (`invalid_enum_value`, `unrecognized_keys`).
+What was wrong with the value is in the 400 the client received. A parser or routing error reads
+`Client error 415: charset.unsupported`.
 
 ## Startup failures
 

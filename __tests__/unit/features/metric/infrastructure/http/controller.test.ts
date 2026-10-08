@@ -200,4 +200,39 @@ describe("Metric HTTP controller", () => {
       }),
     );
   });
+
+  // Kit log-redaction-coverage, D-08. When the mapper throws, the line names
+  // the metric by id. It used to be handed the whole row.
+  it("logs the metric id, not the row, when mapping fails", async () => {
+    const logger = (await import("@/utils/logger.js")).default;
+    const errorSpy = jest
+      .spyOn(logger, "error")
+      .mockImplementation(() => logger);
+    const metric = {
+      id: "metric-1",
+      description: "a private note",
+      get name(): string {
+        throw new Error("unreadable row");
+      },
+    };
+    getMetricDetailExecute.mockResolvedValue(metric);
+
+    const req = {
+      ...authFields,
+      params: { id: metricId },
+      query: {},
+    } as unknown as AuthRequest;
+
+    const nextSpy = jest.fn();
+    await getUserDetailMetricById(req, res(), nextSpy as NextFunction);
+    await flushAsync();
+
+    expect(nextSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    const args = errorSpy.mock.calls[0] as unknown[];
+    expect(args[0]).toBe("Error mapping metric to DTO:");
+    expect(args[2]).toEqual({ metricId });
+    expect(args).not.toContain(metric);
+    errorSpy.mockRestore();
+  });
 });

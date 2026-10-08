@@ -4,6 +4,7 @@ import request from "supertest";
 import { cacheMiddleware } from "@/shared/middleware/cache.js";
 import { sendError } from "@/shared/utils/error-envelope.js";
 import { drainBackgroundTasks } from "@/utils/background-tasks.js";
+import { cacheEntryName } from "@/utils/cache-entry-name.js";
 import type { AuthRequest } from "@/types/request.context.js";
 
 // Stub env + redis + logger so cache middleware behavior can be driven entirely by the test.
@@ -106,7 +107,7 @@ describe("cacheMiddleware", () => {
 
     expect(redisClient.get).toHaveBeenCalledWith("cache:user-42");
     expect(loggerMock.info).toHaveBeenCalledWith(
-      "[CACHE PROCESS] Cache HIT: cache:user-42",
+      `[CACHE] hit ${cacheEntryName("cache:user-42")}`,
     );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(payload);
@@ -122,7 +123,7 @@ describe("cacheMiddleware", () => {
     await middleware(authRequest as AuthRequest, res, next);
 
     expect(loggerMock.info).toHaveBeenCalledWith(
-      "[CACHE PROCESS] Cache miss for key: cache:user-42",
+      `[CACHE] miss ${cacheEntryName("cache:user-42")}`,
     );
     expect(next).toHaveBeenCalledTimes(1);
 
@@ -136,7 +137,7 @@ describe("cacheMiddleware", () => {
     );
     expect(res.originalJson).toHaveBeenCalledWith(responseBody);
     expect(loggerMock.info).toHaveBeenCalledWith(
-      "[CACHE] Cached response: cache:user-42 (TTL: 60s)",
+      `[CACHE] stored ${cacheEntryName("cache:user-42")} (TTL: 60s)`,
     );
   });
 
@@ -153,7 +154,7 @@ describe("cacheMiddleware", () => {
     expect(loggerMock.error).toHaveBeenCalledWith(
       "[BACKGROUND] Task failed: cache-write: boom",
       expect.objectContaining({
-        cache: "cache:user-42",
+        cache: cacheEntryName("cache:user-42"),
         error: "boom",
         stack: writeError.stack,
       }),

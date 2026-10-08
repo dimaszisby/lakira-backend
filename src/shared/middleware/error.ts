@@ -8,7 +8,10 @@ import logger from "@/utils/logger.js";
 import { env } from "@/config/envManager.js";
 import { AuthRequest } from "@/types/request.context.js";
 import { ZodError } from "zod";
-import { formatZodIssues } from "@/shared/utils/zod-error-formatter.js";
+import {
+  describeZodIssues,
+  formatZodIssues,
+} from "@/shared/utils/zod-error-formatter.js";
 import {
   sendError,
   VALIDATION_FAILED_MESSAGE,
@@ -82,12 +85,23 @@ const toClientError = (error: Error): AppError | undefined => {
   return undefined;
 };
 
+// How a client error is named in its log line: the raiser's `type` when it is
+// a plain token (`charset.unsupported`), the error's class otherwise. Not its
+// message, which quotes the path segment or the header that was wrong.
+const clientErrorLabel = (error: Error): string => {
+  const { type } = error as { type?: unknown };
+  return typeof type === "string" && /^[a-z][a-z.]{0,63}$/.test(type)
+    ? type
+    : error.name;
+};
+
 export const createErrorHandler =
   () =>
   (err: Error, req: AuthRequest, res: Response, next: NextFunction): void => {
     void next;
     if (isBodyParseError(err)) {
-      logger.error("Invalid JSON payload received", err);
+      // Not the error: its message and stack quote the start of the body.
+      logger.error("Invalid JSON payload received", { type: err.type });
       sendError(res, 400, MALFORMED_JSON_MESSAGE, {
         errors: [{ field: "body", message: MALFORMED_JSON_MESSAGE }],
       });
@@ -95,7 +109,7 @@ export const createErrorHandler =
     }
     if (err instanceof ZodError) {
       const formattedErrors = formatZodIssues(err);
-      logger.error("Validation Errors:", formattedErrors);
+      logger.error("Validation Errors:", { issues: describeZodIssues(err) });
       sendError(res, 400, VALIDATION_FAILED_MESSAGE, {
         errors: formattedErrors,
       });
@@ -114,7 +128,9 @@ export const createErrorHandler =
       logger.warn(`Client error 409: ${DUPLICATE_VALUE_MESSAGE}`);
     } else if (clientError) {
       // The client's mistake, not ours: no stack, not at error level.
-      logger.warn(`Client error ${clientError.statusCode}: ${err.message}`);
+      logger.warn(
+        `Client error ${clientError.statusCode}: ${clientErrorLabel(err)}`,
+      );
     } else {
       logger.error(`Error Occurred: ${err.message}`, err);
     }

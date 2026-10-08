@@ -105,6 +105,25 @@ describe("validation middleware", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  // Kit log-redaction-coverage, D-09. Zod's enum message repeats the value it
+  // rejected, so the line carries the field and the issue code only.
+  it("logs a failure by field and code, not by Zod's message", () => {
+    const schema = z.object({
+      query: z.object({ sortOrder: z.enum(["ASC", "DESC"]) }),
+    });
+    const req = makeRequest({ query: { sortOrder: "victim@example.com" } });
+
+    validate(schema)(req, createResponse(), jest.fn() as NextFunction);
+
+    expect(loggerErrorSpy).toHaveBeenCalledTimes(1);
+    expect(loggerErrorSpy).toHaveBeenCalledWith("Validation Errors:", {
+      issues: [{ field: "query.sortOrder", code: "invalid_enum_value" }],
+    });
+    expect(JSON.stringify(loggerErrorSpy.mock.calls)).not.toContain(
+      "victim@example.com",
+    );
+  });
+
   it("supports schema bags with params/query/body separation", () => {
     const middleware = validate({
       params: z.object({ id: z.string() }),

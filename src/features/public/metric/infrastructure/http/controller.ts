@@ -141,7 +141,9 @@ export const getUserDetailMetricById = catchAsync(
     try {
       dto = toUserMetricDetailResponseDTO(metric);
     } catch (err) {
-      logger.error("Error mapping metric to DTO:", err, metric);
+      logger.error("Error mapping metric to DTO:", err, {
+        metricId: params.id,
+      });
       throw new AppError("Internal Server Error: mapping failed", 500);
     }
 
