@@ -155,4 +155,91 @@ describe("VisualizationReadRepoSequelize", () => {
     );
     expect(querySpy).toHaveBeenCalledTimes(3);
   });
+
+  // Kit deterministic-query-ordering, D-05. The requested range holds no
+  // logs, so the fallback series is returned. The stats must describe that
+  // series, all of it, and not the empty one that was asked for.
+  it("computes dashboard stats over the fallback series when it is used", async () => {
+    const cache = makeCache() as any;
+    cache.getDashboardVisualization.mockResolvedValue(null);
+    const emptyBucket = {
+      metric_id: "metric-1",
+      avg_value: null,
+      min_value: null,
+      max_value: null,
+      cnt: null,
+    };
+    const querySpy = jest.spyOn(sequelize, "query");
+    querySpy
+      .mockResolvedValueOnce([
+        {
+          metric_id: "metric-1",
+          name: "Steps",
+          unit: "steps",
+          category_name: null,
+          category_color: null,
+          category_icon: null,
+          priority: 1,
+          total_count: 1,
+          metric_updated_at: "2024-01-01T00:00:00.000Z",
+          metric_settings_updated_at: "2024-01-01T00:00:00.000Z",
+          category_updated_at: null,
+        },
+      ] as any)
+      .mockResolvedValueOnce([
+        { ...emptyBucket, bucket_start: "2024-01-01T00:00:00.000Z" },
+        { ...emptyBucket, bucket_start: "2024-01-02T00:00:00.000Z" },
+      ] as any)
+      .mockResolvedValueOnce([
+        {
+          metric_id: "metric-1",
+          first_log_at: "2023-12-18T00:00:00.000Z",
+          last_log_at: "2023-12-20T00:00:00.000Z",
+          total_logs: 4,
+          latest_value: 20,
+          latest_bucket_start: "2023-12-19T00:00:00.000Z",
+        },
+      ] as any)
+      .mockResolvedValueOnce([
+        { ...emptyBucket, bucket_start: "2023-12-17T00:00:00.000Z" },
+        {
+          bucket_start: "2023-12-18T00:00:00.000Z",
+          avg_value: 10,
+          min_value: 10,
+          max_value: 10,
+          cnt: 1,
+        },
+        {
+          bucket_start: "2023-12-19T00:00:00.000Z",
+          avg_value: 20,
+          min_value: 20,
+          max_value: 20,
+          cnt: 3,
+        },
+      ] as any);
+
+    const repo = new VisualizationReadRepoSequelize(cache as any);
+
+    const response = await repo.fetchDashboardVisualization({
+      userId: "user-1",
+      organizationId: TEST_ORG_ID,
+      startISO: "2024-01-01T00:00:00.000Z",
+      endISO: "2024-01-03T00:00:00.000Z",
+      bucket: "1d",
+      bucketSpec,
+      tz: "UTC",
+      fill: "none",
+      limit: 5,
+    });
+
+    expect(querySpy).toHaveBeenCalledTimes(4);
+    expect(response.items[0].fallbackRangeUsed).toBe(true);
+    expect(response.items[0].series).toHaveLength(3);
+    expect(response.items[0].stats).toEqual({
+      average: 17.5,
+      min: 10,
+      max: 20,
+      count: 4,
+    });
+  });
 });

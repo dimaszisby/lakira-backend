@@ -1,6 +1,6 @@
 # The app takes its name from the package
 
-**Status:** Complete on `fix/app-name-from-package`; D-01 and D-03 promoted to ADR-0060.
+**Status:** Merged in #144 (`b04b350`); D-01 and D-03 promoted to ADR-0060.
 **Slug:** `app-name-from-package` · **Branch:** `fix/app-name-from-package`
 
 Lean kit — no plan; acceptance criteria live in the checklist. Fixes caveat C2 as the second dated
