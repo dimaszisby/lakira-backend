@@ -61,3 +61,34 @@ trailing `id` cannot decide anything while the unique constraint stands, so no t
 it is there because ADR-0052 decision 1 asks for it even where a constraint makes the leading key
 unique. `first_log_at` and `last_log_at` are still the minimum and maximum of `ts_tz` and are not
 changed. No output column changes.
+
+## D-05 — Visualization stats are computed over the whole series, by one function
+
+- **Status:** Accepted
+- **Date:** 2026-10-08
+
+Micro entry for the frontend's request "Dashboard stats describe the first bucket only" (P1,
+raised 2026-10-07 in Notion, "FE and BE messages", Part 1). Commits carry
+`refs: dashboard-stats-whole-series`. It is logged here because D-04 is the previous fix to the
+same dashboard read path; it is not an ordering decision.
+
+**Context.** `buildDashboardItem` in `VisualizationReadRepoSequelize.ts` read `average`, `min`,
+`max` and `count` from the first row of the series, so a metric whose first bucket was empty
+answered `count: 0` and three nulls whatever the other buckets held. The request asks for the
+dashboard to match `fetchVisualization`. That path summed `count` and took `min` and `max` across
+rows, but assigned `average` on every row, so it returned the last non-empty bucket's average.
+Matching it as written would have copied a second defect.
+**Decision.** One pure function, `summarizeBuckets` in the analytics `domain/`, computes the stats
+for both endpoints from the bucket rows. `average` is the mean of the logs: the sum of each
+bucket's average times its count, over the total count. A bucket with no logs contributes nothing.
+**Options considered.** Copying the single-metric loop into the dashboard: rejected, it carries
+the last-bucket average. Adding `sum(log_value)` to both SQL builders and dividing the sums:
+rejected, the result is the same and it changes two queries and two row types for nothing. A
+second aggregate query for each metric: rejected, it is one more round trip for every dashboard
+card. Averaging the bucket averages: rejected, it weights a day with one log the same as a day
+with ten, which the request names as wrong.
+**Consequences.** `GET /analytics/metrics/:id` returns a different `average` for any range with
+more than one non-empty bucket; the earlier figure was wrong. No field is added or removed and the
+OpenAPI spec does not change. Cached responses keep the old figures until `VIZ_DEFAULT_TTL_SEC`
+(120 seconds by default) runs out, so no cache key is changed. With the fallback range in use the
+stats describe the fallback series, as before.

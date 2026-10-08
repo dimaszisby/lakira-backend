@@ -317,4 +317,61 @@ describe("VisualizationReadRepoSequelize (integration)", () => {
       ]),
     ).toEqual([[seed.metric.id, 20]]);
   });
+
+  // Kit deterministic-query-ordering, D-05. The range's first bucket (04-09)
+  // is empty, and the two days that hold logs hold different numbers of them,
+  // so reading the first bucket, the last bucket, or an average of the bucket
+  // averages each gives a different wrong answer. Both endpoints must agree.
+  it("computes stats over the whole series, the same on both endpoints", async () => {
+    const {
+      user,
+      metrics: [seed],
+    } = await seedDashboardWithMetrics({
+      metrics: [
+        {
+          metricOverrides: { name: "Pace" },
+          settingsOverrides: {
+            displayOptions: {
+              showOnDashboard: true,
+              priority: 1,
+              chartType: "line",
+              color: "#111111",
+            },
+          },
+          logs: [
+            { logValue: 10, loggedAt: new Date("2025-04-10T08:00:00Z") },
+            { logValue: 20, loggedAt: new Date("2025-04-11T08:00:00Z") },
+            { logValue: 20, loggedAt: new Date("2025-04-11T12:00:00Z") },
+            { logValue: 20, loggedAt: new Date("2025-04-11T16:00:00Z") },
+          ],
+        },
+      ],
+    });
+
+    const range = {
+      userId: user.id,
+      organizationId: TEST_ORG_ID,
+      startISO: "2025-04-09T00:00:00Z",
+      endISO: "2025-04-13T00:00:00Z",
+      bucket: "1d" as const,
+      bucketSpec,
+      tz: "UTC",
+      fill: "none" as const,
+    };
+    const expected = { average: 17.5, min: 10, max: 20, count: 4 };
+
+    const dashboard = await repo.fetchDashboardVisualization({
+      ...range,
+      limit: 5,
+    });
+    expect(dashboard.items).toHaveLength(1);
+    expect(dashboard.items[0].fallbackRangeUsed).toBe(false);
+    expect(dashboard.items[0].stats).toEqual(expected);
+
+    const single = await repo.fetchVisualization({
+      ...range,
+      metricId: seed.metric.id,
+    });
+    expect(single.stats).toEqual(expected);
+  });
 });
