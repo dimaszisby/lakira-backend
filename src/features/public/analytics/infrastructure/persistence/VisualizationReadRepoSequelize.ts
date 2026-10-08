@@ -12,6 +12,7 @@ import {
   computeFallbackRange,
   type RangeDescriptor,
 } from "../../domain/fallback-range.js";
+import { summarizeBuckets } from "../../domain/series-stats.js";
 import type {
   VisualizationReadRepository,
   VisualizationQueryParams,
@@ -112,26 +113,7 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
       value: fill === "zero" ? (r.avg_value ?? 0) : (r.avg_value ?? null),
     }));
 
-    const numeric = (x: number | null): x is number =>
-      typeof x === "number" && Number.isFinite(x);
-
-    const stats = {
-      average: null as number | null,
-      min: null as number | null,
-      max: null as number | null,
-      count: 0,
-    };
-    for (const row of rows) {
-      const avg = row.avg_value ?? null;
-      const min = row.min_value ?? null;
-      const max = row.max_value ?? null;
-      stats.count += Number(row.cnt ?? 0);
-      if (numeric(avg)) stats.average = avg;
-      if (numeric(min))
-        stats.min = stats.min == null ? min : Math.min(stats.min, min);
-      if (numeric(max))
-        stats.max = stats.max == null ? max : Math.max(stats.max, max);
-    }
+    const stats = summarizeBuckets(rows);
 
     const result: VizResponse = {
       metricId,
@@ -365,18 +347,7 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
           : Number(row.avg_value ?? 0) || null,
     }));
 
-    const stats: DashboardVizItem["stats"] = {
-      average: effectiveSeries.length
-        ? numberFrom(effectiveSeries[0].avg_value, null)
-        : null,
-      min: effectiveSeries.length
-        ? numberFrom(effectiveSeries[0].min_value, null)
-        : null,
-      max: effectiveSeries.length
-        ? numberFrom(effectiveSeries[0].max_value, null)
-        : null,
-      count: effectiveSeries.length ? numberFrom(effectiveSeries[0].cnt, 0) : 0,
-    };
+    const stats = summarizeBuckets(effectiveSeries);
 
     const item: DashboardVizItem = {
       metricId: metric.metric_id,
