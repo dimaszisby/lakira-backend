@@ -195,8 +195,6 @@ like every other URL.
 | `VIZ_MAX_BUCKETS`            | number | `400`   |
 | `VIZ_DASH_MAX_METRICS`       | number | `24`    |
 | `VIZ_DEFAULT_TTL_SEC`        | number | `120`   |
-| `VIZ_CACHE_MAX_AGE_SEC`      | number | `60`    |
-| `VIZ_CACHE_STALE_SEC`        | number | `30`    |
 | `VIZ_FALLBACK_GUARD_BUCKETS` | number | `96`    |
 
 ## Observability & operations

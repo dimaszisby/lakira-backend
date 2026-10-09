@@ -69,8 +69,9 @@ describe("Analytics HTTP caching", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.etag).toBeDefined();
-    expect(res.headers["cache-control"]).toContain("private");
-    expect(res.headers["cache-control"]).toContain("max-age=");
+    // Revalidate every time: with a max-age the browser showed the old card for
+    // a minute after a write and the frontend could not refetch past it.
+    expect(res.headers["cache-control"]).toBe("private, no-cache");
   });
 
   it("returns 304 for a conditional dashboard request", async () => {
@@ -90,6 +91,92 @@ describe("Analytics HTTP caching", () => {
     expect(second.status).toBe(304);
     expect(second.text).toBe("");
     expect(second.headers.etag).toBe(first.headers.etag);
+    expect(second.headers["cache-control"]).toBe(
+      first.headers["cache-control"],
+    );
+  });
+
+  // Kit deterministic-query-ordering, D-06. The validator was a hash of the
+  // cache key and the metrics' updated_at, which no log write moves, so each of
+  // these was answered 304 with the figures from before the write.
+  describe("the dashboard ETag follows the logs", () => {
+    const getDashboard = (etag?: string) => {
+      const req = api
+        .get("/api/v1/analytics/dashboard")
+        .set("Authorization", authHeader(token))
+        .query(RANGE);
+      return etag ? req.set("If-None-Match", etag) : req;
+    };
+
+    type DashboardBody = {
+      data: {
+        items: {
+          metricId: string;
+          stats: { count: number; average: number | null };
+        }[];
+      };
+    };
+
+    const statsOf = (body: DashboardBody) =>
+      body.data.items.find((item) => item.metricId === metricId)?.stats;
+    const countOf = (body: DashboardBody) => statsOf(body)?.count;
+
+    it("changes when a log is created", async () => {
+      const before = await getDashboard();
+      expect(before.status).toBe(200);
+      expect(countOf(before.body)).toBe(1);
+
+      await createMetricLog(token, metricId, {
+        logValue: 99,
+        loggedAt: "2025-05-03T00:00:00.000Z",
+      });
+
+      const revalidated = await getDashboard(before.headers.etag);
+      expect(revalidated.status).toBe(200);
+      expect(revalidated.headers.etag).not.toBe(before.headers.etag);
+      expect(countOf(revalidated.body)).toBe(2);
+    });
+
+    it("changes when a log is updated", async () => {
+      const { log } = await createMetricLog(token, metricId, {
+        logValue: 20,
+        loggedAt: "2025-05-03T00:00:00.000Z",
+      });
+      const before = await getDashboard();
+      expect(before.status).toBe(200);
+      expect(statsOf(before.body)?.average).toBe(15);
+
+      const updated = await api
+        .put(`/api/v1/metric-logs/${log.id}`)
+        .set("Authorization", authHeader(token))
+        .send({ logValue: 80 });
+      expect(updated.status).toBe(200);
+
+      const revalidated = await getDashboard(before.headers.etag);
+      expect(revalidated.status).toBe(200);
+      expect(revalidated.headers.etag).not.toBe(before.headers.etag);
+      expect(statsOf(revalidated.body)?.average).toBe(45);
+    });
+
+    it("changes when a log is deleted", async () => {
+      const { log } = await createMetricLog(token, metricId, {
+        logValue: 20,
+        loggedAt: "2025-05-03T00:00:00.000Z",
+      });
+      const before = await getDashboard();
+      expect(before.status).toBe(200);
+      expect(countOf(before.body)).toBe(2);
+
+      const deleted = await api
+        .delete(`/api/v1/metric-logs/${log.id}`)
+        .set("Authorization", authHeader(token));
+      expect(deleted.status).toBe(200);
+
+      const revalidated = await getDashboard(before.headers.etag);
+      expect(revalidated.status).toBe(200);
+      expect(revalidated.headers.etag).not.toBe(before.headers.etag);
+      expect(countOf(revalidated.body)).toBe(1);
+    });
   });
 
   it("surfaces an ETag on a single metric visualization", async () => {
@@ -100,6 +187,7 @@ describe("Analytics HTTP caching", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.etag).toBeDefined();
+    expect(res.headers["cache-control"]).toBe("private, no-cache");
   });
 
   it("returns 304 for a conditional single metric request", async () => {

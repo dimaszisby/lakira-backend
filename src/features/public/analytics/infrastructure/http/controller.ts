@@ -2,21 +2,17 @@ import { createHash } from "crypto";
 import type { Response, NextFunction } from "express";
 import { AuthRequest } from "@/types/request.context.js";
 import { assertAuthenticated } from "@/utils/auth-guards.js";
-import { env } from "@/config/envManager.js";
 import { pickValidated } from "@/shared/middleware/validated.js";
 import { getDashboardVizSchema, getVisualizationSchema } from "./schema.zod.js";
 import { successResponse } from "@/utils/response-formatter.js";
 import { buildAnalyticsFeature } from "../../feature.js";
 
-const DASH_CACHE_MAX_AGE = env.VIZ_CACHE_MAX_AGE_SEC;
-const DASH_CACHE_STALE_WHILE_REVALIDATE = env.VIZ_CACHE_STALE_SEC;
-
-/** Both visualization routes are cached identically; derived from env, so constant per process. */
-const VIZ_CACHE_CONTROL = [
-  "private",
-  `max-age=${DASH_CACHE_MAX_AGE}`,
-  `stale-while-revalidate=${DASH_CACHE_STALE_WHILE_REVALIDATE}`,
-].join(", ");
+/**
+ * Both visualization routes: the browser may keep the response but must revalidate
+ * it on every use. With a max-age it showed the old figures for that long after a
+ * log was written, and nothing the frontend did could refetch past it.
+ */
+const VIZ_CACHE_CONTROL = "private, no-cache";
 
 type AnalyticsFeature = ReturnType<typeof buildAnalyticsFeature>;
 // Built on first use, never at import (ADR-0045).
@@ -33,8 +29,10 @@ export const overrideAnalyticsFeatureForTest = (custom: AnalyticsFeature) => {
  * base64-encoded the body and kept the first 27 characters, which is a *prefix* of
  * the payload rather than a digest of it — it covered only the leading 20 bytes, so
  * two responses differing after that point shared an ETag and a conditional request
- * was answered 304 with stale data. Hash first, then truncate, matching
- * `deriveEtagSeed` in VisualizationReadRepoSequelize.
+ * was answered 304 with stale data. Hash first, then truncate.
+ *
+ * Both handlers use it. The dashboard once sent `sync.etagSeed` instead, a hash of
+ * the cache key and the metrics' `updated_at`, which no log write moves.
  */
 function makeEtag(body: unknown) {
   const digest = createHash("sha1")
@@ -98,7 +96,7 @@ export async function handleGetDashboardVisualization(
       limit: query.limit,
     });
 
-    const etag = data?.sync?.etagSeed ?? makeEtag(data);
+    const etag = makeEtag(data);
     res.setHeader("ETag", etag);
     res.setHeader("Cache-Control", VIZ_CACHE_CONTROL);
     if (req.headers["if-none-match"] === etag) return res.status(304).end();
