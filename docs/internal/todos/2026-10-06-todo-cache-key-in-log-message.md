@@ -1,6 +1,6 @@
 # Todo — the cache key, with the user's search text, is written into log messages
 
-- **Status:** Fixed on `fix/cache-key-in-log-message`
+- **Status:** Fixed in #146 (`edc2e2e`)
   ([`log-redaction-coverage`](../initiatives/log-redaction-coverage/decisions.md) D-08, D-09). The
   three items under "Also noted" are still open. Was: Open (P3), the reviewer of the U1 fix kept
   caveat C6 open on it
