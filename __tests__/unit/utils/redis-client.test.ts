@@ -4,6 +4,7 @@ import {
   invalidateCache,
   invalidateCacheByPattern,
 } from "@/utils/redis-client.js";
+import { cacheEntryName } from "@/utils/cache-entry-name.js";
 
 type AsyncFn<T = void, Args extends any[] = any[]> = (
   ...args: Args
@@ -125,7 +126,7 @@ describe("redis-client utils", () => {
 
       expect(mockRedisClient.del).toHaveBeenCalledWith("metrics:user-1");
       expect(loggerMock.info).toHaveBeenCalledWith(
-        "♻️ Cache invalidated for metrics:user-1",
+        `[CACHE] invalidated ${cacheEntryName("metrics:user-1")}`,
       );
     });
   });
@@ -155,13 +156,33 @@ describe("redis-client utils", () => {
         COUNT: 100,
       });
       expect(mockRedisClient.del).toHaveBeenCalledWith(["k1", "k2"]);
+      const name = cacheEntryName("metrics:user-1:*");
       expect(loggerMock.info).toHaveBeenCalledWith(
-        '[CACHE] Pattern "metrics:user-1:*" deleted keys:',
-        ["k1", "k2"],
+        `[CACHE] invalidated 2 entries matching ${name}`,
       );
       expect(loggerMock.info).toHaveBeenCalledWith(
-        '[CACHE] Pattern "metrics:user-1:*" found NO keys to delete.',
+        `[CACHE] no entries matching ${name}`,
       );
+    });
+
+    // Kit log-redaction-coverage, D-08. A cursor key holds the user's search
+    // text, and the deleted keys used to be handed to the logger as a list.
+    it("logs how many keys it deleted, never the keys or the pattern", async () => {
+      const key = "cursor:metrics:v3:user-1:org:org-1:q:victim@example.com";
+      const pattern = "cursor:metrics:v*:user-1:org:org-1:*";
+      mockRedisClient.scan.mockResolvedValueOnce({ cursor: 0, keys: [key] });
+
+      await invalidateCacheByPattern(pattern);
+      await invalidateCache(key);
+
+      expect(mockRedisClient.del).toHaveBeenCalledWith([key]);
+      expect(mockRedisClient.del).toHaveBeenCalledWith(key);
+      expect(loggerMock.info).toHaveBeenCalledTimes(2);
+      for (const call of loggerMock.info.mock.calls) {
+        expect(call).toHaveLength(1);
+        expect(call[0]).not.toContain("victim@example.com");
+        expect(call[0]).not.toContain("user-1");
+      }
     });
   });
 

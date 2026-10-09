@@ -1,6 +1,5 @@
 import { models } from "@/infrastructure/db/models.js";
 import AppError from "@/utils/AppError.js";
-import logger from "@/utils/logger.js";
 import { MetricSettings } from "../../domain/entities/MetricSettings.js";
 import {
   CreateMetricSettingsDTO,
@@ -159,7 +158,7 @@ export class MetricSettingsRepositorySequelize implements MetricSettingsReposito
     const pageSize = Math.min(Math.max(opts.limit || 20, 1), 100);
 
     const include = baseIncludeForOwnership(opts.userId, opts.organizationId);
-    const baseWhere = buildWhere(opts.filter, opts.q);
+    const baseWhere = buildWhere(opts.filter);
 
     const totalCount = opts.includeTotal
       ? await models.MetricSettings.count({ where: baseWhere, include })
@@ -233,16 +232,13 @@ const normalizeSort = (
     : { field: "createdAt", dir: "DESC" };
 };
 
-const buildWhere = (
-  filter?: { metricId?: string; isActive?: boolean },
-  q?: string,
-): WhereOptions => {
+const buildWhere = (filter?: {
+  metricId?: string;
+  isActive?: boolean;
+}): WhereOptions => {
   const and: WhereOptions[] = [];
   if (filter?.metricId) and.push({ metricId: filter.metricId });
   if (filter?.isActive !== undefined) and.push({ isActive: filter.isActive });
-  if (q) {
-    logger.debug("[settings:list] ignoring unused search param", { q });
-  }
   return and.length ? { [Op.and]: and } : {};
 };
 

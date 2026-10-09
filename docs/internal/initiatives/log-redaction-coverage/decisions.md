@@ -251,3 +251,88 @@ same change: its sentence that nothing after the first format holds an error obj
 merged. This amends that record and takes no new number; the boundary and the mechanism are the
 same, and the reach is wider. Message text is still not scanned, and a plain object carrying `sql`
 or `parameters` keys is still metadata that no term matches.
+
+## D-08 — A cache entry is named in a log line by its namespace and a hash, never by its key
+
+- **Status:** Accepted
+- **Date:** 2026-10-08
+- **Size:** Micro — single commit, no separate kit. The reviewer of D-07 kept caveat C6 open on
+  it (P3). Commits carry `refs: cache-key-in-log-message`.
+
+**Context.** Redaction is by metadata key and does not scan message text, and D-07 left that as
+it was. `src/shared/middleware/cache.ts` writes the cache key into three `info` messages, and
+passes it as `{ cache: key }` to the background write, which logs it on failure under a name no
+term matches. The three cursor key builders (metric, metric-settings, metric-log) put the search
+text `q`, a name or value filter and the `after` cursor into the key, so a search for an email
+address is written to the production log. `src/utils/redis-client.ts` writes the key on
+invalidation, and on a pattern invalidation it passes the array of every deleted key to the
+logger. Two more lines of the same class were on file
+([todo](../../todos/2026-10-05-todo-log-lines-that-carry-row-or-body-text.md)): the metric
+controller passes a whole metric row to the logger when its mapper throws, and the error handler
+passes the body parser's error, whose message quotes the start of a malformed body and which
+Winston appends to the line.
+**Decision.** A log line names a cache entry by `cacheEntryName(key)`
+(`src/utils/cache-entry-name.ts`): the key's namespace, then `#`, then the first 12 hex characters
+of the SHA-256 of the whole key, for example `cursor:metrics:v3#3fa9c1d2e4b7`. The namespace is
+`cursor:<feature>:v<n>` for a cursor key and the first segment for any other, and is replaced by
+`unknown` unless it is a plain token. The name is in the message, since the development format
+prints no metadata. The pattern line reports how many entries it deleted and not which. The
+mapping failure logs the metric's id. The malformed-body line is a fixed message with the parser's
+error type and without the error. The keys read from and written to Redis do not change.
+**Options considered.**
+
+- _Rename the metadata key so the pattern masks it._ Rejected: it hides the entry altogether, and
+  the lines exist to follow one entry from miss to store to hit.
+- _Hash only the `q` and filter segments when the key is built._ Rejected: every key builder, and
+  every new one, would have to remember to, and the key in Redis would change with it.
+- _An HMAC with a secret._ Rejected: a new secret to provision and rotate for a P3, when
+  `hashEmail` already names an address by a plain SHA-256.
+- _Replace `Database error: <message>` with fixed text as well._ Not taken: the owner's scope
+  decision of 2026-10-08. ADR-0059 accepts that line and stands.
+
+**Consequences.** The hash is unsalted, as `hashEmail` is. Someone who holds the logs and a user's
+id and organization id can confirm a guessed search term by hashing the key it would produce; they
+cannot read the term from the line. One key keeps one name for its whole life, and two keys in one
+namespace differ only by hash, so a line no longer shows which user or which filter it was for; the
+request id on the same line does. `metric-log`'s router still logs `{ key }` at `debug`, which the
+pattern already masks. `Database error: <message>` and the Zod field messages are unchanged.
+
+## D-09 — The lines that echo a request are logged by field, code and type
+
+- **Status:** Accepted
+- **Date:** 2026-10-08
+- **Size:** Micro, in the same commit as D-08 (`refs: cache-key-in-log-message`). A fork found in
+  review, decided by the owner the same day.
+
+**Context.** A security reviewer, given the whole of C6 and not told what D-08 does, graded its
+five lines closed and C6 still open on one more that anything on the internet can reach: a failed
+validation is logged with Zod's messages, and Zod's default messages repeat the input.
+`?sortOrder=victim@example.com` gives `Invalid enum value. Expected 'ASC' | 'DESC', received
+'victim@example.com'`, and a `.strict()` schema names every unknown key it was sent (reproduced on
+Zod 3.25.76). It is the query string the access log drops, written back at `error`. The reviewer
+named three smaller lines of the same kind: the client-error line prints the raiser's message,
+which quotes an undecodable path segment or a charset header; the metric-settings repository logs
+the search term `q` at `debug`, the default level outside production; and a cache entry that does
+not parse is logged with `JSON.parse`'s message, which quotes the start of the stored response.
+**Decision.** All four are changed in this commit. A failed validation is logged as
+`{ issues: [{ field, code }] }`, Zod's issue code and not its message. The client-error line names
+the raiser's `type` when it is a plain token and the error's class name otherwise. The `q` line is
+removed. A cache entry that does not parse is logged by its name and treated as a miss, in the
+middleware and, after a second review, in the three other readers of a stored value
+(`readCachedJson` in `src/shared/cache/read.ts`; the two visualization reads and the category
+cache). The 400
+body the client receives is not changed: it still carries Zod's messages, which tell the caller
+what it sent.
+**Options considered.** A global Zod `errorMap` with messages that never repeat the input:
+rejected here, it changes every 400 body, which the frontend reads and the OpenAPI examples
+describe. Leaving them for a todo: rejected by the owner, since the next dated run would keep C6
+open on the validation line. Redacting credentials from the startup errors for a bad
+`DATABASE_URL`, `REDIS_URL` or `RABBITMQ_URL` in the same change: not taken, it is a credential on
+stderr at boot and not request text, and is filed as its own
+[todo](../../todos/2026-10-08-todo-startup-error-prints-connection-url.md).
+**Consequences.** A validation line no longer says what was wrong with the value, only which field
+and which rule; the request id on the line finds the response. A field path can still hold a key
+the client chose when the schema is a record; no schema in `src/` is one today. Left as they are,
+and named so a later reader does not take them for oversights: `Database error: <message>`
+(ADR-0059), `Error Occurred: <message>` for an `AppError` the application wrote, the email
+adapters' provider messages, and SQL text at `debug` under `DB_LOGGING`.

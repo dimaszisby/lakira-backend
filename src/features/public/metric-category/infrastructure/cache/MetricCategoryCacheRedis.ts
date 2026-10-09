@@ -4,6 +4,7 @@ import {
   logCacheInvalidation,
   logCacheInvalidationError,
 } from "@/shared/cache/logging.js";
+import { readCachedJson } from "@/shared/cache/read.js";
 
 export class MetricCategoryCacheRedis implements CachePort {
   constructor(private defaultTtlSeconds = 300) {}
@@ -15,7 +16,9 @@ export class MetricCategoryCacheRedis implements CachePort {
   async get<T>(key: string): Promise<T | null> {
     if (!this.isEnabled()) return null;
     const value = await redisClient.get(key);
-    return value ? (JSON.parse(value) as T) : null;
+    if (!value) return null;
+    const cached = readCachedJson(value, key);
+    return cached.ok ? (cached.value as T) : null;
   }
 
   async set<T>(key: string, value: T, ttlSec?: number): Promise<void> {

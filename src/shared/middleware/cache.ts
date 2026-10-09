@@ -2,6 +2,8 @@ import { Response, NextFunction } from "express";
 import { redisClient } from "@/utils/redis-client.js";
 import logger from "@/utils/logger.js";
 import { runInBackground } from "@/utils/background-tasks.js";
+import { cacheEntryName } from "@/utils/cache-entry-name.js";
+import { readCachedJson } from "@/shared/cache/read.js";
 import { env } from "@/config/envManager.js";
 import { AuthRequest } from "@/types/request.context.js";
 
@@ -30,15 +32,23 @@ export const cacheMiddleware =
 
     try {
       const key = keyGenerator(req);
+      // The key holds request text (a cursor key carries the search), so log
+      // lines name the entry and never print the key.
+      const entry = cacheEntryName(key);
       const cachedData = await redisClient.get(key);
 
       if (cachedData) {
-        logger.info(`[CACHE PROCESS] Cache HIT: ${key}`);
-        res.status(200).json(JSON.parse(cachedData));
-        return;
+        // An entry that does not parse is a miss, logged by name: the next
+        // 200 overwrites it.
+        const cached = readCachedJson(cachedData, key);
+        if (cached.ok) {
+          logger.info(`[CACHE] hit ${entry}`);
+          res.status(200).json(cached.value);
+          return;
+        }
+      } else {
+        logger.info(`[CACHE] miss ${entry}`);
       }
-
-      logger.info(`[CACHE PROCESS] Cache miss for key: ${key}`);
 
       // A hit is replayed as a 200 (above), so only a 200 may be stored. Error
       // bodies reach this wrapper too: sendError writes through res.json.
@@ -49,11 +59,9 @@ export const cacheMiddleware =
             "cache-write",
             async () => {
               await redisClient.setEx(key, duration, JSON.stringify(data));
-              logger.info(
-                `[CACHE] Cached response: ${key} (TTL: ${duration}s)`,
-              );
+              logger.info(`[CACHE] stored ${entry} (TTL: ${duration}s)`);
             },
-            { cache: key },
+            { cache: entry },
           );
         }
 

@@ -1,5 +1,6 @@
 import { redisClient } from "@/utils/redis-client.js";
 import { env } from "@/config/envManager.js";
+import { readCachedJson } from "@/shared/cache/read.js";
 import crypto from "node:crypto";
 import {
   VisualizationCachePort,
@@ -18,7 +19,9 @@ export class VisualizationCacheRedis implements VisualizationCachePort {
     if (!redisClient.isOpen) return null;
     const key = vizKey(params);
     const json = await redisClient.get(key);
-    return json ? (JSON.parse(json) as VizResponse) : null;
+    if (!json) return null;
+    const cached = readCachedJson(json, key);
+    return cached.ok ? (cached.value as VizResponse) : null;
   }
 
   async setSingleVisualization(
@@ -36,7 +39,9 @@ export class VisualizationCacheRedis implements VisualizationCachePort {
     if (!redisClient.isOpen) return null;
     const key = vizDashKey(params);
     const json = await redisClient.get(key);
-    return json ? (JSON.parse(json) as DashboardVizResponse) : null;
+    if (!json) return null;
+    const cached = readCachedJson(json, key);
+    return cached.ok ? (cached.value as DashboardVizResponse) : null;
   }
 
   async setDashboardVisualization(

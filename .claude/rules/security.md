@@ -73,6 +73,12 @@ and limits stop being shared across instances (twelve-factor TF-12).
   into a log message. Name a person by user id; where there is no user, name an email address by
   `hashEmail` (`src/utils/email-hash.ts`), as the login lockout and the rate limiters do. The
   limiter lines carry a user id, an IP, or that hash, and a test trips every limiter to prove it
+- A cache key is never written to a log either: a cursor key holds the user's search text. Name the
+  entry with `cacheEntryName(key)` (`src/utils/cache-entry-name.ts`), which gives its namespace and
+  a short hash, and log how many keys an invalidation deleted, not which
+- A line about a rejected request says which field and which rule, not what was sent. A failed
+  validation is logged through `describeZodIssues` (field and Zod issue code); Zod's messages, which
+  repeat the input, go to the client only. A parser or routing error is logged by its `type`
 - An error may be passed to the logger: it is reduced to an allowlist of its fields before anything
   is written (`name`, `code`, `statusCode` and the like, plus `db.code`, `db.constraint`,
   `db.table`), so a database error's SQL and bound values never reach the log (ADR-0059). That

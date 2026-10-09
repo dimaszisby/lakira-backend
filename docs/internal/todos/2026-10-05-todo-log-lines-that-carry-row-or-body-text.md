@@ -1,6 +1,9 @@
 # Todo — two log lines still carry row data or request text
 
-- **Status:** Open (P3)
+- **Status:** Partly (P3). The metric row and the malformed-body line are fixed on
+  `fix/cache-key-in-log-message`
+  ([`log-redaction-coverage`](../initiatives/log-redaction-coverage/decisions.md) D-08).
+  `Database error: <message>` is left as ADR-0059 accepts it
 - **Created:** 2026-10-05
 - **Owner:** unassigned
 - **Origin:** the security review of the T1 fix; kit

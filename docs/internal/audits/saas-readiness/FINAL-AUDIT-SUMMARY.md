@@ -368,6 +368,19 @@ that version has not been graded. The C2 row above stays as graded until a dated
 What the review left is in
 [this todo](../../todos/2026-10-07-todo-app-name-review-leftovers.md).
 
+**C6 — cache-key fix landed, not yet re-audited (2026-10-08).** No log line prints a cache key any
+more: the cache middleware and the invalidation helpers name an entry by its namespace and a short
+hash of the key, and a pattern invalidation reports a count
+([`log-redaction-coverage` D-08](../../initiatives/log-redaction-coverage/decisions.md)). A
+subagent that was not told what the fix does graded those lines closed and **C6 still
+open-progressed**, on a line anything can reach: a failed validation was logged with Zod's
+messages, which repeat the value that was sent. That line, the client-error line, a search term
+logged at `debug` and an unreadable cache entry are changed in the same commit (D-09). Left as they
+are: `Database error: <message>`, which ADR-0059 accepts, and a startup error that prints a bad
+connection URL, which is a credential and not request text
+([todo](../../todos/2026-10-08-todo-startup-error-prints-connection-url.md)). The C6 row above stays
+"Open" until a dated run grades it (ADR-002).
+
 > **Fix-status convention:** flip `Open` → `Fixed (<commit SHA>)` as each lands; a caveat closed
 > by decision rather than code cites the decision entry instead of a SHA. (Written with emoji
 > markers until 2026-09-24.) When all six are closed, the verdict can be re-stated as **GOLD** and

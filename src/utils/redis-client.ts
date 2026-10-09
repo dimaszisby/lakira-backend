@@ -1,6 +1,7 @@
 import { createClient, RedisClientType } from "redis";
 import logger, { flushLogs } from "./logger.js";
 import { env } from "../config/envManager.js";
+import { cacheEntryName } from "./cache-entry-name.js";
 
 /**
  * Retry budget before we stop trying to reach Redis.
@@ -141,7 +142,7 @@ const disconnectRedis = async () => {
 const invalidateCache = async (key: string) => {
   if (redisClient.isOpen) {
     await redisClient.del(key);
-    logger.info(`♻️ Cache invalidated for ${key}`);
+    logger.info(`[CACHE] invalidated ${cacheEntryName(key)}`);
   }
 };
 
@@ -152,6 +153,8 @@ const invalidateCache = async (key: string) => {
  */
 const invalidateCacheByPattern = async (pattern: string) => {
   if (redisClient.isOpen) {
+    // Named, not printed: the deleted keys hold request text.
+    const name = cacheEntryName(pattern);
     let cursor = 0;
     do {
       const scanResult = await redisClient.scan(cursor, {
@@ -163,9 +166,11 @@ const invalidateCacheByPattern = async (pattern: string) => {
 
       if (keys.length > 0) {
         await redisClient.del(keys);
-        logger.info(`[CACHE] Pattern "${pattern}" deleted keys:`, keys);
+        logger.info(
+          `[CACHE] invalidated ${keys.length} entries matching ${name}`,
+        );
       } else {
-        logger.info(`[CACHE] Pattern "${pattern}" found NO keys to delete.`);
+        logger.info(`[CACHE] no entries matching ${name}`);
       }
     } while (cursor !== 0);
   }
