@@ -92,3 +92,35 @@ more than one non-empty bucket; the earlier figure was wrong. No field is added 
 OpenAPI spec does not change. Cached responses keep the old figures until `VIZ_DEFAULT_TTL_SEC`
 (120 seconds by default) runs out, so no cache key is changed. With the fallback range in use the
 stats describe the fallback series, as before.
+
+## D-06 — The dashboard's validator is a hash of its body, and the browser revalidates every time
+
+- **Status:** Proposed
+- **Date:** 2026-10-09
+
+Micro entry for the frontend's request "Dashboard responses stay cached in the browser after a log
+changes" (P1, raised 2026-10-08 in Notion, "FE and BE messages", Part 1). Commits carry
+`refs: dashboard-etag-ignores-logs`. It is logged here because D-04 and D-05 are the earlier fixes
+to the same dashboard read path; it is not an ordering decision.
+
+**Context.** `GET /analytics/dashboard` sent `sync.etagSeed` as its `ETag`. The seed hashes the
+cache key and the `updated_at` of the metrics, their settings and their categories. No log is in
+it, so creating, editing or deleting a log changed the body and left the ETag alone, and a request
+with `If-None-Match` was answered 304. Both analytics routes also sent
+`private, max-age=60, stale-while-revalidate=30`, so for a minute the browser did not ask at all.
+A user who logged a value kept seeing the old card. The response is computed in full before the
+conditional is checked, so the seed saved no work.
+**Decision.** The dashboard handler hashes the response body, as the single-metric handler does.
+Both routes send `private, no-cache`. `VIZ_CACHE_MAX_AGE_SEC` and `VIZ_CACHE_STALE_SEC` are
+removed; the owner chose this on 2026-10-09.
+**Options considered.** Adding the logs' latest `updated_at` and count to the fingerprint:
+rejected, a delete or an edit needs yet another input, and the next field added to the body is
+missed the same way. Keeping `max-age` with a correct ETag: rejected, the card is stale for up to
+90 seconds after a write and the frontend cannot refetch past the browser's cache. Keeping the two
+variables with a default of 0: rejected, the stale card stays one setting away. Removing
+`sync.etagSeed` from the body: rejected, a contract change this fix does not need.
+**Consequences.** Every dashboard view costs one conditional request. The handler builds the
+response before it compares validators, from the Redis cache when the entry is there and from the
+database when it is not, and answers 304 when nothing changed. `sync.etagSeed` stays in the body and is no
+longer the `ETag`. A deployment that still sets either removed variable starts as before and the
+value is ignored. ADR-0033 lists seven analytics variables; five remain.

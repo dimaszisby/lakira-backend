@@ -415,8 +415,6 @@ const envSchema = z
     VIZ_MAX_BUCKETS: z.coerce.number().int().positive().default(400),
     VIZ_DASH_MAX_METRICS: z.coerce.number().int().positive().default(24),
     VIZ_DEFAULT_TTL_SEC: z.coerce.number().int().positive().default(120),
-    VIZ_CACHE_MAX_AGE_SEC: z.coerce.number().int().positive().default(60),
-    VIZ_CACHE_STALE_SEC: z.coerce.number().int().positive().default(30),
     VIZ_FALLBACK_GUARD_BUCKETS: z.coerce.number().int().positive().default(96),
     DEFAULT_TZ: z.string().default("Asia/Jakarta"),
   })

@@ -2,6 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-05-21
+- **Amended:** 2026-10-09, by [`deterministic-query-ordering` D-06](../../internal/initiatives/deterministic-query-ordering/decisions.md). Two of the seven variables below, `VIZ_CACHE_MAX_AGE_SEC` and `VIZ_CACHE_STALE_SEC`, were removed: both analytics routes now send `Cache-Control: private, no-cache`. The decision to read the other five through `envManager` stands.
 - **Origin:** `ADR-004` in the Observability kit — [`observability`](../../internal/initiatives/observability/decisions.md)
 
 ---
