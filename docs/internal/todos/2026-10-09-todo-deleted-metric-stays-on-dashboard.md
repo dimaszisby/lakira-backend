@@ -1,6 +1,6 @@
 # Todo — a deleted metric stays on the dashboard
 
-- **Status:** Fixed on `fix/deleted-metric-on-dashboard`
+- **Status:** Fixed in #149 (`41da6a6`)
   ([`deterministic-query-ordering` D-07](../initiatives/deterministic-query-ordering/decisions.md)).
   The last item under "Also noted" is still open. Was: Open (P2, proposed), reproduced on
   2026-10-09

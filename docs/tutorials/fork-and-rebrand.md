@@ -95,13 +95,14 @@ docs/explanation/product-requirements.md
 The script removed `docs/internal/`, which held the upstream SaaS-readiness audit — the honest
 assessment of this template. To read it, re-run step 2 with `--keep-internal` on a fresh copy, or
 read it in the upstream repository; its live status is
-`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of 2026-10-06 it lists
-**no open P0 or P1 findings**. Two of its six caveats were open at that date, and both have had a
-fix merged since that no dated audit has yet confirmed. C6 (log redaction, P3): the logger now
-reduces an error wherever it sits in a log call's arguments; what the review of that fix left open
-is that the cache middleware writes the cache key, search text included, into three log messages.
-C2 (branding, P2): a deployed fork with no `APP_NAME` used to be named after the template, and is
-now named after its own package. One more thing a fork should know: the bootstrap script rotates
+`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of 2026-10-10 it lists
+**no open P0 or P1 findings**. Four of its six caveats are open, each kept open by an independent
+grader. C6 (P2): a connection URL that fails validation at startup is printed with its password,
+and `DB_LOGGING=true` with `LOG_LEVEL=debug` logs SQL with its values. C5 (P2): the Sentry
+scrubber masks headers and request bodies and leaves the URL, the user, breadcrumbs and exception
+values. C4 (P3): one lint rule that guards the domain layer misses an import spelling. C3 (P3): the
+spec documents a 429 on 7 of 47 operations. C2 (branding) is closed: a deployed fork with no
+`APP_NAME` is named after its own package. One more thing a fork should know: the bootstrap script rotates
 `JWT_SECRET` only, not the database, Redis or RabbitMQ credentials. Other open findings are P2/P3 hardening (for example request-id propagation across RabbitMQ, and an unbounded
 date range on `/metric-logs/stats`).
 

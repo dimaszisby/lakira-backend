@@ -127,7 +127,7 @@ value is ignored. ADR-0033 lists seven analytics variables; five remain.
 
 ## D-07 — The dashboard's metrics query filters deleted metrics itself
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #149, `41da6a6`)
 - **Date:** 2026-10-09
 
 Micro entry for
