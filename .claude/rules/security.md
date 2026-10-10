@@ -65,9 +65,15 @@ and limits stop being shared across instances (twelve-factor TF-12).
 - The logger masks metadata before it formats the message, so a `%j` or `%o` token prints the
   masked copy. Metadata nested deeper than five levels is written as `[Truncated]`, never passed
   through (ADR-0059)
-- Sentry events pass through `scrubSentryEvent` (`src/utils/sentry-scrub.ts`) before egress, which
-  redacts credential headers, drops cookies, and applies the same pattern to the body, `extra` and
-  `contexts`
+- Everything Sentry would send passes through `src/utils/sentry-scrub.ts` first: events through
+  `scrubSentryEvent`, transactions and spans through their own hooks, since neither reaches
+  `beforeSend`. It masks credential headers, drops cookies, and applies the key pattern to the
+  body, `extra`, `contexts`, breadcrumb data and span attributes. It cuts the query string from
+  the request URL and from any URL in a header, a breadcrumb or a span, reduces `user` to its id,
+  and drops the client address. Free text (exception messages, breadcrumbs) loses email
+  addresses, JWTs, bearer tokens and query strings by pattern; it does **not** lose a name or any
+  other detail a message holds, so do not put one in an error message. A database span keeps its
+  operation and never its statement
 - Never log passwords, tokens, or PII
 - Redaction is by key and does not scan message text, so nothing personal is ever interpolated
   into a log message. Name a person by user id; where there is no user, name an email address by

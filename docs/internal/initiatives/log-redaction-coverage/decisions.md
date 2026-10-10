@@ -339,7 +339,7 @@ adapters' provider messages, and SQL text at `debug` under `DB_LOGGING`.
 
 ## D-10 — A startup error for a bad connection URL names the variable, never the URL
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #151, `0e11dd4`)
 - **Date:** 2026-10-10
 
 Micro entry for finding V1 of `audit-2026-10-10.md`
@@ -366,7 +366,7 @@ where it is set. Nothing else about startup changes.
 
 ## D-11 — `DB_LOGGING` is refused in production
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #151, `0e11dd4`)
 - **Date:** 2026-10-10
 
 Micro entry for finding V2 of `audit-2026-10-10.md`
@@ -389,3 +389,49 @@ available for inlined `WHERE` values without replacing the query generator.
 **Consequences.** A production deployment that sets `DB_LOGGING=true` no longer starts, and says
 why. SQL cannot be read from production logs; a failing statement is reproduced locally. In
 development the log still holds statement values, which is the developer's own data.
+
+## D-12 — The Sentry scrubber cleans the URL, the user, breadcrumbs, exception text and spans
+
+- **Status:** Proposed
+- **Date:** 2026-10-10
+
+Micro entry for finding V3 of `audit-2026-10-10.md`
+([todo](../../todos/2026-10-10-todo-sentry-scrubber-leaves-url-user-breadcrumbs.md)), the one route
+caveat C5 closes on (ADR-012 of the audit folder). Commits carry `refs: c5-sentry-scrubber`. D-02
+first closed C5 on headers, cookies and the body.
+
+**Context.** `scrubSentryEvent` left five places alone: `request.url`, `request.query_string`,
+`user`, breadcrumbs and exception values. The SDK attaches the URL and the query string with
+`sendDefaultPii` off, so a list search that ended in a 5xx sent the user's search text to Sentry.
+Transactions do not pass through `beforeSend` at all. With tracing on they carry request URLs and
+database spans whose text is the SQL statement, which Sequelize writes with its values inlined.
+Tracing is off by default.
+**Decision.** An event leaves with its URL cut at the query string, no `query_string`, and a
+`user` reduced to its `id`. Free text (exception values, the event message, breadcrumb messages)
+is cleaned by three patterns: an email address becomes `[email]`, a JWT-shaped token `[token]`,
+and a URL inside the text loses its query string. Breadcrumb data takes the key-based mask and
+the same URL treatment. Transactions and spans get the same through `beforeSendTransaction` and
+`beforeSendSpan`; a database span keeps its operation name and loses its statement, in the
+description and in its attributes. The owner chose to scrub transactions on 2026-10-10.
+**Options considered.** Dropping exception values and breadcrumbs outright: rejected, an event
+with no message is not worth sending. Relying on `sendDefaultPii` or the SDK's data-collection
+options: rejected, the URL is attached whatever they say and they do not reach exception text.
+Refusing tracing in production: offered to the owner, not taken. Cleaning SQL by pattern:
+rejected, there is no reliable way to tell a value from SQL (D-11).
+**Consequences.** Pattern cleaning catches an address and a token. It does not catch a name or
+any other personal detail a message happens to hold; the logger has the same limit for message
+text, which ADR-0059 accepts. A database span no longer shows which statement was slow, only its
+operation. The scrubber's types stay structural, so it is checked against shapes read from the
+SDK's types and not against an event a Sentry project received.
+
+**Added in review, the same day.** A reviewer given C5 and V3 as claims kept V3 open-progressed on
+the first version. Fixed here, because each is one of V3's places: a console breadcrumb keeps its
+raw arguments in an array, which was masked by key and not cleaned as text, so data is now cleaned
+at every depth; the address pattern missed accented, quoted and apostrophe forms, and the query
+pattern missed an uppercase scheme, a quoted path and a host with no scheme; a `Bearer` or `Basic`
+token is now cleaned; every quantifier is bounded and text over 16 KB is cut first, since the first
+patterns cost quadratic time on a long run. Two things the reviewer listed as new findings were
+also fixed here, on the main thread's call and not under ADR-012's list, because each is one line
+in the same function and leaving a known route open beside its fix helps nobody: header values are
+cleaned as text, so a `Referer` loses its query string, and `http.client_ip` and `client.address`
+are dropped from span data. The second version has not been graded.
