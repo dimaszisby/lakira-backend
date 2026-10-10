@@ -443,6 +443,18 @@ P1 or P2 on the startup path; its P3 notes are in
 [this todo](../../todos/2026-10-10-todo-startup-and-config-review-leftovers.md). The C6 row above
 stays as graded until a dated run (ADR-002).
 
+**C5 — V3 fix landed, not yet re-audited (2026-10-10).** The scrubber now cuts the query string
+from the request URL and from any URL in a header, a breadcrumb or a span, reduces `user` to its
+id, cleans addresses, tokens and query strings out of exception and breadcrumb text, and has hooks
+for transactions and spans, where a database span keeps its operation and loses its statement
+([`log-redaction-coverage` D-12](../../initiatives/log-redaction-coverage/decisions.md)). Run
+through the real SDK with a stub transport, the two envelopes it built held a test address 15 times
+without the hooks and 0 times with them. A reviewer given V3 as a claim kept it open-progressed on
+the first version, on console breadcrumb arguments and on address forms the pattern missed; both
+are fixed, and that second version has not been graded. What it left is in
+[this todo](../../todos/2026-10-10-todo-sentry-scrubber-review-leftovers.md). The C5 row above
+stays as graded until a dated run (ADR-002).
+
 ---
 
 ## 5. Possible issues — needs human judgment (not blockers)

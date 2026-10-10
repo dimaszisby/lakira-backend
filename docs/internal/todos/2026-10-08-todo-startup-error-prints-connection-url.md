@@ -1,6 +1,6 @@
 # Todo — a startup error for a bad connection URL prints the whole URL
 
-- **Status:** Fixed on `fix/c6-startup-url-db-logging`
+- **Status:** Fixed in #151 (`0e11dd4`)
   ([`log-redaction-coverage` D-10](../initiatives/log-redaction-coverage/decisions.md)): the
   message names the variable and the reason and no part of the URL. Not yet confirmed by a dated
   run. Was: Open (P2), reproduced on 2026-10-10 as finding V1 of
