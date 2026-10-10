@@ -22,23 +22,14 @@ const UNKNOWN_METRIC_ID = "00000000-0000-4000-8000-000000000099";
 describe("Analytics HTTP caching", () => {
   let token: string;
   let metricId: string;
+  let categoryId: string;
   let categoryName: string;
 
-  beforeEach(async () => {
-    const auth = await createTestUser();
-    token = auth.token;
-
-    const { category, payload } = await createCategory(token);
-    categoryName = payload.name;
-
-    const { metric } = await createMetric(token, { categoryId: category.id });
-    metricId = metric.id;
-
-    // Creating a metric also creates its settings, but the dashboard only
-    // lists metrics flagged for display — opt this one in so the item-shape
-    // assertion has something to inspect.
+  // Creating a metric also creates its settings, but the dashboard only lists
+  // metrics flagged for display.
+  const showOnDashboard = async (id: string) => {
     const detail = await api
-      .get(`/api/v1/metrics/${metricId}`)
+      .get(`/api/v1/metrics/${id}`)
       .set("Authorization", authHeader(token))
       .query({ include: "full" });
     const settingsId = detail.body.data.settings.id as string;
@@ -54,6 +45,21 @@ describe("Analytics HTTP caching", () => {
           color: "#E897A3",
         },
       });
+  };
+
+  beforeEach(async () => {
+    const auth = await createTestUser();
+    token = auth.token;
+
+    const { category, payload } = await createCategory(token);
+    categoryId = category.id;
+    categoryName = payload.name;
+
+    const { metric } = await createMetric(token, { categoryId });
+    metricId = metric.id;
+
+    // Opt this one in so the item-shape assertion has something to inspect.
+    await showOnDashboard(metricId);
 
     await createMetricLog(token, metricId, {
       logValue: 10,
@@ -285,5 +291,54 @@ describe("Analytics HTTP caching", () => {
     expect(item).toBeDefined();
     expect(item.category_name).toBe(categoryName);
     expect(Array.isArray(item.series)).toBe(true);
+  });
+
+  // Kit deterministic-query-ordering, D-07. A metric delete is a soft delete,
+  // and the dashboard picks its metrics with raw SQL, which the model's
+  // paranoid filter does not reach.
+  it("drops a deleted metric from the dashboard and keeps the others", async () => {
+    const { metric: kept } = await createMetric(token, { categoryId });
+    await showOnDashboard(kept.id);
+
+    const getDashboard = () =>
+      api
+        .get("/api/v1/analytics/dashboard")
+        .set("Authorization", authHeader(token))
+        .query(RANGE);
+    const idsOf = (body: { data: { items: { metricId: string }[] } }) =>
+      body.data.items.map((item) => item.metricId).sort();
+
+    // Requested before the delete, so a cached entry exists for the old list.
+    const before = await getDashboard();
+    expect(idsOf(before.body)).toEqual([metricId, kept.id].sort());
+
+    const deleted = await api
+      .delete(`/api/v1/metrics/${metricId}`)
+      .set("Authorization", authHeader(token));
+    expect(deleted.status).toBe(200);
+
+    const after = await getDashboard();
+    expect(after.status).toBe(200);
+    expect(idsOf(after.body)).toEqual([kept.id]);
+    expect(after.body.data.meta.count).toBe(1);
+    expect(after.body.data.meta.totalMetrics).toBe(1);
+  });
+
+  it("answers 404 for a deleted metric's own visualization", async () => {
+    const first = await api
+      .get(`/api/v1/analytics/metrics/${metricId}`)
+      .set("Authorization", authHeader(token))
+      .query(RANGE);
+    expect(first.status).toBe(200);
+
+    await api
+      .delete(`/api/v1/metrics/${metricId}`)
+      .set("Authorization", authHeader(token));
+
+    const res = await api
+      .get(`/api/v1/analytics/metrics/${metricId}`)
+      .set("Authorization", authHeader(token))
+      .query(RANGE);
+    expect(res.status).toBe(404);
   });
 });

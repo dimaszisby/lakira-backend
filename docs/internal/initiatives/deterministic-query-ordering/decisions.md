@@ -95,7 +95,7 @@ stats describe the fallback series, as before.
 
 ## D-06 — The dashboard's validator is a hash of its body, and the browser revalidates every time
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #147, `d8f5351`)
 - **Date:** 2026-10-09
 
 Micro entry for the frontend's request "Dashboard responses stay cached in the browser after a log
@@ -124,3 +124,29 @@ response before it compares validators, from the Redis cache when the entry is t
 database when it is not, and answers 304 when nothing changed. `sync.etagSeed` stays in the body and is no
 longer the `ETag`. A deployment that still sets either removed variable starts as before and the
 value is ignored. ADR-0033 lists seven analytics variables; five remain.
+
+## D-07 — The dashboard's metrics query filters deleted metrics itself
+
+- **Status:** Proposed
+- **Date:** 2026-10-09
+
+Micro entry for
+[this todo](../../todos/2026-10-09-todo-deleted-metric-stays-on-dashboard.md), found by the review
+of D-06. Commits carry `refs: deleted-metric-on-dashboard`. Logged here with D-04 to D-06 because
+it is the same dashboard read path; it is not an ordering decision.
+
+**Context.** `DELETE /metrics/:id` is a soft delete: the `Metric` model is paranoid, so the row
+stays with `deleted_at` set, and its `metric_settings` row stays too. `fetchDashboardMetrics` is
+raw SQL that joins `metric_settings` to `metrics`, and raw SQL does not get the model's paranoid
+filter. A deleted metric stayed on its owner's dashboard for good. It is the only place the
+dashboard chooses its metrics; the series and lifecycle queries take the ids it returns.
+**Decision.** The query filters `m.deleted_at IS NULL`.
+**Options considered.** Deleting or deactivating the `metric_settings` row when a metric is
+deleted: rejected, it is a second write path to keep right and a restore would have to undo it.
+Rewriting the query through the model to get the paranoid filter: rejected, a larger change to a
+query with a window count and JSON operators. Invalidating `vizdash:*` from `DeleteMetric`:
+rejected, the cache key holds the metric id list and so changes with the delete, and it would make
+the metric feature depend on the analytics cache.
+**Consequences.** The dashboard entry cached before the delete is never read again and expires
+with its TTL (`VIZ_DEFAULT_TTL_SEC`, 120 seconds). Any later raw SQL that reads `metrics` has to
+carry the same filter by hand.

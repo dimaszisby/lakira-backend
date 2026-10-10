@@ -1,6 +1,9 @@
 # Todo — a deleted metric stays on the dashboard
 
-- **Status:** Open (P2, proposed). Reproduced on 2026-10-09
+- **Status:** Fixed on `fix/deleted-metric-on-dashboard`
+  ([`deterministic-query-ordering` D-07](../initiatives/deterministic-query-ordering/decisions.md)).
+  The last item under "Also noted" is still open. Was: Open (P2, proposed), reproduced on
+  2026-10-09
 - **Created:** 2026-10-09
 - **Owner:** unassigned
 - **Found by:** the review of `fix/dashboard-etag-ignores-logs`
@@ -35,12 +38,13 @@ Add `AND m.deleted_at IS NULL` to `fetchDashboardMetrics`, with an integration c
 
 ## Also noted, read in the code and not reproduced
 
-- `DeleteMetric` clears the metric caches only, never `vizdash:*` or `viz:*`. Once the query
-  filters deleted metrics the metric id list in the cache key changes, so the dashboard entry is
-  missed without an invalidation. The single-metric entry `viz:*` is reached only through an
-  ownership check, which should already reject a deleted metric; confirm it with the fix.
-- Whether the lifecycle and series queries, and the single-metric path, can return a deleted
-  metric's data by another route.
-- A dashboard read that queries the database just before a log write and stores its result just
+- Settled with the fix: `DeleteMetric` clears the metric caches only, never `vizdash:*` or
+  `viz:*`. The dashboard's cache key holds the metric id list, so the entry written before the
+  delete is not read after it; the test requests the dashboard before the delete to show that.
+  The single-metric route answers 404 for a deleted metric, and a test now holds it there.
+- Settled with the fix: the series and lifecycle queries take their metric ids from
+  `fetchDashboardMetrics`, and this is the only raw `JOIN metrics` in `src`.
+- Still open:
+  a dashboard read that queries the database just before a log write and stores its result just
   after the write's invalidation puts the old body back for `VIZ_DEFAULT_TTL_SEC` (120 seconds).
   The window is small. The validator then matches the stale body, so the browser cannot tell.

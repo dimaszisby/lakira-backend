@@ -270,6 +270,7 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
       LEFT JOIN metric_categories c ON m.category_id = c.id AND c.deleted_at IS NULL
       WHERE m.user_id = :userId
         AND m.organization_id = :organizationId
+        AND m.deleted_at IS NULL
         AND COALESCE((ms.display_options->>'showOnDashboard')::boolean, false) = true
         AND COALESCE(ms.is_active, true) = true
       ORDER BY priority NULLS LAST, ms.created_at DESC, ms.id DESC
