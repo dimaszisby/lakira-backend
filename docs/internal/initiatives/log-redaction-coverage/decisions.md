@@ -336,3 +336,56 @@ the client chose when the schema is a record; no schema in `src/` is one today. 
 and named so a later reader does not take them for oversights: `Database error: <message>`
 (ADR-0059), `Error Occurred: <message>` for an `AppError` the application wrote, the email
 adapters' provider messages, and SQL text at `debug` under `DB_LOGGING`.
+
+## D-10 — A startup error for a bad connection URL names the variable, never the URL
+
+- **Status:** Proposed
+- **Date:** 2026-10-10
+
+Micro entry for finding V1 of `audit-2026-10-10.md`
+([todo](../../todos/2026-10-08-todo-startup-error-prints-connection-url.md)), one of the two routes
+caveat C6 closes on (ADR-012 of the audit folder). Commits carry
+`refs: c6-startup-url-db-logging`.
+
+**Context.** When `REDIS_URL`, `RABBITMQ_URL` or the environment's database URL failed validation,
+`src/config/zodEnv.ts` threw an error whose message held the whole URL. `envManager.ts` printed
+that message in its `[ENV_ERROR]` line with `console.error`, and Node printed it again when the
+module-level `loadEnvOrExit()` threw. A typo in a production URL put the database or broker
+password on stderr twice. The `envSample` in the same line was already masked. The database
+message also said `DATABASE_URL` whichever variable had been read.
+**Decision.** The message is `<VARIABLE> is invalid: <reason>`, with the variable actually read
+and no part of its value. The reason is this file's own fixed text or Node's `Invalid URL`, whose
+message does not carry the input.
+**Options considered.** Masking the password and keeping the rest of the URL: rejected, the user,
+host and database name are still deployment detail, and a URL that does not parse cannot be
+searched for its password. Routing the startup error through the logger: rejected, the logger
+imports the env manager, and message text is not redacted anyway. Masking in `logEnvFailure`
+alone: rejected, Node's own print of the thrown error would still carry it.
+**Consequences.** An operator sees which variable is wrong and why, and has to look at the value
+where it is set. Nothing else about startup changes.
+
+## D-11 — `DB_LOGGING` is refused in production
+
+- **Status:** Proposed
+- **Date:** 2026-10-10
+
+Micro entry for finding V2 of `audit-2026-10-10.md`
+([todo](../../todos/2026-10-10-todo-db-logging-writes-sql-values.md)), the other route caveat C6
+closes on. Commits carry `refs: c6-startup-url-db-logging`. D-09 named "SQL text at `debug` under
+`DB_LOGGING`" as left alone; this entry replaces that for production.
+
+**Context.** With `DB_LOGGING=true`, `src/config/db.ts` hands Sequelize's statement text to
+`logger.debug`. Sequelize inlines the values of a `WHERE` clause, so a login writes the address it
+looked up. The text is a message and is never redacted. Development and production honoured the
+switch; staging and test were already off. `src/config/config.cjs`, which sequelize-cli reads
+without running the schema, honoured it for production migrations.
+**Decision.** The schema refuses `DB_LOGGING=true` when `NODE_ENV=production`, beside the other
+refused switches (ADR-0036), and `config.cjs` sets production `logging: false`. Development keeps
+the switch.
+**Options considered.** Stripping values from the statement: rejected, Sequelize hands over a
+finished string and there is no reliable way to tell a value from SQL. Refusing it everywhere:
+rejected, it is the documented way to see statements locally. Logging placeholders only: not
+available for inlined `WHERE` values without replacing the query generator.
+**Consequences.** A production deployment that sets `DB_LOGGING=true` no longer starts, and says
+why. SQL cannot be read from production logs; a failing statement is reproduced locally. In
+development the log still holds statement values, which is the developer's own data.

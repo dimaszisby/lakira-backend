@@ -79,6 +79,10 @@ and limits stop being shared across instances (twelve-factor TF-12).
 - A line about a rejected request says which field and which rule, not what was sent. A failed
   validation is logged through `describeZodIssues` (field and Zod issue code); Zod's messages, which
   repeat the input, go to the client only. A parser or routing error is logged by its `type`
+- A startup error about a connection URL names the variable and the reason, never the URL: it is
+  printed by `console.error` and again by Node, and neither is redacted. `DB_LOGGING=true` writes
+  SQL with the values of its `WHERE` clauses, so startup refuses it when `NODE_ENV=production`
+  (ADR-0036); it is for a developer's own machine
 - An error may be passed to the logger: it is reduced to an allowlist of its fields before anything
   is written (`name`, `code`, `statusCode` and the like, plus `db.code`, `db.constraint`,
   `db.table`), so a database error's SQL and bound values never reach the log (ADR-0059). That

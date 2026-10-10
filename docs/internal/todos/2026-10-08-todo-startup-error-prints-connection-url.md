@@ -1,10 +1,11 @@
 # Todo — a startup error for a bad connection URL prints the whole URL
 
-- **Status:** Open (P2). Reproduced on 2026-10-10 as finding V1 of
-  [`audit-2026-10-10.md`](../audits/saas-readiness/audit-2026-10-10.md): a bad `REDIS_URL`,
-  `RABBITMQ_URL` or `DEVELOPMENT_DATABASE_URL` put its password on two output lines, in
-  development and in production. The security grader tied it to caveat C6, which it keeps open.
-  Was: Open (P2, proposed), read in the code
+- **Status:** Fixed on `fix/c6-startup-url-db-logging`
+  ([`log-redaction-coverage` D-10](../initiatives/log-redaction-coverage/decisions.md)): the
+  message names the variable and the reason and no part of the URL. Not yet confirmed by a dated
+  run. Was: Open (P2), reproduced on 2026-10-10 as finding V1 of
+  [`audit-2026-10-10.md`](../audits/saas-readiness/audit-2026-10-10.md), which the security grader
+  tied to caveat C6
 - **Created:** 2026-10-08
 - **Owner:** unassigned
 - **Origin:** the security review of the cache-key fix; kit

@@ -428,6 +428,21 @@ Two of these reopenings are a grader reading a caveat by its purpose and not its
 Whether C5 and C6 mean "no personal data leaves by any route" or the narrower text in the table is
 the owner's to settle before the next fix; the run's § 9 says why.
 
+**The closing list (2026-10-10).** The owner settled that question the same day: each open caveat
+closes on the routes named for it, C6 on V1 and V2, C5 on V3, C4 on V4 and C3 on V5, and a route a
+grader finds later is a new finding that reopens no caveat
+([ADR-012](./decisions.md#adr-012--a-caveat-closes-on-a-named-list-of-routes-accepted-2026-10-10)).
+
+**C6 — V1 and V2 fixes landed, not yet re-audited (2026-10-10).** A startup error for a rejected
+connection URL now names the variable and the reason and no part of the URL
+([`log-redaction-coverage` D-10](../../initiatives/log-redaction-coverage/decisions.md)); the three
+cases that printed a password on two lines print it on none. `DB_LOGGING=true` is refused in
+production and is off for production migrations (D-11; ADR-0036 gains the row). A reviewer given
+both findings as claims, and not told what the fix does, graded V1 and V2 closed and found no P0,
+P1 or P2 on the startup path; its P3 notes are in
+[this todo](../../todos/2026-10-10-todo-startup-and-config-review-leftovers.md). The C6 row above
+stays as graded until a dated run (ADR-002).
+
 ---
 
 ## 5. Possible issues — needs human judgment (not blockers)

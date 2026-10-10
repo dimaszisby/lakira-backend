@@ -23,6 +23,7 @@ Any environment variable whose `true` value would weaken a production security c
 | `RABBITMQ_PASSWORD`      | `"guest"` when `NODE_ENV=production` and `RABBITMQ_ENABLED`              |
 | `SWAGGER_REQUIRE_AUTH`   | `false` when `NODE_ENV=production` (already conventionally true; codify) |
 | `SKIP_DB_LIFECYCLE`      | `true` when `NODE_ENV=production` (added 2026-08-24; twelve-factor TF-6) |
+| `DB_LOGGING`             | `true` when `NODE_ENV=production` (added 2026-10-10; audit finding V2)   |
 
 ## Options considered
 

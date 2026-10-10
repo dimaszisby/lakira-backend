@@ -69,7 +69,9 @@ the per-environment URL is selected by `NODE_ENV`.
 > includes the ones above it. Production defaults to `http` rather than `info` so the HTTP
 > access-log lines are included — at `info` they would be silently dropped. `silly` is **refused**
 > in production (ADR-0036). `DB_LOGGING=true` routes SQL through `logger.debug`, so it only
-> produces output when `LOG_LEVEL` is `debug` or lower.
+> produces output when `LOG_LEVEL` is `debug` or lower. It is a development tool: the statement
+> text carries the values of its `WHERE` clause, so it is **refused** in production (ADR-0036) and
+> has no effect in staging or test.
 >
 > Logs go to **stdout only**; the app writes no log files (ADR-0041). Access-log lines carry the
 > request path with the query string stripped — redaction covers log metadata, not URL strings or
