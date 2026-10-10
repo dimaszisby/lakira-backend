@@ -465,6 +465,16 @@ const envSchema = z
       );
     }
 
+    // Sequelize's statement text inlines the values of a WHERE clause, and it is
+    // logged as a message, which redaction never scans (kit log-redaction-coverage,
+    // D-11). Development keeps the switch.
+    if (data.DB_LOGGING === "true") {
+      refuse(
+        "DB_LOGGING",
+        "DB_LOGGING cannot be true when NODE_ENV=production — it writes SQL statements to the log with their values, email addresses included.",
+      );
+    }
+
     if (data.SKIP_DB_LIFECYCLE) {
       refuse(
         "SKIP_DB_LIFECYCLE",
@@ -509,6 +519,32 @@ type RawEnv = z.infer<typeof envSchema>;
 type Env = RawEnv &
   Required<Pick<RawEnv, "DB_USER" | "DB_PASSWORD" | "DB_NAME">>;
 
+/**
+ * A connection URL holds a password, so an error about one names the variable and
+ * the reason and never quotes the value. envManager prints the message with
+ * console.error and Node prints it again when the throw goes uncaught; neither
+ * path is redacted (kit log-redaction-coverage, D-10).
+ */
+class InvalidUrlError extends Error {}
+
+const invalidUrl = (variable: string, reason: string) =>
+  new InvalidUrlError(`[ERROR] ${variable} is invalid: ${reason}`);
+
+/** Anything else thrown while reading a URL's parts, such as a malformed escape. */
+const asInvalidUrl = (variable: string, error: unknown) =>
+  error instanceof InvalidUrlError
+    ? error
+    : invalidUrl(variable, "it could not be read");
+
+const parseConnectionUrl = (variable: string, value: string): URL => {
+  try {
+    return new URL(value);
+  } catch {
+    // Node's own error carries the input on its `input` property.
+    throw invalidUrl(variable, "it is not a valid URL");
+  }
+};
+
 const DATABASE_URL_KEYS = {
   development: "DEVELOPMENT_DATABASE_URL",
   test: "TEST_DATABASE_URL",
@@ -524,8 +560,10 @@ const normalizeDatabaseConfig = (parsedEnv: RawEnv): Env => {
     parsedEnv[envSpecificKey] ?? parsedEnv.DATABASE_URL ?? null;
 
   if (connectionUrl) {
+    const urlKey =
+      parsedEnv[envSpecificKey] != null ? envSpecificKey : "DATABASE_URL";
     try {
-      const url = new URL(connectionUrl);
+      const url = parseConnectionUrl(urlKey, connectionUrl);
       if (url.username) {
         parsedEnv.DB_USER =
           parsedEnv.DB_USER ?? decodeURIComponent(url.username);
@@ -549,11 +587,7 @@ const normalizeDatabaseConfig = (parsedEnv: RawEnv): Env => {
       }
       parsedEnv[envSpecificKey] = parsedEnv[envSpecificKey] ?? connectionUrl;
     } catch (error) {
-      throw new Error(
-        `[ERROR] DATABASE_URL (${connectionUrl}) is invalid: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
+      throw asInvalidUrl(urlKey, error);
     }
   }
 
@@ -572,9 +606,9 @@ const normalizeRedisConfig = (parsedEnv: RawEnv): RawEnv => {
   }
 
   try {
-    const url = new URL(parsedEnv.REDIS_URL);
+    const url = parseConnectionUrl("REDIS_URL", parsedEnv.REDIS_URL);
     if (url.protocol !== "redis:" && url.protocol !== "rediss:") {
-      throw new Error("REDIS_URL protocol must be redis:// or rediss://");
+      throw invalidUrl("REDIS_URL", "protocol must be redis:// or rediss://");
     }
 
     if (url.hostname) {
@@ -584,7 +618,7 @@ const normalizeRedisConfig = (parsedEnv: RawEnv): RawEnv => {
     if (url.port) {
       const parsedPort = Number(url.port);
       if (Number.isNaN(parsedPort)) {
-        throw new Error("REDIS_URL port must be a valid number");
+        throw invalidUrl("REDIS_URL", "port must be a valid number");
       }
       parsedEnv.REDIS_PORT = parsedPort;
     }
@@ -596,11 +630,7 @@ const normalizeRedisConfig = (parsedEnv: RawEnv): RawEnv => {
 
     return parsedEnv;
   } catch (error) {
-    throw new Error(
-      `[ERROR] REDIS_URL (${parsedEnv.REDIS_URL}) is invalid: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
+    throw asInvalidUrl("REDIS_URL", error);
   }
 };
 
@@ -610,9 +640,9 @@ const normalizeRabbitMQConfig = (parsedEnv: RawEnv): RawEnv => {
   }
 
   try {
-    const url = new URL(parsedEnv.RABBITMQ_URL);
+    const url = parseConnectionUrl("RABBITMQ_URL", parsedEnv.RABBITMQ_URL);
     if (url.protocol !== "amqp:" && url.protocol !== "amqps:") {
-      throw new Error("RABBITMQ_URL protocol must be amqp:// or amqps://");
+      throw invalidUrl("RABBITMQ_URL", "protocol must be amqp:// or amqps://");
     }
 
     if (url.hostname) parsedEnv.RABBITMQ_HOST = url.hostname;
@@ -630,11 +660,7 @@ const normalizeRabbitMQConfig = (parsedEnv: RawEnv): RawEnv => {
 
     return parsedEnv;
   } catch (error) {
-    throw new Error(
-      `[ERROR] RABBITMQ_URL (${parsedEnv.RABBITMQ_URL}) is invalid: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
+    throw asInvalidUrl("RABBITMQ_URL", error);
   }
 };
 

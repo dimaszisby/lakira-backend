@@ -45,6 +45,9 @@ describe("zodEnv production-unsafe switch refusal (ADR-0036)", () => {
     ["DISABLE_RATE_LIMITING", { DISABLE_RATE_LIMITING: "true" }],
     ["ALLOW_TEST_HTTP_SERVER", { ALLOW_TEST_HTTP_SERVER: "true" }],
     ["SWAGGER_REQUIRE_AUTH", { SWAGGER_REQUIRE_AUTH: "false" }],
+    // Kit log-redaction-coverage, D-11: SQL text goes to the log with the
+    // values of its WHERE clause inlined.
+    ["DB_LOGGING", { DB_LOGGING: "true" }],
   ])("refuses %s in production", async (name, overrides) => {
     await expect(inProduction(overrides)).rejects.toMatchObject(
       refusalFor(name),
@@ -160,5 +163,13 @@ describe("zodEnv production-unsafe switch refusal (ADR-0036)", () => {
         overrides: { NODE_ENV: "Production", DISABLE_RATE_LIMITING: "true" },
       }),
     ).rejects.toMatchObject(refusalFor("DISABLE_RATE_LIMITING"));
+  });
+
+  it("allows DB_LOGGING in development, where it is the local debugging tool", async () => {
+    await expect(
+      withTestEnv(noop, {
+        overrides: { NODE_ENV: "development", DB_LOGGING: "true" },
+      }),
+    ).resolves.toBeUndefined();
   });
 });

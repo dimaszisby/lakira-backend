@@ -1,6 +1,9 @@
 # Todo — `DB_LOGGING` writes SQL with its values to the log
 
-- **Status:** Open (P2). Reproduced on 2026-10-10
+- **Status:** Fixed on `fix/c6-startup-url-db-logging`
+  ([`log-redaction-coverage` D-11](../initiatives/log-redaction-coverage/decisions.md)): refused in
+  production, and off for production migrations. Development keeps the switch. Not yet confirmed by
+  a dated run. Was: Open (P2), reproduced on 2026-10-10
 - **Created:** 2026-10-10
 - **Owner:** unassigned
 - **Origin:** finding V2 of

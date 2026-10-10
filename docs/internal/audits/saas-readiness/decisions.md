@@ -164,6 +164,56 @@ Promoted to the architecture decision registry as **[ADR-0034](../../../explanat
 
 ---
 
+## ADR-012 — A caveat closes on a named list of routes (Accepted 2026-10-10)
+
+**Context:** ADR-008 restates GOLD when C1–C6 are closed. Since 2026-10-03 each dated run has put
+every caveat to a grader with its whole purpose, and four runs in a row a fix closed its
+reproduction while the grader kept the caveat open on a route the fix did not reach. The run of
+2026-10-10 (`audit-2026-10-10.md`) ended with C6, C5, C4 and C3 open, two of them reopened after
+three runs as closed, with no regression in the code. C5 and C6 are read as "no secret or personal
+data leaves by any route". A caveat that wide cannot be closed by fixing the route last named, so
+no fix could move the verdict. The run's § 9 put the choice to the owner.
+
+**Decision** (the owner's, 2026-10-10)**:** each open caveat closes on the routes named for it in
+`audit-2026-10-10.md`:
+
+| Caveat | Closes when these are fixed and confirmed by a dated run                              |
+| ------ | ------------------------------------------------------------------------------------- |
+| C6     | V1 (a rejected connection URL printed at startup) and V2 (`DB_LOGGING` writes values) |
+| C5     | V3 (the Sentry scrubber leaves the URL, the user, breadcrumbs and exception values)   |
+| C4     | V4 (the `AppError` lint rule misses a spelling and has no negative case)              |
+| C3     | V5 (a 429 documented on 7 of 47 operations)                                           |
+
+A grader is still given each caveat's whole purpose and still makes a fresh pass. A route it finds
+that is not on the list is a **new finding with its own id and severity**; it reopens no caveat.
+A new finding gates a clean GOLD only as the verdict rule already says: a P0 fails ADR-001, a P1
+gets its own decision on whether GOLD is honest with it open, and P2 and P3 findings are filed and
+named in the verdict. A listed route found not fixed keeps its caveat open, as before.
+
+**Options considered:**
+
+- _Reword the caveats to their first, narrow text._ Rejected: it drops the wide reading as a goal,
+  and V1, V2 and V3 were real routes by which a credential or an address left the process.
+- _Keep the open-ended reading._ Rejected: no fix can then close a caveat, and the verdict stops
+  measuring the work.
+- _Close the caveats by decision now._ Rejected: three P2 routes are open.
+
+**Consequences:**
+
+- The next dated run grades each caveat against its list and reports anything else in its fresh
+  findings. Its method entry cites this record.
+- A clean GOLD can be restated with P2 or P3 findings open, and must name them.
+- The wide reading stays the standard a grader searches against; what changes is what a hit is
+  called.
+
+**Links:**
+
+- `audit-2026-10-10.md` § 6 (V1 to V5) and § 9 (why the choice was needed)
+- [`saas-reaudit-2026-10-10` D-02 and D-03](../../initiatives/saas-reaudit-2026-10-10/decisions.md)
+- § ADR-008 (the verdict this qualifies), § ADR-002 (only a dated run changes a caveat row)
+
+---
+
 ## ADR-009 — Tenant scoping is required on every cache key
 
 Promoted to the architecture decision registry as **[ADR-0035](../../../explanation/decisions/adr-0035-tenant-scoped-cache-keys.md)**. That file is authoritative; this entry is a pointer.

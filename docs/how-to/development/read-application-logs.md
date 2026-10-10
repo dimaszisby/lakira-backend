@@ -108,8 +108,11 @@ LOG_LEVEL=debug DB_LOGGING=true npm run dev   # …plus every SQL statement
 ```
 
 `DB_LOGGING=true` routes SQL through `logger.debug`, so it only produces output when `LOG_LEVEL` is
-`debug` or `silly`. `LOG_LEVEL=silly` is **refused in production** at startup
-([ADR-0036](../../explanation/decisions/adr-0036-refuse-production-unsafe-env-switches.md)).
+`debug` or `silly`. The statements are written with the values of their `WHERE` clauses, an email
+address on a login for one, and nothing redacts them, so use it on your own machine only. Both
+`DB_LOGGING=true` and `LOG_LEVEL=silly` are **refused in production** at startup
+([ADR-0036](../../explanation/decisions/adr-0036-refuse-production-unsafe-env-switches.md)), and
+`DB_LOGGING` has no effect in staging or test.
 
 ## Sensitive values
 

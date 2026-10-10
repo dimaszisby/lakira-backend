@@ -45,7 +45,9 @@ const config = {
   production: {
     url: process.env.PRODUCTION_DATABASE_URL,
     dialect: "postgres",
-    logging: process.env.DB_LOGGING === "true" ? console.log : false,
+    // Never in production: statement text carries values. The schema refuses
+    // DB_LOGGING=true there, but sequelize-cli reads this file without it.
+    logging: false,
     dialectOptions: {
       ssl: buildSslOptions(),
     },
@@ -53,7 +55,9 @@ const config = {
 };
 
 if (!Object.prototype.hasOwnProperty.call(config, NODE_ENV)) {
-  throw new Error(`[ERROR]: No configuration found for environment: ${NODE_ENV}`);
+  throw new Error(
+    `[ERROR]: No configuration found for environment: ${NODE_ENV}`,
+  );
 }
 
 if (NODE_ENV === "staging" || NODE_ENV === "production") {
