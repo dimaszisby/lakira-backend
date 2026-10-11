@@ -21,9 +21,12 @@ const MODEL_FILE =
 
 type Case = { spec: string; rejected: boolean };
 
-/** Returns, for each case, whether no-restricted-imports reported its line. */
-const lint = (filePath: string, cases: Case[]): boolean[] => {
-  const source = cases.map((c) => `import "${c.spec}";`).join("\n") + "\n";
+/** The lines of `source` that `ruleId` reported, linted as if it were `filePath`. */
+const reportedLines = (
+  filePath: string,
+  source: string,
+  ruleId: string,
+): Set<number> => {
   let output: string;
   try {
     output = execFileSync(
@@ -50,11 +53,15 @@ const lint = (filePath: string, cases: Case[]): boolean[] => {
   const [result] = JSON.parse(output) as [
     { messages: { ruleId: string | null; line: number }[] },
   ];
-  const reported = new Set(
-    result.messages
-      .filter((m) => m.ruleId === "no-restricted-imports")
-      .map((m) => m.line),
+  return new Set(
+    result.messages.filter((m) => m.ruleId === ruleId).map((m) => m.line),
   );
+};
+
+/** Returns, for each case, whether no-restricted-imports reported its line. */
+const lint = (filePath: string, cases: Case[]): boolean[] => {
+  const source = cases.map((c) => `import "${c.spec}";`).join("\n") + "\n";
+  const reported = reportedLines(filePath, source, "no-restricted-imports");
   return cases.map((_, i) => reported.has(i + 1));
 };
 
@@ -342,5 +349,67 @@ describe("feature boundaries in ESLint (ADR-0044)", () => {
       expectCases(FEATURE_DOMAIN_FILE, cases);
       expectCases(SHARED_DOMAIN_FILE, cases);
     }, 60_000);
+  });
+
+  // Kit boundary-rule-residuals, D-08. no-restricted-imports reads static imports only, so
+  // every rule above could be walked around with `import()` or an import type.
+  describe("no import form the boundary rules cannot read, under src/", () => {
+    const TARGET = "@/features/metric/domain/entities/Metric.js";
+    const LINES = [
+      `export const a = () => import("${TARGET}");`,
+      `export const b = () => import(\`${TARGET}\`);`,
+      "export const c = (path: string) => import(path);",
+      `export type D = import("${TARGET}").Metric;`,
+      // A specifier no boundary rule objects to is refused too: the form is what is banned.
+      'export const e = () => import("node:crypto");',
+      // createRequire builds a require that loads a file with no import statement.
+      'import { createRequire } from "module";',
+      'import { createRequire as f } from "node:module";',
+      'export { createRequire as g } from "node:module";',
+      'export * from "module";',
+    ];
+    const SOURCE = LINES.join("\n") + "\n";
+    const ALL_LINES = LINES.map((_, i) => i + 1);
+
+    const rejected = (file: string) =>
+      [...reportedLines(file, SOURCE, "no-restricted-syntax")].sort();
+
+    it.each([
+      "src/features/public/metric-log/domain/entities/MetricLog.ts",
+      FEATURE_FILE,
+      "src/features/public/metric-log/infrastructure/http/controller.ts",
+      MODEL_FILE,
+      "src/shared/domain/errors/DomainError.ts",
+      "src/shared/utils/error-envelope.ts",
+      "src/utils/db-helper.ts",
+      "src/composition/metric-log.ts",
+      "src/lib/openapi/openapi-docs.ts",
+      "src/server.ts",
+      "src/worker.ts",
+    ])(
+      "rejects every form in %s",
+      (file) => {
+        expect(rejected(file)).toEqual(ALL_LINES);
+      },
+      60_000,
+    );
+
+    it("is not triggered by a package whose name only contains `module`", () => {
+      const source = 'import "module-alias";\nimport "@/shared/module.js";\n';
+      expect([
+        ...reportedLines("src/server.ts", source, "no-restricted-syntax"),
+      ]).toEqual([]);
+    }, 60_000);
+
+    it.each([
+      "__tests__/unit/architecture.test.ts",
+      "scripts/generate-openapi.ts",
+    ])(
+      "leaves %s alone",
+      (file) => {
+        expect(rejected(file)).toEqual([]);
+      },
+      60_000,
+    );
   });
 });
