@@ -199,7 +199,7 @@
         }
       },
       "TooManyRequestsError": {
-        "description": "Rate limit exceeded",
+        "description": "Rate limit exceeded. Any operation can return this: an app-wide limit applies to every request, and some operations have a stricter limit of their own.",
         "content": {
           "application/json": {
             "schema": {
@@ -2202,6 +2202,9 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -2233,6 +2236,9 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -2277,6 +2283,9 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -2301,6 +2310,9 @@
           },
           "400": {
             "$ref": "#/components/responses/BadRequestError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -2341,6 +2353,9 @@
           },
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -2566,6 +2581,9 @@
           "403": {
             "$ref": "#/components/responses/ForbiddenError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -2628,6 +2646,9 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -2657,6 +2678,9 @@
           },
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -2704,6 +2728,9 @@
           "403": {
             "$ref": "#/components/responses/ForbiddenError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -2746,6 +2773,9 @@
           },
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -2807,6 +2837,9 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -2854,6 +2887,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFoundError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -2911,6 +2947,9 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -3033,6 +3072,9 @@
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -3093,6 +3135,9 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -3162,6 +3207,9 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -3208,6 +3256,9 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -3268,6 +3319,9 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -3393,6 +3447,9 @@
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -3484,6 +3541,9 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -3552,6 +3612,9 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -3611,6 +3674,9 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -3669,6 +3735,9 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -3793,6 +3862,9 @@
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -3853,6 +3925,9 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -3924,6 +3999,9 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -3992,6 +4070,9 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -4050,6 +4131,9 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -4241,6 +4325,9 @@
           "403": {
             "$ref": "#/components/responses/ForbiddenError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -4299,6 +4386,9 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -4420,6 +4510,9 @@
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -4480,6 +4573,9 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -4546,6 +4642,9 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -4589,6 +4688,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFoundError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -4647,6 +4749,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFoundError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -4743,6 +4848,9 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -4800,6 +4908,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFoundError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -4921,6 +5032,9 @@
           },
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -5044,6 +5158,9 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -5087,6 +5204,9 @@
           },
           "403": {
             "$ref": "#/components/responses/ForbiddenError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequestsError"
           }
         }
       }

@@ -112,7 +112,9 @@ wired in (C3, `docs/internal/todos/2026-09-01-todo-error-envelope.md`).
 - **409**: Conflict (duplicate unique constraint)
 - **413**: Request body larger than `REQUEST_BODY_LIMIT`
 - **415**: Unsupported request charset or content encoding
-- **429**: Rate limit exceeded
+- **429**: Rate limit exceeded. The spec generator adds this response to every operation
+  (`getOpenApiDocumentation`), so a `registerPath` call writes a 429 only when the route has a
+  limiter of its own and the text should name it
 - **500**: Internal server error
 
 ## Error Handling

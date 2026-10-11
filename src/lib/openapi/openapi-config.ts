@@ -202,7 +202,8 @@ export const openApiDocument = {
       // Every limiter answers through the shared envelope (ADR-0057). Until
       // 2026-10-03 this documented `status` as the number 429.
       TooManyRequestsError: {
-        description: "Rate limit exceeded",
+        description:
+          "Rate limit exceeded. Any operation can return this: an app-wide limit applies to every request, and some operations have a stricter limit of their own.",
         content: {
           "application/json": {
             schema: {

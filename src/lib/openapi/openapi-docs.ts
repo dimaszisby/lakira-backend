@@ -1852,6 +1852,20 @@ registry.registerPath({
   },
 });
 
+const OPERATION_METHODS = [
+  "get",
+  "put",
+  "post",
+  "delete",
+  "patch",
+  "head",
+  "options",
+  "trace",
+] as const;
+const SHARED_RATE_LIMIT_RESPONSE = {
+  $ref: "#/components/responses/TooManyRequestsError",
+};
+
 export const getOpenApiDocumentation = () => {
   const generator = new OpenApiGeneratorV31(registry.definitions);
   // Generate a full OpenAPI document from the registry, seeded with the base config.
@@ -1882,6 +1896,19 @@ export const getOpenApiDocumentation = () => {
       ...(generatedComponents.parameters ?? {}),
     },
   } as ComponentsObject;
+
+  // globalRateLimiter is mounted before every router, so every operation can
+  // answer 429. Added here, once: when each registerPath call was left to write
+  // it, 40 of 47 did not. An operation with a limiter of its own keeps the
+  // description it wrote. scripts/validate-openapi.ts fails if one has none.
+  for (const pathItem of Object.values(document.paths ?? {})) {
+    for (const method of OPERATION_METHODS) {
+      const operation = pathItem[method];
+      if (!operation) continue;
+      operation.responses ??= {};
+      operation.responses["429"] ??= SHARED_RATE_LIMIT_RESPONSE;
+    }
+  }
 
   return document;
 };
