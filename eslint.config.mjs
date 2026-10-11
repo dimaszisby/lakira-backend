@@ -104,8 +104,12 @@ const FEATURE_DEEP_IMPORTS_EXCEPT_MODELS = {
 // An HTTP status code has no business in a domain entity. Entities raise a
 // DomainError kind; src/shared/middleware/error.ts maps it. This was the third of
 // SaaS-readiness caveat C4's three claims.
+// A regex on the file name, not a list of spellings: the list had three, and the
+// `@utils/` alias and an extensionless relative path got past it (audit-2026-10-10 V4).
+// Any import whose last segment is `AppError` or `AppError.js` is refused;
+// __tests__/unit/feature-boundaries.lint.test.ts proves each spelling in both domain layers.
 const DOMAIN_LAYER_HTTP_ERROR = {
-  group: ["@/utils/AppError", "@/utils/AppError.js", "**/utils/AppError.js"],
+  regex: "(?:^|/)AppError(?:\\.js)?$",
   message:
     "AppError carries an HTTP statusCode, which the domain layer must not know. Throw a DomainError (or ValidationError) from @/shared/domain/errors/DomainError.js and let the error middleware map it. See .claude/rules/architecture.md § Dependency Rules.",
 };
@@ -336,7 +340,7 @@ export default [
   },
   {
     // The shared kernel has layers too.
-    files: ["src/shared/domain/**/*.ts", "src/shared/application/**/*.ts"],
+    files: ["src/shared/application/**/*.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -344,6 +348,24 @@ export default [
           patterns: [
             ...LEGACY_IMPORT_PATTERNS,
             SHARED_CODE_FEATURE_IMPORT,
+            INNER_LAYER_INFRASTRUCTURE,
+            INNER_LAYER_DRIVER_PACKAGES,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // Its domain takes the feature domain's AppError rule as well.
+    files: ["src/shared/domain/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            ...LEGACY_IMPORT_PATTERNS,
+            SHARED_CODE_FEATURE_IMPORT,
+            DOMAIN_LAYER_HTTP_ERROR,
             INNER_LAYER_INFRASTRUCTURE,
             INNER_LAYER_DRIVER_PACKAGES,
           ],

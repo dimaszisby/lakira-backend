@@ -86,3 +86,25 @@ this change. It is the cleaner shape, but it changes a constructor and its wirin
 task needs.
 **Consequences.** The application layer still speaks in exchanges and routing keys, because the
 port does. Hiding them is the rejected option above, for a later task.
+
+## D-07 — The `AppError` rule matches the file name, in both domain layers
+
+- **Status:** Proposed
+- **Date:** 2026-10-11
+
+**Context.** The audit of 2026-10-10 kept caveat C4 open on finding V4. `DOMAIN_LAYER_HTTP_ERROR`
+in `eslint.config.mjs` listed three globs, and two spellings of the import got past them from a
+feature's domain file: `@utils/AppError.js` and `@utils/AppError`, through the `@utils/*` alias. The
+rule was not in the block for `src/shared/domain` at all, and no test had a case for it. No file in
+`src/` uses any of this today. ADR-012 of the audit folder names V4 as the one route C4 closes on.
+**Decision.** The rule is one regex, `(?:^|/)AppError(?:\.js)?$`: any import whose last path segment
+is `AppError` or `AppError.js`. It is listed for `src/features/*/*/domain/**` as before and now for
+`src/shared/domain/**`, which gets a block of its own. `feature-boundaries.lint.test.ts` holds the
+negative cases, per spelling and per layer.
+**Options considered.** Two more globs: rejected, a list of spellings is how the gap arose, and the
+next alias would be missed the same way. The same rule for the application layer: rejected here, it
+is not V4 and use cases raise `AppError` today. A rule on the imported name: rejected, `AppError` is
+a default export and the importer picks the local name.
+**Consequences.** A domain file may not import any file named `AppError`, wherever it lives. None
+exists besides `src/utils/AppError.ts`. The rule still cannot see a re-export under another file
+name; nothing re-exports the class today.

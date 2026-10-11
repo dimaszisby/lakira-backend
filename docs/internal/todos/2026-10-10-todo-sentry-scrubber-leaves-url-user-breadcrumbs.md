@@ -1,6 +1,6 @@
 # Todo — the Sentry scrubber leaves the URL, the user, breadcrumbs and exception values
 
-- **Status:** Fixed on `fix/c5-sentry-scrubber`
+- **Status:** Fixed in #152 (`7d12927`)
   ([`log-redaction-coverage` D-12](../initiatives/log-redaction-coverage/decisions.md)),
   transactions and spans included. Not yet confirmed by a dated run; what the review left is in
   [this todo](2026-10-10-todo-sentry-scrubber-review-leftovers.md). Was: Open (P2), reproduced on

@@ -392,7 +392,7 @@ development the log still holds statement values, which is the developer's own d
 
 ## D-12 — The Sentry scrubber cleans the URL, the user, breadcrumbs, exception text and spans
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #152, `7d12927`)
 - **Date:** 2026-10-10
 
 Micro entry for finding V3 of `audit-2026-10-10.md`
