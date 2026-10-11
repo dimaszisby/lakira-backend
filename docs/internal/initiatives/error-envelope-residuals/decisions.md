@@ -101,3 +101,27 @@ carries only what the frontend has to do.
 
 Promoted to the architecture decision registry as **[ADR-0057](../../../explanation/decisions/adr-0057-rate-limiters-answer-through-the-error-envelope.md)**.
 That file is authoritative; this entry is a pointer.
+
+## D-08 — The generator documents the 429 on every operation
+
+- **Status:** Proposed
+- **Date:** 2026-10-11
+
+**Context.** The audit of 2026-10-10 kept caveat C3 open on finding V5. `globalRateLimiter` is
+mounted before every router (`src/server.ts`), so any documented operation can answer
+`429 {"status":"fail","message":"..."}`. The spec documented a 429 on 7 of its 47 operations, the
+ones with a limiter of their own. Each operation's responses are written by hand in
+`src/lib/openapi/openapi-docs.ts`, and 40 authors did not write it. ADR-012 of the audit folder
+names V5 as the one route C3 closes on.
+**Decision.** `getOpenApiDocumentation()` adds
+`429: { $ref: "#/components/responses/TooManyRequestsError" }` to every operation that does not
+declare a 429. An operation that describes its own keeps it. `scripts/validate-openapi.ts` fails
+when an operation has none, so the gate holds whatever builds the document.
+**Options considered.** Writing the response into 40 `registerPath` calls: rejected, the next route
+forgets it the same way. A wrapper around `registry.registerPath`: rejected, the same effect with
+47 call sites changed. A sentence in the spec's description: rejected, a generated client gets no
+type from prose.
+**Consequences.** A route author writes a 429 only when the route has its own limiter and the text
+should name it. An operation mounted before the limiter would be documented with a 429 it cannot
+return; none is in the spec today (`/health` and `/ready` are not documented). If one is added, the
+exemption goes in the same loop and in the validator, by path.

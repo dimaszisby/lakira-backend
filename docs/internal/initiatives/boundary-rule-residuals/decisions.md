@@ -89,7 +89,7 @@ port does. Hiding them is the rejected option above, for a later task.
 
 ## D-07 — The `AppError` rule matches the file name, in both domain layers
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #153, `47f3aff`)
 - **Date:** 2026-10-11
 
 **Context.** The audit of 2026-10-10 kept caveat C4 open on finding V4. `DOMAIN_LAYER_HTTP_ERROR`

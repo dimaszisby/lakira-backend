@@ -91,6 +91,16 @@ const validate = (): string[] => {
         problems.push(`${method.toUpperCase()} ${route} declares no responses`);
       }
 
+      // 5. The app-wide limiter sits in front of every router, so every operation
+      //    can answer 429. The generator adds the shared response; 40 of 47
+      //    operations had none while each author was left to write it
+      //    (SaaS-readiness caveat C3, audit-2026-10-10 V5).
+      if (responses && !responses["429"]) {
+        problems.push(
+          `${method.toUpperCase()} ${route} documents no 429 — the app-wide limiter can answer it on any operation`,
+        );
+      }
+
       const id = op.operationId;
       if (typeof id !== "string") continue;
       const previous = seen.get(id);

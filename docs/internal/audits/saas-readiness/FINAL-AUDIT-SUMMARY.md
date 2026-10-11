@@ -465,6 +465,14 @@ dynamic `import()` is not read by any boundary rule (P2, in
 [this todo](../../todos/2026-10-11-todo-apperror-lint-rule-review-leftovers.md)). The C4 row above
 stays as graded until a dated run (ADR-002).
 
+**C3 — V5 fix landed, not yet re-audited (2026-10-11).** The spec generator now adds the shared 429
+to every operation that does not describe its own, so the committed spec documents it on 47 of 47
+operations, and `scripts/validate-openapi.ts` fails when an operation has none
+([`error-envelope-residuals` D-08](../../initiatives/error-envelope-residuals/decisions.md)). The
+seven operations with a limiter of their own keep their text. A reviewer given V5 as a claim graded
+it closed, matched every mounted route against the spec, and found nothing above P3. The C3 row
+above stays as graded until a dated run (ADR-002).
+
 ---
 
 ## 5. Possible issues — needs human judgment (not blockers)
