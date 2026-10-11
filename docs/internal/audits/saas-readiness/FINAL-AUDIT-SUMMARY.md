@@ -462,7 +462,8 @@ domain ([`boundary-rule-residuals` D-07](../../initiatives/boundary-rule-residua
 `feature-boundaries.lint.test.ts` holds the negative cases, six spellings in each layer. A reviewer
 given V4 as a claim graded it closed, and listed a route outside V4 that is wider than this rule: a
 dynamic `import()` is not read by any boundary rule (P2, in
-[this todo](../../todos/2026-10-11-todo-apperror-lint-rule-review-leftovers.md)). The C4 row above
+[this todo](../../todos/2026-10-11-todo-apperror-lint-rule-review-leftovers.md)). That route has a fix of its own since 2026-10-11, also not yet re-audited: dynamic imports, import
+types and node's `module` package are refused under `src/` (D-08 of the same kit). The C4 row above
 stays as graded until a dated run (ADR-002).
 
 **C3 — V5 fix landed, not yet re-audited (2026-10-11).** The spec generator now adds the shared 429

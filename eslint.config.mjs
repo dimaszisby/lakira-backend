@@ -165,6 +165,35 @@ const SHARED_CODE_FEATURE_IMPORT_EXCEPT_MODELS = {
   message: SHARED_CODE_FEATURE_IMPORT.message,
 };
 
+// Every rule above is a no-restricted-imports pattern, and that rule reads static
+// `import` and `export … from` only. A dynamic `import()` or a TypeScript import type
+// names a module without either, so each rule could be walked around. Both forms are
+// refused outright under src/: a selector on the specifier would miss `import(path)`.
+// So is node's `module` package, the source of createRequire.
+// Nothing in src/ uses them (boundary-rule-residuals D-08). A file that needs a lazy
+// import gets a later block that names it and says why.
+// __tests__/unit/feature-boundaries.lint.test.ts proves it in every kind of src file.
+const NO_UNCHECKED_IMPORT_FORMS = [
+  {
+    selector: "ImportExpression",
+    message:
+      "No dynamic import() under src/: the boundary rules read static imports only, so this would bypass them. Use a static import. If the file truly needs a lazy import, add a named exemption in eslint.config.mjs with the reason.",
+  },
+  {
+    selector: "TSImportType",
+    message:
+      'No import("…") types under src/: the boundary rules read static imports only, so this would bypass them. Use `import type { X } from "…"`.',
+  },
+  {
+    // node's own `module` package is where createRequire comes from, and a require
+    // built that way loads a file by relative path with no import statement at all.
+    selector:
+      ":matches(ImportDeclaration, ExportNamedDeclaration, ExportAllDeclaration)[source.value=/^(node:)?module$/]",
+    message:
+      "No import from node's `module` package under src/: createRequire loads a file with no import statement, which the boundary rules cannot read. Use a static import.",
+  },
+];
+
 export default [
   // Ignore migrations and eslint.config.mjs files
   {
@@ -371,6 +400,13 @@ export default [
           ],
         },
       ],
+    },
+  },
+  // The boundary rules cannot be bypassed by a form they do not read.
+  {
+    files: ["src/**/*.ts"],
+    rules: {
+      "no-restricted-syntax": ["error", ...NO_UNCHECKED_IMPORT_FORMS],
     },
   },
   // Override for Jest-driven test files living under __tests__

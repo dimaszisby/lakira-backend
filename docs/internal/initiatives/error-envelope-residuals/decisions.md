@@ -104,7 +104,7 @@ That file is authoritative; this entry is a pointer.
 
 ## D-08 — The generator documents the 429 on every operation
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #154, `e725452`)
 - **Date:** 2026-10-11
 
 **Context.** The audit of 2026-10-10 kept caveat C3 open on finding V5. `globalRateLimiter` is

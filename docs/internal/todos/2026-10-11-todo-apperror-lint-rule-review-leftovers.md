@@ -1,6 +1,6 @@
 # Todo — what the review of the `AppError` lint rule left open
 
-- **Status:** Open (one P2, three P3)
+- **Status:** Partly (the P2 is fixed on `fix/dynamic-import-boundary-gap`; five P3 open)
 - **Created:** 2026-10-11
 - **Owner:** unassigned
 - **Origin:** the code review of `fix/c4-apperror-lint-rule`
@@ -10,7 +10,9 @@
 
 ## Items
 
-1. **P2 — a dynamic `import()` gets past every boundary rule.** `no-restricted-imports` reads
+1. **Fixed on `fix/dynamic-import-boundary-gap`** ([`boundary-rule-residuals` D-08](../initiatives/boundary-rule-residuals/decisions.md)):
+   dynamic imports, import types and node's `module` package are refused under `src/`. The
+   finding as filed: **P2 — a dynamic `import()` gets past every boundary rule.** `no-restricted-imports` reads
    static `import` and `export … from` only. `export const x = () => import("@/utils/AppError.js")`
    linted under `src/shared/domain/errors/DomainError.ts` reports nothing (reproduced 2026-10-11).
    The build rewrites the `@/` alias inside `import()` too, so it would run. This is not specific
@@ -30,3 +32,11 @@
    the script the two aliases or drop them from `tsconfig.json`, Jest and the rule.
 4. **P3 — the lint message cites a section that does not name the rule.** The message ends "See
    .claude/rules/architecture.md § Dependency Rules", and that file never mentions `AppError`.
+5. **P3 — `process.getBuiltinModule("module")` reaches `createRequire` with no import.** Found
+   while fixing item 1, not reproduced. The fix refuses an import from node's `module` package;
+   this call needs none. Nothing in `src/` uses it. A `no-restricted-properties` entry for
+   `process.getBuiltinModule` under `src/` would close it.
+6. **P3 — `src/config/config.cjs` is outside the new rule.** From the review of item 1's fix: the
+   rule's glob is `src/**/*.ts`, and this is the one CommonJS file in `src/`. It uses `require`
+   by design, and an `import()` in it lints clean. It is Sequelize CLI configuration and imports
+   nothing from a feature.

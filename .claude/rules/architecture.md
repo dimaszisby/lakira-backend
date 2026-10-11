@@ -45,6 +45,11 @@ features/{name}/
   `src/utils/` or `src/config/` may import from `src/features/`, `public.ts` included. A type that
   needs a feature's type lives in a feature. Three named exceptions: `src/infrastructure/db/`,
   `src/lib/openapi/`, and `src/utils/db-helper.ts` for model files
+- **Static imports only under `src/`.** The rules above read `import … from` and `export … from`,
+  so the forms they cannot read are refused outright: a dynamic `import()`, an `import("…")` type
+  (write `import type { X } from "…"`), and anything from node's `module` package
+  (`createRequire`). A file that truly needs a lazy import gets a named exemption in
+  `eslint.config.mjs`
 - **Infrastructure layer** implements domain interfaces and wires to frameworks
 - **feature.ts** is the composition root — instantiates repos, providers, use cases
 

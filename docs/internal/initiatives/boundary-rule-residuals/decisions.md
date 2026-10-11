@@ -108,3 +108,31 @@ a default export and the importer picks the local name.
 **Consequences.** A domain file may not import any file named `AppError`, wherever it lives. None
 exists besides `src/utils/AppError.ts`. The rule still cannot see a re-export under another file
 name; nothing re-exports the class today.
+
+## D-08 — No dynamic import and no import type under `src/`
+
+- **Status:** Proposed
+- **Date:** 2026-10-11
+
+**Context.** Every boundary rule is a `no-restricted-imports` pattern, and that rule reads static
+`import` and `export … from` only. The review of D-07 found that
+`() => import("@/utils/AppError.js")` in a domain file reports nothing, and the build rewrites the
+`@/` alias inside `import()`, so it would run. The feature-boundary, inner-layer and shared-code
+rules have the same hole. So does the TypeScript type `import("…").Name`, which is a dependency
+across the boundary the rule does not read either. Nothing under `src/` uses either form. It is
+not a caveat's route (ADR-012 of the audit folder); it is a finding in its own right, at P2.
+**Decision.** Both forms are refused in every `src/**/*.ts` file, by `no-restricted-syntax` on the
+`ImportExpression` and `TSImportType` nodes. `feature-boundaries.lint.test.ts` holds the cases.
+**Options considered.** A selector per boundary pattern: rejected. A selector matches a literal
+specifier only, so `import(path)` or a template string passes it, and six blocks with different
+pattern sets would have to be mirrored and kept in step. A text scan in `architecture.test.ts`:
+rejected, it would parse specifiers by regex where the linter already has the syntax tree.
+**Consequences.** A file that needs a lazy import gets a block of its own that names it and says
+why, as the config's other exceptions do. `__tests__/` and `scripts/` are outside `src/` and keep
+`import()`.
+**Added in review.** The reviewer graded `createRequire` part of the same finding: a `require`
+built from it loads a file by relative path with no import statement. The same block now refuses
+any import from node's `module` package under `src/`. The plan had listed it as not covered. Still
+not covered: `process.getBuiltinModule("module")`, which reaches the same function without an
+import; a module re-exported under another file name; and `src/config/config.cjs`, the one
+CommonJS file in `src/`, which the `*.ts` glob does not match.
