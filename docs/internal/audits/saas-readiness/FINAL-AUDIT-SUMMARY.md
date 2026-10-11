@@ -455,6 +455,16 @@ are fixed, and that second version has not been graded. What it left is in
 [this todo](../../todos/2026-10-10-todo-sentry-scrubber-review-leftovers.md). The C5 row above
 stays as graded until a dated run (ADR-002).
 
+**C4 — V4 fix landed, not yet re-audited (2026-10-11).** The rule that keeps `AppError` out of the
+domain layer is now one regex on the file name, so the `@utils/` spellings and an extensionless
+relative path are rejected, and it applies to `src/shared/domain` as well as to every feature's
+domain ([`boundary-rule-residuals` D-07](../../initiatives/boundary-rule-residuals/decisions.md)).
+`feature-boundaries.lint.test.ts` holds the negative cases, six spellings in each layer. A reviewer
+given V4 as a claim graded it closed, and listed a route outside V4 that is wider than this rule: a
+dynamic `import()` is not read by any boundary rule (P2, in
+[this todo](../../todos/2026-10-11-todo-apperror-lint-rule-review-leftovers.md)). The C4 row above
+stays as graded until a dated run (ADR-002).
+
 ---
 
 ## 5. Possible issues — needs human judgment (not blockers)

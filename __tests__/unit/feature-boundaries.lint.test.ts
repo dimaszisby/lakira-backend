@@ -240,7 +240,7 @@ describe("feature boundaries in ESLint (ADR-0044)", () => {
     it.each([
       "src/types/request.context.ts",
       "src/shared/utils/error-envelope.ts",
-      // The shared kernel's layers get a later, stricter block; it must keep this rule.
+      // The shared kernel's layers get later, stricter blocks; they must keep this rule.
       "src/shared/application/ports/MessageQueuePort.ts",
       "src/shared/domain/errors/DomainError.ts",
       "src/utils/logger.ts",
@@ -251,7 +251,11 @@ describe("feature boundaries in ESLint (ADR-0044)", () => {
         expectCases(file, [
           ...FEATURE_IMPORTS,
           { spec: "@/types/request.context.js", rejected: false },
-          { spec: "@/utils/AppError.js", rejected: false },
+          // AppError is the domain layer's business, in the describe below.
+          {
+            spec: "@/utils/AppError.js",
+            rejected: file.startsWith("src/shared/domain/"),
+          },
         ]);
       },
       60_000,
@@ -286,6 +290,57 @@ describe("feature boundaries in ESLint (ADR-0044)", () => {
       ];
       expectCases("src/infrastructure/db/models.ts", cases);
       expectCases("src/lib/openapi/openapi-schemas.ts", cases);
+    }, 60_000);
+  });
+
+  // Kit boundary-rule-residuals, D-07. The rule was a list of globs with no case here, and
+  // the `@utils/` alias got past it; in src/shared/domain it was not applied at all
+  // (SaaS-readiness caveat C4, audit-2026-10-10 V4).
+  describe("the domain layer imports no AppError", () => {
+    const FEATURE_DOMAIN_FILE =
+      "src/features/public/metric-log/domain/entities/MetricLog.ts";
+    const SHARED_DOMAIN_FILE = "src/shared/domain/errors/DomainError.ts";
+
+    const APP_ERROR_SPELLINGS = [
+      "@/utils/AppError.js",
+      "@/utils/AppError",
+      "@utils/AppError.js",
+      "@utils/AppError",
+      "../../../../../utils/AppError.js",
+      "../../../../../utils/AppError",
+    ];
+    const spellings = (rejected: boolean): Case[] =>
+      APP_ERROR_SPELLINGS.map((spec) => ({ spec, rejected }));
+
+    it("rejects every spelling from a feature's domain file", () => {
+      expectCases(FEATURE_DOMAIN_FILE, spellings(true));
+    }, 60_000);
+
+    it("rejects every spelling from the shared kernel's domain", () => {
+      expectCases(SHARED_DOMAIN_FILE, spellings(true));
+    }, 60_000);
+
+    it.each([
+      FEATURE_FILE,
+      "src/features/public/metric-log/infrastructure/http/controller.ts",
+      "src/shared/application/ports/MessageQueuePort.ts",
+      "src/shared/middleware/error.ts",
+    ])(
+      "leaves %s free to import it",
+      (file) => {
+        expectCases(file, spellings(false));
+      },
+      60_000,
+    );
+
+    it("allows DomainError, and a file whose name only ends the same way", () => {
+      const cases: Case[] = [
+        { spec: "@/shared/domain/errors/DomainError.js", rejected: false },
+        { spec: "./NotAppError.js", rejected: false },
+        { spec: "./AppErrorKind.js", rejected: false },
+      ];
+      expectCases(FEATURE_DOMAIN_FILE, cases);
+      expectCases(SHARED_DOMAIN_FILE, cases);
     }, 60_000);
   });
 });
