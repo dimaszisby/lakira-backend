@@ -1,6 +1,6 @@
 # Todo — what the review of the `AppError` lint rule left open
 
-- **Status:** Partly (the P2 is fixed on `fix/dynamic-import-boundary-gap`; five P3 open)
+- **Status:** Partly (the P2 is fixed in #155; five P3 open)
 - **Created:** 2026-10-11
 - **Owner:** unassigned
 - **Origin:** the code review of `fix/c4-apperror-lint-rule`
@@ -10,7 +10,7 @@
 
 ## Items
 
-1. **Fixed on `fix/dynamic-import-boundary-gap`** ([`boundary-rule-residuals` D-08](../initiatives/boundary-rule-residuals/decisions.md)):
+1. **Fixed in #155 (`fffe796`)** ([`boundary-rule-residuals` D-08](../initiatives/boundary-rule-residuals/decisions.md)):
    dynamic imports, import types and node's `module` package are refused under `src/`. The
    finding as filed: **P2 — a dynamic `import()` gets past every boundary rule.** `no-restricted-imports` reads
    static `import` and `export … from` only. `export const x = () => import("@/utils/AppError.js")`

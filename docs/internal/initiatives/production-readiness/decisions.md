@@ -35,3 +35,35 @@ Promoted to the architecture decision registry as **[ADR-0032](../../../explanat
 
 - `docs/internal/audits/saas-readiness/audit-2026-05-01.md` § 7.1
 - `production-readiness-plan.md` § Phase D
+
+## D-03 — The readiness probe runs its checks at most once per window
+
+- **Status:** Proposed
+- **Date:** 2026-10-11
+
+Numbered after ADR-001 and ADR-002 above; this log predates the `D-NN` form, which new entries use.
+
+**Context.** `GET /api/v1/ready` is unauthenticated and mounted before the rate limiter, because a
+platform probe must never be throttled. Every call ran `sequelize.authenticate()` and a Redis ping.
+With the default pool of 5, anyone who can reach the port could send probes that compete with real
+requests for connections, hardest when the database is already slow. Finding S9 of
+`audit-2026-10-03.md`, at P2, open in every run since.
+**Decision.** The checks sit behind `createReadinessProbe`
+(`src/shared/utils/readiness-probe.ts`). A result is served for 2 seconds. Callers that arrive
+while a check runs await that one check. A failed result is held for the same 2 seconds as a good
+one. A check whose last run has not settled is reported `fail` and not started again. The route
+stays where it is and answers with the same body.
+**Options considered.** The probe behind the limiter: rejected, a throttled probe takes an instance
+out of rotation. A limiter of its own: rejected, the same problem, and a platform's probes come
+from few addresses. An env var for the window: rejected, a 70th variable for a value nobody has
+asked to tune. Holding only good results: rejected, the cache would disappear exactly when the
+database is down, which is when a flood costs most.
+**Consequences.** Readiness can lag reality by up to 2 seconds in either direction. A platform that
+probes every 5 or 10 seconds always gets a fresh check. A check that hangs past its
+2 second budget keeps being reported `fail` until it settles, which for a database connection can
+be Sequelize's 60 second acquire timeout; that is the price of never holding two pool connections
+for the probe.
+**From the review.** Graded closed. The reviewer listed one route outside S9: the probes run after
+the body parsers and `xss-clean`, so a flood of requests with large bodies still costs CPU ahead of
+the limiter. That is true of every route, since the limiter is mounted after the parsers. Filed as
+`docs/internal/todos/2026-10-11-todo-probes-run-after-body-parsers.md`.
