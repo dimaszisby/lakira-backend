@@ -93,8 +93,9 @@ Also green, and run by CI: `build`, `docs:openapi:check`, `security:delta:gate`,
    can answer it on any.
 6. **S9 · Security (P2)** — the readiness probe is unthrottled and checks the database on every
    call. [Todo](docs/internal/todos/2026-10-03-todo-readiness-probe-unthrottled.md).
-7. **S10 · Forkability (P2)** — bootstrap rotates `JWT_SECRET` only, and Compose publishes the
-   database, Redis and RabbitMQ ports on all interfaces.
+7. **S10 · Forkability (P2)** — bootstrap rotated `JWT_SECRET` only, and Compose published the
+   database, Redis and RabbitMQ ports on all interfaces. Fix landed 2026-10-12 and is not yet
+   re-audited: bootstrap generates the database password and Compose publishes on `127.0.0.1`.
    [Todo](docs/internal/todos/2026-10-05-todo-fork-service-passwords-and-published-ports.md).
 
 Closed and confirmed in the run of 2026-10-10: U1, U2 and C2. Still closed: C1, S1 to S4, S7 and
@@ -108,7 +109,7 @@ S8. Full evidence (file:line) is in the
 - **Production safety:** startup refuses production-unsafe switches (ADR-0036, 0048, 0049), and the image defaults `NODE_ENV=production` (ADR-0050).
 - **Observability:** request-ID propagation via AsyncLocalStorage + Winston correlation; logs to stdout with key-based redaction; Sentry with `scrubSentryEvent` for headers and bodies; `/api/v1/ready` DB+Redis readiness probe.
 - **Contracts:** one documented error envelope for every error path, rate limits included (ADR-0057), OpenAPI generated from Zod and gated on both drift and validity, Schemathesis fuzzing of 42 operations.
-- **Forkability scaffolding:** `LICENSE`, root `README.md`, `CONTRIBUTING.md`, `.env.example`, `bootstrap-fork.sh` (validated `--name`, rotates `JWT_SECRET`, sets `APP_NAME`), `FORKED-FROM.md`.
+- **Forkability scaffolding:** `LICENSE`, root `README.md`, `CONTRIBUTING.md`, `.env.example`, `bootstrap-fork.sh` (validated `--name`, rotates `JWT_SECRET`, generates the database password, sets `APP_NAME`), `FORKED-FROM.md`.
 
 ## Re-running this audit
 

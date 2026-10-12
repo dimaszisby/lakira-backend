@@ -17,8 +17,10 @@ services:
       # refuse to start ("unused mount/volume"). See docker-library/postgres#1259.
       - db_data:/var/lib/postgresql
       - ./docker/db/init:/docker-entrypoint-initdb.d # Initialize database with scripts
+    # Published on loopback only, like every backing service below: a bare "5432:5432"
+    # binds every interface, and these credentials are development ones (audit S10).
     ports: # Expose the standard PostgreSQL port
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck: # Verify PostgreSQL readiness before Node.js app connects
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
@@ -47,7 +49,7 @@ services:
     volumes: # Persist data across container restarts
       - redis_data:/data # Default Redis data directory
     ports: # Expose the default Redis port
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     networks: # Connect to the backend network
       - backend
     logging: # Configure logging to stdout
@@ -68,9 +70,9 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     ports:
-      - "5672:5672" # AMQP
-      - "15672:15672" # Management UI
-      - "15692:15692" # Prometheus metrics
+      - "127.0.0.1:5672:5672" # AMQP
+      - "127.0.0.1:15672:15672" # Management UI
+      - "127.0.0.1:15692:15692" # Prometheus metrics
     networks:
       - backend
     healthcheck:
@@ -92,8 +94,8 @@ services:
     container_name: mailpit
     restart: always
     ports:
-      - "8025:8025" # Web inbox and HTTP API
-      - "1025:1025" # SMTP
+      - "127.0.0.1:8025:8025" # Web inbox and HTTP API
+      - "127.0.0.1:1025:1025" # SMTP
     networks:
       - backend
     logging:
@@ -139,6 +141,7 @@ services:
         condition: service_healthy # The image ships its own healthcheck
     ports: # Expose the application port
       # Host 8001 -> container 5000. Host 5000 collides with AirPlay Receiver on macOS.
+      # The one port left on every interface, so a client on another device can reach the API.
       - "8001:5000"
     networks: # Connect to the backend network
       - backend

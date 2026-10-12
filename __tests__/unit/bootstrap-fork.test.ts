@@ -57,6 +57,9 @@ const createdDatabases = (file: string): string[] =>
     (match) => match[1],
   );
 
+// What bootstrap generates: `openssl rand -hex 24`.
+const GENERATED_PASSWORD = /^[0-9a-f]{48}$/;
+
 // A Postgres identifier that is valid without quoting.
 const UNQUOTED_IDENTIFIER = /^[a-z_][a-z0-9_]*$/;
 
@@ -107,6 +110,27 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
       expect(url.username).toBe(envTest.DB_USER);
       expect(url.password).toBe(envTest.DB_PASSWORD);
       expect(url.pathname).toBe(`/${envTest.DB_NAME}`);
+    });
+
+    // Audit 2026-10-03, S10: the password was `<slug>_password`, which anyone can guess.
+    it("generates the database password", () => {
+      expect(env.DB_PASSWORD).toMatch(GENERATED_PASSWORD);
+    });
+
+    it("writes it to every URL that logs in as the database user", () => {
+      for (const url of [
+        env.DEVELOPMENT_DATABASE_URL,
+        env.TEST_DATABASE_URL,
+        envTest.TEST_DATABASE_URL,
+      ]) {
+        expect(new URL(url).username).toBe(env.DB_USER);
+        expect(new URL(url).password).toBe(env.DB_PASSWORD);
+      }
+    });
+
+    it("leaves the URLs of another login alone", () => {
+      expect(new URL(env.STAGING_DATABASE_URL).password).toBe("postgres");
+      expect(new URL(env.PRODUCTION_DATABASE_URL).password).toBe("postgres");
     });
 
     it(`derives every database identifier from "${slug}", valid without quoting`, () => {
@@ -198,7 +222,134 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
       expect(env.APP_NAME).toBe("my-app");
       expect(env.DB_USER).toBe("my_app_user");
       expect(env.JWT_SECRET).toMatch(/^[0-9a-f]{64}$/);
-      expect(readEnv(path.join(dir, ".env.test")).DB_USER).toBe("my_app_user");
+      const envTest = readEnv(path.join(dir, ".env.test"));
+      expect(envTest.DB_USER).toBe("my_app_user");
+      expect(env.DB_PASSWORD).toMatch(GENERATED_PASSWORD);
+      expect(envTest.DB_PASSWORD).toBe(env.DB_PASSWORD);
+      expect(new URL(envTest.TEST_DATABASE_URL).password).toBe(env.DB_PASSWORD);
+    });
+
+    it("gives a new .env.test the password of the .env that is already there", () => {
+      const dir = track(bootstrap("my-app"));
+      const before = read(dir, ".env");
+      fs.rmSync(path.join(dir, ".env.test"));
+
+      run(dir, "my-app");
+
+      const env = readEnv(path.join(dir, ".env"));
+      const envTest = readEnv(path.join(dir, ".env.test"));
+      expect(read(dir, ".env")).toBe(before);
+      expect(envTest.DB_PASSWORD).toBe(env.DB_PASSWORD);
+      expect(new URL(envTest.TEST_DATABASE_URL).password).toBe(env.DB_PASSWORD);
+    });
+
+    it("replaces the template password in env files copied by hand first", () => {
+      const dir = track(
+        bootstrap("my-app", (scratch) => {
+          fs.copyFileSync(
+            path.join(scratch, ".env.example"),
+            path.join(scratch, ".env"),
+          );
+          fs.copyFileSync(
+            path.join(scratch, ".env.test.example"),
+            path.join(scratch, ".env.test"),
+          );
+        }),
+      );
+      const env = readEnv(path.join(dir, ".env"));
+      const envTest = readEnv(path.join(dir, ".env.test"));
+
+      expect(env.DB_PASSWORD).toMatch(GENERATED_PASSWORD);
+      expect(envTest.DB_PASSWORD).toBe(env.DB_PASSWORD);
+      expect(read(dir, ".env") + read(dir, ".env.test")).not.toMatch(
+        /_password/,
+      );
+    });
+
+    it("gives a hand-copied .env.test the password the user chose in .env", () => {
+      const dir = track(
+        bootstrap("my-app", (scratch) => {
+          fs.writeFileSync(
+            path.join(scratch, ".env"),
+            ["DB_USER=lakira_user", "DB_PASSWORD=chosen-by-hand", ""].join(
+              "\n",
+            ),
+          );
+          fs.copyFileSync(
+            path.join(scratch, ".env.test.example"),
+            path.join(scratch, ".env.test"),
+          );
+        }),
+      );
+      const envTest = readEnv(path.join(dir, ".env.test"));
+
+      expect(envTest.DB_PASSWORD).toBe("chosen-by-hand");
+      expect(new URL(envTest.TEST_DATABASE_URL).password).toBe(
+        "chosen-by-hand",
+      );
+    });
+
+    // What a first run leaves when it stops after the renames: the tree reads as
+    // already renamed, and .env still holds the template's secrets.
+    it("finishes an .env that a run stopped part-way left on the template's secrets", () => {
+      const dir = track(bootstrap("my-app"));
+      fs.copyFileSync(path.join(dir, ".env.example"), path.join(dir, ".env"));
+      fs.rmSync(path.join(dir, ".env.test"));
+
+      const output = run(dir, "my-app");
+
+      const env = readEnv(path.join(dir, ".env"));
+      expect(env.JWT_SECRET).toMatch(/^[0-9a-f]{64}$/);
+      expect(env.DB_PASSWORD).toMatch(GENERATED_PASSWORD);
+      expect(readEnv(path.join(dir, ".env.test")).DB_PASSWORD).toBe(
+        env.DB_PASSWORD,
+      );
+      expect(output).not.toContain(env.DB_PASSWORD);
+      expect(output).not.toContain(env.JWT_SECRET);
+    });
+
+    it("leaves the URLs alone when the database user is not a plain identifier", () => {
+      const dir = track(
+        bootstrap("my-app", (scratch) => {
+          fs.writeFileSync(
+            path.join(scratch, ".env"),
+            [
+              "DB_USER=odd|user",
+              "DB_PASSWORD=lakira_password",
+              "DEVELOPMENT_DATABASE_URL=postgresql://odd|user:lakira_password@127.0.0.1:5432/dev",
+              "",
+            ].join("\n"),
+          );
+        }),
+      );
+      const env = readEnv(path.join(dir, ".env"));
+
+      expect(env.DB_PASSWORD).toMatch(GENERATED_PASSWORD);
+      expect(env.DEVELOPMENT_DATABASE_URL).toBe(
+        "postgresql://odd|user:my_app_password@127.0.0.1:5432/dev",
+      );
+    });
+
+    it("keeps a password the user chose, and gives it to a new .env.test", () => {
+      const dir = track(
+        bootstrap("my-app", (scratch) => {
+          fs.writeFileSync(
+            path.join(scratch, ".env"),
+            ["DB_USER=lakira_user", "DB_PASSWORD=chosen-by-hand", ""].join(
+              "\n",
+            ),
+          );
+        }),
+      );
+      const envTest = readEnv(path.join(dir, ".env.test"));
+
+      expect(readEnv(path.join(dir, ".env")).DB_PASSWORD).toBe(
+        "chosen-by-hand",
+      );
+      expect(envTest.DB_PASSWORD).toBe("chosen-by-hand");
+      expect(new URL(envTest.TEST_DATABASE_URL).password).toBe(
+        "chosen-by-hand",
+      );
     });
 
     it("changes nothing on a second run that finds both", () => {
@@ -250,6 +401,7 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
 
       expect(env.DB_USER).toBe("my_app_user");
       expect(env.SMTP_FROM).toBe("Lakira Team <team@lakira.example.com>");
+      expect(env.DB_PASSWORD).toBeUndefined();
     });
 
     it("refuses before renaming anything when the new spec path is taken", () => {

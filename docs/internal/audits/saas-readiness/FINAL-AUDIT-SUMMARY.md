@@ -482,6 +482,16 @@ ahead of the rate limiter. A reviewer given S9 as a claim graded it closed and l
 outside it, the body parsers that run before the probes
 ([todo](../../todos/2026-10-11-todo-probes-run-after-body-parsers.md)).
 
+**S10 — fix landed, not yet re-audited (2026-10-12).** Not a caveat's route. Compose publishes the
+database, Redis, RabbitMQ and Mailpit on `127.0.0.1` only, and bootstrap generates the database
+password into `.env` and `.env.test` together
+([`fork-test-credentials` D-04](../../initiatives/fork-test-credentials/decisions.md)). Redis and
+RabbitMQ keep their default credentials. A reviewer given S10 as a claim graded it open-progressed
+on three points: the docs, which were not yet written, an `.env` left on the template's secrets by
+a run that stops part-way, and a hand-copied `.env.test` beside a password the user chose. All
+three were then fixed on the branch, and **that fix has not been graded**. What the review left is
+in [a todo](../../todos/2026-10-12-todo-fork-bootstrap-review-leftovers.md).
+
 ---
 
 ## 5. Possible issues — needs human judgment (not blockers)
