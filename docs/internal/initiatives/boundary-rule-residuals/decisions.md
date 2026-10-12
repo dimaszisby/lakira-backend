@@ -111,7 +111,7 @@ name; nothing re-exports the class today.
 
 ## D-08 — No dynamic import and no import type under `src/`
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #155, `fffe796`)
 - **Date:** 2026-10-11
 
 **Context.** Every boundary rule is a `no-restricted-imports` pattern, and that rule reads static

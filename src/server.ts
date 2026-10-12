@@ -30,6 +30,7 @@ import { buildWiredMetricLogFeature } from "./composition/metric-log.js";
 // Other Setup
 import { globalRateLimiter } from "@/shared/middleware/rate-limiter.js";
 import { notFoundHandler } from "@/shared/middleware/not-found.js";
+import { createReadinessProbe } from "@/shared/utils/readiness-probe.js";
 import { errorHandler } from "@/shared/middleware/error.js";
 import { disconnectRedis, redisClient } from "./utils/redis-client.js";
 import {
@@ -172,28 +173,24 @@ app.get("/api/v1/health", (_req, res) => {
   });
 });
 
-// Readiness probe — checks both DB and Redis with a 2 s budget
+// Readiness probe: the database and Redis, each with a 2 s budget. It stays ahead of
+// the rate limiter so a platform probe is never throttled, and its result is held for
+// 2 s so that a flood of calls costs one check per window, not one each.
+const readinessProbe = createReadinessProbe({
+  checks: {
+    db: () => sequelize.authenticate(),
+    redis: () => redisClient.ping(),
+  },
+  timeoutMs: 2000,
+  windowMs: 2000,
+});
+
 app.get("/api/v1/ready", (_req, res) => {
-  const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
-    Promise.race([
-      promise,
-      new Promise<T>((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), ms),
-      ),
-    ]);
-
-  void Promise.allSettled([
-    withTimeout(sequelize.authenticate(), 2000),
-    withTimeout(redisClient.ping(), 2000),
-  ])
-    .then(([dbResult, redisResult]) => {
-      const dbStatus = dbResult.status === "fulfilled" ? "ok" : "fail";
-      const redisStatus = redisResult.status === "fulfilled" ? "ok" : "fail";
-      const allOk = dbStatus === "ok" && redisStatus === "ok";
-
-      res.status(allOk ? 200 : 503).json({
-        status: allOk ? "ok" : "degraded",
-        checks: { db: dbStatus, redis: redisStatus },
+  void readinessProbe()
+    .then(({ ok, checks }) => {
+      res.status(ok ? 200 : 503).json({
+        status: ok ? "ok" : "degraded",
+        checks,
       });
     })
     .catch(() => {

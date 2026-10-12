@@ -474,6 +474,14 @@ seven operations with a limiter of their own keep their text. A reviewer given V
 it closed, matched every mounted route against the spec, and found nothing above P3. The C3 row
 above stays as graded until a dated run (ADR-002).
 
+**S9 — fix landed, not yet re-audited (2026-10-11).** Not a caveat's route. The readiness probe now
+runs its database and Redis checks at most once per 2 second window and never two at once, and
+holds a failed result like a good one
+([`production-readiness` D-03](../../initiatives/production-readiness/decisions.md)). It stays
+ahead of the rate limiter. A reviewer given S9 as a claim graded it closed and listed a route
+outside it, the body parsers that run before the probes
+([todo](../../todos/2026-10-11-todo-probes-run-after-body-parsers.md)).
+
 ---
 
 ## 5. Possible issues — needs human judgment (not blockers)

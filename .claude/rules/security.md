@@ -14,7 +14,9 @@ Applied in this order in `src/server.ts`:
 8. `hpp()` — prevent HTTP parameter pollution
 9. `disallowTraceMethod` — blocks TRACE requests
 10. `cors` — `CORS_ORIGIN` allowlist
-11. `/api/v1/health` and `/api/v1/ready` — mounted here, before rate limiting
+11. `/api/v1/health` and `/api/v1/ready` — mounted here, before rate limiting, so a platform probe
+    is never throttled. `/ready` runs its database and Redis checks at most once per 2 s window
+    (`src/shared/utils/readiness-probe.ts`); a new check added to it goes through that probe
 12. `globalRateLimiter` — the only app-wide limiter; the rest are attached per route
 
 ## Rate Limiting
