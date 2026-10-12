@@ -435,3 +435,54 @@ also fixed here, on the main thread's call and not under ADR-012's list, because
 in the same function and leaving a known route open beside its fix helps nobody: header values are
 cleaned as text, so a `Referer` loses its query string, and `http.client_ip` and `client.address`
 are dropped from span data. The second version has not been graded.
+
+## D-13 — A network address is judged by its value, in attributes and in text
+
+- **Status:** Proposed
+- **Date:** 2026-10-13
+
+Micro entry for finding W1 of `audit-2026-10-12.md`
+([todo](../../todos/2026-10-12-todo-sentry-transaction-carries-peer-address.md)), register row
+B-01, which the grader counted under V3 and so keeps caveat C5 open. Commits carry
+`refs: sentry-peer-address`.
+
+**Context.** With tracing sampled, the SDK's HTTP server instrumentation sets `net.peer.ip` and
+`net.host.ip` on the root span, and both reached Sentry in a transaction's `contexts.trace.data`.
+D-12 dropped the client address by a list of two names, `http.client_ip` and `client.address`,
+taken from the documentation. The SDK at 10.69.0 uses other names as well, and a later release
+can add more.
+**Decision.** An attribute is dropped when its value is a network address, whatever its key: an
+IPv4 or IPv6 literal, with or without brackets or a port, or a comma-separated list of them.
+`isIP` from `node:net` decides. Inside a nested array, where there is no key to drop, the value is
+masked. The name list stays and gains the address keys the SDK sets at 10.69.0, so a value that
+is not a clean literal is still dropped under a known name. Host names are kept: `server.address`,
+`net.host.name` and `net.peer.name` are how a trace is read. A test reads the attribute names
+from the installed SDK's files and fails when an address-like name is neither dropped nor kept on
+purpose.
+
+Widened after the review, on the same day: the same value test is applied wherever else an address
+rides. In free text (an exception's message, a breadcrumb, a header value, a span's description)
+and in the host of a URL, an address becomes `[address]` and the rest is kept. Every string in a
+context or in `extra` gets the same, because a socket error's context holds the address it failed
+to reach. The name list is now a pattern (`.ip`, `.ip_address`, `.client_ip`, `.addr`, and the
+three `.address` keys that are addresses), checked against every name the SDK's conventions
+package defines.
+**Options considered.** Adding the two missing names: rejected, a list of names is what failed.
+A pattern on the key's suffix (`.ip`, `.address`): rejected, it drops `server.address`, a host
+name, and misses a key named some other way. An allowlist of span attributes: the right end
+state, and too wide for the change that unblocks the audit; filed as a register row. Masking in
+place of dropping: rejected, the scrubber already drops the client address, and a masked key
+still tells a reader an address was collected.
+**Consequences.** A trace no longer shows which address a request came from or which local
+address served it. An attribute whose value happens to be an address is dropped even when it is
+not one a person could be identified by, such as the server's own. A four-part version string such as `1.2.3.4` reads as an address and is treated as one.
+**From the review.** A reviewer given the claim "no transaction, span or error event carries a
+network address" graded it open-progressed. The named attributes were gone; an address still left
+by `contexts.node_system_error.address`, by the host of `url.full`, `http.url` and `request.url`,
+by `db.connection_string`, and in exception text. It also showed the test of the SDK's names read
+files the Node SDK does not use for server spans, and could not see names written as constants.
+All of that is fixed in this change, and the test now reads the conventions package. **These
+fixes were made after the review and have not been graded.** Left open and filed in the register:
+`event.server_name`, which is the host's own name and can embed an address; a hook that throws,
+after which the SDK sends its own event unscrubbed; and addresses written with leading zeros or
+separated by spaces alone.

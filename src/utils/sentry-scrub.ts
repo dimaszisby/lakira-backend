@@ -1,3 +1,4 @@
+import { isIP } from "node:net";
 import { SENSITIVE_KEY_PATTERN } from "../config/sensitive-keys.js";
 import { redactObject } from "./logger.js";
 
@@ -54,6 +55,61 @@ const SCHEME_TOKEN_IN_TEXT = /\b(Bearer|Basic)\s+[\w.~+/=-]{8,4000}/gi;
 const EMAIL_IN_TEXT =
   /(?:"[^"\s]{1,64}"|[\p{L}\p{N}._%+'-]{1,64})(?:@|%40)[\p{L}\p{N}.-]{1,253}\.\p{L}{2,24}/giu;
 
+const ZONE_ID = /%[\w.-]+$/;
+
+const isOneAddress = (text: string): boolean => {
+  const bare = text.trim().replace(ZONE_ID, "");
+  // "::" parses as an address and is also ordinary punctuation.
+  if (!/[0-9a-f]/i.test(bare)) return false;
+  if (isIP(bare)) return true;
+  // "[2001:db8::1]", "[2001:db8::1]:443" and "203.0.113.9:443".
+  const bracketed = /^\[([^\]]+)\](?::\d{1,5})?$/.exec(bare);
+  if (bracketed) return isIP(bracketed[1].replace(ZONE_ID, "")) !== 0;
+  return isIP(bare.replace(/:\d{1,5}$/, "")) === 4;
+};
+
+/**
+ * A network address, or a comma-separated list of them. The SDK names the peer
+ * address differently from one release to the next, so an attribute is judged by
+ * what it holds as well as by what it is called (D-13).
+ */
+const isAddress = (value: unknown): value is string =>
+  typeof value === "string" &&
+  value.length <= 512 &&
+  value.trim() !== "" &&
+  value.split(",").every(isOneAddress);
+
+// A run with no separator in it: what an address would be written as inside a
+// message, a URL ("//203.0.113.9:5000/") or a header ("for=203.0.113.9").
+const ADDRESS_CANDIDATE = /[^\s,;()<>"'=/@]{2,80}/g;
+
+const maskAddressRun = (run: string): string => {
+  const tail = /[.!?]+$/.exec(run)?.[0] ?? "";
+  const core = tail ? run.slice(0, -tail.length) : run;
+  return isOneAddress(core) ? `[address]${tail}` : run;
+};
+
+/** Text with each address in it replaced; a host name is left alone. */
+const maskAddresses = (text: string): string =>
+  text.replace(ADDRESS_CANDIDATE, maskAddressRun);
+
+/** The same, for every string of a context or of `extra`, at any depth. */
+const maskAddressesDeep = (value: unknown, depth = 0): unknown => {
+  if (typeof value === "string") return maskAddresses(value);
+  if (value === null || typeof value !== "object" || depth >= MAX_DEPTH) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => maskAddressesDeep(item, depth + 1));
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      maskAddressesDeep(item, depth + 1),
+    ]),
+  );
+};
+
 /**
  * Cleans free text that leaves for Sentry: an exception's message, a breadcrumb, a
  * header value. In this order, so a query string takes its address with it. It
@@ -67,7 +123,8 @@ export const scrubText = (text: string): string =>
     .replace(QUERY_IN_TEXT, "$1")
     .replace(JWT_IN_TEXT, "[token]")
     .replace(SCHEME_TOKEN_IN_TEXT, "$1 [token]")
-    .replace(EMAIL_IN_TEXT, "[email]");
+    .replace(EMAIL_IN_TEXT, "[email]")
+    .replace(ADDRESS_CANDIDATE, maskAddressRun);
 
 const redactRecord = (
   record: Record<string, string>,
@@ -88,7 +145,7 @@ const redactRecord = (
 // Attribute and breadcrumb keys, in Sentry's and OpenTelemetry's spellings.
 const URL_KEY = /(^|[._])(url|uri|target)([._]|$)/i;
 const DROPPED_KEY =
-  /^(url\.(query|fragment)|http\.query|db\.(statement|query\.(text|parameter.*))|http\.client_ip|client\.address)$/i;
+  /^(url\.(query|fragment)|http\.query|db\.(statement|query\.(text|parameter.*))|(.+\.)?(ip|ip_address|client_ip)|.+\.addr|client\.address|network\.(peer|local)\.address)$/i;
 const MAX_DEPTH = 5;
 
 /**
@@ -99,7 +156,10 @@ const MAX_DEPTH = 5;
  */
 const scrubValue = (key: string, value: unknown, depth: number): unknown => {
   if (typeof value === "string") {
-    if (URL_KEY.test(key)) return stripQuery(value);
+    // Reached for an item of an array: an attribute's own value is dropped with
+    // its key in scrubData.
+    if (isAddress(value)) return REDACTED;
+    if (URL_KEY.test(key)) return maskAddresses(stripQuery(value));
     return SENSITIVE_KEY_PATTERN.test(key) ? REDACTED : scrubText(value);
   }
   if (SENSITIVE_KEY_PATTERN.test(key)) return REDACTED;
@@ -118,7 +178,7 @@ const scrubData = (
 ): Record<string, unknown> => {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
-    if (DROPPED_KEY.test(key)) continue;
+    if (DROPPED_KEY.test(key) || isAddress(value)) continue;
     out[key] = scrubValue(key, value, depth);
   }
   return out;
@@ -143,7 +203,7 @@ export const scrubSentryEvent = <T extends ScrubbableEvent>(event: T): T => {
   }
   if (event.request) {
     if (typeof event.request.url === "string") {
-      event.request.url = stripQuery(event.request.url);
+      event.request.url = maskAddresses(stripQuery(event.request.url));
     }
     delete event.request.query_string;
     if (event.request.headers) {
@@ -175,7 +235,10 @@ export const scrubSentryEvent = <T extends ScrubbableEvent>(event: T): T => {
     }
   }
   if (event.extra) {
-    event.extra = redactObject(event.extra, 0) as Record<string, unknown>;
+    event.extra = maskAddressesDeep(redactObject(event.extra, 0)) as Record<
+      string,
+      unknown
+    >;
   }
   if (event.contexts) {
     // The trace context carries the root span's attributes, on errors too. They
@@ -183,7 +246,10 @@ export const scrubSentryEvent = <T extends ScrubbableEvent>(event: T): T => {
     const trace = event.contexts.trace;
     const traceData =
       isRecord(trace) && isRecord(trace.data) ? scrubData(trace.data) : null;
-    event.contexts = redactObject(event.contexts, 0) as Record<string, unknown>;
+    // A socket error's context carries the address it failed to reach.
+    event.contexts = maskAddressesDeep(
+      redactObject(event.contexts, 0),
+    ) as Record<string, unknown>;
     const redactedTrace = event.contexts.trace;
     if (traceData && isRecord(redactedTrace)) redactedTrace.data = traceData;
   }

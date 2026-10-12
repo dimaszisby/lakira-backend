@@ -152,8 +152,9 @@ a rule fixed in that kit's D-01. Do not rank from memory of the conversation.
   everything else.
 - **A new todo, audit finding or Notion record gets a register row in the same PR that files it**,
   placed by D-01. A todo with no row is invisible to this rule.
-- **A fix PR moves its row to the register's Closed section** with the PR number, in the same PR.
-  A row a dated audit must confirm says so until the run does.
+- **A fix PR moves its row to the register's Closed section** in the same PR, naming its branch;
+  the PR number does not exist yet and is added once merged, as a loose end. A row a dated audit
+  must confirm says so until the run does.
 - **Re-rank only by the rule.** If the rule gives the wrong answer, change D-01 with a new
   decision entry, not the order of one row.
 

@@ -517,6 +517,15 @@ tracing is sampled. Reproduced on the built server
 ([todo](../../todos/2026-10-12-todo-sentry-transaction-carries-peer-address.md)). Grading reasons:
 [`saas-reaudit-2026-10-12` D-03 and D-04](../../initiatives/saas-reaudit-2026-10-12/decisions.md).
 
+**C5 — W1 fix landed, not yet re-audited (2026-10-13).** The scrubber now judges a network address
+by its value: an attribute holding one is dropped whatever the SDK calls it, and in free text, in a
+URL's host and in a context it becomes `[address]`
+([`log-redaction-coverage` D-13](../../initiatives/log-redaction-coverage/decisions.md)). A
+transaction captured from the built server with tracing on held no address. A reviewer given the
+claim graded the first version open-progressed on four other places an address rode; those are
+fixed in the same change, and **that part has not been graded**. The row above stays as graded
+until a dated run (ADR-002).
+
 **S9 — confirmed closed; S10 — Compose half closed, script half open (2026-10-12).** Same run,
 § 4.3. S9: 17,552 probes ran three database checks. S10: the seven ports bind `127.0.0.1` and the
 password is generated and not printed, but a hand-made `.env` whose `DB_USER` is not the
