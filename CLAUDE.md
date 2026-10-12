@@ -44,6 +44,8 @@ consult it before creating any document.
 
 Frequently needed:
 
+- `docs/internal/initiatives/backend-debt-register/register.md` — every open item, ranked; **"what's
+  next" is answered from here** (`.claude/rules/workflow.md` § What's next)
 - `docs/reference/commands.md` — canonical npm scripts (do not keep a second copy elsewhere)
 - `docs/reference/configuration.md` — all 69 env vars
 - `docs/explanation/decisions/` — 60 ADRs, one per file; check **Status** before trusting one
