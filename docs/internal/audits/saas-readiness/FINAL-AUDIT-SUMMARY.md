@@ -58,6 +58,18 @@ operations (V5). Each ground was reproduced. No code regressed; two graders read
 their purpose. Next step: the owner's call on how wide C5 and C6 are meant to be, then V1 to V5,
 then another dated run.
 
+**2026-10-12 re-audit: GOLD WITH CAVEATS reconfirmed a sixth time; C6, C4 and C3 are closed, and
+one caveat is left.** [`audit-2026-10-12.md`](./audit-2026-10-12.md) passes the ADR-001 gate on
+Node 24 and is the first run graded under ADR-012, which names the routes each caveat closes on.
+**C6 is confirmed closed** (V1, V2): a rejected connection URL is no longer printed, and
+`DB_LOGGING` is refused in production. **C4 is confirmed closed** (V4): the lint rule rejects every
+spelling of the `AppError` import in both domain layers. **C3 is confirmed closed** (V5): the spec
+documents a 429 on 47 of 47 operations. Each was graded closed by an independent grader and
+reproduced. **C5 stays open at P2**: the scrubber cleans every field V3 named, but with tracing on
+a transaction still carries the request's peer address (W1). Reproduced. S9 is confirmed closed;
+S10's Compose half is, and its script half stays open on a new finding (W3). Three P2 findings are
+open and none is a P0 or a P1. Next step: W1, then another dated run, which can restate GOLD.
+
 The **Status** paragraph at the top records the closures as they stood on 2026-09-24, when all six
 were believed closed.
 
@@ -67,10 +79,11 @@ audits) but surfaced two **NEW P0** (cache-layer cross-tenant scoping) and one *
 (`DISABLE_RATE_LIMITING` has no production guard) findings that all three prior audits missed.
 The repo is **not safely shippable** as a SaaS base until N1+N2+F1 land (cumulative ≤2h);
 the original C1–C6 caveats remain open-unchanged.
-**As of:** 2026-10-10 · **Branch:** `docs/saas-reaudit-2026-10-10` @ `41da6a6`
-**Authoritative audit:** [`audit-2026-10-10.md`](./audit-2026-10-10.md) (a grade for every
+**As of:** 2026-10-12 · **Branch:** `docs/saas-reaudit-2026-10-12` @ `5bb4e3a`
+**Authoritative audit:** [`audit-2026-10-12.md`](./audit-2026-10-12.md) (a grade for every
 caveat, fork dry-run, live reproductions and full 65-item re-grade, on Node 24).
-Prior authoritative audits: [`audit-2026-10-05-b.md`](./audit-2026-10-05-b.md),
+Prior authoritative audits: [`audit-2026-10-10.md`](./audit-2026-10-10.md),
+[`audit-2026-10-05-b.md`](./audit-2026-10-05-b.md),
 [`audit-2026-10-05.md`](./audit-2026-10-05.md),
 [`audit-2026-10-03.md`](./audit-2026-10-03.md),
 [`audit-2026-09-29.md`](./audit-2026-09-29.md),
@@ -185,10 +198,10 @@ fast hardening wins C2/C5/C6, then C4.
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ----- | ----------------------------------- |
 | **C1** | **Fork flow doesn't work as printed** — `bootstrap-fork.sh` rotates `JWT_SECRET` / sets `APP_NAME` only in `.env.development` (gitignored, absent on fresh clone → silent no-op); its printed step 4 `npm test` fails out-of-box (84 suites) without `.env.test`, which is never mentioned. | P1  | ≤1d   | Fixed (#122) — confirmed            |
 | **C2** | **Lakira branding leaks into the forked runtime** — `src/config/app-name.ts:4` defaults to `"lakira-backend"`; because C1's `APP_NAME` write misses, a fresh fork brands logs/OpenAPI/queues/emails as "lakira-backend".                                                                    | P2  | ≤1h   | Fixed (#144) — confirmed 2026-10-10 |
-| **C3** | **Error envelope inconsistent + undocumented** — `error.ts` hand-rolls 3 shapes (incl. an undocumented `"fail"` status), bypassing `errorResponse()`, violating `api-design.md`; OpenAPI documents no 4xx/5xx schema (only 429).                                                            | P1  | ≤1d   | **Open (P3), 2026-10-10** — note    |
-| **C4** | **Architecture test too weak** — enforces only 3 narrow checks, no negative cases; real app→infra ORM writes, `AppError` in domain entities, and cross-feature deep imports pass green.                                                                                                     | P1  | ≤1d   | **Open (P3), 2026-10-10** — note    |
-| **C5** | **Sentry has no PII scrubbing** — `Sentry.init()` lacks a `beforeSend` to strip `authorization`/`cookie`/body secrets before egress.                                                                                                                                                        | P2  | ≤1h   | **Open (P2), 2026-10-10** — note    |
-| **C6** | **Log-redaction suffix-anchored** — `SENSITIVE_KEY_PATTERN` misses `authorization`, `cookie`, `bearer`, `passwordHash` (latent: nothing logs them today).                                                                                                                                   | P2  | ≤1h   | **Open (P2), 2026-10-10** — note    |
+| **C3** | **Error envelope inconsistent + undocumented** — `error.ts` hand-rolls 3 shapes (incl. an undocumented `"fail"` status), bypassing `errorResponse()`, violating `api-design.md`; OpenAPI documents no 4xx/5xx schema (only 429).                                                            | P1  | ≤1d   | Fixed (#154) — confirmed 2026-10-12 |
+| **C4** | **Architecture test too weak** — enforces only 3 narrow checks, no negative cases; real app→infra ORM writes, `AppError` in domain entities, and cross-feature deep imports pass green.                                                                                                     | P1  | ≤1d   | Fixed (#153) — confirmed 2026-10-12 |
+| **C5** | **Sentry has no PII scrubbing** — `Sentry.init()` lacks a `beforeSend` to strip `authorization`/`cookie`/body secrets before egress.                                                                                                                                                        | P2  | ≤1h   | **Open (P2), 2026-10-12** — note    |
+| **C6** | **Log-redaction suffix-anchored** — `SENSITIVE_KEY_PATTERN` misses `authorization`, `cookie`, `bearer`, `passwordHash` (latent: nothing logs them today).                                                                                                                                   | P2  | ≤1h   | Fixed (#151) — confirmed 2026-10-12 |
 
 **C2 — note (2026-09-17).** This row's stated cause is _"because C1's `APP_NAME` write misses"_,
 and that is no longer true: `bootstrap-fork.sh:183-191` now writes `APP_NAME` into `.env`, which the
@@ -492,6 +505,24 @@ a run that stops part-way, and a hand-copied `.env.test` beside a password the u
 three were then fixed on the branch, and **that fix has not been graded**. What the review left is
 in [a todo](../../todos/2026-10-12-todo-fork-bootstrap-review-leftovers.md).
 
+**C6, C4, C3 — confirmed closed; C5 — still open (2026-10-12).** The dated run
+[`audit-2026-10-12.md`](./audit-2026-10-12.md) § 4.1 graded each caveat against the routes ADR-012
+names. **C6:** V1 and V2 graded closed and reproduced; six starts with a rejected URL printed no
+password, and production refuses `DB_LOGGING=true`. SQL values still reach the development log at
+`debug`, by design. **C4:** V4 graded closed and reproduced on nine spellings in both domain
+layers. **C3:** V5 graded closed; 47 of 47 operations, and the validator fails a spec with one
+removed. **C5:** V3 graded open-progressed. The five fields it named are cleaned and the three
+hooks are wired, but a transaction's trace data carries `net.peer.ip` and `net.host.ip` when
+tracing is sampled. Reproduced on the built server
+([todo](../../todos/2026-10-12-todo-sentry-transaction-carries-peer-address.md)). Grading reasons:
+[`saas-reaudit-2026-10-12` D-03 and D-04](../../initiatives/saas-reaudit-2026-10-12/decisions.md).
+
+**S9 — confirmed closed; S10 — Compose half closed, script half open (2026-10-12).** Same run,
+§ 4.3. S9: 17,552 probes ran three database checks. S10: the seven ports bind `127.0.0.1` and the
+password is generated and not printed, but a hand-made `.env` whose `DB_USER` is not the
+template's leaves `.env.test` on a different login (W3). The fixes made after the review of #157
+were graded in this run.
+
 ---
 
 ## 5. Possible issues — needs human judgment (not blockers)
@@ -528,6 +559,7 @@ defects to fix blindly:
 | 2026-10-05     | [`audit-2026-10-05.md`](./audit-2026-10-05.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C6)             | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; C4, S1, S2 closed; C6 reopened P2; 0 P0, 0 P1, 2 new P2                               |
 | 2026-10-05 (b) | [`audit-2026-10-05-b.md`](./audit-2026-10-05-b.md)                     | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C6 and C2)      | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; T1, T2 closed; C6 open P3, C2 graded open P2; 0 P0, 0 P1, 1 new P2                    |
 | 2026-10-10     | [`audit-2026-10-10.md`](./audit-2026-10-10.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C6, C5, C4, C3) | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; U1, U2 and C2 closed; C6 and C5 open P2, C4 and C3 open P3; 0 P0, 0 P1, 3 P2 findings |
+| 2026-10-12     | [`audit-2026-10-12.md`](./audit-2026-10-12.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C5)             | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; C6, C4, C3 and S9 closed; C5 open P2; 0 P0, 0 P1, 3 P2 findings (W1 to W3)            |
 
 **Key disagreements the independent run raised with the 05-20 self-audit** (full evidence in
 the dated file): security findings 1→8 medium; `svix` present transitively via `resend`;
@@ -668,12 +700,21 @@ the list still reads as the history it is.
     C6 and C5 open at P2 and C4 and C3 at P3. **Next, in this order:** the owner's call on the
     scope of C5 and C6; then V1 (startup URL), V3 (Sentry scrubber), V2 (`DB_LOGGING`), V4 (the
     lint rule) and V5 (429 in the spec); **then** another dated run. After that S9, S10 and T3.
+    Done, see item 12; S9 and S10 were fixed before that run, at the owner's choice, and it
+    graded them.
+12. **Dated run of 2026-10-12** — [`audit-2026-10-12.md`](./audit-2026-10-12.md). C6, C4, C3 and
+    S9 are confirmed closed. It did **not** restate GOLD: the grader kept C5 open at P2 on the
+    peer address a Sentry transaction carries (W1). **Next, in this order:** W1, **then** another
+    dated run, which can restate GOLD if C5 closes. After that W2 (`JWT_SECRET` has no minimum
+    length), W3 with T3 (the fork bootstrap and a name or database user it did not expect), W4
+    and R11. The run's other findings are in its § 6.
 
 ---
 
 ## 9. Related documents
 
-- [`audit-2026-10-10.md`](./audit-2026-10-10.md) — **current authoritative audit** (a grade for every caveat, fork dry-run, live reproductions, full re-grade on Node 24)
+- [`audit-2026-10-12.md`](./audit-2026-10-12.md) — **current authoritative audit** (a grade for every caveat, fork dry-run, live reproductions, full re-grade on Node 24)
+- [`audit-2026-10-10.md`](./audit-2026-10-10.md) — prior authoritative audit
 - [`audit-2026-10-05-b.md`](./audit-2026-10-05-b.md) — prior authoritative audit
 - [`audit-2026-10-05.md`](./audit-2026-10-05.md) — prior authoritative audit
 - [`audit-2026-10-03.md`](./audit-2026-10-03.md) — prior authoritative audit

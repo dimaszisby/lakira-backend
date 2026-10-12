@@ -1,6 +1,6 @@
 # Todo — the readiness probe is unthrottled and hits the database on every call
 
-- **Status:** Fixed in #156 ([`production-readiness` D-03](../initiatives/production-readiness/decisions.md)); not yet re-audited
+- **Status:** Fixed in #156 ([`production-readiness` D-03](../initiatives/production-readiness/decisions.md)); confirmed closed by `audit-2026-10-12.md` § 4.3
 - **Created:** 2026-10-03
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-10-03.md` § 6, S9
