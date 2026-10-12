@@ -1,6 +1,6 @@
 # Todo — a Sentry transaction carries the request's peer address
 
-- **Status:** Open (P2). Keeps caveat C5 open
+- **Status:** Fixed on `fix/sentry-peer-address` ([`log-redaction-coverage` D-13](../initiatives/log-redaction-coverage/decisions.md)); not yet re-audited, so C5 stays open until a dated run
 - **Created:** 2026-10-12
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-10-12.md` § 6, W1; graded under V3 by

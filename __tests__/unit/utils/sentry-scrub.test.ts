@@ -1,4 +1,6 @@
 import { describe, it, expect } from "@jest/globals";
+import fs from "fs";
+import path from "path";
 import {
   scrubSentryEvent,
   scrubSentrySpan,
@@ -423,5 +425,282 @@ describe("scrubSentrySpan: what review found", () => {
     expect(scrubSentrySpan({ op: "db", description: "DB" }).description).toBe(
       "DB",
     );
+  });
+});
+
+// Kit log-redaction-coverage, D-13 (audit 2026-10-12, W1). With tracing on, the
+// SDK put the request's peer address on the root span under names the scrubber's
+// list did not have.
+describe("scrubSentrySpan: network addresses", () => {
+  const ADDRESSES = ["203.0.113.9", "2001:db8::17", "::ffff:127.0.0.1"];
+
+  // What the SDK's HTTP instrumentation sets at 10.69.0, plus the older
+  // socket spellings OpenTelemetry used.
+  const SDK_ADDRESS_KEYS = [
+    "net.peer.ip",
+    "net.host.ip",
+    "net.sock.peer.addr",
+    "net.sock.host.addr",
+    "network.peer.address",
+    "network.local.address",
+    "http.client_ip",
+    "client.address",
+  ];
+
+  // Host names, kept on purpose: they are how a trace is read.
+  const KEPT_HOST_KEYS = ["server.address", "net.host.name", "net.peer.name"];
+
+  const scrubbed = (data: Record<string, unknown>) =>
+    scrubSentrySpan({ op: "http.server", description: "GET /x", data })
+      .data as Record<string, unknown>;
+
+  it.each(ADDRESSES)("drops every address attribute holding %s", (address) => {
+    const data = scrubbed(
+      Object.fromEntries(SDK_ADDRESS_KEYS.map((key) => [key, address])),
+    );
+
+    expect(data).toEqual({});
+  });
+
+  it("drops an address under a name it has never seen", () => {
+    const data = scrubbed({
+      "some.future.attribute": "203.0.113.9",
+      "another.one": "2001:db8::17",
+      "http.route": "/api/v1/metrics",
+    });
+
+    expect(data).toEqual({ "http.route": "/api/v1/metrics" });
+  });
+
+  it.each([
+    ["with a port", "203.0.113.9:51234"],
+    ["in brackets", "[2001:db8::17]"],
+    ["in brackets with a port", "[2001:db8::17]:51234"],
+    ["with a zone id", "fe80::1%eth0"],
+    ["as a list", "203.0.113.9, 10.0.0.1"],
+    ["with spaces around it", " 203.0.113.9 "],
+  ])("drops an address written %s", (_shape, value) => {
+    expect(scrubbed({ "some.future.attribute": value })).toEqual({});
+  });
+
+  it("masks an address inside an array, where there is no key to drop", () => {
+    const data = scrubbed({ hops: ["203.0.113.9", "edge-1"] });
+
+    expect(data).toEqual({ hops: ["***REDACTED***", "edge-1"] });
+  });
+
+  it("drops a known address key whatever its value looks like", () => {
+    const data = scrubbed(
+      Object.fromEntries(SDK_ADDRESS_KEYS.map((key) => [key, "unknown"])),
+    );
+
+    expect(data).toEqual({});
+  });
+
+  it("keeps what a trace is read by", () => {
+    const kept = {
+      "http.route": "/api/v1/metrics",
+      "http.request.method": "GET",
+      "http.response.status_code": 200,
+      "server.address": "api.example.com",
+      "net.host.name": "api.example.com",
+      "net.peer.name": "mail.example.com",
+      "net.host.port": 5000,
+      "net.peer.port": 51234,
+      "app.version": "1.2.3",
+      "http.response_content_length": 1234,
+    };
+
+    expect(scrubbed({ ...kept, "net.peer.ip": "203.0.113.9" })).toEqual(kept);
+  });
+
+  it("gives the same span on a second pass", () => {
+    const first = scrubSentrySpan({
+      op: "http.server",
+      description: "GET /x",
+      data: { "net.peer.ip": "203.0.113.9", hops: ["203.0.113.9"] },
+    });
+
+    expect(scrubSentrySpan(structuredClone(first))).toEqual(first);
+  });
+
+  it("cleans a transaction's trace data and each of its spans", () => {
+    const event = scrubSentryTransaction({
+      contexts: {
+        trace: {
+          op: "http.server",
+          data: {
+            "net.peer.ip": "::ffff:203.0.113.9",
+            "net.host.ip": "::ffff:10.0.0.5",
+            "http.route": "/api/v1/health",
+          },
+        },
+      },
+      spans: [
+        {
+          op: "http.client",
+          description: "POST https://mail.example/send",
+          data: {
+            "network.peer.address": "198.51.100.7",
+            "net.peer.ip": "198.51.100.7",
+          },
+        },
+      ],
+    });
+
+    expect(JSON.stringify(event)).not.toMatch(
+      /203\.0\.113|10\.0\.0\.5|198\.51\.100/,
+    );
+    expect(
+      (event.contexts?.trace as { data: Record<string, unknown> }).data,
+    ).toEqual({ "http.route": "/api/v1/health" });
+  });
+
+  it("cleans the trace data an error event carries", () => {
+    const event = scrubSentryEvent({
+      contexts: {
+        trace: { data: { "net.peer.ip": "203.0.113.9", "http.route": "/x" } },
+      },
+    });
+
+    expect(
+      (event.contexts?.trace as { data: Record<string, unknown> }).data,
+    ).toEqual({ "http.route": "/x" });
+  });
+
+  // An SDK upgrade that adds a spelling should fail here, not in an audit. The
+  // SDK takes its attribute names from this package, as constants, so its own
+  // source cannot be searched for them.
+  it("knows every address-like attribute name the installed SDK defines", () => {
+    const conventions = require("@sentry/conventions/attributes") as Record<
+      string,
+      unknown
+    >;
+    const names = [
+      ...new Set(
+        Object.values(conventions).filter(
+          (value): value is string => typeof value === "string",
+        ),
+      ),
+    ];
+    const addressLike = names.filter((name) =>
+      /(^|[._])(ip|addr|address|ip_address|client_ip)$/.test(name),
+    );
+
+    // The package was found and read: the two names the audit captured are there.
+    expect(addressLike).toEqual(
+      expect.arrayContaining(["net.peer.ip", "net.host.ip"]),
+    );
+    expect(addressLike.length).toBeGreaterThanOrEqual(10);
+    for (const name of addressLike) {
+      if (KEPT_HOST_KEYS.includes(name)) continue;
+      // Not an address literal, so only the name can drop it.
+      expect([name, scrubbed({ [name]: "unknown" })]).toEqual([name, {}]);
+    }
+  });
+});
+
+// What the review of D-13 found: an address also rides outside span attributes.
+describe("scrubSentryEvent: addresses outside span attributes", () => {
+  it("masks the address a socket error's context carries", () => {
+    const event = scrubSentryEvent({
+      contexts: {
+        node_system_error: {
+          errno: -61,
+          code: "ECONNREFUSED",
+          syscall: "connect",
+          address: "10.0.0.5",
+          port: 5432,
+        },
+      },
+      extra: { upstream: { tried: ["10.0.0.5:5432", "db.internal"] } },
+    });
+
+    expect(event.contexts?.node_system_error).toEqual({
+      errno: -61,
+      code: "ECONNREFUSED",
+      syscall: "connect",
+      address: "[address]",
+      port: 5432,
+    });
+    expect(event.extra).toEqual({
+      upstream: { tried: ["[address]", "db.internal"] },
+    });
+  });
+
+  it("masks an address in exception text and keeps the rest", () => {
+    const event = scrubSentryEvent({
+      exception: {
+        values: [
+          { type: "Error", value: "connect ECONNREFUSED 10.0.0.5:5432" },
+          {
+            type: "Error",
+            value: "upstream [2001:db8::17]:443 timed out at 12:30:45.",
+          },
+        ],
+      },
+    });
+
+    expect(event.exception?.values?.map((entry) => entry.value)).toEqual([
+      "connect ECONNREFUSED [address]",
+      "upstream [address] timed out at 12:30:45.",
+    ]);
+  });
+
+  it("masks an address that is the host of a URL, on the event and on a span", () => {
+    const event = scrubSentryEvent({
+      request: {
+        url: "http://203.0.113.9:5000/api/v1/metrics?q=x",
+        headers: {
+          host: "203.0.113.9:5000",
+          "x-envoy-external-address": "198.51.100.7",
+        },
+      },
+    });
+    const span = scrubSentrySpan({
+      op: "http.client",
+      description: "GET http://198.51.100.7/send",
+      data: {
+        "url.full": "http://198.51.100.7:8025/api/v1/send?x=1",
+        "db.connection_string": "postgresql://10.0.0.5:5432/app",
+        "http.url": "https://mail.example.com/send",
+      },
+    });
+
+    expect(event.request).toEqual({
+      url: "http://[address]/api/v1/metrics",
+      headers: { host: "[address]", "x-envoy-external-address": "[address]" },
+    });
+    expect(span).toEqual({
+      op: "http.client",
+      description: "GET http://[address]/send",
+      data: {
+        "url.full": "http://[address]/api/v1/send",
+        "db.connection_string": "postgresql://[address]/app",
+        "http.url": "https://mail.example.com/send",
+      },
+    });
+  });
+
+  it.each([
+    "api.example.com",
+    "v1.2.3",
+    "12:30:45",
+    "2026-10-13T12:30:45.000Z",
+    "Foo::bar",
+    "::",
+    "deadbeef",
+    "GET /api/v1/metrics/00000000-0000-4000-8000-000000000099",
+  ])("leaves %s alone", (text) => {
+    expect(scrubText(text)).toBe(text);
+  });
+
+  it("is the same on a second pass", () => {
+    const once = scrubText(
+      "connect ECONNREFUSED 10.0.0.5:5432, then [::1]:6379.",
+    );
+
+    expect(once).toBe("connect ECONNREFUSED [address], then [address].");
+    expect(scrubText(once)).toBe(once);
   });
 });

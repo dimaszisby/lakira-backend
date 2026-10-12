@@ -7,7 +7,7 @@
 
 ## D-01 — The ranking rule, fixed before any row is ranked
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #159, `3277e5d`)
 - **Date:** 2026-10-13
 
 **Context.** Open work is recorded in four places that do not rank against each other: the dated
@@ -38,7 +38,7 @@ about value to a user of the product; an item moves only when its recorded sever
 
 ## D-02 — How rows group into fix PRs
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #159, `3277e5d`)
 - **Date:** 2026-10-13
 
 **Context.** Sixty-one rows do not mean sixty-one PRs. Some share a root cause or the same few
@@ -64,7 +64,7 @@ advice; a fix's own plan can split a group and should say why.
 
 ## D-03 — What is listed and not analysed
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #159, `3277e5d`)
 - **Date:** 2026-10-13
 
 **Context.** The appetite is one session. An in-depth analysis of every row would take several,

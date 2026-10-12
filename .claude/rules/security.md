@@ -72,7 +72,9 @@ and limits stop being shared across instances (twelve-factor TF-12).
   `beforeSend`. It masks credential headers, drops cookies, and applies the key pattern to the
   body, `extra`, `contexts`, breadcrumb data and span attributes. It cuts the query string from
   the request URL and from any URL in a header, a breadcrumb or a span, reduces `user` to its id,
-  and drops the client address. Free text (exception messages, breadcrumbs) loses email
+  and drops the client address. A network address is judged by its value, not its name: an
+  attribute holding one is dropped, and in free text, in a URL's host and in a context it becomes
+  `[address]`. Free text (exception messages, breadcrumbs) loses email
   addresses, JWTs, bearer tokens and query strings by pattern; it does **not** lose a name or any
   other detail a message holds, so do not put one in an error message. A database span keeps its
   operation and never its statement

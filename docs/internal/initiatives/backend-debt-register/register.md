@@ -1,6 +1,6 @@
 # Backend debt register
 
-**As of:** 2026-10-13, backend `dev` at `bf72b58`. Ranked by [D-01](decisions.md).
+**As of:** 2026-10-13, backend `dev` at `3277e5d`. Ranked by [D-01](decisions.md).
 
 **"What's next" is the first row below whose state is `ready`.** A row above it that is waiting on
 someone is reported with it, as a gap. How rows are added and closed:
@@ -18,11 +18,8 @@ Sources are abbreviated: `A12 § 6` is `docs/internal/audits/saas-readiness/audi
 
 ## Tier 1 — keeps an audit caveat open
 
-| ID   | Item                                                             | Sev | Owed to | State | Size | Source                                                                                     | Analysis                                       |
-| ---- | ---------------------------------------------------------------- | --- | ------- | ----- | ---- | ------------------------------------------------------------------------------------------ | ---------------------------------------------- |
-| B-01 | A Sentry transaction carries the request's peer address (C5, W1) | P2  | GOLD    | ready | ≤1h  | A12 § 6 W1; [todo](../../todos/2026-10-12-todo-sentry-transaction-carries-peer-address.md) | [analysis](analysis-w1-sentry-peer-address.md) |
-
-After B-01 merges, the next dated audit run is owed: only a run can close C5 (ADR-002, ADR-012).
+No open row. B-01 is fixed on its branch (see Closed). **A dated audit run is owed**: only a run
+can close C5 (ADR-002, ADR-012).
 
 ## Tier 2 — P1 or P2 owed to the frontend
 
@@ -114,20 +111,21 @@ API and data:
 
 Forkability, tests, docs and repo:
 
-| ID   | Item                                                                                      | Sev | State       | Source                                                                |
-| ---- | ----------------------------------------------------------------------------------------- | --- | ----------- | --------------------------------------------------------------------- |
-| B-50 | Bootstrap leftovers other than B-08 and B-09 (W7, part)                                   | P3  | ready       | `2026-10-12-todo-fork-bootstrap-review-leftovers.md` items 1, 3 to 10 |
-| B-51 | Bootstrap and `app-name.ts` derive the short name differently (U4)                        | P3  | ready       | `2026-09-24-todo-app-name-short-name-mismatch.md`; A05b § 6 U4        |
-| B-52 | What the review of the `APP_NAME` default left open                                       | P3  | ready       | `2026-10-07-todo-app-name-review-leftovers.md`                        |
-| B-53 | Fork residue: fixed Compose container and volume names, links into `docs/internal/` (R12) | P3  | ready       | A0929 § 6 R12                                                         |
-| B-54 | Intermittent 401 on register inside the queue integration test                            | —   | unexplained | `2026-09-24-todo-queue-test-intermittent-401.md`                      |
-| B-55 | One unexplained failure of `metric-settings.test.ts` on 2026-10-11, not seen since        | —   | unexplained | `production-readiness` kit, PR #156 body; no todo                     |
-| B-56 | Nothing checks `docs/reference/commands.md` against `package.json`                        | —   | ready       | `2026-09-24-todo-commands-doc-drift-check.md`                         |
-| B-57 | `main` shares no history with `dev` or `staging`                                          | —   | owner       | `2026-09-24-todo-main-dev-unrelated-history.md`                       |
-| B-58 | The jwt kit's folder uses underscores                                                     | —   | ready       | `2026-09-19-todo-jwt-kit-underscore-naming.md`                        |
-| B-59 | Follow-ups of 2026-06-04, never triaged                                                   | —   | owner       | `2026-06-04-todo-saas-audit-and-workflow-followups.md`                |
-| B-60 | Nothing checks this register against the todo folder                                      | —   | ready       | this kit, plan § Risks                                                |
-| B-61 | Rows of the 2026-06-05 run not re-read since; polish of 2026-09-29 (R13, rest)            | P3  | ready       | `audit-2026-06-05.md`; A0929 § 6 R13                                  |
+| ID   | Item                                                                                                                                         | Sev | State       | Source                                                                |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------- | --- | ----------- | --------------------------------------------------------------------- |
+| B-50 | Bootstrap leftovers other than B-08 and B-09 (W7, part)                                                                                      | P3  | ready       | `2026-10-12-todo-fork-bootstrap-review-leftovers.md` items 1, 3 to 10 |
+| B-51 | Bootstrap and `app-name.ts` derive the short name differently (U4)                                                                           | P3  | ready       | `2026-09-24-todo-app-name-short-name-mismatch.md`; A05b § 6 U4        |
+| B-52 | What the review of the `APP_NAME` default left open                                                                                          | P3  | ready       | `2026-10-07-todo-app-name-review-leftovers.md`                        |
+| B-53 | Fork residue: fixed Compose container and volume names, links into `docs/internal/` (R12)                                                    | P3  | ready       | A0929 § 6 R12                                                         |
+| B-54 | Intermittent 401 on register inside the queue integration test                                                                               | —   | unexplained | `2026-09-24-todo-queue-test-intermittent-401.md`                      |
+| B-55 | One unexplained failure of `metric-settings.test.ts` on 2026-10-11, not seen since                                                           | —   | unexplained | `production-readiness` kit, PR #156 body; no todo                     |
+| B-56 | Nothing checks `docs/reference/commands.md` against `package.json`                                                                           | —   | ready       | `2026-09-24-todo-commands-doc-drift-check.md`                         |
+| B-57 | `main` shares no history with `dev` or `staging`                                                                                             | —   | owner       | `2026-09-24-todo-main-dev-unrelated-history.md`                       |
+| B-58 | The jwt kit's folder uses underscores                                                                                                        | —   | ready       | `2026-09-19-todo-jwt-kit-underscore-naming.md`                        |
+| B-59 | Follow-ups of 2026-06-04, never triaged                                                                                                      | —   | owner       | `2026-06-04-todo-saas-audit-and-workflow-followups.md`                |
+| B-60 | Nothing checks this register against the todo folder                                                                                         | —   | ready       | this kit, plan § Risks                                                |
+| B-61 | Rows of the 2026-06-05 run not re-read since; polish of 2026-09-29 (R13, rest)                                                               | P3  | ready       | `audit-2026-06-05.md`; A0929 § 6 R13                                  |
+| B-62 | Sentry: `event.server_name` can embed an address; a throwing hook lets the SDK send its own event unscrubbed; span attributes are a denylist | P3  | ready       | `log-redaction-coverage` D-13, "From the review"                      |
 
 ## Waiting on the owner, not code
 
@@ -149,4 +147,8 @@ The third unraised note is B-14.
 
 ## Closed
 
-Rows move here when their fix merges, with the PR. None yet.
+Rows move here when their fix is written, with the branch; the PR number is added once merged.
+
+| ID   | Item                                                             | Fixed in                                                                                           | Confirmed by an audit  |
+| ---- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------- |
+| B-01 | A Sentry transaction carries the request's peer address (C5, W1) | `fix/sentry-peer-address`; [`log-redaction-coverage` D-13](../log-redaction-coverage/decisions.md) | Not yet; a run is owed |
