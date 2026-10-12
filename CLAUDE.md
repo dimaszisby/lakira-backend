@@ -49,7 +49,7 @@ Frequently needed:
 - `docs/explanation/decisions/` — 60 ADRs, one per file; check **Status** before trusting one
 - `docs/reference/api/lakira-backend-openapi.json` — generated, CI-drift-gated, never hand-edited
 
-`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` is the live risk status (as of 2026-10-10: GOLD WITH CAVEATS; no open P0 or P1; C2 is confirmed closed, and so are the fixes for U1, U2 and the cache key; the graders kept four caveats open: C6 at P2, a rejected connection URL is printed at startup with its password and `DB_LOGGING` writes SQL with its values at `debug`; C5 at P2, the Sentry scrubber leaves the URL, the user, breadcrumbs and exception values; C4 at P3, one lint rule misses an import spelling; C3 at P3, the spec documents a 429 on 7 of 47 operations).
+`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` is the live risk status (as of 2026-10-12: GOLD WITH CAVEATS; no open P0 or P1; C6, C4 and C3 are confirmed closed on the routes ADR-012 names, and so is S9; one caveat is open: C5 at P2, a Sentry transaction carries the request's peer address when tracing is on; three P2 findings are open: that one, `JWT_SECRET` has no minimum length, and the fork bootstrap leaves `.env.test` on a different login when `DB_USER` in a hand-made `.env` is not the template's).
 
 ## Task Defaults
 

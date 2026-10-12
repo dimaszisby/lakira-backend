@@ -30,7 +30,7 @@ That file is authoritative; this entry is a pointer.
 
 ## D-04 — Bootstrap generates the database password, and Compose publishes on loopback only
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #157, `5bb4e3a`)
 - **Date:** 2026-10-12
 
 **Context.** Finding S10 of `audit-2026-10-03.md`, at P2, open in every run since. Bootstrap rotated

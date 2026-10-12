@@ -1,6 +1,6 @@
 # Todo — the Sentry scrubber leaves the URL, the user, breadcrumbs and exception values
 
-- **Status:** Fixed in #152 (`7d12927`)
+- **Status:** Partly. Fixed in #152 (`7d12927`); `audit-2026-10-12.md` graded V3 open-progressed on the peer address a transaction carries, filed as [W1](2026-10-12-todo-sentry-transaction-carries-peer-address.md)
   ([`log-redaction-coverage` D-12](../initiatives/log-redaction-coverage/decisions.md)),
   transactions and spans included. Not yet confirmed by a dated run; what the review left is in
   [this todo](2026-10-10-todo-sentry-scrubber-review-leftovers.md). Was: Open (P2), reproduced on
