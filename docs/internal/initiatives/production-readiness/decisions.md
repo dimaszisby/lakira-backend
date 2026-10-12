@@ -38,7 +38,7 @@ Promoted to the architecture decision registry as **[ADR-0032](../../../explanat
 
 ## D-03 — The readiness probe runs its checks at most once per window
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #156, `e9dedad`)
 - **Date:** 2026-10-11
 
 Numbered after ADR-001 and ADR-002 above; this log predates the `D-NN` form, which new entries use.

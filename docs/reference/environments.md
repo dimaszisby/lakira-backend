@@ -66,11 +66,13 @@ Related secret names:
   - Port `4000` is only the test/contract server (`npm run start:test`)
 - **Database (Postgres):**
   - Image: `postgres:18` (see the note below — same major everywhere)
-  - Host: `localhost`
+  - Host: `localhost`. Compose publishes Postgres, Redis, RabbitMQ and Mailpit on `127.0.0.1`
+    only; the `app` port is the one published on every interface
   - Port: `5432`
   - DB name: `lakira_development`
   - User: `lakira_user`
-  - Password: `lakira_password` (all from `.env.example`)
+  - Password: `lakira_password` (all from `.env.example`; a fork's bootstrap replaces it with a
+    generated one)
 - **Redis:**
   - URL: `redis://localhost:6379`
 - **Environment variables (example):**

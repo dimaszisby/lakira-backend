@@ -60,6 +60,9 @@ docker compose up -d db redis mailpit
 Mailpit catches every email the API sends: open <http://localhost:8025> to read them
 ([`../how-to/development/read-outbound-email.md`](../how-to/development/read-outbound-email.md)).
 
+These services are published on `127.0.0.1` only: reach them from this machine, not from another
+device on the network. The API's own port is the exception.
+
 Compose reads `DB_USER`, `DB_PASSWORD`, and `DB_NAME` from `.env` to create the database, so step
 2 has to come first. Wait for the healthcheck:
 

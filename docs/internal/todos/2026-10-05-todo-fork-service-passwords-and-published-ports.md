@@ -1,6 +1,6 @@
 # Todo — a fork keeps predictable service passwords, and Compose publishes on all interfaces
 
-- **Status:** Open (P2)
+- **Status:** Fixed on `fix/fork-db-password-loopback-ports` ([`fork-test-credentials` D-04](../initiatives/fork-test-credentials/decisions.md)); not yet re-audited
 - **Created:** 2026-10-05
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-10-03.md` § 6, S10; still open in

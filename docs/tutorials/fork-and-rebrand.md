@@ -40,6 +40,7 @@ What it does:
 | `lakira` → `my-app` (short name) | database names and CI database references                                                                                                                |
 | `lakira_` → `my_app_`            | database users and names in `.env.example`, `.env.test.example` and the test-database init SQL                                                           |
 | Rotates `JWT_SECRET`             | in `.env`, created from `.env.example` if absent                                                                                                         |
+| Generates the database password  | replaces the template's `my_app_password` in `.env` and `.env.test` together, in `DB_PASSWORD` and the development and test URLs                         |
 | Sets `APP_NAME=my-app`           | in `.env`, for local runs; a deployment does not need it (see below)                                                                                     |
 | Creates `.env.test`              | from the renamed `.env.test.example`, so it logs in as the user Compose creates from `.env`                                                              |
 | Renames an existing `.env`       | if you copied `.env` or `.env.test` from the templates first, their `lakira_` database names are renamed too; nothing else in them is touched            |
@@ -63,6 +64,16 @@ The script covers file contents. These are yours:
   deployed environment (staging, production) yourself. `APP_NAME` is optional there: a deployment
   with no `APP_NAME` is named after your package, which the script has renamed. If you do set it,
   set it to your own name, since a set value wins.
+- **The database password is generated once.** A later run keeps the password of an `.env` that is
+  in use, and so does Postgres: a Docker volume created before the password changed keeps the old
+  role and password, and the API then fails with `password authentication failed`.
+  `docker compose down -v` removes the volume so the next `up` creates it from `.env`. A password
+  you set yourself is kept; if it has characters outside letters, digits and `._~-`, copy it into
+  `.env.test` by hand, since the script will not.
+- **Redis and RabbitMQ keep their defaults**: no Redis password, and `guest`/`guest` on the broker.
+  The Compose file publishes the database, Redis, RabbitMQ and Mailpit on `127.0.0.1` only, so
+  they are reachable from your machine and not from the network. Give them real credentials
+  wherever they are deployed; startup refuses `guest` when `NODE_ENV=production` (ADR-0036).
 - **`LICENSE`** still names the original author.
 - **`README.md`** still describes Lakira's domain — metrics, logs, categories.
 - **The domain model itself.** `metrics`, `metric_logs`, `metric_categories`, and
@@ -102,8 +113,8 @@ and `DB_LOGGING=true` with `LOG_LEVEL=debug` logs SQL with its values. C5 (P2): 
 scrubber masks headers and request bodies and leaves the URL, the user, breadcrumbs and exception
 values. C4 (P3): one lint rule that guards the domain layer misses an import spelling. C3 (P3): the
 spec documents a 429 on 7 of 47 operations. C2 (branding) is closed: a deployed fork with no
-`APP_NAME` is named after its own package. One more thing a fork should know: the bootstrap script rotates
-`JWT_SECRET` only, not the database, Redis or RabbitMQ credentials. Other open findings are P2/P3 hardening (for example request-id propagation across RabbitMQ, and an unbounded
+`APP_NAME` is named after its own package. One more thing a fork should know: the bootstrap script
+generates `JWT_SECRET` and the database password, not the Redis or RabbitMQ credentials (step 3). Other open findings are P2/P3 hardening (for example request-id propagation across RabbitMQ, and an unbounded
 date range on `/metric-logs/stats`).
 
 The two findings that used to sit here are **closed**:
