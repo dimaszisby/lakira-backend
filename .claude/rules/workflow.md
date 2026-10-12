@@ -134,6 +134,33 @@ engineer would approve this.
 Review can invalidate an implementation choice, and documentation written before that lands gets
 written twice. Order is gates → review → fix → docs.
 
+## What's next
+
+When the user asks what to do next, with or without a merge to close out, **answer from the debt
+register**: `docs/internal/initiatives/backend-debt-register/register.md`. It lists every open
+item from the audits, the todo folder and the Notion page shared with lakira-frontend, ranked by
+a rule fixed in that kit's D-01. Do not rank from memory of the conversation.
+
+- **Recommend the first row whose state is `ready`**, and cite it by id (`B-07`). Read its
+  analysis file if it has one before proposing a kit size.
+- **Report any row above it that is waiting on someone** as a gap, with who it waits on. A blocked
+  row is not skipped silently; the owner's open questions are the `O-NN` rows.
+- **Check the row is still open** before recommending it: a merged PR or a commit that references
+  it means the register is stale, and fixing the row comes first.
+- **If `FINAL-AUDIT-SUMMARY.md` § 8 orders things differently, say so** and name both. The audit
+  summary records what a dated run asked for; the register is where that is ranked against
+  everything else.
+- **A new todo, audit finding or Notion record gets a register row in the same PR that files it**,
+  placed by D-01. A todo with no row is invisible to this rule.
+- **A fix PR moves its row to the register's Closed section** with the PR number, in the same PR.
+  A row a dated audit must confirm says so until the run does.
+- **Re-rank only by the rule.** If the rule gives the wrong answer, change D-01 with a new
+  decision entry, not the order of one row.
+
+Nothing checks the register against the todo folder mechanically (row B-60). Until something
+does, a "what's next" answer starts by listing `docs/internal/todos/` files newer than the
+register's "As of" date and adding any that are missing.
+
 ## Demand Elegance (Balanced)
 
 - For non-trivial changes: pause and ask "is there a more elegant way?"
