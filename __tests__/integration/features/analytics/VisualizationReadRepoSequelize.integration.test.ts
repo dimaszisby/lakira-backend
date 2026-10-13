@@ -316,7 +316,111 @@ describe("VisualizationReadRepoSequelize (integration)", () => {
         item.latestValue,
       ]),
     ).toEqual([[seed.metric.id, 20]]);
+    // Kit analytics-relative-range, D-02. Both logs are 01:30 local, so the
+    // local times cannot tell first from last; the stored instants can.
+    expect(result.items[0].firstLogAt).toBe("2025-11-02T05:30:00.000Z");
+    expect(result.items[0].lastLogAt).toBe("2025-11-02T06:30:00.000Z");
   });
+
+  // Kit analytics-relative-range, D-02. The two timestamps were local times
+  // sent with a Z: in Jakarta, seven hours after the instant they named.
+  it("returns the first and last log's stored instants, whatever the zone", async () => {
+    const {
+      user,
+      metrics: [seed],
+    } = await seedDashboardWithMetrics({
+      metrics: [
+        {
+          metricOverrides: { name: "Sleep" },
+          settingsOverrides: {
+            displayOptions: {
+              showOnDashboard: true,
+              priority: 1,
+              chartType: "line",
+              color: "#111111",
+            },
+          },
+          logs: [
+            { logValue: 7, loggedAt: new Date("2025-04-10T16:37:00Z") },
+            { logValue: 8, loggedAt: new Date("2025-04-11T20:05:00Z") },
+          ],
+        },
+      ],
+    });
+
+    const result = await repo.fetchDashboardVisualization({
+      userId: user.id,
+      organizationId: TEST_ORG_ID,
+      startISO: "2025-04-09T17:00:00Z",
+      endISO: "2025-04-13T17:00:00Z",
+      bucket: "1d" as const,
+      bucketSpec,
+      tz: "Asia/Jakarta",
+      fill: "none" as const,
+      limit: 5,
+    });
+
+    expect(result.items.map((item: DashboardVizItem) => item.metricId)).toEqual(
+      [seed.metric.id],
+    );
+    expect(result.items[0].firstLogAt).toBe("2025-04-10T16:37:00.000Z");
+    expect(result.items[0].lastLogAt).toBe("2025-04-11T20:05:00.000Z");
+  });
+
+  // Kit analytics-relative-range, D-03. The requested range holds nothing, so
+  // the fallback is built from the newest log. It used to end at that log, and
+  // the query is half-open, so the log was outside it. The first-second case
+  // is the one a range ending a millisecond later would still lose: the
+  // series stops a second short of the end.
+  it.each([
+    ["at midday", "2025-06-10T12:00:00.000Z"],
+    ["in the first second of the day", "2025-06-10T00:00:00.500Z"],
+  ])(
+    "returns a metric's only log through the fallback range, a log %s",
+    async (_name, loggedAt) => {
+      const {
+        user,
+        metrics: [seed],
+      } = await seedDashboardWithMetrics({
+        metrics: [
+          {
+            metricOverrides: { name: "Mood" },
+            settingsOverrides: {
+              displayOptions: {
+                showOnDashboard: true,
+                priority: 1,
+                chartType: "line",
+                color: "#111111",
+              },
+            },
+            logs: [{ logValue: 7, loggedAt: new Date(loggedAt) }],
+          },
+        ],
+      });
+
+      const result = await repo.fetchDashboardVisualization({
+        userId: user.id,
+        organizationId: TEST_ORG_ID,
+        startISO: "2025-09-01T00:00:00Z",
+        endISO: "2025-09-08T00:00:00Z",
+        bucket: "1d" as const,
+        bucketSpec,
+        tz: "UTC",
+        fill: "none" as const,
+        limit: 5,
+      });
+
+      expect(result.items).toHaveLength(1);
+      const [item] = result.items;
+      expect(item.metricId).toBe(seed.metric.id);
+      expect(item.fallbackRangeUsed).toBe(true);
+      expect(item.actualRange.endISO).toBe("2025-06-11T00:00:00.000Z");
+      expect(item.stats).toEqual({ average: 7, min: 7, max: 7, count: 1 });
+      expect(item.series.filter((point) => point.value !== null)).toHaveLength(
+        1,
+      );
+    },
+  );
 
   // Kit deterministic-query-ordering, D-05. The range's first bucket (04-09)
   // is empty, and the two days that hold logs hold different numbers of them,

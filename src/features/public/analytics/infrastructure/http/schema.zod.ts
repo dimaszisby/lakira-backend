@@ -1,14 +1,18 @@
 import { z } from "zod";
 import { env } from "@/config/envManager.js";
 import { resolveBucket } from "../../domain/buckets.js";
+import {
+  LAST_WINDOW_REGEX,
+  parseRelativeWindow,
+  resolveRelativeRange,
+  type RelativeUnit,
+} from "../../domain/relative-range.js";
 
 const DEFAULT_TZ = env.DEFAULT_TZ;
 const BucketEnum = z.enum(["1h", "1d", "1w", "1m", "1y"]);
 const FillEnum = z.enum(["none", "zero", "nan"]);
 const MAX_BUCKETS = env.VIZ_MAX_BUCKETS;
 const MAX_DATE_RANGE_MS = 8_640_000_000_000_000; // JS Date min/max span (~275k years)
-const LAST_WINDOW_REGEX = /^[1-9][0-9]*(h|d|w|m|y)$/;
-type RelativeUnit = "h" | "d" | "w" | "m" | "y";
 const LAST_UNIT_MS: Record<RelativeUnit, number> = {
   h: 60 * 60 * 1000,
   d: 24 * 60 * 60 * 1000,
@@ -32,56 +36,6 @@ const tzSchema = z
       return false;
     }
   }, "Invalid IANA time zone");
-
-const BUCKET_ANCHOR_MS: Record<string, number> = {
-  "1h": 60 * 60 * 1000,
-  "1d": 24 * 60 * 60 * 1000,
-  "1w": 7 * 24 * 60 * 60 * 1000,
-  "1m": 30 * 24 * 60 * 60 * 1000,
-  "1y": 365 * 24 * 60 * 60 * 1000,
-};
-
-function anchorNow(bucket?: string) {
-  const unitMs = BUCKET_ANCHOR_MS[bucket ?? ""] ?? 60 * 1000; // default minute
-  const anchored = Math.floor(Date.now() / unitMs) * unitMs;
-  return new Date(anchored);
-}
-
-function parseRelativeWindow(value: string) {
-  if (!LAST_WINDOW_REGEX.test(value)) return null;
-  const amount = Number(value.slice(0, -1));
-  if (!Number.isSafeInteger(amount) || amount <= 0) return null;
-  const unit = value.slice(-1) as RelativeUnit;
-  return { amount, unit };
-}
-
-function computeStartEndFromLast(last: string, bucket?: string) {
-  const end = anchorNow(bucket);
-  const parsed = parseRelativeWindow(last);
-  if (!parsed) {
-    return { startISO: end.toISOString(), endISO: end.toISOString() };
-  }
-  const { amount, unit } = parsed;
-  const start = new Date(end);
-  switch (unit) {
-    case "h":
-      start.setHours(end.getHours() - amount);
-      break;
-    case "d":
-      start.setDate(end.getDate() - amount);
-      break;
-    case "w":
-      start.setDate(end.getDate() - 7 * amount);
-      break;
-    case "m":
-      start.setMonth(end.getMonth() - amount);
-      break;
-    case "y":
-      start.setFullYear(end.getFullYear() - amount);
-      break;
-  }
-  return { startISO: start.toISOString(), endISO: end.toISOString() };
-}
 
 const validateAbsoluteRange = (
   start: string | undefined,
@@ -120,12 +74,19 @@ const resolveRange = (
   start: string | undefined,
   end: string | undefined,
   last: string | undefined,
+  tz: string,
 ) => {
   if (start && end) {
     return { startISO: start, endISO: end };
   }
-  const resolvedLast = last ?? "30d";
-  return computeStartEndFromLast(resolvedLast, bucket);
+  // A relative range runs through the end of the current bucket in the requested
+  // zone, so a value logged today is in it (ADR-0062).
+  return resolveRelativeRange({
+    last: last ?? "30d",
+    bucket,
+    tz,
+    now: new Date(),
+  });
 };
 
 const validateRelativeWindow = (
@@ -224,6 +185,7 @@ const VisualizationQuery = VisualizationQueryBase.transform((input) => {
     input.start,
     input.end,
     input.last,
+    input.tz,
   );
   return {
     bucket: input.bucket,
@@ -241,6 +203,7 @@ const DashboardVisualizationQuery = DashboardVisualizationQueryBase.transform(
       input.start,
       input.end,
       input.last,
+      input.tz,
     );
     return {
       bucket: input.bucket,
