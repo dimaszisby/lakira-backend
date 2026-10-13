@@ -1,6 +1,6 @@
 # Backend debt register
 
-**As of:** 2026-10-13, backend `dev` at `c8e1a87`. Ranked by [D-01](decisions.md).
+**As of:** 2026-10-13, backend `dev` at `7cbe2db`. Ranked by [D-01](decisions.md).
 
 **"What's next" is the first row below whose state is `ready`.** A row above it that is waiting on
 someone is reported with it, as a gap. How rows are added and closed:
@@ -38,12 +38,11 @@ No open row. B-07 is fixed (see Closed).
 
 ## Tier 4 — other P2
 
-| ID   | Item                                                                             | Sev     | Owed to | State       | Size | Source                                                                                        | Analysis                                               |
-| ---- | -------------------------------------------------------------------------------- | ------- | ------- | ----------- | ---- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| B-10 | Five domain repository interfaces import a type from the application layer (R11) | P3 / P2 | us      | ready       | ≤½d  | A12 § 4.3 R11; [todo](../../todos/2026-09-20-todo-unify-auth-persistence-transaction-type.md) | [analysis](analysis-r11-domain-imports-application.md) |
-| B-11 | Intermittent `Parse Error: Expected HTTP/` in the integration suite (R4)         | P2      | us      | unexplained | ?    | A0929 § 6 R4; [todo](../../todos/2026-09-25-todo-integration-parse-error-flake.md)            |                                                        |
+| ID   | Item                                                                     | Sev | Owed to | State       | Size | Source                                                                             | Analysis |
+| ---- | ------------------------------------------------------------------------ | --- | ------- | ----------- | ---- | ---------------------------------------------------------------------------------- | -------- |
+| B-11 | Intermittent `Parse Error: Expected HTTP/` in the integration suite (R4) | P2  | us      | unexplained | ?    | A0929 § 6 R4; [todo](../../todos/2026-09-25-todo-integration-parse-error-flake.md) |          |
 
-B-08 and B-09 are fixed (see Closed).
+B-08, B-09 and B-10 are fixed (see Closed).
 
 ## Tier 5 — P3 and ungraded
 
@@ -153,5 +152,6 @@ Rows move here when their fix is written, with the branch; the PR number is adde
 | B-17 | `verify()` pins no `algorithms`, `iss` or `aud`                                                    | #162 (`04999d0`), which pins HS256 on sign and verify; `iss` and `aud` are deliberately not added ([D-02](../jwt-secret-minimum-length/decisions.md)) | Not graded by an audit                                           |
 | B-02 | Relative ranges leave out today; lifecycle timestamps are shifted; the fallback drops a log (F-10) | #163 (`c8e1a87`); [ADR-0062](../../../explanation/decisions/adr-0062-a-relative-range-ends-with-the-current-bucket.md)                                | Not graded by an audit; the frontend re-runs its dashboard specs |
 | B-49 | `last_log_at` can name a different log inside a repeated daylight-saving hour (T4)                 | #163 (`c8e1a87`), with B-02: `lastLogAt` is the stored instant                                                                                        | Not graded by an audit                                           |
-| B-08 | Bootstrap leaves `.env.test` on another login when `DB_USER` is not the template's (W3)            | `fix/fork-bootstrap-user-and-name`; [`fork-test-credentials` D-05](../fork-test-credentials/decisions.md)                                             | Not yet; a run is owed                                           |
-| B-09 | `--name lakira-x` is renamed twice (T3)                                                            | `fix/fork-bootstrap-user-and-name`, with B-08: a name that holds `lakira` is refused                                                                  | Not yet; a run is owed                                           |
+| B-08 | Bootstrap leaves `.env.test` on another login when `DB_USER` is not the template's (W3)            | #164 (`7cbe2db`); [`fork-test-credentials` D-05](../fork-test-credentials/decisions.md)                                                               | Not yet; a run is owed                                           |
+| B-09 | `--name lakira-x` is renamed twice (T3)                                                            | #164 (`7cbe2db`), with B-08: a name that holds `lakira` is refused                                                                                    | Not yet; a run is owed                                           |
+| B-10 | Five domain repository interfaces import a type from the application layer (R11)                   | `fix/domain-imports-no-application`; [`boundary-rule-residuals` D-09](../boundary-rule-residuals/decisions.md); ADR-0058 gains decision 6             | Not yet; a run is owed                                           |

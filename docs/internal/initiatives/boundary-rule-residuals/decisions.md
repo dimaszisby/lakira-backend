@@ -136,3 +136,49 @@ any import from node's `module` package under `src/`. The plan had listed it as 
 not covered: `process.getBuiltinModule("module")`, which reaches the same function without an
 import; a module re-exported under another file name; and `src/config/config.cjs`, the one
 CommonJS file in `src/`, which the `*.ts` glob does not match.
+
+## D-09 — The domain layer imports no application code, and the transaction type is declared once
+
+- **Status:** Accepted
+- **Date:** 2026-10-13
+
+Micro entry for register row B-10 (finding R11 of `audit-2026-09-29.md`, found again and rated P2
+by the grader of `audit-2026-10-12.md` § 4.3), on `fix/domain-imports-no-application`. Written
+before any code.
+
+**Context.** The rule is that the domain depends on nothing outward. Five domain repository
+interfaces import `PersistenceTransaction` from an `application/` path: three in auth, and one
+each in metric and metric-log. The type is declared four times, always as `unknown`: in the two
+features' `TransactionPort.ts`, in `src/shared/application/ports/MessageIdempotencyPort.ts`, and
+in auth's `RefreshTokenRepository.ts`. The transaction port was added in the application layer,
+where the use case that opens a transaction lives, and the repository interfaces that take the
+handle were pointed at it. No lint rule or test refuses the import.
+**Decision.** Three points.
+
+1. `PersistenceTransaction` is declared once, in `src/shared/domain/PersistenceTransaction.ts`.
+   Every file that names it imports it from there, and nothing re-exports it.
+2. The name stays. It is opaque (`unknown`), and a repository is itself a persistence idea that
+   lives in the domain.
+3. A `domain/` file may import nothing with an `application` path segment. One pattern in
+   `eslint.config.mjs`, in the feature domain block and the shared kernel's, with its cases in
+   `feature-boundaries.lint.test.ts`.
+
+**Options considered.** One declaration per feature: rejected, three copies of one alias stay.
+Recording that a domain interface may import its own feature's application ports: rejected, the
+rule is then weaker than its name. Re-exporting the type from each `TransactionPort.ts`: rejected,
+it keeps the application path alive as a second source. Renaming it to `UnitOfWorkHandle`, which
+the analysis offered: rejected, the same 21 files change for no change in what the code says. A
+check in `architecture.test.ts` in place of the lint rule: rejected, the other layer rules are
+lint rules, and lint is what an editor shows while the import is typed.
+**Consequences.** No runtime behaviour changes: the type is erased at build. A domain file that
+needs a type an application file declares has to move the type inward. ADR-0058 gains the rule and
+a dated note; no new record, since it adds one rule to that record's set.
+**What the build showed.** `dist/` was built at `7cbe2db` and on the branch, and every file's
+checksum compared. No `.js` file differs. Nine `.js.map` files differ, each for a file whose
+import lines moved, and two files are new: `shared/domain/PersistenceTransaction.js`, which holds
+`export {}`, and its map. The plan expected the new module to be the only difference; the source
+maps were not foreseen and change nothing that runs.
+**From the review,** my own. Three of the five new lint and architecture cases fail on the tree at
+`7cbe2db`; the other two show what stays allowed. Auth's `RefreshTokenRepository.ts` also declares
+a `TransactionPort` interface of its own beside the one in `application/ports/`; it is not the
+alias and is left alone, as the plan left merging the ports out. Not graded by anyone else.

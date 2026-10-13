@@ -1,4 +1,4 @@
-export type PersistenceTransaction = unknown;
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 
 export interface TransactionPort {
   runInTransaction<T>(

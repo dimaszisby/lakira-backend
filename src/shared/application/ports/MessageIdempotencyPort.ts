@@ -1,5 +1,4 @@
-/** Opaque to the application layer; the adapter decides what a transaction is. */
-export type PersistenceTransaction = unknown;
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 
 export type IdempotencyKey = {
   /** Taken as delivered. The adapter rejects anything it cannot record. */

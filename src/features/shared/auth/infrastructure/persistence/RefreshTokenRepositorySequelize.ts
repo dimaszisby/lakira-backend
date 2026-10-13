@@ -4,9 +4,9 @@ import { models } from "@/infrastructure/db/models.js";
 import { RefreshToken } from "../../domain/entities/RefreshToken.js";
 import {
   RefreshTokenRepository,
-  PersistenceTransaction,
   TransactionPort,
 } from "../../domain/repositories/RefreshTokenRepository.js";
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import { toDomainRefreshToken } from "../mappers/RefreshTokenMapper.js";
 
 export class RefreshTokenRepositorySequelize

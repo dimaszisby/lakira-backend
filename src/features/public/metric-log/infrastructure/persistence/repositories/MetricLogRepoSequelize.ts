@@ -1,7 +1,8 @@
 import { Op, Transaction } from "sequelize";
 import { models } from "@/infrastructure/db/models.js";
 import AppError from "@/utils/AppError.js";
-import type { PersistenceTransaction } from "@/shared/application/ports/MessageIdempotencyPort.js";
+import type {} from "@/shared/domain/PersistenceTransaction.js";
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import {
   CreateMetricLogDTO,
   MetricLogRepository,

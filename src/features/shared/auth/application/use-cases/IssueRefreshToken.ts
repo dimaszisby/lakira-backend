@@ -1,8 +1,6 @@
 import { RefreshToken } from "../../domain/entities/RefreshToken.js";
-import {
-  RefreshTokenRepository,
-  PersistenceTransaction,
-} from "../../domain/repositories/RefreshTokenRepository.js";
+import { RefreshTokenRepository } from "../../domain/repositories/RefreshTokenRepository.js";
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import { TokenHasher } from "../ports/TokenHasher.js";
 
 export type IssueRefreshTokenInput = {

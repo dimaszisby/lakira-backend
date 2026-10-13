@@ -32,7 +32,11 @@ features/{name}/
 
 ## Dependency Rules
 
-- **Domain layer** has zero infrastructure imports — only pure types and interfaces
+- **Domain layer** has zero infrastructure imports — only pure types and interfaces. It imports
+  no application code either: an import with an `application` path segment is rejected in
+  `domain/` (ADR-0058, decision 6). A type both layers need is declared in the domain; the
+  transaction handle a repository accepts is `PersistenceTransaction` from
+  `@/shared/domain/PersistenceTransaction.js`, and nothing else declares it
 - **Application layer** depends on domain only, uses port interfaces for external concerns
 - Both are lint-enforced (ADR-0058): in `domain/` and `application/`, an import with an
   `infrastructure` path segment is rejected, and so are the driver packages (`express`,

@@ -134,6 +134,18 @@ const INNER_LAYER_INFRASTRUCTURE = {
     "The domain and application layers must not import infrastructure. Declare a port or an input type in application/ and let infrastructure satisfy it. See .claude/rules/architecture.md § Dependency Rules (ADR-0058).",
 };
 
+// ADR-0058, added 2026-10-13: the domain imports no application code either. Five
+// repository interfaces took the transaction type from an application port, and
+// nothing refused it (audit R11). Built like the rule above: any specifier with an
+// `application` path segment, so the relative spelling and both aliased ones are
+// covered. A type both layers need is declared in the domain, the feature's or
+// src/shared/domain.
+const DOMAIN_LAYER_APPLICATION = {
+  regex: "(?:^|/)application(?:/|$)",
+  message:
+    "The domain layer must not import the application layer. Declare the type in the domain (the feature's, or src/shared/domain) and let the application import it. See .claude/rules/architecture.md § Dependency Rules (ADR-0058).",
+};
+
 // The same rule for packages that are infrastructure by nature: the broker, the web
 // framework and its middleware, the ORM and its driver, the cache client, the mail
 // provider, and the token and hashing libraries the ports wrap. A regex, not `paths`:
@@ -308,6 +320,7 @@ export default [
             FEATURE_DEEP_IMPORTS,
             SIBLING_COMPOSITION_ROOT,
             DOMAIN_LAYER_HTTP_ERROR,
+            DOMAIN_LAYER_APPLICATION,
             INNER_LAYER_INFRASTRUCTURE,
             INNER_LAYER_DRIVER_PACKAGES,
           ],
@@ -395,6 +408,7 @@ export default [
             ...LEGACY_IMPORT_PATTERNS,
             SHARED_CODE_FEATURE_IMPORT,
             DOMAIN_LAYER_HTTP_ERROR,
+            DOMAIN_LAYER_APPLICATION,
             INNER_LAYER_INFRASTRUCTURE,
             INNER_LAYER_DRIVER_PACKAGES,
           ],
