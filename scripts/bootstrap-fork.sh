@@ -19,9 +19,10 @@
 #      logs in as the user Compose creates from .env. An .env or .env.test that
 #      already exists is rewritten the same way.
 #   3. Rotates JWT_SECRET in .env (creating it from .env.example if needed), and
-#      replaces the template's database password with a generated one, in .env
-#      and .env.test together. Redis and RabbitMQ keep their defaults; Compose
-#      publishes all three on 127.0.0.1 only.
+#      replaces the template's database password with a generated one. .env.test
+#      takes its database user and password from .env, whatever user that is.
+#      Redis and RabbitMQ keep their defaults; Compose publishes all three on
+#      127.0.0.1 only.
 #   4. Sets APP_NAME=<new-name> in .env, and creates .env.test from its template.
 #   5. Removes docs/internal/ (upstream working material); --keep-internal opts out.
 #   6. Drops FORKED-FROM.md with the upstream commit SHA.
@@ -69,6 +70,19 @@ fi
 # title, which the rewrite of the spec in step 1b would not reproduce.
 if ! [[ "$NEW_NAME" =~ ^[a-z][a-z0-9]*(-[a-z0-9]+)*$ ]]; then
   echo "Error: --name must match ^[a-z][a-z0-9]*(-[a-z0-9]+)*$ (lowercase letters, digits, single hyphens between them; must start with a letter)." >&2
+  echo "Got: '$NEW_NAME'" >&2
+  exit 1
+fi
+
+# Refuse a name that holds the template's own. The renames below replace
+# "lakira" wherever it stands, so they match their own output: "lakira-x" titled
+# the workflow "Lakira X X Backend CI", and a second run renamed lakira_x_user
+# to lakira_x_x_user (audit 2026-10-12, T3). A name whose short name is exactly
+# "lakira" is safe, since every rename then writes what it found.
+NAME_STEM="${NEW_NAME%%-backend}"
+NAME_STEM="${NAME_STEM%%-api}"
+if [[ "$NEW_NAME" == *lakira* && "$NAME_STEM" != "lakira" ]]; then
+  echo "Error: --name must not contain 'lakira', the template's own name: the renames would match their own output." >&2
   echo "Got: '$NEW_NAME'" >&2
   exit 1
 fi
@@ -317,9 +331,13 @@ elif [[ -f "$ENV_FILE" ]] && grep -q "^JWT_SECRET=$TEMPLATE_JWT_SECRET[[:space:]
   ENV_FRESH=true
 fi
 
-if [[ -f "$ENV_FILE" && "$ENV_FRESH" == "true" ]]; then
+JWT_ROTATED=false
+if [[ -f "$ENV_FILE" && "$ENV_FRESH" == "true" ]] && ! grep -q "^JWT_SECRET=" "$ENV_FILE"; then
+  echo "WARNING: .env has no JWT_SECRET line; none was set" >&2
+elif [[ -f "$ENV_FILE" && "$ENV_FRESH" == "true" ]]; then
   NEW_SECRET=$(openssl rand -hex 32)
   do_sed "s|^JWT_SECRET=.*|JWT_SECRET=$NEW_SECRET|" "$ENV_FILE"
+  JWT_ROTATED=true
   echo "JWT_SECRET rotated in .env"
 elif [[ -f "$ENV_FILE" ]]; then
   echo "JWT_SECRET left as it is in the existing .env"
@@ -352,9 +370,11 @@ fi
 # it was created with, so replacing it would lock a working fork out of its own
 # database.
 #
-# .env.test must log in with the password Compose reads from .env, so it takes
-# that password whenever this run generated it, created .env.test, or finds
-# .env.test still on the template's.
+# .env.test must log in as the role Compose creates from .env, so it takes that
+# user and password together whenever this run generated the password, created
+# .env.test, or finds the template's password still in it. Copying the password
+# alone left .env.test on the template's user beside a hand-made .env (audit
+# 2026-10-12, W3).
 # ---------------------------------------------------------------------------
 read_env_value() {
   local key="$1"
@@ -363,54 +383,133 @@ read_env_value() {
   { grep -m1 "^$key=" "$file" || true; } | cut -d= -f2- | sed 's/[[:space:]]*$//'
 }
 
-# Writes the password to DB_PASSWORD and to the development and test URLs, where
-# they log in as the given user. The staging and production URLs are never
-# touched. The user goes into a sed pattern, so a name that is not a plain
-# identifier is not spliced in: the URLs are then left for the user.
-set_db_password() {
+# Writes a database login to an env file: DB_PASSWORD, DB_USER when the fourth
+# argument is "with-user", and the development and test URLs. The staging and
+# production URLs are never touched.
+#
+# A URL is rebuilt, not edited by pattern: its scheme, the login, then whatever
+# followed the old credentials. With "with-user" (.env.test, which has one
+# database to reach) whatever user it named before is replaced. Without it
+# (.env) a URL is rebuilt when it logs in as that user or still holds the
+# template's password; one with another user and a password of its own is the
+# user's and is left alone. With no user to write, a URL keeps the one it names.
+# A user that is not a plain identifier would need encoding in a URL, so the
+# URLs are then left for the user. The values reach awk through its environment
+# and are never part of a pattern.
+#
+# Returns 0 when the file changed and 1 when it already held all of it.
+write_db_login() {
   local file="$1"
   local user="$2"
   local password="$3"
-  do_sed "s|^DB_PASSWORD=.*|DB_PASSWORD=$password|" "$file"
-  if [[ "$user" =~ ^[A-Za-z0-9_]+$ ]]; then
-    do_sed "/^DEVELOPMENT_DATABASE_URL=/s|://$user:[^@]*@|://$user:$password@|" "$file"
-    do_sed "/^TEST_DATABASE_URL=/s|://$user:[^@]*@|://$user:$password@|" "$file"
-  else
+  local set_user="${4:-}"
+  local rebuild_urls=true
+  if [[ -n "$user" ]] && ! [[ "$user" =~ ^[A-Za-z0-9_]+$ ]]; then
+    rebuild_urls=false
     echo "WARNING: DB_USER in .env is not a plain identifier; set the database URLs in $(basename "$file") by hand." >&2
   fi
+
+  local tmp
+  # Outside the tree: a run that is killed must not leave a copy of the secrets
+  # beside .env under a name nothing ignores.
+  tmp=$(mktemp "${TMPDIR:-/tmp}/bootstrap-fork.XXXXXX")
+  if ! LOGIN_USER="$user" LOGIN_PASSWORD="$password" LOGIN_SET_USER="$set_user" \
+    LOGIN_REBUILD_URLS="$rebuild_urls" LOGIN_TEMPLATE_PASSWORD="$TEMPLATE_DB_PASSWORD" awk '
+      BEGIN {
+        user = ENVIRON["LOGIN_USER"]
+        password = ENVIRON["LOGIN_PASSWORD"]
+        template_password = ENVIRON["LOGIN_TEMPLATE_PASSWORD"]
+        every_url = ENVIRON["LOGIN_SET_USER"] == "with-user"
+        set_user = every_url && user != ""
+        rebuild = ENVIRON["LOGIN_REBUILD_URLS"] == "true"
+      }
+      /^DB_PASSWORD=/ { print "DB_PASSWORD=" password; next }
+      set_user && /^DB_USER=/ { print "DB_USER=" user; next }
+      rebuild && /^(DEVELOPMENT|TEST)_DATABASE_URL=/ {
+        eq = index($0, "=")
+        value = substr($0, eq + 1)
+        sep = index(value, "://")
+        if (sep > 0) {
+          rest = substr(value, sep + 3)
+          # The authority ends at the path, the query or the fragment.
+          cut = match(rest, "[/?#]")
+          authority = cut ? substr(rest, 1, cut - 1) : rest
+          tail = cut ? substr(rest, cut) : ""
+          at = 0
+          for (i = length(authority); i > 0; i--) {
+            if (substr(authority, i, 1) == "@") { at = i; break }
+          }
+          old_user = ""
+          old_password = ""
+          if (at > 0) {
+            old_user = substr(authority, 1, at - 1)
+            colon = index(old_user, ":")
+            if (colon > 0) {
+              old_password = substr(old_user, colon + 1)
+              old_user = substr(old_user, 1, colon - 1)
+            }
+          }
+          url_user = user != "" ? user : old_user
+          ours = every_url || old_user == user || old_password == template_password
+          if (url_user != "" && ours) {
+            print substr($0, 1, eq) substr(value, 1, sep + 2) url_user ":" password "@" substr(authority, at + 1) tail
+            next
+          }
+        }
+      }
+      { print }
+    ' "$file" > "$tmp"; then
+    rm -f "$tmp"
+    echo "Error: could not rewrite $(basename "$file")." >&2
+    exit 1
+  fi
+
+  if cmp -s "$tmp" "$file"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  # Written through the file, not moved over it, so it keeps its own mode.
+  cat "$tmp" > "$file"
+  rm -f "$tmp"
+  return 0
 }
 
 TEMPLATE_DB_PASSWORD="${DB_SLUG}_password"
+PASSWORD_GENERATED=false
 
 if [[ -f "$ENV_FILE" ]]; then
   DB_LOGIN_USER=$(read_env_value DB_USER "$ENV_FILE")
   DB_LOGIN_PASSWORD=$(read_env_value DB_PASSWORD "$ENV_FILE")
-  PASSWORD_GENERATED=false
 
   if [[ "$DB_LOGIN_PASSWORD" == "$TEMPLATE_DB_PASSWORD" && "$ENV_FRESH" == "true" ]]; then
     DB_LOGIN_PASSWORD=$(openssl rand -hex 24)
-    set_db_password "$ENV_FILE" "$DB_LOGIN_USER" "$DB_LOGIN_PASSWORD"
+    write_db_login "$ENV_FILE" "$DB_LOGIN_USER" "$DB_LOGIN_PASSWORD" || true
     PASSWORD_GENERATED=true
     echo "Database password generated in .env"
   elif [[ -n "$DB_LOGIN_PASSWORD" ]]; then
     echo "Database password left as it is in the existing .env"
   fi
 
-  # The last case is an .env.test copied from the template by hand beside an .env
-  # that holds a password the user chose.
+  # The third case is an .env.test copied from the template by hand beside an .env
+  # that holds a password the user chose. The fourth is what this script left
+  # before it copied the user: the chosen password in DB_PASSWORD and the
+  # template's still in the URL.
   ENV_TEST_PASSWORD=""
+  ENV_TEST_URL=""
   if [[ -f "$ENV_TEST_FILE" ]]; then
     ENV_TEST_PASSWORD=$(read_env_value DB_PASSWORD "$ENV_TEST_FILE")
+    ENV_TEST_URL=$(read_env_value TEST_DATABASE_URL "$ENV_TEST_FILE")
   fi
-  if [[ -f "$ENV_TEST_FILE" && -n "$DB_LOGIN_PASSWORD" && "$ENV_TEST_PASSWORD" != "$DB_LOGIN_PASSWORD" && ( "$PASSWORD_GENERATED" == "true" || "$ENV_TEST_CREATED" == "true" || "$ENV_TEST_PASSWORD" == "$TEMPLATE_DB_PASSWORD" ) ]]; then
-    # The value goes into a sed replacement and into a URL. Anything outside this
-    # set would need escaping in one or the other, so it is left for the user.
+  if [[ -f "$ENV_TEST_FILE" && -n "$DB_LOGIN_PASSWORD" && ( "$PASSWORD_GENERATED" == "true" || "$ENV_TEST_CREATED" == "true" || "$ENV_TEST_PASSWORD" == "$TEMPLATE_DB_PASSWORD" || "$ENV_TEST_URL" == *":$TEMPLATE_DB_PASSWORD@"* ) ]]; then
+    # The value goes into a URL and onto a line of an env file. Anything outside
+    # this set would need encoding or quoting there, so it is left for the user.
     if [[ "$DB_LOGIN_PASSWORD" =~ ^[A-Za-z0-9._~-]+$ ]]; then
-      set_db_password "$ENV_TEST_FILE" "$DB_LOGIN_USER" "$DB_LOGIN_PASSWORD"
-      echo "Database password copied to .env.test"
-    else
+      if write_db_login "$ENV_TEST_FILE" "$DB_LOGIN_USER" "$DB_LOGIN_PASSWORD" with-user; then
+        echo "Database login copied to .env.test"
+      fi
+    elif [[ "$ENV_TEST_PASSWORD" != "$DB_LOGIN_PASSWORD" ]]; then
       echo "WARNING: the database password in .env has characters this script will not copy." >&2
-      echo "  Set DB_PASSWORD and TEST_DATABASE_URL in .env.test to match it by hand." >&2
+      echo "  Set DB_USER, DB_PASSWORD and TEST_DATABASE_URL in .env.test to match .env by hand." >&2
     fi
   fi
 fi
@@ -422,6 +521,10 @@ if [[ -f "$ENV_FILE" ]]; then
   if grep -q "^APP_NAME=" "$ENV_FILE"; then
     do_sed "s|^APP_NAME=.*|APP_NAME=$NEW_NAME|" "$ENV_FILE"
   else
+    # A last line with no newline would otherwise take APP_NAME onto its end.
+    if [[ -s "$ENV_FILE" && -n "$(tail -c 1 "$ENV_FILE")" ]]; then
+      echo "" >> "$ENV_FILE"
+    fi
     echo "APP_NAME=$NEW_NAME" >> "$ENV_FILE"
   fi
   echo "APP_NAME set to '$NEW_NAME' in .env"
@@ -475,7 +578,15 @@ echo "  3. Run: npm run migrate:development"
 echo "  4. Run: npm run db:migrate:test"
 echo "  5. Run: npm test"
 echo ""
-echo "This script already created .env and .env.test from their templates,"
-echo "rotated JWT_SECRET and generated the database password. A Postgres volume"
-echo "from an earlier run keeps its old password: 'docker compose down -v' removes"
-echo "it. Review .env before pointing it at anything real."
+if [[ "$JWT_ROTATED" == "true" && "$PASSWORD_GENERATED" == "true" ]]; then
+  echo "This run rotated JWT_SECRET and generated the database password."
+elif [[ "$JWT_ROTATED" == "true" ]]; then
+  echo "This run rotated JWT_SECRET. The database password in .env was left as it is."
+elif [[ "$PASSWORD_GENERATED" == "true" ]]; then
+  echo "This run generated the database password. JWT_SECRET in .env was left as it is."
+else
+  echo "This run left JWT_SECRET and the database password in .env as they are."
+fi
+echo "A Postgres volume from an earlier run keeps its old password:"
+echo "'docker compose down -v' removes it. Review .env before pointing it at"
+echo "anything real."

@@ -1,6 +1,6 @@
 # Relative ranges include today; lifecycle timestamps are instants
 
-**Status:** Implemented on the branch, gates green; waits for the owner to commit and open the PR. Register rows B-02 (P2, owed to the frontend, F-10) and B-49.
+**Status:** Merged in #163 (`c8e1a87`). Register rows B-02 (P2, owed to the frontend, F-10) and B-49.
 **Slug:** `analytics-relative-range` · **Branch:** `fix/analytics-relative-range`
 
 Lean kit — no plan; acceptance criteria live in the checklist.
