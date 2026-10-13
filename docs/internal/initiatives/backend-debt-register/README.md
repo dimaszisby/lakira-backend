@@ -1,6 +1,6 @@
 # Backend debt register
 
-**Status:** Register and eleven analyses written; nothing is fixed here. Top ready row: B-02, pending the owner's confirmation (O-01); B-07 is the first with nothing pending. A dated audit run is owed after B-01.
+**Status:** Register and eleven analyses written; nothing is fixed here. Top ready row: B-02, pending the owner's confirmation (O-01); B-08 is the first with nothing pending, B-01, B-06, B-07 and B-17 being fixed. A dated audit run is owed after B-01.
 **Slug:** `backend-debt-register` · **Branch:** `docs/backend-debt-register`
 
 - [Register](register.md) — every open item, ranked. **"What's next" is answered from here**

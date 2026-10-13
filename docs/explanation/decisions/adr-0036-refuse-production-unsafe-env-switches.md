@@ -24,6 +24,8 @@ Any environment variable whose `true` value would weaken a production security c
 | `SWAGGER_REQUIRE_AUTH`   | `false` when `NODE_ENV=production` (already conventionally true; codify) |
 | `SKIP_DB_LIFECYCLE`      | `true` when `NODE_ENV=production` (added 2026-08-24; twelve-factor TF-6) |
 | `DB_LOGGING`             | `true` when `NODE_ENV=production` (added 2026-10-10; audit finding V2)   |
+| `JWT_SECRET`             | shorter than 32 characters when `NODE_ENV` is `production` or `staging`  |
+| `JWT_SECRET`             | the placeholder from `.env.example`, in the same two environments        |
 
 ## Options considered
 
@@ -58,3 +60,10 @@ Any environment variable whose `true` value would weaken a production security c
 > **2026-09-28:** every refusal here is keyed on `NODE_ENV`. The production image now defaults it to
 > `production` ([ADR-0050](./adr-0050-production-image-defaults-node-env.md)), so the refusals hold
 > even when a deployer sets nothing.
+
+> **2026-10-13:** the two `JWT_SECRET` rows were added (audit finding W2; kit
+> [`jwt-secret-minimum-length`](../../internal/initiatives/jwt-secret-minimum-length/decisions.md),
+> D-01). They are the first entries about how strong a value is, where every other entry is a
+> switch, and after ADR-0049 the second that also applies in staging. Tokens are HS256, so a
+> guessable secret lets anyone mint a token. The placeholder has a rule of its own because it is 33
+> characters long and passes the length check. Neither message quotes the value.

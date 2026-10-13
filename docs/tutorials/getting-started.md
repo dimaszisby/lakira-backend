@@ -42,7 +42,8 @@ The values in `.env.example` are chosen so a verbatim copy works: `DB_USER`, `DB
 `POSTGRES_DB`, and the `*_DATABASE_URL` entries match them.
 
 `JWT_SECRET` is the only variable with no default. `.env.example` ships the placeholder
-`replace-with-a-long-random-secret`, which boots but is not a secret. Generate a real one:
+`replace-with-a-long-random-secret`, which boots in development but is not a secret; staging and
+production refuse it, and anything shorter than 32 characters. Generate a real one:
 
 ```bash
 node -e "console.log('JWT_SECRET=' + require('crypto').randomBytes(32).toString('hex'))"

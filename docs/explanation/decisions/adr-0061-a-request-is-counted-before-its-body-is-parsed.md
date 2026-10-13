@@ -1,6 +1,6 @@
 # ADR-0061 — A request is counted before its body is parsed
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-10-13)
 - **Date:** 2026-10-13
 - **Related:** [ADR-0057](./adr-0057-rate-limiters-answer-through-the-error-envelope.md) (what a
   limiter answers); [ADR-0027](./adr-0027-asynclocalstorage-for-request-correlation.md) (the request id);

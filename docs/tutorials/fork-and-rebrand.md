@@ -112,8 +112,10 @@ grader. C5 (P2): with tracing on, a Sentry transaction carries the request's pee
 scrubber cleans the URL, the user, breadcrumbs and exception values. C6, C4 and C3 closed in that
 run: a rejected connection URL is no longer printed, `DB_LOGGING` is refused in production, the
 lint rule that guards the domain layer rejects every import spelling, and the spec documents a 429
-on every operation. Two more P2 findings are open. `JWT_SECRET` is accepted at any length, so set
-a long random one in every deployment. And the bootstrap script mishandles two inputs: a hand-made
+on every operation. Two more P2 findings were open at that run. `JWT_SECRET` was accepted at any
+length; since then startup refuses one under 32 characters, and the template's placeholder, in
+staging and production, which no dated run has confirmed yet. Set a long random one in every
+deployment. And the bootstrap script mishandles two inputs: a hand-made
 `.env` whose `DB_USER` is not the template's leaves `.env.test` on a different login, and a name
 that starts with `lakira` is renamed twice. The script generates `JWT_SECRET` and the database
 password, not the Redis or RabbitMQ credentials (step 3). Other open findings are P2/P3 hardening
