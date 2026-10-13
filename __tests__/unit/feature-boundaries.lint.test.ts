@@ -231,6 +231,67 @@ describe("feature boundaries in ESLint (ADR-0044)", () => {
     }, 60_000);
   });
 
+  // ADR-0058, added 2026-10-13. Five domain repository interfaces imported the
+  // transaction type from an application port and nothing refused it (audit R11).
+  describe("the domain layer imports no application code (ADR-0058)", () => {
+    const DOMAIN_FILE =
+      "src/features/public/metric-log/domain/repositories/MetricLogRepository.ts";
+    const SHARED_DOMAIN_FILE = "src/shared/domain/errors/DomainError.ts";
+
+    const APPLICATION_IMPORTS: Case[] = [
+      { spec: "../../application/ports/TransactionPort.js", rejected: true },
+      { spec: "../../application/ports/TransactionPort", rejected: true },
+      { spec: "../application/use-cases/CreateMetricLog.js", rejected: true },
+      {
+        spec: "@/shared/application/ports/MessageIdempotencyPort.js",
+        rejected: true,
+      },
+      {
+        spec: "@/features/public/metric/application/ports/TransactionPort.js",
+        rejected: true,
+      },
+      { spec: "@/features/metric/application", rejected: true },
+    ];
+
+    it("rejects every spelling from a feature's domain file", () => {
+      expectCases(DOMAIN_FILE, APPLICATION_IMPORTS);
+    }, 60_000);
+
+    it("rejects every spelling from the shared kernel's domain", () => {
+      expectCases(SHARED_DOMAIN_FILE, [
+        { spec: "../../application/ports/CachePort.js", rejected: true },
+        {
+          spec: "@/shared/application/ports/MessageIdempotencyPort.js",
+          rejected: true,
+        },
+      ]);
+    }, 60_000);
+
+    it("still allows the domain, the shared domain, and a name that only contains the word", () => {
+      expectCases(DOMAIN_FILE, [
+        { spec: "../entities/MetricLog.js", rejected: false },
+        { spec: "@/shared/domain/PersistenceTransaction.js", rejected: false },
+        { spec: "@/shared/domain/errors/DomainError.js", rejected: false },
+        { spec: "../value-objects/application-window.js", rejected: false },
+      ]);
+    }, 60_000);
+
+    it("leaves the application and infrastructure layers free to import application code", () => {
+      const allowed: Case[] = [
+        { spec: "../../application/ports/TransactionPort.js", rejected: false },
+        {
+          spec: "@/shared/application/ports/MessageIdempotencyPort.js",
+          rejected: false,
+        },
+      ];
+      expectCases(FEATURE_FILE, allowed);
+      expectCases(
+        "src/features/public/metric-log/infrastructure/persistence/repositories/MetricLogRepoSequelize.ts",
+        allowed,
+      );
+    }, 60_000);
+  });
+
   describe("shared code imports no feature (ADR-0058)", () => {
     const FEATURE_IMPORTS: Case[] = [
       { spec: "@/features/metric/public.js", rejected: true },

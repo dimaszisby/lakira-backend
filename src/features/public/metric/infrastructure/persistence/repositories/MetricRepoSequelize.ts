@@ -5,7 +5,8 @@ import {
   MetricRepository,
 } from "../../../domain/repositories/MetricRepository.js";
 import { Metric } from "../../../domain/entities/Metric.js";
-import { PersistenceTransaction } from "../../../application/ports/TransactionPort.js";
+import type {} from "@/shared/domain/PersistenceTransaction.js";
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import { MetricRow, toDomain } from "../mappers/MetricMapper.js";
 import AppError from "@/utils/AppError.js";
 

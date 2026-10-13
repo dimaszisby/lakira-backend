@@ -1,6 +1,7 @@
 import { Op, Transaction } from "sequelize";
 import { models } from "@/infrastructure/db/models.js";
-import { PersistenceTransaction } from "../../application/ports/TransactionPort.js";
+import type {} from "@/shared/domain/PersistenceTransaction.js";
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import { AuthUser } from "../../domain/entities/AuthUser.js";
 import {
   CreateUserDTO,

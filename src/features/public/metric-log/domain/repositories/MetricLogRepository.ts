@@ -1,5 +1,6 @@
 import { MetricLog } from "../entities/MetricLog.js";
-import type { PersistenceTransaction } from "@/shared/application/ports/MessageIdempotencyPort.js";
+import type {} from "@/shared/domain/PersistenceTransaction.js";
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 
 export type CreateMetricLogDTO = {
   metricId: string;

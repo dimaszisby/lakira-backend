@@ -6,8 +6,8 @@ import type {
   IdempotencyKey,
   IdempotencyOutcome,
   MessageIdempotencyPort,
-  PersistenceTransaction,
 } from "@/shared/application/ports/MessageIdempotencyPort.js";
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 
 /** processed_messages.message_id is STRING(36). */
 const MAX_MESSAGE_ID_LENGTH = 36;

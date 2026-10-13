@@ -300,6 +300,23 @@ describe("Architecture enforcement", () => {
     });
   });
 
+  // boundary-rule-residuals D-09 (audit R11): the alias was declared four times, and
+  // the domain repositories took it from an application port.
+  describe("the transaction type is declared once", () => {
+    it("only src/shared/domain/PersistenceTransaction.ts declares it", () => {
+      const src = path.resolve(__dirname, "../../src");
+      const declaring = getAllTsFiles(src)
+        .filter((file) =>
+          /\b(?:type|interface)\s+PersistenceTransaction\b/.test(
+            fs.readFileSync(file, "utf-8"),
+          ),
+        )
+        .map((file) => path.relative(src, file));
+
+      expect(declaring).toEqual(["shared/domain/PersistenceTransaction.ts"]);
+    });
+  });
+
   describe("legacy mappers directory does not exist", () => {
     it("src/utils/mappers/ does not exist", () => {
       const mappersDir = path.resolve(__dirname, "../../src/utils/mappers");

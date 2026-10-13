@@ -1,9 +1,7 @@
 import sequelize from "@/config/db.js";
 import { Transaction } from "sequelize";
-import {
-  TransactionPort,
-  PersistenceTransaction,
-} from "../../application/ports/TransactionPort.js";
+import { TransactionPort } from "../../application/ports/TransactionPort.js";
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 
 export class SequelizeTransactionPort implements TransactionPort {
   async runInTransaction<T>(

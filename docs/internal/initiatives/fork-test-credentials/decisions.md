@@ -78,7 +78,7 @@ left is in `docs/internal/todos/2026-10-12-todo-fork-bootstrap-review-leftovers.
 
 ## D-05 — `.env.test` takes the whole login from `.env`, and a name that holds `lakira` is refused
 
-- **Status:** Accepted
+- **Status:** Accepted (merged in #164, `7cbe2db`)
 - **Date:** 2026-10-13
 
 Micro entry for register rows B-08 (finding W3 of `audit-2026-10-12.md`, P2) and B-09 (T3, P3 on

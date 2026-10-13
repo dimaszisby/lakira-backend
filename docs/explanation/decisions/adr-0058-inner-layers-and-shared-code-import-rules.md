@@ -56,6 +56,17 @@ cases imported HTTP DTO types, the queue topology and `amqplib`'s message type, 
      `public.ts`.
 5. **Every rule has persisted cases.** `__tests__/unit/feature-boundaries.lint.test.ts` shows each
    rule rejecting and each exception allowing, as ADR-0044 decision 6 requires.
+6. **The domain layer imports no application code.** Added 2026-10-13. In `domain/` of every
+   feature, and of `src/shared/`, ESLint rejects any import whose path has an `application`
+   segment, relative or aliased. A type both layers need is declared in the domain: the
+   transaction handle a repository accepts is `PersistenceTransaction`, declared once in
+   `src/shared/domain/PersistenceTransaction.ts`.
+
+**Note, 2026-10-13.** Decision 6 was added after the audit of 2026-10-12 found, for the second
+time, five domain repository interfaces importing `PersistenceTransaction` from an application
+port (finding R11). Decisions 1 and 2 kept infrastructure out of the inner layers and said nothing
+about the direction between the two of them. The type had four declarations, all `unknown`; it now
+has one. Logged as `boundary-rule-residuals` D-09.
 
 ## Options considered
 
@@ -96,7 +107,7 @@ cases imported HTTP DTO types, the queue topology and `amqplib`'s message type, 
 
 - Kit: `docs/internal/initiatives/boundary-rule-residuals/`
 - Rules: `eslint.config.mjs` (`INNER_LAYER_INFRASTRUCTURE`, `INNER_LAYER_DRIVER_PACKAGES`,
-  `SHARED_CODE_FEATURE_IMPORT`)
+  `SHARED_CODE_FEATURE_IMPORT`, `DOMAIN_LAYER_APPLICATION`)
 - Cases: `__tests__/unit/feature-boundaries.lint.test.ts`
 - Moved: `src/features/public/metric/domain/metric.domain.ts`,
   `src/features/public/metric/infrastructure/http/metric.dto.ts`

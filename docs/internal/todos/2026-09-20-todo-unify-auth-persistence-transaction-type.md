@@ -1,6 +1,6 @@
 # Todo — `PersistenceTransaction` is declared twice in the auth slice
 
-- **Status:** Open
+- **Status:** Fixed on `fix/domain-imports-no-application` ([`boundary-rule-residuals` D-09](../initiatives/boundary-rule-residuals/decisions.md), register row B-10). Not as scoped below: the type is declared once in `src/shared/domain/PersistenceTransaction.ts`, and the domain no longer imports it from an application port
 - **Created:** 2026-09-20
 - **Owner:** unassigned
 - **Origin:** discovered implementing the `registration-session` kit, see its checklist
