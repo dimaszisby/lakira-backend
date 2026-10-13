@@ -83,6 +83,86 @@ describe("zodEnv production-unsafe switch refusal (ADR-0036)", () => {
     ).resolves.toBeUndefined();
   });
 
+  // Register row B-12 (audit 2026-10-12, W4). The connection uses RABBITMQ_URL as
+  // given whenever it is set and ignores the two fields, so the refusal has to
+  // judge the URL then. A URL that names no credentials connects as guest too:
+  // the client fills them in.
+  describe("RabbitMQ credentials given by URL", () => {
+    const BROKER_HOST = "broker.internal.example";
+    const withQueue = (overrides: Record<string, string>) =>
+      inProduction({ RABBITMQ_ENABLED: "true", ...overrides });
+
+    it.each([
+      ["guest as user and password", `amqp://guest:guest@${BROKER_HOST}:5672`],
+      ["guest as the password only", `amqp://svc:guest@${BROKER_HOST}:5672`],
+      ["guest as the user only", `amqp://guest:Str0ngPw@${BROKER_HOST}:5672`],
+      ["no credentials at all", `amqp://${BROKER_HOST}:5672`],
+    ])("refuses a URL with %s, whatever the two fields say", async (_, url) => {
+      await expect(
+        withQueue({
+          RABBITMQ_URL: url,
+          RABBITMQ_USER: "svc",
+          RABBITMQ_PASSWORD: "Str0ngPw",
+        }),
+      ).rejects.toMatchObject(refusalFor("RABBITMQ_URL"));
+    });
+
+    it("accepts a URL with real credentials when the two fields are still guest", async () => {
+      await expect(
+        withQueue({
+          RABBITMQ_URL: `amqp://svc:Str0ngPw@${BROKER_HOST}:5672/vh`,
+          RABBITMQ_USER: "guest",
+          RABBITMQ_PASSWORD: "guest",
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it("names the variable and never the URL, in the issue or the logged line", async () => {
+      const errorSpy = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+
+      try {
+        const failure = await withQueue({
+          RABBITMQ_URL: `amqp://guest:guest@${BROKER_HOST}:5672`,
+          RABBITMQ_USER: "svc",
+          RABBITMQ_PASSWORD: "Str0ngPw",
+        }).catch((error: unknown) => error);
+        const logged = JSON.stringify(errorSpy.mock.calls);
+
+        expect(errorSpy).toHaveBeenCalled();
+        expect(logged).toContain("RABBITMQ_URL cannot log in as");
+        for (const text of [JSON.stringify(failure), logged]) {
+          expect(text).not.toContain(BROKER_HOST);
+          expect(text).not.toContain("amqp://");
+        }
+      } finally {
+        errorSpy.mockRestore();
+      }
+    });
+
+    it("allows a guest URL when RabbitMQ is disabled", async () => {
+      await expect(
+        inProduction({
+          RABBITMQ_ENABLED: "false",
+          RABBITMQ_URL: `amqp://guest:guest@${BROKER_HOST}:5672`,
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it("allows the guest URL Compose passes in development", async () => {
+      await expect(
+        withTestEnv(noop, {
+          overrides: {
+            NODE_ENV: "development",
+            RABBITMQ_ENABLED: "true",
+            RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672",
+          },
+        }),
+      ).resolves.toBeUndefined();
+    });
+  });
+
   it("leaves non-production environments untouched", async () => {
     // This is the exact combination `npm run start:test` uses.
     await expect(

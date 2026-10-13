@@ -94,3 +94,64 @@ of its wrong outcomes has been run, only read from the code. And this change can
 deploy; if it has to be reverted, the revert should not take a broker change with it.
 
 **Consequences.** ADR-0036 is amended twice, by two PRs, each with one dated note.
+
+## D-04 — The `guest` refusal judges the credentials the connection will use
+
+- **Status:** Accepted
+- **Date:** 2026-10-14
+
+Micro entry for register row B-12 (finding W4 of `audit-2026-10-12.md`, P3), the work D-03 put
+off, on `fix/rabbitmq-guest-url-refusal`. Written before any code.
+
+**Context.** In production with `RABBITMQ_ENABLED=true`, startup refuses `guest` in
+`RABBITMQ_USER` and `RABBITMQ_PASSWORD`. The connection uses `RABBITMQ_URL` as given whenever it
+is set and ignores the two fields. So a URL that logs in as `guest` starts beside non-guest
+fields, and a URL with real credentials is refused when the fields are unset, since they default
+to `guest`. Read while planning, and not in the analysis: a URL that names no credentials also
+connects as `guest`, because the client library fills them in.
+
+**Decision.** Three points.
+
+1. One helper in `src/config/zodEnv.ts` returns the user and password the connection will use:
+   the URL's when `RABBITMQ_URL` is set, `guest` and `guest` when that URL names neither, and
+   the two fields otherwise. The refusal judges what it returns. When the URL supplied a `guest`
+   value the issue's path is `RABBITMQ_URL`; otherwise it is the field, as before. No message
+   quotes the URL.
+2. The normaliser takes the user and password from the same helper, so the two `env` fields say
+   what the connection uses.
+3. The `guest` schema defaults stay.
+
+**Options considered.**
+
+- _Run the normaliser before the refusals and remove the defaults,_ which the analysis
+  recommended. Rejected. Reordering means moving every refusal out of the schema's `superRefine`
+  or turning the normalisers into a schema transform, which changes how all nine refusals run to
+  fix two. Removing the defaults changes the type of two `env` fields and what development gets
+  with nothing set. Once the check reads the URL when there is one, the defaults cause no wrong
+  outcome.
+- _Check the URL as well as the fields._ Rejected: with a URL set the fields are not used, so a
+  `guest` field beside a good URL would be refused for nothing.
+- _Cover staging too,_ as D-01 does for the secret. Not taken here: it could stop a staging
+  deploy whose broker settings cannot be read from the repository. It is the owner's call.
+
+**Consequences.** A production deployment with the queue on and a `guest` or credential-less
+`RABBITMQ_URL` refuses to start on its next deploy. One with a good URL and unset fields, refused
+until now, starts. An unreadable URL is not judged by the refusal; the normaliser rejects it
+straight after, naming the variable and never the value. ADR-0036 is amended a second time, as
+D-03 said it would be.
+
+**What the runs showed.** Both wrong outcomes were read from the code and never run until now.
+Eight of the eleven new unit cases fail on the code at `6429fda`: a `guest` URL beside non-guest
+fields was accepted, and a URL with real credentials beside `guest` fields was refused. On the
+built server with `NODE_ENV=production` and the queue on, a `guest` URL and a URL with no
+credentials each exit 1 with an `[ENV_ERROR]` line that names `RABBITMQ_URL` and holds no part of
+the URL; a URL with real credentials passes validation, and the start then stops at this
+machine's Postgres, which speaks no SSL.
+
+**From the review,** my own. A URL that names a user and no password now gives an empty
+`env.RABBITMQ_PASSWORD`, where the field's value was kept before; the client sends an empty
+password in that case, so the field now says what happens. An empty password is not refused,
+here or in the fields. `normalizeRedisConfig` copies the URL's password the same guarded way, and
+`REDIS_PASSWORD` has no default, so it does copy; when both are set and differ the field keeps
+its own value while the client uses the URL. No refusal reads it, and it is left alone. Not
+graded by anyone else.
