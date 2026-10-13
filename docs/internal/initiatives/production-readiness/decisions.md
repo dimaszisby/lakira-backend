@@ -70,7 +70,7 @@ the limiter. That is true of every route, since the limiter is mounted after the
 
 ## D-04 — A request is counted before its body is parsed, and the probes parse none
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 Promoted to the architecture decision registry as **[ADR-0061](../../../explanation/decisions/adr-0061-a-request-is-counted-before-its-body-is-parsed.md)**.

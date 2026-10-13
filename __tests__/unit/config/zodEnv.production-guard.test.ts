@@ -1,4 +1,4 @@
-import { describe, it, expect } from "@jest/globals";
+import { describe, it, expect, jest } from "@jest/globals";
 import { withTestEnv } from "@/tests/env-test-utils.js";
 
 /**
@@ -12,11 +12,18 @@ import { withTestEnv } from "@/tests/env-test-utils.js";
  */
 const noop = () => undefined;
 
+// Not a secret: 40 characters, to clear the 32 that production and staging ask for.
+const LONG_SECRET = "unit-test-only-not-a-secret-0123456789ab";
+const TEMPLATE_PLACEHOLDER = "replace-with-a-long-random-secret";
+
 // A *clean* production env. The ambient .env.test sets DISABLE_RATE_LIMITING=true and
 // start:test sets ALLOW_TEST_HTTP_SERVER=true, so both are neutralised here — otherwise
 // every case would trip on the ambient value instead of the one under test.
 const PRODUCTION_BASE: Record<string, string> = {
   NODE_ENV: "production",
+  // Production and staging refuse a short secret. The ambient one is whatever
+  // .env.test or the CI secret holds, and its length is not this suite's to assume.
+  JWT_SECRET: LONG_SECRET,
   SWAGGER_REQUIRE_AUTH: "true",
   DISABLE_RATE_LIMITING: "false",
   ALLOW_TEST_HTTP_SERVER: "false",
@@ -126,7 +133,11 @@ describe("zodEnv production-unsafe switch refusal (ADR-0036)", () => {
   it('allows EMAIL_PROVIDER="mailpit" in staging, for the VPS stack', async () => {
     await expect(
       withTestEnv(noop, {
-        overrides: { NODE_ENV: "staging", EMAIL_PROVIDER: "mailpit" },
+        overrides: {
+          NODE_ENV: "staging",
+          EMAIL_PROVIDER: "mailpit",
+          JWT_SECRET: LONG_SECRET,
+        },
       }),
     ).resolves.toBeUndefined();
   });
@@ -164,6 +175,82 @@ describe("zodEnv production-unsafe switch refusal (ADR-0036)", () => {
       }),
     ).rejects.toMatchObject(refusalFor("DISABLE_RATE_LIMITING"));
   });
+
+  // Kit jwt-secret-minimum-length, D-01.
+  describe.each(["production", "staging"])(
+    "JWT_SECRET when NODE_ENV=%s",
+    (nodeEnv) => {
+      const withSecret = (secret: string) =>
+        withTestEnv(noop, {
+          overrides: {
+            ...PRODUCTION_BASE,
+            NODE_ENV: nodeEnv,
+            JWT_SECRET: secret,
+          },
+        });
+
+      it.each([
+        ["one character", "a"],
+        ["31 characters", "x".repeat(31)],
+      ])("refuses a secret of %s", async (_label, secret) => {
+        await expect(withSecret(secret)).rejects.toMatchObject(
+          refusalFor("JWT_SECRET"),
+        );
+      });
+
+      it("accepts a secret of exactly 32 characters", async () => {
+        await expect(withSecret("x".repeat(32))).resolves.toBeUndefined();
+      });
+
+      it("refuses the placeholder from .env.example, which is long enough", async () => {
+        expect(TEMPLATE_PLACEHOLDER.length).toBeGreaterThanOrEqual(32);
+
+        await expect(withSecret(TEMPLATE_PLACEHOLDER)).rejects.toMatchObject({
+          issues: [
+            expect.objectContaining({
+              path: ["JWT_SECRET"],
+              message: expect.stringContaining("placeholder"),
+            }),
+          ],
+        });
+      });
+
+      it("names the rule and never the value, in the issue or the logged line", async () => {
+        const secret = "short-and-recognisable";
+        const errorSpy = jest
+          .spyOn(console, "error")
+          .mockImplementation(() => undefined);
+
+        try {
+          const failure = await withSecret(secret).catch(
+            (error: unknown) => error,
+          );
+
+          expect(JSON.stringify(failure)).not.toContain(secret);
+          expect(errorSpy).toHaveBeenCalled();
+          expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(secret);
+          expect(JSON.stringify(errorSpy.mock.calls)).toContain(
+            "JWT_SECRET must be at least 32 characters",
+          );
+        } finally {
+          errorSpy.mockRestore();
+        }
+      });
+    },
+  );
+
+  it.each(["development", "test"])(
+    "accepts a short JWT_SECRET and the placeholder when NODE_ENV=%s",
+    async (nodeEnv) => {
+      for (const secret of ["a", TEMPLATE_PLACEHOLDER]) {
+        await expect(
+          withTestEnv(noop, {
+            overrides: { NODE_ENV: nodeEnv, JWT_SECRET: secret },
+          }),
+        ).resolves.toBeUndefined();
+      }
+    },
+  );
 
   it("allows DB_LOGGING in development, where it is the local debugging tool", async () => {
     await expect(

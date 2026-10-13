@@ -1,6 +1,6 @@
 # Todo — `JWT_SECRET` is accepted at any length
 
-- **Status:** Open (P2)
+- **Status:** Fixed on `fix/jwt-secret-minimum-length` (kit `jwt-secret-minimum-length`, D-01; ADR-0036 amended). Not yet confirmed by a dated audit run (register row B-07)
 - **Created:** 2026-10-12
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-10-12.md` § 6, W2 (security agent)

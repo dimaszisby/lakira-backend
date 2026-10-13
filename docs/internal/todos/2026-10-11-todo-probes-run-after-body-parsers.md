@@ -1,6 +1,6 @@
 # Todo — the probes run after the body parsers, ahead of the limiter
 
-- **Status:** Fixed on `fix/limiter-before-body-parsers` (ADR-0061). The P3 in this file, `Cache-Control: no-store` on the probes, is still open (register row B-63)
+- **Status:** Fixed in #161 (`dd65318`, ADR-0061). The P3 in this file, `Cache-Control: no-store` on the probes, is still open (register row B-63)
 - **Created:** 2026-10-11
 - **Owner:** unassigned
 - **Origin:** the security review of `fix/readiness-probe-cached`

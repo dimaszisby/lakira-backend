@@ -181,7 +181,8 @@ Contract fixtures in CI:
   - `NODE_ENV=production`
   - `DATABASE_URL=postgres://.../lakira_stage`
   - `REDIS_URL=redis://...`
-  - `JWT_SECRET=...` (the app reads only `JWT_SECRET`; give staging its own value)
+  - `JWT_SECRET=...` (the app reads only `JWT_SECRET`; give staging its own value, of at least 32
+    characters: startup refuses a shorter one in staging and production)
   - `PORT=10000` (Render default) → app should bind to `0.0.0.0:${PORT}`
 
 ### 5.1 CORS Expectations for FE (Guidance Only, No Code Change)

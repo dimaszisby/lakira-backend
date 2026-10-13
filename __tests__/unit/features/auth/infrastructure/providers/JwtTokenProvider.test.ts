@@ -84,7 +84,57 @@ describe("JwtTokenProvider", () => {
     });
   });
 
+  // Register row B-17: with a string secret the library accepts any HMAC algorithm
+  // unless one is named.
+  describe("verify() accepts HS256 only", () => {
+    const payload = {
+      id: "user-1",
+      email: "user@example.com",
+      organizationId: "org-1",
+    };
+
+    it.each(["HS384", "HS512"] as const)(
+      "throws InvalidTokenError for a token signed with the right secret under %s",
+      async (algorithm) => {
+        const provider = buildProvider();
+        const token = jwt.sign(payload, SECRET, {
+          algorithm,
+          expiresIn: "1h",
+        });
+
+        await expect(provider.verify(token)).rejects.toBeInstanceOf(
+          InvalidTokenError,
+        );
+      },
+    );
+
+    it("throws InvalidTokenError for an unsigned token", async () => {
+      const provider = buildProvider();
+      const encode = (value: object) =>
+        Buffer.from(JSON.stringify(value)).toString("base64url");
+      const token = `${encode({ alg: "none", typ: "JWT" })}.${encode({
+        ...payload,
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      })}.`;
+
+      await expect(provider.verify(token)).rejects.toBeInstanceOf(
+        InvalidTokenError,
+      );
+    });
+  });
+
   describe("sign()", () => {
+    it("signs with HS256", () => {
+      const token = buildProvider().sign({
+        id: "user-1",
+        email: "user@example.com",
+        username: "tester",
+        organizationId: "org-1",
+      });
+
+      expect(jwt.decode(token, { complete: true })?.header.alg).toBe("HS256");
+    });
+
     it("produces a verifiable JWT", async () => {
       const provider = buildProvider();
       const token = provider.sign({

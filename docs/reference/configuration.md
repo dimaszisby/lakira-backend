@@ -40,7 +40,7 @@ secrets to end in one of the suffix words, or add a term to that module.
 | ------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------- |
 | `NODE_ENV`               | `development` \| `test` \| `staging` \| `production` | `development`; the production image sets `production` (ADR-0050) |
 | `PORT`                   | number                                               | `5000`                                                           |
-| `JWT_SECRET`             | string                                               | **required**                                                     |
+| `JWT_SECRET`             | string, 32+ characters in staging and production     | **required**                                                     |
 | `ACCESS_TOKEN_TTL_SEC`   | number                                               | `900` (15 min)                                                   |
 | `REFRESH_TOKEN_TTL_DAYS` | number                                               | `30`                                                             |
 | `CORS_ORIGIN`            | string                                               | optional — comma-separated allowlist                             |
@@ -159,6 +159,12 @@ worker before `npm test`, because it would consume the test's messages.
 > `ALLOW_TEST_HTTP_SERVER=true`, `SWAGGER_REQUIRE_AUTH=false`, `SKIP_DB_LIFECYCLE=true`,
 > `LOG_LEVEL=silly`, `EMAIL_PROVIDER=mailpit` (ADR-0048), `EMAIL_PROVIDER=console` (ADR-0049; refused in staging too), and default `guest` RabbitMQ credentials when `RABBITMQ_ENABLED=true`. The process exits before binding a
 > listener and logs a structured `[ENV_ERROR]` line naming the offending variable.
+>
+> `JWT_SECRET` is on the same list for its strength: when `NODE_ENV` is `production` or `staging`,
+> startup refuses one shorter than 32 characters, and refuses the placeholder `.env.example`
+> ships. Tokens are HS256, so the secret is the whole of the signature's strength. Generate one
+> with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Replacing a
+> deployed secret logs every user out once.
 
 ## Email
 

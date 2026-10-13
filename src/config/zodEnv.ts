@@ -1,6 +1,14 @@
 import "./loadEnv.js";
 import { z } from "zod";
 
+// Tokens are HS256, so the secret's strength is the signature's. Both are checked in
+// the superRefine below, in production and staging (ADR-0036; kit
+// jwt-secret-minimum-length, D-01).
+const JWT_SECRET_MIN_LENGTH = 32;
+// The value .env.example ships. It is longer than the minimum, so it needs a rule of
+// its own. scripts/bootstrap-fork.sh matches on the same string.
+const JWT_SECRET_TEMPLATE_PLACEHOLDER = "replace-with-a-long-random-secret";
+
 /**
  * Define the environment schema using Zod.
  * Ensures type safety while allowing transformation.
@@ -440,6 +448,24 @@ const envSchema = z
         "EMAIL_PROVIDER",
         `EMAIL_PROVIDER cannot be "console" when NODE_ENV=${data.NODE_ENV} — it logs every email body, reset and invite tokens included (ADR-0049). Use "resend", or "mailpit" in staging.`,
       );
+    }
+
+    // Whoever can guess the secret can mint a token for any user, and staging is
+    // reachable from the internet, so this covers it too. Neither message quotes the
+    // value: envManager prints the issues with console.error, unredacted.
+    if (data.NODE_ENV === "production" || data.NODE_ENV === "staging") {
+      if (data.JWT_SECRET.length < JWT_SECRET_MIN_LENGTH) {
+        refuse(
+          "JWT_SECRET",
+          `JWT_SECRET must be at least ${JWT_SECRET_MIN_LENGTH} characters when NODE_ENV=${data.NODE_ENV} — a short secret lets access tokens be forged.`,
+        );
+      }
+      if (data.JWT_SECRET.trim() === JWT_SECRET_TEMPLATE_PLACEHOLDER) {
+        refuse(
+          "JWT_SECRET",
+          `JWT_SECRET cannot be the placeholder from .env.example when NODE_ENV=${data.NODE_ENV} — it is published with the template. Generate a random one.`,
+        );
+      }
     }
 
     if (data.NODE_ENV !== "production") return;

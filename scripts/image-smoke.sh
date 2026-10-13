@@ -44,9 +44,10 @@ DB_PASSWORD="smoke-only-not-a-secret"
 DB_NAME="smoke"
 
 # Enough to pass startup validation in production mode. Nothing here is a real
-# credential, and the smoke sends no email.
+# credential, and the smoke sends no email. Production refuses a JWT_SECRET
+# shorter than 32 characters, so this one is padded past that.
 APP_ENV=(
-  -e "JWT_SECRET=smoke-only-not-a-secret"
+  -e "JWT_SECRET=smoke-only-not-a-secret-padded-past-32-characters"
   -e "DB_HOST=${PG}"
   -e "DB_PORT=5432"
   -e "DB_USER=${DB_USER}"
