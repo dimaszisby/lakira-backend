@@ -523,17 +523,42 @@ const envSchema = z
     }
 
     if (data.RABBITMQ_ENABLED) {
-      if (data.RABBITMQ_USER === "guest") {
-        refuse(
-          "RABBITMQ_USER",
-          'RABBITMQ_USER cannot be the default "guest" when NODE_ENV=production and RABBITMQ_ENABLED=true.',
-        );
+      // Judged on the login the connection will use, which is the URL's whenever
+      // RABBITMQ_URL is set (audit 2026-10-12, W4). The messages name the variable
+      // and never quote the URL. A URL that cannot be read is not judged here:
+      // normalizeRabbitMQConfig rejects it straight after.
+      let login: RabbitMQLogin | undefined;
+      try {
+        login = rabbitMQLogin(data);
+      } catch {
+        login = undefined;
       }
-      if (data.RABBITMQ_PASSWORD === "guest") {
-        refuse(
-          "RABBITMQ_PASSWORD",
-          'RABBITMQ_PASSWORD cannot be the default "guest" when NODE_ENV=production and RABBITMQ_ENABLED=true.',
-        );
+      if (login?.fromUrl) {
+        if (login.user === "guest") {
+          refuse(
+            "RABBITMQ_URL",
+            'RABBITMQ_URL cannot log in as the default "guest" user when NODE_ENV=production and RABBITMQ_ENABLED=true. A URL that names no user and password logs in as guest too.',
+          );
+        }
+        if (login.password === "guest") {
+          refuse(
+            "RABBITMQ_URL",
+            'RABBITMQ_URL cannot log in with the default "guest" password when NODE_ENV=production and RABBITMQ_ENABLED=true.',
+          );
+        }
+      } else if (login) {
+        if (login.user === "guest") {
+          refuse(
+            "RABBITMQ_USER",
+            'RABBITMQ_USER cannot be the default "guest" when NODE_ENV=production and RABBITMQ_ENABLED=true.',
+          );
+        }
+        if (login.password === "guest") {
+          refuse(
+            "RABBITMQ_PASSWORD",
+            'RABBITMQ_PASSWORD cannot be the default "guest" when NODE_ENV=production and RABBITMQ_ENABLED=true.',
+          );
+        }
       }
     }
   });
@@ -569,6 +594,38 @@ const parseConnectionUrl = (variable: string, value: string): URL => {
     // Node's own error carries the input on its `input` property.
     throw invalidUrl(variable, "it is not a valid URL");
   }
+};
+
+type RabbitMQLogin = { user: string; password: string; fromUrl: boolean };
+
+/**
+ * The user and password the broker connection will use. RabbitMQConnection.ts
+ * connects with RABBITMQ_URL as given whenever it is set and ignores the two
+ * fields, and the client logs in as guest/guest when the URL names neither a user
+ * nor a password. The production refusal above and the normaliser below both read
+ * this, so what is refused is what would have connected.
+ */
+const rabbitMQLogin = (data: {
+  RABBITMQ_URL?: string;
+  RABBITMQ_USER: string;
+  RABBITMQ_PASSWORD: string;
+}): RabbitMQLogin => {
+  if (!data.RABBITMQ_URL) {
+    return {
+      user: data.RABBITMQ_USER,
+      password: data.RABBITMQ_PASSWORD,
+      fromUrl: false,
+    };
+  }
+  const url = parseConnectionUrl("RABBITMQ_URL", data.RABBITMQ_URL);
+  if (!url.username && !url.password) {
+    return { user: "guest", password: "guest", fromUrl: true };
+  }
+  return {
+    user: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+    fromUrl: true,
+  };
 };
 
 const DATABASE_URL_KEYS = {
@@ -676,11 +733,9 @@ const normalizeRabbitMQConfig = (parsedEnv: RawEnv): RawEnv => {
       const parsedPort = Number(url.port);
       if (!Number.isNaN(parsedPort)) parsedEnv.RABBITMQ_PORT = parsedPort;
     }
-    if (url.username)
-      parsedEnv.RABBITMQ_USER = decodeURIComponent(url.username);
-    if (url.password)
-      parsedEnv.RABBITMQ_PASSWORD =
-        parsedEnv.RABBITMQ_PASSWORD ?? decodeURIComponent(url.password);
+    const login = rabbitMQLogin(parsedEnv);
+    parsedEnv.RABBITMQ_USER = login.user;
+    parsedEnv.RABBITMQ_PASSWORD = login.password;
     const vhost = url.pathname.replace(/^\//, "");
     if (vhost) parsedEnv.RABBITMQ_VHOST = decodeURIComponent(vhost);
 

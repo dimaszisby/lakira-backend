@@ -119,6 +119,11 @@ Disabled by default; the app substitutes a no-op queue so nothing else has to ch
 | `RABBITMQ_MAX_RETRIES`                | number  | `5`                                     |
 | `RABBITMQ_RETRY_BASE_DELAY_MS`        | number  | `2000`                                  |
 
+With `RABBITMQ_URL` set, the connection uses it as given and ignores `RABBITMQ_USER` and
+`RABBITMQ_PASSWORD`. A URL that names no user and password logs in as `guest`. In production with
+`RABBITMQ_ENABLED=true`, startup refuses a `guest` user or password in whichever of the two the
+connection will use (ADR-0036).
+
 A failed job is retried up to `RABBITMQ_MAX_RETRIES` times, waiting `RABBITMQ_RETRY_BASE_DELAY_MS`
 before the first retry and doubling each time (capped at 5 minutes), then parked. `0` parks on the
 first failure. See [ADR-0005](../explanation/decisions/adr-0005-topic-exchange-with-parking-lot-dlx.md).

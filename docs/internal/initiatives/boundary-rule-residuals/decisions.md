@@ -139,7 +139,7 @@ CommonJS file in `src/`, which the `*.ts` glob does not match.
 
 ## D-09 — The domain layer imports no application code, and the transaction type is declared once
 
-- **Status:** Accepted
+- **Status:** Accepted (merged in #165, `6429fda`)
 - **Date:** 2026-10-13
 
 Micro entry for register row B-10 (finding R11 of `audit-2026-09-29.md`, found again and rated P2

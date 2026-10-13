@@ -15,17 +15,18 @@ The 2026-06-05 re-audit (`audit-2026-06-05.md` §6.2 F1) flagged that `DISABLE_R
 
 Any environment variable whose `true` value would weaken a production security control MUST refuse that combination at the Zod schema layer via `.superRefine()`, causing `loadEnvOrExit()` to fail fast at process start. The minimum enforcement set for this codebase:
 
-| Env var                  | Refused-in-production combination                                        |
-| ------------------------ | ------------------------------------------------------------------------ |
-| `DISABLE_RATE_LIMITING`  | `true` when `NODE_ENV=production`                                        |
-| `ALLOW_TEST_HTTP_SERVER` | `true` when `NODE_ENV=production`                                        |
-| `RABBITMQ_USER`          | `"guest"` when `NODE_ENV=production` and `RABBITMQ_ENABLED`              |
-| `RABBITMQ_PASSWORD`      | `"guest"` when `NODE_ENV=production` and `RABBITMQ_ENABLED`              |
-| `SWAGGER_REQUIRE_AUTH`   | `false` when `NODE_ENV=production` (already conventionally true; codify) |
-| `SKIP_DB_LIFECYCLE`      | `true` when `NODE_ENV=production` (added 2026-08-24; twelve-factor TF-6) |
-| `DB_LOGGING`             | `true` when `NODE_ENV=production` (added 2026-10-10; audit finding V2)   |
-| `JWT_SECRET`             | shorter than 32 characters when `NODE_ENV` is `production` or `staging`  |
-| `JWT_SECRET`             | the placeholder from `.env.example`, in the same two environments        |
+| Env var                  | Refused-in-production combination                                                                          |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `DISABLE_RATE_LIMITING`  | `true` when `NODE_ENV=production`                                                                          |
+| `ALLOW_TEST_HTTP_SERVER` | `true` when `NODE_ENV=production`                                                                          |
+| `RABBITMQ_USER`          | `"guest"` when `NODE_ENV=production` and `RABBITMQ_ENABLED`, where no `RABBITMQ_URL` is set                |
+| `RABBITMQ_PASSWORD`      | `"guest"` when `NODE_ENV=production` and `RABBITMQ_ENABLED`, where no `RABBITMQ_URL` is set                |
+| `RABBITMQ_URL`           | a URL that logs in as `guest`, by user or password, or names no credentials, under the same two conditions |
+| `SWAGGER_REQUIRE_AUTH`   | `false` when `NODE_ENV=production` (already conventionally true; codify)                                   |
+| `SKIP_DB_LIFECYCLE`      | `true` when `NODE_ENV=production` (added 2026-08-24; twelve-factor TF-6)                                   |
+| `DB_LOGGING`             | `true` when `NODE_ENV=production` (added 2026-10-10; audit finding V2)                                     |
+| `JWT_SECRET`             | shorter than 32 characters when `NODE_ENV` is `production` or `staging`                                    |
+| `JWT_SECRET`             | the placeholder from `.env.example`, in the same two environments                                          |
 
 ## Options considered
 
@@ -44,7 +45,7 @@ Any environment variable whose `true` value would weaken a production security c
 - `audit-2026-06-05.md` §6.2 (F1), §6.3 (F3)
 - `src/config/zodEnv.ts:188–191` (the unguarded `DISABLE_RATE_LIMITING`)
 - `src/config/zodEnv.ts:193–196` (`ALLOW_TEST_HTTP_SERVER`)
-- `src/config/zodEnv.ts:215–216` (RabbitMQ guest defaults)
+- `src/config/zodEnv.ts`, `RABBITMQ_USER` and `RABBITMQ_PASSWORD` (RabbitMQ guest defaults; line numbers as of 2026-06-05 were 215–216)
 - `.claude/rules/security.md` (which will reference this ADR)
 
 ---
@@ -67,3 +68,13 @@ Any environment variable whose `true` value would weaken a production security c
 > switch, and after ADR-0049 the second that also applies in staging. Tokens are HS256, so a
 > guessable secret lets anyone mint a token. The placeholder has a rule of its own because it is 33
 > characters long and passes the length check. Neither message quotes the value.
+
+> **2026-10-14:** the `RABBITMQ_URL` row was added and the two rows above it narrowed (audit
+> finding W4; kit
+> [`jwt-secret-minimum-length`](../../internal/initiatives/jwt-secret-minimum-length/decisions.md),
+> D-04). The connection uses `RABBITMQ_URL` as given whenever it is set and ignores the two
+> fields, so the refusal read fields the connection never used: a `guest` URL started, and a URL
+> with real credentials was refused while the fields held their `guest` default. The refusal now
+> judges the login the connection will use. A URL that names no user and password is refused too,
+> since the client logs in as `guest` then. The message names the variable and never quotes the
+> URL. Still production only.

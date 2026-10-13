@@ -103,3 +103,50 @@ describe("a rejected connection URL at startup", () => {
     );
   });
 });
+
+// Register row B-12. With a URL set the connection uses it and ignores the two
+// fields, so the fields must say what the URL says.
+describe("the RabbitMQ login the env reports", () => {
+  const login = async (overrides: Record<string, string>) => {
+    let found: { user: string; password: string } | undefined;
+    await withTestEnv(
+      async () => {
+        const { loadEnvOrExit } = await import("@/config/envManager.js");
+        const env = loadEnvOrExit();
+        found = { user: env.RABBITMQ_USER, password: env.RABBITMQ_PASSWORD };
+      },
+      { overrides: { NODE_ENV: "development", ...overrides } },
+    );
+    return found;
+  };
+
+  it("is the URL's, when the URL and the fields disagree", async () => {
+    expect(
+      await login({
+        RABBITMQ_URL: "amqp://from_url:url%40pw@queue.example:5673/vh",
+        RABBITMQ_USER: "from_field",
+        RABBITMQ_PASSWORD: "field-pw",
+      }),
+    ).toEqual({ user: "from_url", password: "url@pw" });
+  });
+
+  it("is guest for a URL that names no credentials, as the client connects", async () => {
+    expect(
+      await login({
+        RABBITMQ_URL: "amqp://queue.example:5673",
+        RABBITMQ_USER: "from_field",
+        RABBITMQ_PASSWORD: "field-pw",
+      }),
+    ).toEqual({ user: "guest", password: "guest" });
+  });
+
+  it("is the two fields when there is no URL", async () => {
+    expect(
+      await login({
+        RABBITMQ_URL: "",
+        RABBITMQ_USER: "from_field",
+        RABBITMQ_PASSWORD: "field-pw",
+      }),
+    ).toEqual({ user: "from_field", password: "field-pw" });
+  });
+});
