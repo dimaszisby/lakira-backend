@@ -25,7 +25,9 @@ step 2 before dropping `.git`.
 The name must match `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` — lowercase, digits, single hyphens between
 them, starting with a letter. The
 script rejects anything else, deliberately: the name is interpolated into `sed` patterns, and a
-`/` or `|` would break them.
+`/` or `|` would break them. It also rejects a name that contains `lakira` (`lakira-x`,
+`my-lakira`): the renames replace that word wherever it stands, so they would match their own
+output. `lakira` itself, with or without `-backend` or `-api`, is accepted.
 
 It is idempotent: running it twice changes nothing, except that a second run creates `.env` or
 `.env.test` if they are missing, as on a fresh checkout of your fork. A fork is renamed once. A
@@ -40,7 +42,8 @@ What it does:
 | `lakira` → `my-app` (short name) | database names and CI database references                                                                                                                |
 | `lakira_` → `my_app_`            | database users and names in `.env.example`, `.env.test.example` and the test-database init SQL                                                           |
 | Rotates `JWT_SECRET`             | in `.env`, created from `.env.example` if absent                                                                                                         |
-| Generates the database password  | replaces the template's `my_app_password` in `.env` and `.env.test` together, in `DB_PASSWORD` and the development and test URLs                         |
+| Generates the database password  | replaces the template's `my_app_password` in `.env`, in `DB_PASSWORD` and the development and test URLs                                                  |
+| Copies the login to `.env.test`  | `DB_USER`, `DB_PASSWORD` and `TEST_DATABASE_URL` take the user and password of `.env`, whatever user that is                                             |
 | Sets `APP_NAME=my-app`           | in `.env`, for local runs; a deployment does not need it (see below)                                                                                     |
 | Creates `.env.test`              | from the renamed `.env.test.example`, so it logs in as the user Compose creates from `.env`                                                              |
 | Renames an existing `.env`       | if you copied `.env` or `.env.test` from the templates first, their `lakira_` database names are renamed too; nothing else in them is touched            |
@@ -68,8 +71,10 @@ The script covers file contents. These are yours:
   in use, and so does Postgres: a Docker volume created before the password changed keeps the old
   role and password, and the API then fails with `password authentication failed`.
   `docker compose down -v` removes the volume so the next `up` creates it from `.env`. A password
-  you set yourself is kept; if it has characters outside letters, digits and `._~-`, copy it into
-  `.env.test` by hand, since the script will not.
+  you set yourself is kept, and `.env.test` takes it together with your `DB_USER`; if it has
+  characters outside letters, digits and `._~-`, copy the user and the password into `.env.test`
+  by hand, since the script will not. An `.env` with no `DB_PASSWORD` line gets none: the script
+  generates a password only in place of the template's.
 - **Redis and RabbitMQ keep their defaults**: no Redis password, and `guest`/`guest` on the broker.
   The Compose file publishes the database, Redis, RabbitMQ and Mailpit on `127.0.0.1` only, so
   they are reachable from your machine and not from the network. Give them real credentials
@@ -115,9 +120,10 @@ lint rule that guards the domain layer rejects every import spelling, and the sp
 on every operation. Two more P2 findings were open at that run. `JWT_SECRET` was accepted at any
 length; since then startup refuses one under 32 characters, and the template's placeholder, in
 staging and production, which no dated run has confirmed yet. Set a long random one in every
-deployment. And the bootstrap script mishandles two inputs: a hand-made
-`.env` whose `DB_USER` is not the template's leaves `.env.test` on a different login, and a name
-that starts with `lakira` is renamed twice. The script generates `JWT_SECRET` and the database
+deployment. And the bootstrap script mishandled two inputs: a hand-made
+`.env` whose `DB_USER` is not the template's left `.env.test` on a different login, and a name
+that contains `lakira` was renamed twice. Since then `.env.test` takes the user as well as the
+password, and such a name is refused, which no dated run has confirmed yet. The script generates `JWT_SECRET` and the database
 password, not the Redis or RabbitMQ credentials (step 3). Other open findings are P2/P3 hardening
 (for example request-id propagation across RabbitMQ, and an unbounded
 date range on `/metric-logs/stats`).

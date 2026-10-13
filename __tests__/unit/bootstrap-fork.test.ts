@@ -352,11 +352,177 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
       );
     });
 
+    // Audit 2026-10-12, W3: the password was copied to .env.test and the user was
+    // not, so .env.test logged in as the template's user with the user's password.
+    describe.each([
+      ["a new .env.test", false],
+      ["an .env.test copied from the template by hand", true],
+    ])("a hand-made .env with its own database user, and %s", (_, copied) => {
+      let dir: string;
+      let output: string;
+
+      beforeAll(() => {
+        dir = track(fs.mkdtempSync(path.join(os.tmpdir(), "bootstrap-fork-")));
+        for (const file of FIXTURE_FILES) {
+          fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+          fs.copyFileSync(path.join(ROOT, file), path.join(dir, file));
+        }
+        fs.writeFileSync(
+          path.join(dir, ".env"),
+          ["DB_USER=alice", "DB_PASSWORD=chosen-by-hand", ""].join("\n"),
+        );
+        if (copied) {
+          fs.copyFileSync(
+            path.join(dir, ".env.test.example"),
+            path.join(dir, ".env.test"),
+          );
+        }
+        output = run(dir, "my-app");
+      });
+
+      it("gives .env.test that user and password, in the URL too", () => {
+        const envTest = readEnv(path.join(dir, ".env.test"));
+        const url = new URL(envTest.TEST_DATABASE_URL);
+
+        expect(envTest.DB_USER).toBe("alice");
+        expect(envTest.DB_PASSWORD).toBe("chosen-by-hand");
+        expect(url.username).toBe("alice");
+        expect(url.password).toBe("chosen-by-hand");
+        expect(url.host).toBe("127.0.0.1:5432");
+        expect(url.pathname).toBe("/my_app_test_db");
+      });
+
+      it("leaves the template's password on no line of .env.test", () => {
+        expect(read(dir, ".env.test")).not.toMatch(/_password/);
+      });
+
+      it("says it copied the login, and on a second run neither says so nor changes a file", () => {
+        const before = [read(dir, ".env"), read(dir, ".env.test")];
+
+        const second = run(dir, "my-app");
+
+        expect(output).toContain("copied to .env.test");
+        expect(second).not.toContain("copied to .env.test");
+        expect([read(dir, ".env"), read(dir, ".env.test")]).toEqual(before);
+      });
+    });
+
+    // What a run before this fix left behind: the chosen password in DB_PASSWORD,
+    // the template's user, and the template's password still in the URL.
+    it("finishes an .env.test that an earlier run left on the template's user", () => {
+      const dir = track(
+        bootstrap("my-app", (scratch) => {
+          fs.writeFileSync(
+            path.join(scratch, ".env"),
+            ["DB_USER=alice", "DB_PASSWORD=chosen-by-hand", ""].join("\n"),
+          );
+          fs.writeFileSync(
+            path.join(scratch, ".env.test"),
+            [
+              "DB_USER=my_app_user",
+              "DB_PASSWORD=chosen-by-hand",
+              "TEST_DATABASE_URL=postgres://my_app_user:my_app_password@127.0.0.1:5432/my_app_test_db",
+              "",
+            ].join("\n"),
+          );
+        }),
+      );
+      const envTest = readEnv(path.join(dir, ".env.test"));
+
+      expect(envTest.DB_USER).toBe("alice");
+      expect(envTest.TEST_DATABASE_URL).toBe(
+        "postgres://alice:chosen-by-hand@127.0.0.1:5432/my_app_test_db",
+      );
+    });
+
+    it("rebuilds a URL in .env that named another user, with the generated password", () => {
+      const dir = track(
+        bootstrap("my-app", (scratch) => {
+          fs.writeFileSync(
+            path.join(scratch, ".env"),
+            fs
+              .readFileSync(path.join(scratch, ".env.example"), "utf-8")
+              .replace(
+                /^(DEVELOPMENT|TEST)_DATABASE_URL=postgresql:\/\/lakira_user:/gm,
+                "$1_DATABASE_URL=postgresql://someone_else:",
+              ),
+          );
+        }),
+      );
+      const env = readEnv(path.join(dir, ".env"));
+
+      expect(env.DB_PASSWORD).toMatch(GENERATED_PASSWORD);
+      for (const [url, database] of [
+        [env.DEVELOPMENT_DATABASE_URL, "/my_app_development"],
+        [env.TEST_DATABASE_URL, "/my_app_test_db"],
+      ]) {
+        expect(new URL(url).username).toBe(env.DB_USER);
+        expect(new URL(url).password).toBe(env.DB_PASSWORD);
+        expect(new URL(url).pathname).toBe(database);
+      }
+      expect(read(dir, ".env") + read(dir, ".env.test")).not.toMatch(
+        /_password@/,
+      );
+      expect(new URL(env.STAGING_DATABASE_URL).password).toBe("postgres");
+    });
+
+    it("leaves a URL in .env alone when it has a user and a password of its own", () => {
+      const own = "postgresql://someone_else:their-own@db.example.com:6543/dev";
+      const dir = track(
+        bootstrap("my-app", (scratch) => {
+          fs.writeFileSync(
+            path.join(scratch, ".env"),
+            fs
+              .readFileSync(path.join(scratch, ".env.example"), "utf-8")
+              .replace(
+                /^DEVELOPMENT_DATABASE_URL=.*$/m,
+                `DEVELOPMENT_DATABASE_URL=${own}`,
+              ),
+          );
+        }),
+      );
+      const env = readEnv(path.join(dir, ".env"));
+
+      expect(env.DB_PASSWORD).toMatch(GENERATED_PASSWORD);
+      expect(env.DEVELOPMENT_DATABASE_URL).toBe(own);
+      expect(new URL(env.TEST_DATABASE_URL).password).toBe(env.DB_PASSWORD);
+    });
+
+    it("does not run APP_NAME onto the last line of an .env with no final newline", () => {
+      const dir = track(
+        bootstrap("my-app", (scratch) => {
+          fs.writeFileSync(path.join(scratch, ".env"), "DB_USER=alice");
+        }),
+      );
+      const env = readEnv(path.join(dir, ".env"));
+
+      expect(env.DB_USER).toBe("alice");
+      expect(env.APP_NAME).toBe("my-app");
+    });
+
+    it("says it generated the secrets only on a run that generated them", () => {
+      const dir = track(
+        fs.mkdtempSync(path.join(os.tmpdir(), "bootstrap-fork-")),
+      );
+      for (const file of FIXTURE_FILES) {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+        fs.copyFileSync(path.join(ROOT, file), path.join(dir, file));
+      }
+
+      const first = run(dir, "my-app");
+      const second = run(dir, "my-app");
+
+      expect(first).toContain("generated the database password");
+      expect(second).not.toContain("generated the database password");
+    });
+
     it("changes nothing on a second run that finds both", () => {
       const dir = track(bootstrap("my-app"));
       const files = [
         ".env",
         ".env.test",
+        ".env.example",
+        ".env.test.example",
         "package.json",
         "FORKED-FROM.md",
         "docker/db/init/01-create-dbs.sql",
@@ -367,6 +533,28 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
 
       expect(files.map((file) => read(dir, file))).toEqual(before);
     });
+
+    // The template's own short name is the one name holding "lakira" that every
+    // rename leaves as it found it.
+    it.each(["lakira", "lakira-api"])(
+      "changes nothing on a second run as %s",
+      (name) => {
+        const dir = track(bootstrap(name));
+        const files = [
+          ".env",
+          ".env.test",
+          ".env.example",
+          ".env.test.example",
+          "docker/db/init/01-create-dbs.sql",
+        ];
+        const before = files.map((file) => read(dir, file));
+
+        run(dir, name);
+
+        expect(files.map((file) => read(dir, file))).toEqual(before);
+        expect(readEnv(path.join(dir, ".env")).DB_USER).toBe("lakira_user");
+      },
+    );
 
     it("keeps the tree's name, and its secret, when re-run with another name", () => {
       const dir = track(bootstrap("acme-api"));
@@ -467,6 +655,28 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
         JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf-8"))
           .name,
       ).toBe("lakira-backend");
+    },
+  );
+
+  // Audit 2026-10-12, T3: the renames match their own output when the new name
+  // holds the template's. "lakira-x" titled the workflow "Lakira X X Backend CI"
+  // and a second run renamed lakira_x_user to lakira_x_x_user.
+  it.each(["lakira-x", "my-lakira", "lakirax", "lakira-x-backend"])(
+    "refuses the name %s, which holds the template's",
+    (name) => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bootstrap-fork-"));
+      dirs.push(dir);
+      for (const file of FIXTURE_FILES) {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+        fs.copyFileSync(path.join(ROOT, file), path.join(dir, file));
+      }
+
+      expect(() => run(dir, name)).toThrow(/--name must not contain 'lakira'/);
+      expect(
+        JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf-8"))
+          .name,
+      ).toBe("lakira-backend");
+      expect(fs.existsSync(path.join(dir, ".env"))).toBe(false);
     },
   );
 

@@ -75,3 +75,62 @@ whenever its own is still the template's. The reviewer also showed that `DB_USER
 `sed` pattern as it was, so the URLs are rewritten only when it is a plain identifier, and only on
 the two named lines. These fixes were made after the review and have not been graded. What was
 left is in `docs/internal/todos/2026-10-12-todo-fork-bootstrap-review-leftovers.md`.
+
+## D-05 — `.env.test` takes the whole login from `.env`, and a name that holds `lakira` is refused
+
+- **Status:** Accepted
+- **Date:** 2026-10-13
+
+Micro entry for register rows B-08 (finding W3 of `audit-2026-10-12.md`, P2) and B-09 (T3, P3 on
+file, P2 from the grader), on `fix/fork-bootstrap-user-and-name`. Written before any code.
+
+**Context.** Both come from one habit of `scripts/bootstrap-fork.sh`: it rewrites by pattern and
+assumes the pattern cannot match its own output or a value it did not write. With a hand-made
+`.env` holding `DB_USER=alice`, the script copied the password to `.env.test` and never the user,
+edited a URL only where it already logged in as `alice`, and printed "copied" whether or not a
+line changed. With `--name lakira-x`, the title rewrite matched its own output on the first run
+and the identifier rewrite matched its own on the second.
+**Decision.** Two changes.
+
+1. When the script brings `.env.test` into line with `.env` (the three cases of D-04 are
+   unchanged), it writes `DB_USER`, `DB_PASSWORD` and `TEST_DATABASE_URL` together. A URL is
+   rebuilt: its scheme, then the user and password, then whatever followed the old credentials.
+   Whatever user the old URL named is replaced. The same rebuild is used in `.env` for
+   `DEVELOPMENT_DATABASE_URL` and `TEST_DATABASE_URL` when the password is generated, for a URL
+   that logs in as `DB_USER` or still holds the template's password (see "From the review"). The lines
+   are written by one `awk` pass that takes the values from its environment, so neither value is
+   part of a `sed` pattern, and the script says it copied the login only when the file changed.
+2. A `--name` that holds `lakira` is refused beside the other name rules, before anything is
+   renamed, unless its short name is exactly `lakira` (`lakira`, `lakira-backend`, `lakira-api`).
+
+**Options considered.** Copying the user with one more pattern: rejected, it is the habit that
+produced this finding and two before it. Refusing to continue when the two users differ:
+rejected, the script can do the work. Percent-encoding a user or password that is not plain:
+rejected, more to get wrong than the case is worth; the script keeps warning and leaves those
+URLs to the user. Making each rename safe for its own output: rejected, more to get wrong, for
+names nobody is known to want. Refusing only a name that starts with `lakira`, as the analysis
+proposed: read from the code, `my-lakira` and `lakirax` break the same way, so the rule covers
+them; a test of each is written first, and this entry is corrected if one is refuted.
+**Consequences.** A fork that re-runs bootstrap with an `.env.test` still on the template's
+password has its user replaced by `.env`'s as well as its password. A tree already named with
+`lakira` in it is refused on its next run, which also stops that run from renaming its database
+user again; none is known. An `.env` with no `DB_USER` line still gives `.env.test` the password
+only. No ADR, on D-04's ground: a setup script changes, and no interface, data shape, dependency
+or runtime boundary of the app does.
+**Reproduced before the fix,** on scratch copies at `c8e1a87`: `lakira-x` and `my-lakira` title
+the workflow twice and rename the database user again on a second run; `lakirax` titles the
+workflow `Lakiraxx Backend CI` and leaves the env files alone. All three are refused. `lakira`
+and `lakira-api` change nothing on a second run and stay allowed.
+**From the review,** my own, of the first version. In `.env` the rebuild replaced the credentials
+of any development or test URL, so a URL the user had pointed at another server with a user and
+password of their own lost them; it now rebuilds only a URL that logs in as `DB_USER` or still
+holds the template's password, and `.env.test`, which has one database to reach, is rebuilt
+whatever it names. The temporary file was made beside `.env` under a name no ignore rule covers;
+it is made in the system's temporary directory. A tree the old script had already run on, with
+the chosen password in `DB_PASSWORD` and the template's still in the URL of `.env.test`, was not
+healed by a new run; a URL that still holds the template's password is now a fourth case for
+copying the login. Two parts of item 10 of the leftovers todo went in with this: `APP_NAME`
+starts its own line in an `.env` with no final newline, and the closing text says what the run
+generated; a first run on an `.env` with no `JWT_SECRET` line used to say it had rotated one.
+Run on BSD tools here and on GNU `sed` with `mawk` in a `node:24` container, with the same
+result. Not graded by anyone else.
