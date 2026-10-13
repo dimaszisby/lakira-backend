@@ -1,10 +1,5 @@
 import express, { Application } from "express";
 import { env, loadEnvOrExit } from "./config/envManager.js";
-import cors from "cors";
-import helmet from "helmet";
-import xssClean from "xss-clean";
-import hpp from "hpp";
-import cookieParser from "cookie-parser";
 import http from "http";
 import swaggerUi from "swagger-ui-express";
 import { getOpenApiDocumentation } from "./lib/openapi/openapi-docs.js";
@@ -29,6 +24,7 @@ import { buildWiredMetricLogFeature } from "./composition/metric-log.js";
 
 // Other Setup
 import { globalRateLimiter } from "@/shared/middleware/rate-limiter.js";
+import { mountHttpPipeline } from "@/shared/middleware/http-pipeline.js";
 import { notFoundHandler } from "@/shared/middleware/not-found.js";
 import { createReadinessProbe } from "@/shared/utils/readiness-probe.js";
 import { errorHandler } from "@/shared/middleware/error.js";
@@ -42,9 +38,6 @@ import sequelize from "./config/db.js";
 import { loadModels } from "./infrastructure/db/models.js";
 import { authMiddleware } from "./features/shared/auth/infrastructure/http/authMiddleware.js";
 import { requireOrgRole } from "./features/shared/auth/infrastructure/http/assertHasOrgRole.js";
-import { disallowTraceMethod } from "@/shared/middleware/method-guard.js";
-import { requestIdMiddleware } from "@/shared/middleware/request-id.js";
-import { accessLogMiddleware } from "@/shared/middleware/access-log.js";
 import { sendError } from "@/shared/utils/error-envelope.js";
 import { attachClientErrorHandler } from "@/shared/middleware/client-error.js";
 import * as Sentry from "@sentry/node";
@@ -115,91 +108,55 @@ const app: Application = express();
 app.set("trust proxy", env.TRUST_PROXY ?? 1);
 
 // * Middlewares
-app.use(
-  express.json({
-    limit: env.REQUEST_BODY_LIMIT,
-    strict: false, // allow primitives + guard downstream to emit cleaner 400s
-  }),
-);
-
-// Cookie parser — before routes so req.cookies is populated
-app.use(cookieParser());
-
-// Request-ID — propagate x-request-id through AsyncLocalStorage so every log line is correlated
-app.use(requestIdMiddleware);
-
-// HTTP access logging — after requestIdMiddleware so each line carries the same
-// requestId as the application logs for that request (ADR-0041).
-app.use(accessLogMiddleware);
-
-// Security Enhancements
-app.use(helmet()); // Secure HTTP headers
-
-// HTTPS redirect — after helmet() so the 301 response includes HSTS and other security headers
-if (env.NODE_ENV === "production") {
-  app.use((req, res, next) => {
-    if (!req.secure && req.get("x-forwarded-proto") !== "https") {
-      return res.redirect(
-        301,
-        `https://${req.headers.host ?? ""}${req.originalUrl}`,
-      );
-    }
-    next();
-  });
-}
-app.use(xssClean()); // Prevent XSS attacks
-app.use(hpp()); // Prevent HTTP Parameter Pollution
-
-// Disallow TRACE (and similar unsupported verbs) globally so contracts receive 405 responses.
-app.use(disallowTraceMethod);
-
-// Configure CORS
+// The order is in one place, mountHttpPipeline (ADR-0061). The probes are handed to
+// it so that it can place them: ahead of the limiter, so a platform probe is never
+// throttled, and ahead of the body parsers, so a probe parses nothing.
 const corsOrigins = loadEnvOrExit().CORS_ORIGIN ?? ["http://localhost:3000"];
-app.use(
-  cors({
-    origin: corsOrigins,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    credentials: true, // Allow cookies and auth headers
-  }),
-);
 
-// Health check — registered before rate limiter so probes are never throttled
-app.get("/api/v1/health", (_req, res) => {
-  res.json({
-    status: "ok",
-    environment: env.NODE_ENV,
-    release: env.APP_RELEASE,
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// Readiness probe: the database and Redis, each with a 2 s budget. It stays ahead of
-// the rate limiter so a platform probe is never throttled, and its result is held for
-// 2 s so that a flood of calls costs one check per window, not one each.
-const readinessProbe = createReadinessProbe({
-  checks: {
-    db: () => sequelize.authenticate(),
-    redis: () => redisClient.ping(),
-  },
-  timeoutMs: 2000,
-  windowMs: 2000,
-});
-
-app.get("/api/v1/ready", (_req, res) => {
-  void readinessProbe()
-    .then(({ ok, checks }) => {
-      res.status(ok ? 200 : 503).json({
-        status: ok ? "ok" : "degraded",
-        checks,
-      });
-    })
-    .catch(() => {
-      sendError(res, 500, "Readiness check failed");
+const mountProbes = (probed: Application): void => {
+  // Health check — registered before rate limiter so probes are never throttled
+  probed.get("/api/v1/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      environment: env.NODE_ENV,
+      release: env.APP_RELEASE,
+      timestamp: new Date().toISOString(),
     });
-});
+  });
 
-// Global Rate Limiter
-app.use(globalRateLimiter);
+  // Readiness probe: the database and Redis, each with a 2 s budget. It stays ahead of
+  // the rate limiter so a platform probe is never throttled, and its result is held for
+  // 2 s so that a flood of calls costs one check per window, not one each.
+  const readinessProbe = createReadinessProbe({
+    checks: {
+      db: () => sequelize.authenticate(),
+      redis: () => redisClient.ping(),
+    },
+    timeoutMs: 2000,
+    windowMs: 2000,
+  });
+
+  probed.get("/api/v1/ready", (_req, res) => {
+    void readinessProbe()
+      .then(({ ok, checks }) => {
+        res.status(ok ? 200 : 503).json({
+          status: ok ? "ok" : "degraded",
+          checks,
+        });
+      })
+      .catch(() => {
+        sendError(res, 500, "Readiness check failed");
+      });
+  });
+};
+
+mountHttpPipeline(app, {
+  limiter: globalRateLimiter,
+  corsOrigins,
+  bodyLimit: env.REQUEST_BODY_LIMIT,
+  redirectToHttps: env.NODE_ENV === "production",
+  mountProbes,
+});
 
 // * Routes
 app.use("/api/v1/auth", createAuthRouter());

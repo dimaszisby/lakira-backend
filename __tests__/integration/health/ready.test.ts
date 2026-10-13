@@ -100,4 +100,17 @@ describe("GET /api/v1/ready", () => {
     const res = await api.get("/api/v1/ready");
     expect(res.status).not.toBe(401);
   });
+
+  // ADR-0061: the probes are mounted ahead of the body parsers.
+  it("ignores a body it is sent, malformed or not", async () => {
+    jest.spyOn(redisClient, "ping").mockResolvedValueOnce("PONG");
+
+    const res = await api
+      .get("/api/v1/ready")
+      .set("Content-Type", "application/json")
+      .send('{"not":"closed"');
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("ok");
+  });
 });

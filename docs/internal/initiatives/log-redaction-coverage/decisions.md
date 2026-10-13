@@ -438,7 +438,7 @@ are dropped from span data. The second version has not been graded.
 
 ## D-13 — A network address is judged by its value, in attributes and in text
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #160, `ebfce52`)
 - **Date:** 2026-10-13
 
 Micro entry for finding W1 of `audit-2026-10-12.md`

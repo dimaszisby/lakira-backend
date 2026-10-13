@@ -2,22 +2,29 @@
 
 ## Global Middleware Stack
 
-Applied in this order in `src/server.ts`:
+Applied in this order by `mountHttpPipeline` (`src/shared/middleware/http-pipeline.ts`), which
+`src/server.ts` calls once before it registers anything else (ADR-0061):
 
-1. `express.json()` — body parsing
-2. `cookie-parser` — needed for the refresh-token cookie
-3. `requestIdMiddleware` — AsyncLocalStorage correlation id (ADR-0027)
-4. `accessLogMiddleware` — one line per request
-5. `helmet()` — secure HTTP headers
-6. HTTPS redirect — production only
-7. `xss-clean` — sanitize request payloads
-8. `hpp()` — prevent HTTP parameter pollution
-9. `disallowTraceMethod` — blocks TRACE requests
-10. `cors` — `CORS_ORIGIN` allowlist
-11. `/api/v1/health` and `/api/v1/ready` — mounted here, before rate limiting, so a platform probe
-    is never throttled. `/ready` runs its database and Redis checks at most once per 2 s window
-    (`src/shared/utils/readiness-probe.ts`); a new check added to it goes through that probe
-12. `globalRateLimiter` — the only app-wide limiter; the rest are attached per route
+1. `requestIdMiddleware` — AsyncLocalStorage correlation id (ADR-0027)
+2. `accessLogMiddleware` — one line per request
+3. `helmet()` — secure HTTP headers
+4. HTTPS redirect — production only
+5. `disallowTraceMethod` — blocks TRACE requests
+6. `cors` — `CORS_ORIGIN` allowlist; ahead of the limiter so a browser can read a 429
+7. `/api/v1/health` and `/api/v1/ready` — ahead of the limiter, so a platform probe is never
+   throttled, and ahead of the parsers, so a probe reads no body. `/ready` runs its database and
+   Redis checks at most once per 2 s window (`src/shared/utils/readiness-probe.ts`); a new check
+   added to it goes through that probe
+8. `globalRateLimiter` — the only app-wide limiter; the rest are attached per route
+9. `express.json()` — body parsing. **Nothing above this line reads a request body**: a request
+   is counted before it is parsed
+10. `cookie-parser` — needed for the refresh-token cookie
+11. `xss-clean` — sanitize request payloads
+12. `hpp()` — prevent HTTP parameter pollution
+
+A new global middleware is added in `mountHttpPipeline` and nowhere else; one that reads the body
+goes below the limiter. No other file under `src/` imports a body or cookie parser, `helmet`,
+`hpp`, `xss-clean` or `cors`, and `architecture.test.ts` fails on one that does.
 
 ## Rate Limiting
 
