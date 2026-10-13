@@ -445,6 +445,76 @@ describe("Architecture enforcement", () => {
     it("src/server.ts calls no test hook", () => {
       expect(read("server.ts")).not.toMatch(/ForTest\b/);
     });
+
+    // ADR-0061: the order of the global middleware lives in mountHttpPipeline.
+    describe("the global middleware is mounted in one place", () => {
+      const PIPELINE = "shared/middleware/http-pipeline.ts";
+      const sources = (): [string, string][] => {
+        const out: [string, string][] = [];
+        const walk = (dir: string) => {
+          for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory()) walk(full);
+            else if (/\.(ts|js|mjs|cjs)$/.test(entry.name)) {
+              out.push([
+                path.relative(SRC, full).split(path.sep).join("/"),
+                fs.readFileSync(full, "utf-8"),
+              ]);
+            }
+          }
+        };
+        walk(SRC);
+        return out;
+      };
+
+      it("src/server.ts hands the real limiter to mountHttpPipeline and mounts nothing ahead of it", () => {
+        const server = read("server.ts");
+        const call = server.indexOf("mountHttpPipeline(app,");
+
+        expect(call).toBeGreaterThan(-1);
+        expect(server.slice(call)).toMatch(/limiter:\s*globalRateLimiter\b/);
+        // No middleware or route is registered on the app before the pipeline.
+        expect(server.slice(0, call)).not.toMatch(
+          /\bapp\.(use|get|post|put|patch|delete|all|options|head)\(/,
+        );
+        // The limiter is mounted by the pipeline and nowhere else.
+        expect(server.match(/globalRateLimiter/g)).toHaveLength(2);
+      });
+
+      // A parser mounted anywhere else, a feature router included, would read a
+      // body outside the order: before the request is counted, or on a probe.
+      it("only the pipeline imports a body or cookie parser", () => {
+        const PARSER_PACKAGES =
+          /from\s+["'](body-parser|cookie-parser|multer|busboy|formidable|express-fileupload|raw-body)["']/;
+        const EXPRESS_PARSER =
+          /\b(express|bodyParser)\s*\.\s*(json|urlencoded|raw|text)\s*\(|import\s*(?:express\s*,\s*)?\{[^}]*\b(json|urlencoded|raw|text)\b[^}]*\}\s*from\s*["']express["']/;
+
+        const offenders = sources()
+          .filter(([file]) => file !== PIPELINE)
+          .filter(
+            ([, text]) =>
+              PARSER_PACKAGES.test(text) || EXPRESS_PARSER.test(text),
+          )
+          .map(([file]) => file);
+
+        expect(offenders).toEqual([]);
+        // The check reads real files: the pipeline itself is caught by both patterns.
+        const pipeline = read(PIPELINE);
+        expect(PARSER_PACKAGES.test(pipeline)).toBe(true);
+        expect(EXPRESS_PARSER.test(pipeline)).toBe(true);
+      });
+
+      it("only the pipeline mounts the security middleware", () => {
+        const offenders = sources()
+          .filter(([file]) => file !== PIPELINE)
+          .filter(([, text]) =>
+            /from\s+["'](helmet|hpp|xss-clean|cors)["']/.test(text),
+          )
+          .map(([file]) => file);
+
+        expect(offenders).toEqual([]);
+      });
+    });
   });
 
   // ADR-0057 (C3 residual 3): every limiter once carried its own handler and its own

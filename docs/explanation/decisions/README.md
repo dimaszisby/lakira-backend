@@ -98,10 +98,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0058](./adr-0058-inner-layers-and-shared-code-import-rules.md)                | The inner layers import no infrastructure, and shared code imports no feature                                    | Accepted               | 2026-10-04 | boundary-rule-residuals D-02/D-03   |
 | [ADR-0059](./adr-0059-an-error-passed-to-the-logger-is-reduced-to-an-allowlist.md) | An error passed to the logger is reduced to an allowlist of its fields                                           | Accepted               | 2026-10-05 | log-redaction-coverage D-06         |
 | [ADR-0060](./adr-0060-the-app-takes-its-name-from-its-package.md)                  | The app takes its name from its package when `APP_NAME` is unset                                                 | Accepted               | 2026-10-07 | app-name-from-package D-01, D-03    |
+| [ADR-0061](./adr-0061-a-request-is-counted-before-its-body-is-parsed.md)           | A request is counted before its body is parsed                                                                   | Proposed               | 2026-10-13 | production-readiness D-04           |
 
 ## Adding one
 
-Take the next free number — **ADR-0061** as of 2026-10-07 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0062** as of 2026-10-13 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 

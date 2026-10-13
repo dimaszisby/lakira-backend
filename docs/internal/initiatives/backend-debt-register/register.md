@@ -1,6 +1,6 @@
 # Backend debt register
 
-**As of:** 2026-10-13, backend `dev` at `3277e5d`. Ranked by [D-01](decisions.md).
+**As of:** 2026-10-13, backend `dev` at `ebfce52`. Ranked by [D-01](decisions.md).
 
 **"What's next" is the first row below whose state is `ready`.** A row above it that is waiting on
 someone is reported with it, as a gap. How rows are added and closed:
@@ -18,7 +18,7 @@ Sources are abbreviated: `A12 § 6` is `docs/internal/audits/saas-readiness/audi
 
 ## Tier 1 — keeps an audit caveat open
 
-No open row. B-01 is fixed on its branch (see Closed). **A dated audit run is owed**: only a run
+No open row. B-01 is fixed (see Closed). **A dated audit run is owed**: only a run
 can close C5 (ADR-002, ADR-012).
 
 ## Tier 2 — P1 or P2 owed to the frontend
@@ -35,10 +35,9 @@ owner's confirmation of that reading.
 
 ## Tier 3 — P2 security
 
-| ID   | Item                                                           | Sev | Owed to | State | Size | Source                                                                              | Analysis                                          |
-| ---- | -------------------------------------------------------------- | --- | ------- | ----- | ---- | ----------------------------------------------------------------------------------- | ------------------------------------------------- |
-| B-06 | The probes run after the body parsers, ahead of the limiter    | P2  | us      | ready | ≤1h  | [todo](../../todos/2026-10-11-todo-probes-run-after-body-parsers.md)                | [analysis](analysis-probes-after-body-parsers.md) |
-| B-07 | `JWT_SECRET` is accepted at any length, in production too (W2) | P2  | us      | ready | ≤½d  | A12 § 6 W2; [todo](../../todos/2026-10-12-todo-jwt-secret-has-no-minimum-length.md) | [analysis](analysis-w2-jwt-secret.md)             |
+| ID   | Item                                                           | Sev | Owed to | State | Size | Source                                                                              | Analysis                              |
+| ---- | -------------------------------------------------------------- | --- | ------- | ----- | ---- | ----------------------------------------------------------------------------------- | ------------------------------------- |
+| B-07 | `JWT_SECRET` is accepted at any length, in production too (W2) | P2  | us      | ready | ≤½d  | A12 § 6 W2; [todo](../../todos/2026-10-12-todo-jwt-secret-has-no-minimum-length.md) | [analysis](analysis-w2-jwt-secret.md) |
 
 ## Tier 4 — other P2
 
@@ -111,21 +110,22 @@ API and data:
 
 Forkability, tests, docs and repo:
 
-| ID   | Item                                                                                                                                         | Sev | State       | Source                                                                |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------------- | --- | ----------- | --------------------------------------------------------------------- |
-| B-50 | Bootstrap leftovers other than B-08 and B-09 (W7, part)                                                                                      | P3  | ready       | `2026-10-12-todo-fork-bootstrap-review-leftovers.md` items 1, 3 to 10 |
-| B-51 | Bootstrap and `app-name.ts` derive the short name differently (U4)                                                                           | P3  | ready       | `2026-09-24-todo-app-name-short-name-mismatch.md`; A05b § 6 U4        |
-| B-52 | What the review of the `APP_NAME` default left open                                                                                          | P3  | ready       | `2026-10-07-todo-app-name-review-leftovers.md`                        |
-| B-53 | Fork residue: fixed Compose container and volume names, links into `docs/internal/` (R12)                                                    | P3  | ready       | A0929 § 6 R12                                                         |
-| B-54 | Intermittent 401 on register inside the queue integration test                                                                               | —   | unexplained | `2026-09-24-todo-queue-test-intermittent-401.md`                      |
-| B-55 | One unexplained failure of `metric-settings.test.ts` on 2026-10-11, not seen since                                                           | —   | unexplained | `production-readiness` kit, PR #156 body; no todo                     |
-| B-56 | Nothing checks `docs/reference/commands.md` against `package.json`                                                                           | —   | ready       | `2026-09-24-todo-commands-doc-drift-check.md`                         |
-| B-57 | `main` shares no history with `dev` or `staging`                                                                                             | —   | owner       | `2026-09-24-todo-main-dev-unrelated-history.md`                       |
-| B-58 | The jwt kit's folder uses underscores                                                                                                        | —   | ready       | `2026-09-19-todo-jwt-kit-underscore-naming.md`                        |
-| B-59 | Follow-ups of 2026-06-04, never triaged                                                                                                      | —   | owner       | `2026-06-04-todo-saas-audit-and-workflow-followups.md`                |
-| B-60 | Nothing checks this register against the todo folder                                                                                         | —   | ready       | this kit, plan § Risks                                                |
-| B-61 | Rows of the 2026-06-05 run not re-read since; polish of 2026-09-29 (R13, rest)                                                               | P3  | ready       | `audit-2026-06-05.md`; A0929 § 6 R13                                  |
-| B-62 | Sentry: `event.server_name` can embed an address; a throwing hook lets the SDK send its own event unscrubbed; span attributes are a denylist | P3  | ready       | `log-redaction-coverage` D-13, "From the review"                      |
+| ID   | Item                                                                                                                                                                                                                                                                               | Sev | State       | Source                                                                 |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ----------- | ---------------------------------------------------------------------- |
+| B-50 | Bootstrap leftovers other than B-08 and B-09 (W7, part)                                                                                                                                                                                                                            | P3  | ready       | `2026-10-12-todo-fork-bootstrap-review-leftovers.md` items 1, 3 to 10  |
+| B-51 | Bootstrap and `app-name.ts` derive the short name differently (U4)                                                                                                                                                                                                                 | P3  | ready       | `2026-09-24-todo-app-name-short-name-mismatch.md`; A05b § 6 U4         |
+| B-52 | What the review of the `APP_NAME` default left open                                                                                                                                                                                                                                | P3  | ready       | `2026-10-07-todo-app-name-review-leftovers.md`                         |
+| B-53 | Fork residue: fixed Compose container and volume names, links into `docs/internal/` (R12)                                                                                                                                                                                          | P3  | ready       | A0929 § 6 R12                                                          |
+| B-54 | Intermittent 401 on register inside the queue integration test                                                                                                                                                                                                                     | —   | unexplained | `2026-09-24-todo-queue-test-intermittent-401.md`                       |
+| B-55 | One unexplained failure of `metric-settings.test.ts` on 2026-10-11, not seen since                                                                                                                                                                                                 | —   | unexplained | `production-readiness` kit, PR #156 body; no todo                      |
+| B-56 | Nothing checks `docs/reference/commands.md` against `package.json`                                                                                                                                                                                                                 | —   | ready       | `2026-09-24-todo-commands-doc-drift-check.md`                          |
+| B-57 | `main` shares no history with `dev` or `staging`                                                                                                                                                                                                                                   | —   | owner       | `2026-09-24-todo-main-dev-unrelated-history.md`                        |
+| B-58 | The jwt kit's folder uses underscores                                                                                                                                                                                                                                              | —   | ready       | `2026-09-19-todo-jwt-kit-underscore-naming.md`                         |
+| B-59 | Follow-ups of 2026-06-04, never triaged                                                                                                                                                                                                                                            | —   | owner       | `2026-06-04-todo-saas-audit-and-workflow-followups.md`                 |
+| B-60 | Nothing checks this register against the todo folder                                                                                                                                                                                                                               | —   | ready       | this kit, plan § Risks                                                 |
+| B-61 | Rows of the 2026-06-05 run not re-read since; polish of 2026-09-29 (R13, rest)                                                                                                                                                                                                     | P3  | ready       | `audit-2026-06-05.md`; A0929 § 6 R13                                   |
+| B-62 | Sentry: `event.server_name` can embed an address; a throwing hook lets the SDK send its own event unscrubbed; span attributes are a denylist                                                                                                                                       | P3  | ready       | `log-redaction-coverage` D-13, "From the review"                       |
+| B-63 | Left by the review of B-06: `Cache-Control: no-store` on the probes; `x-forwarded-proto` is read whatever `trust proxy` says; the probes sit behind the production redirect; docs assets count against the app-wide limit; no automated test of the real app with rate limiting on | P3  | ready       | `production-readiness` D-04, "From the review"; ADR-0061 § Enforcement |
 
 ## Waiting on the owner, not code
 
@@ -138,17 +138,18 @@ Forkability, tests, docs and repo:
 
 ## The frontend's to raise, noted here so they are not lost
 
-| Note                                                                                      | Source (lakira-frontend, at `1edb13c`)                                  |
-| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `@sentry/node` 11 replaces `sendDefaultPii` with categories that default to on            | `docs/internal/todos/2026-10-04-todo-backend-request-id-unvalidated.md` |
-| A second value logged in the same minute is refused with a 409; form or backend undecided | `docs/internal/todos/2026-10-10-todo-reaudit-findings.md`, N15          |
+| Note                                                                           | Source (lakira-frontend, at `1edb13c`)                                  |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `@sentry/node` 11 replaces `sendDefaultPii` with categories that default to on | `docs/internal/todos/2026-10-04-todo-backend-request-id-unvalidated.md` |
 
-The third unraised note is B-14.
+The third unraised note is B-14. A fourth, a second value in the same minute refused with a 409,
+was settled on the frontend's side by lakira-frontend #88.
 
 ## Closed
 
 Rows move here when their fix is written, with the branch; the PR number is added once merged.
 
-| ID   | Item                                                             | Fixed in                                                                                           | Confirmed by an audit  |
-| ---- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------- |
-| B-01 | A Sentry transaction carries the request's peer address (C5, W1) | `fix/sentry-peer-address`; [`log-redaction-coverage` D-13](../log-redaction-coverage/decisions.md) | Not yet; a run is owed |
+| ID   | Item                                                             | Fixed in                                                                                                                                 | Confirmed by an audit                                      |
+| ---- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| B-01 | A Sentry transaction carries the request's peer address (C5, W1) | #160 (`ebfce52`); [`log-redaction-coverage` D-13](../log-redaction-coverage/decisions.md)                                                | Not yet; a run is owed                                     |
+| B-06 | The probes run after the body parsers, ahead of the limiter      | `fix/limiter-before-body-parsers`; [ADR-0061](../../../explanation/decisions/adr-0061-a-request-is-counted-before-its-body-is-parsed.md) | Not graded by an audit; the PR's reviewer graded it closed |

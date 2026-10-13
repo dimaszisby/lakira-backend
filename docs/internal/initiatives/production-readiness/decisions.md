@@ -67,3 +67,18 @@ for the probe.
 the body parsers and `xss-clean`, so a flood of requests with large bodies still costs CPU ahead of
 the limiter. That is true of every route, since the limiter is mounted after the parsers. Filed as
 `docs/internal/todos/2026-10-11-todo-probes-run-after-body-parsers.md`.
+
+## D-04 — A request is counted before its body is parsed, and the probes parse none
+
+- **Status:** Proposed
+- **Date:** 2026-10-13
+
+Promoted to the architecture decision registry as **[ADR-0061](../../../explanation/decisions/adr-0061-a-request-is-counted-before-its-body-is-parsed.md)**.
+That file is authoritative; this entry is a pointer. Register row B-06; commits carry
+`refs: limiter-before-body-parsers`.
+
+**From the review.** A reviewer given the claim "no request body is parsed before the app-wide
+limiter has counted the request, and the two probes parse no body" graded it closed, on every
+path it could enumerate. Outside the claim it graded one P2: the test that guarded the order read
+`server.ts` alone and by pattern, so an aliased import or a parser in a feature router would pass
+it. That test now scans all of `src/`. Its P3 items are register row B-63.
