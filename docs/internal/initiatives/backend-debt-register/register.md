@@ -1,6 +1,6 @@
 # Backend debt register
 
-**As of:** 2026-10-13, backend `dev` at `dd65318`. Ranked by [D-01](decisions.md).
+**As of:** 2026-10-13, backend `dev` at `04999d0`. Ranked by [D-01](decisions.md).
 
 **"What's next" is the first row below whose state is `ready`.** A row above it that is waiting on
 someone is reported with it, as a gap. How rows are added and closed:
@@ -24,15 +24,13 @@ can close C5 (ADR-002, ADR-012).
 
 ## Tier 2 — P1 or P2 owed to the frontend
 
-| ID   | Item                                                                                               | Sev | Owed to | State       | Size | Source                                                                                       | Analysis                                           |
-| ---- | -------------------------------------------------------------------------------------------------- | --- | ------- | ----------- | ---- | -------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| B-02 | Relative ranges leave out today; lifecycle timestamps are shifted; the fallback drops a log (F-10) | P2  | FE      | ready (Q-1) | ≤1d  | N1; [todo](../../todos/2026-10-13-todo-analytics-relative-range-and-lifecycle-timestamps.md) | [analysis](analysis-analytics-relative-range.md)   |
-| B-03 | Staging's `CORS_ORIGIN` is unreported; the frontend's origins are not set per environment (F-02)   | P2  | FE      | owner, FE   | ≤1h  | N1                                                                                           | [analysis](analysis-decisions-owed-to-frontend.md) |
-| B-04 | The production API URL is undecided (F-11)                                                         | P2  | FE      | owner       | —    | N1; `docs/reference/ci-pipeline/pipeline-overview.md:159`                                    | [analysis](analysis-decisions-owed-to-frontend.md) |
-| B-05 | The browser's IP is lost through the frontend proxy, so proxied users share per-IP budgets (F-03)  | P2  | FE, us  | owner, FE   | ≤½d  | N2; [todo](../../todos/2026-10-02-todo-per-ip-limiter-hardening.md); ADR-0053                | [analysis](analysis-client-ip-and-trust-proxy.md)  |
+| ID   | Item                                                                                              | Sev | Owed to | State     | Size | Source                                                                        | Analysis                                           |
+| ---- | ------------------------------------------------------------------------------------------------- | --- | ------- | --------- | ---- | ----------------------------------------------------------------------------- | -------------------------------------------------- |
+| B-03 | Staging's `CORS_ORIGIN` is unreported; the frontend's origins are not set per environment (F-02)  | P2  | FE      | owner, FE | ≤1h  | N1                                                                            | [analysis](analysis-decisions-owed-to-frontend.md) |
+| B-04 | The production API URL is undecided (F-11)                                                        | P2  | FE      | owner     | —    | N1; `docs/reference/ci-pipeline/pipeline-overview.md:159`                     | [analysis](analysis-decisions-owed-to-frontend.md) |
+| B-05 | The browser's IP is lost through the frontend proxy, so proxied users share per-IP budgets (F-03) | P2  | FE, us  | owner, FE | ≤½d  | N2; [todo](../../todos/2026-10-02-todo-per-ip-limiter-hardening.md); ADR-0053 | [analysis](analysis-client-ip-and-trust-proxy.md)  |
 
-B-02 is ready to build on the reading that today should be included. Q-1 in the plan is the
-owner's confirmation of that reading.
+B-02 is fixed (see Closed).
 
 ## Tier 3 — P2 security
 
@@ -97,15 +95,15 @@ Architecture and code:
 
 API and data:
 
-| ID   | Item                                                                                            | Sev | State            | Source                                                              |
-| ---- | ----------------------------------------------------------------------------------------------- | --- | ---------------- | ------------------------------------------------------------------- |
-| B-43 | A dashboard point with a real average of zero is returned as null                               | P3  | ready            | `2026-10-08-todo-dashboard-series-drops-zero-average.md`            |
-| B-44 | `GET /metric-settings` treats `includeTotal=false` as true                                      | P3  | ready            | `2026-10-01-todo-metric-settings-include-total-coercion.md`         |
-| B-45 | The single-log cache key omits the metric id (T5)                                               | P3  | ready            | A05 § 6 T5                                                          |
-| B-46 | Cache keys: free text is not encoded; metric-log keys use literal `.js` placeholders (S12, R13) | P3  | ready            | A03 § 6 S12; `2026-10-01-todo-metric-log-cache-key-js-artifacts.md` |
-| B-47 | Contract polish: probes not in the spec, `status` not an enum, 413 and 415 undocumented (S14)   | P3  | ready            | A03 § 6 S14                                                         |
-| B-48 | The four Schemathesis gate warnings                                                             | —   | owner            | `2026-09-01-todo-schemathesis-gate-warnings.md`                     |
-| B-49 | `last_log_at` can name a different log inside a repeated daylight-saving hour (T4)              | P3  | closes with B-02 | A05 § 6 T4                                                          |
+| ID   | Item                                                                                                                                                                                                    | Sev | State | Source                                                                                                                 |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ----- | ---------------------------------------------------------------------------------------------------------------------- |
+| B-43 | A dashboard point with a real average of zero is returned as null                                                                                                                                       | P3  | ready | `2026-10-08-todo-dashboard-series-drops-zero-average.md`                                                               |
+| B-44 | `GET /metric-settings` treats `includeTotal=false` as true                                                                                                                                              | P3  | ready | `2026-10-01-todo-metric-settings-include-total-coercion.md`                                                            |
+| B-45 | The single-log cache key omits the metric id (T5)                                                                                                                                                       | P3  | ready | A05 § 6 T5                                                                                                             |
+| B-46 | Cache keys: free text is not encoded; metric-log keys use literal `.js` placeholders (S12, R13)                                                                                                         | P3  | ready | A03 § 6 S12; `2026-10-01-todo-metric-log-cache-key-js-artifacts.md`                                                    |
+| B-47 | Contract polish: probes not in the spec, `status` not an enum, 413 and 415 undocumented (S14)                                                                                                           | P3  | ready | A03 § 6 S14                                                                                                            |
+| B-48 | The four Schemathesis gate warnings                                                                                                                                                                     | —   | owner | `2026-09-01-todo-schemathesis-gate-warnings.md`                                                                        |
+| B-65 | Analytics leftovers: the dashboard item's lifecycle and range fields are not in the spec; a fallback reports a coarser bucket than it queries with; bucket labels are read in the server process's zone | —   | ready | [`analytics-relative-range` checklist](../analytics-relative-range/analytics-relative-range-checklist.md) § Discovered |
 
 Forkability, tests, docs and repo:
 
@@ -130,7 +128,6 @@ Forkability, tests, docs and repo:
 
 | ID   | Question                                                                                    | Source                      |
 | ---- | ------------------------------------------------------------------------------------------- | --------------------------- |
-| O-01 | Are relative ranges meant to cover complete days only? (decides B-02)                       | N1; plan Q-1                |
 | O-02 | Is the effort and model matrix settled? Its trial ended 2026-07-02 with no recorded outcome | `CLAUDE.md` § Task Defaults |
 | O-03 | What does staging's `CORS_ORIGIN` hold? Only the Render dashboard shows it (B-03)           | N1                          |
 | O-04 | Where is the frontend hosted, and does that host set `X-Forwarded-For`? (B-05)              | N2                          |
@@ -148,9 +145,11 @@ was settled on the frontend's side by lakira-frontend #88.
 
 Rows move here when their fix is written, with the branch; the PR number is added once merged.
 
-| ID   | Item                                                             | Fixed in                                                                                                                                                             | Confirmed by an audit                                      |
-| ---- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| B-01 | A Sentry transaction carries the request's peer address (C5, W1) | #160 (`ebfce52`); [`log-redaction-coverage` D-13](../log-redaction-coverage/decisions.md)                                                                            | Not yet; a run is owed                                     |
-| B-06 | The probes run after the body parsers, ahead of the limiter      | #161 (`dd65318`); [ADR-0061](../../../explanation/decisions/adr-0061-a-request-is-counted-before-its-body-is-parsed.md)                                              | Not graded by an audit; the PR's reviewer graded it closed |
-| B-07 | `JWT_SECRET` is accepted at any length, in production too (W2)   | `fix/jwt-secret-minimum-length`; [`jwt-secret-minimum-length` D-01](../jwt-secret-minimum-length/decisions.md); ADR-0036 amended                                     | Not yet; a run is owed                                     |
-| B-17 | `verify()` pins no `algorithms`, `iss` or `aud`                  | `fix/jwt-secret-minimum-length`, which pins HS256 on sign and verify; `iss` and `aud` are deliberately not added ([D-02](../jwt-secret-minimum-length/decisions.md)) | Not graded by an audit                                     |
+| ID   | Item                                                                                               | Fixed in                                                                                                                                              | Confirmed by an audit                                            |
+| ---- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| B-01 | A Sentry transaction carries the request's peer address (C5, W1)                                   | #160 (`ebfce52`); [`log-redaction-coverage` D-13](../log-redaction-coverage/decisions.md)                                                             | Not yet; a run is owed                                           |
+| B-06 | The probes run after the body parsers, ahead of the limiter                                        | #161 (`dd65318`); [ADR-0061](../../../explanation/decisions/adr-0061-a-request-is-counted-before-its-body-is-parsed.md)                               | Not graded by an audit; the PR's reviewer graded it closed       |
+| B-07 | `JWT_SECRET` is accepted at any length, in production too (W2)                                     | #162 (`04999d0`); [`jwt-secret-minimum-length` D-01](../jwt-secret-minimum-length/decisions.md); ADR-0036 amended                                     | Not yet; a run is owed                                           |
+| B-17 | `verify()` pins no `algorithms`, `iss` or `aud`                                                    | #162 (`04999d0`), which pins HS256 on sign and verify; `iss` and `aud` are deliberately not added ([D-02](../jwt-secret-minimum-length/decisions.md)) | Not graded by an audit                                           |
+| B-02 | Relative ranges leave out today; lifecycle timestamps are shifted; the fallback drops a log (F-10) | `fix/analytics-relative-range`; [ADR-0062](../../../explanation/decisions/adr-0062-a-relative-range-ends-with-the-current-bucket.md)                  | Not graded by an audit; the frontend re-runs its dashboard specs |
+| B-49 | `last_log_at` can name a different log inside a repeated daylight-saving hour (T4)                 | `fix/analytics-relative-range`, with B-02: `lastLogAt` is the stored instant                                                                          | Not graded by an audit                                           |

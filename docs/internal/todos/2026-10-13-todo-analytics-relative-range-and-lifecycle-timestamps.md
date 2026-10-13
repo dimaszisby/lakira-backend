@@ -1,6 +1,7 @@
 # Todo — relative ranges leave out today; lifecycle timestamps are shifted
 
-- **Status:** Open (P2). Waiting on the owner's confirmation that today should be included
+- **Status:** Fixed on `fix/analytics-relative-range` (ADR-0062). The owner confirmed on 2026-10-13
+  that today is included
 - **Created:** 2026-10-13
 - **Owner:** unassigned
 - **Origin:** lakira-frontend, on the Notion page "FE and BE messages", Part 1, raised 2026-10-07
@@ -25,5 +26,5 @@ file does not repeat them. Register row B-02.
 
 ## Open question
 
-Whether "complete buckets only" was ever intended. The analysis takes it as a side effect of
-stabilising the cache key and lays out the other reading (its § 3).
+Settled: "complete buckets only" was not intended. The owner's answer of 2026-10-13 is recorded in
+ADR-0062.

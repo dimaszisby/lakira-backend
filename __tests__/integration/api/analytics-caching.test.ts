@@ -7,9 +7,9 @@ import {
   createTestUser,
 } from "../helpers/test-utils.js";
 
-// Absolute bounds rather than `last=7d`: a relative window is anchored to the
-// current bucket, so a conditional request that straddles a bucket boundary
-// would compute a different range and never match its own ETag.
+// Absolute bounds rather than `last=7d`: a relative window ends with the current
+// bucket, so a conditional request that straddles a bucket boundary would
+// compute a different range and never match its own ETag.
 const RANGE = {
   start: "2025-05-01T00:00:00.000Z",
   end: "2025-05-08T00:00:00.000Z",
@@ -340,5 +340,66 @@ describe("Analytics HTTP caching", () => {
       .set("Authorization", authHeader(token))
       .query(RANGE);
     expect(res.status).toBe(404);
+  });
+
+  // Kit analytics-relative-range, ADR-0062. A relative range used to end at the
+  // start of the current bucket in UTC, so a value logged today was not in it.
+  describe("a relative range", () => {
+    it.each(["UTC", "Asia/Jakarta"])(
+      "includes a log made now, the same on both routes, with tz=%s",
+      async (tz) => {
+        const loggedAt = new Date().toISOString();
+        await createMetricLog(token, metricId, { logValue: 40, loggedAt });
+        const query = { last: "7d", bucket: "1d", tz };
+
+        const dashboard = await api
+          .get("/api/v1/analytics/dashboard")
+          .set("Authorization", authHeader(token))
+          .query(query);
+        expect(dashboard.status).toBe(200);
+
+        const { items, meta } = dashboard.body.data;
+        const item = items.find(
+          (candidate: { metricId: string }) => candidate.metricId === metricId,
+        );
+        expect(item.fallbackRangeUsed).toBe(false);
+        expect(item.stats).toEqual({ average: 40, min: 40, max: 40, count: 1 });
+        expect(Date.parse(meta.range.endISO)).toBeGreaterThan(
+          Date.parse(loggedAt),
+        );
+        // The stored instants, whatever zone was asked for.
+        expect(item.firstLogAt).toBe("2025-05-02T00:00:00.000Z");
+        expect(item.lastLogAt).toBe(loggedAt);
+
+        const single = await api
+          .get(`/api/v1/analytics/metrics/${metricId}`)
+          .set("Authorization", authHeader(token))
+          .query(query);
+        expect(single.status).toBe(200);
+        expect(single.body.data.stats).toEqual(item.stats);
+        expect(single.body.data.meta.range).toEqual(meta.range);
+      },
+    );
+
+    // A yearly bucket, so the two requests straddle a bucket boundary only at
+    // the turn of the year.
+    it.each([
+      ["the dashboard", () => "/api/v1/analytics/dashboard"],
+      ["a single metric", () => `/api/v1/analytics/metrics/${metricId}`],
+    ])("answers 304 to its own ETag on %s", async (_name, path) => {
+      const query = { last: "1y", bucket: "1y", tz: "UTC" };
+      const first = await api
+        .get(path())
+        .set("Authorization", authHeader(token))
+        .query(query);
+      expect(first.status).toBe(200);
+
+      const second = await api
+        .get(path())
+        .set("Authorization", authHeader(token))
+        .set("If-None-Match", first.headers.etag)
+        .query(query);
+      expect(second.status).toBe(304);
+    });
   });
 });

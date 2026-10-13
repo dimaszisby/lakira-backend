@@ -1,6 +1,6 @@
 # `JWT_SECRET` minimum length, and a pinned algorithm
 
-**Status:** Implemented on the branch, gates green; waits for the owner to commit and open the PR. Register rows B-07 (audit finding W2, P2) and B-17.
+**Status:** Merged in #162 (`04999d0`). Register rows B-07 (audit finding W2, P2) and B-17; a dated audit run has yet to grade B-07.
 **Slug:** `jwt-secret-minimum-length` · **Branch:** `fix/jwt-secret-minimum-length`
 
 Lean kit — no plan; acceptance criteria live in the checklist.

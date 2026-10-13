@@ -1,4 +1,5 @@
 import { resolveBucket, type BucketAlias, type BucketSpec } from "./buckets.js";
+import { startOfNextBucket } from "./relative-range.js";
 
 const DEFAULT_HORIZON_MS = 1000 * 60 * 60 * 24 * 180; // 180 days
 const ORDERED_BUCKETS: BucketAlias[] = ["1h", "1d", "1w", "1m", "1y"];
@@ -21,6 +22,7 @@ export type FallbackComputation = {
 export type FallbackInput = {
   requested: RangeDescriptor;
   lastLogAt: string | Date | null;
+  tz: string;
   guardBuckets: number;
   maxHorizonMs?: number;
 };
@@ -28,6 +30,7 @@ export type FallbackInput = {
 export function computeFallbackRange({
   requested,
   lastLogAt,
+  tz,
   guardBuckets,
   maxHorizonMs = DEFAULT_HORIZON_MS,
 }: FallbackInput): FallbackComputation | null {
@@ -43,7 +46,10 @@ export function computeFallbackRange({
     maxHorizonMs,
     Math.max(requestedSpan, spec.approxMs),
   );
-  let fallbackEnd = last;
+  // The end of the bucket the newest log is in, as a relative range ends with the
+  // current bucket. Ending at the log itself left it out: the query is half-open,
+  // and its series stops a second short of the end (ADR-0062).
+  const fallbackEnd = startOfNextBucket(last, requested.bucket, tz);
   let fallbackStart = new Date(fallbackEnd.getTime() - baseSpan);
   let estimatedBuckets = estimateBuckets(fallbackStart, fallbackEnd, spec);
   let coarsenedBucket = false;

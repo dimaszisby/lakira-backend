@@ -69,6 +69,7 @@ export function buildDashboardLifecycleSQL(spec: BucketSpec) {
     -- when a zone leaves daylight saving time (ADR-0052).
     ranked AS (
       SELECT l.metric_id,
+             l.logged_at,
              l.ts_tz,
              l.log_value,
              row_number() OVER (
@@ -77,10 +78,12 @@ export function buildDashboardLifecycleSQL(spec: BucketSpec) {
              ) AS rn
       FROM logs l
     ),
+    -- first_log_at and last_log_at are the stored instants. A local time would
+    -- be sent with a Z it does not mean (ADR-0062).
     aggregates AS (
       SELECT metric_id,
-             MIN(ts_tz) AS first_log_at,
-             MAX(ts_tz) AS last_log_at,
+             MIN(logged_at) AS first_log_at,
+             MAX(logged_at) AS last_log_at,
              COUNT(*)::bigint AS total_logs,
              MAX(log_value) FILTER (WHERE rn = 1) AS latest_value,
              MAX(date_trunc('${spec.trunc}', ts_tz)) FILTER (WHERE rn = 1) AS latest_bucket_start

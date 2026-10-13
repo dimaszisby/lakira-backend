@@ -47,8 +47,9 @@ type DashboardSeriesRow = {
 
 type LifecycleRow = {
   metric_id: string;
-  first_log_at: string | null;
-  last_log_at: string | null;
+  // timestamptz: the driver returns a Date.
+  first_log_at: Date | string | null;
+  last_log_at: Date | string | null;
   total_logs: number | string | null;
   latest_value: number | string | null;
   latest_bucket_start: string | null;
@@ -315,6 +316,7 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
     const fallbackRange = computeFallbackRange({
       requested: baseRequestedRange,
       lastLogAt: lifecycle?.last_log_at ?? null,
+      tz: input.tz,
       guardBuckets: env.VIZ_FALLBACK_GUARD_BUCKETS,
     });
 
@@ -360,8 +362,8 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
       priority: metric.priority,
       series,
       stats,
-      lastLogAt: lifecycle?.last_log_at ?? null,
-      firstLogAt: lifecycle?.first_log_at ?? null,
+      lastLogAt: isoFrom(lifecycle?.last_log_at),
+      firstLogAt: isoFrom(lifecycle?.first_log_at),
       totalLogs: numberFrom(lifecycle?.total_logs, 0),
       latestValue: numberFrom(lifecycle?.latest_value, null),
       latestBucketStart: lifecycle?.latest_bucket_start ?? null,
@@ -405,6 +407,12 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
       cnt: row.cnt,
     }));
   }
+}
+
+function isoFrom(value: Date | string | null | undefined): string | null {
+  if (value == null) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 function numberFrom<T>(

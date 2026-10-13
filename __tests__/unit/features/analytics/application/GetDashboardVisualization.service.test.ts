@@ -102,7 +102,8 @@ describe("GetDashboardVisualization service", () => {
 
     const metric = result.items[0];
     expect(metric.fallbackRangeUsed).toBe(true);
-    expect(metric.actualRange.endISO).toBe("2023-10-01T00:00:00.000Z");
+    // The end of the day that holds the last log, so the log is inside the range.
+    expect(metric.actualRange.endISO).toBe("2023-10-02T00:00:00.000Z");
     expect(metric.series).toHaveLength(1);
     expect(metric.lastLogAt).toBe("2023-10-01T00:00:00.000Z");
     expect(metric.totalLogs).toBe(9);
