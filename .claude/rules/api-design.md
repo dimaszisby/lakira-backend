@@ -117,6 +117,12 @@ wired in (C3, `docs/internal/todos/2026-09-01-todo-error-envelope.md`).
   limiter of its own and the text should name it
 - **500**: Internal server error
 
+A response header a client depends on is declared in the spec from the shared components in
+`src/lib/openapi/openapi-config.ts` (`components.headers`): a route that sets or clears the
+refresh cookie, or sends an `ETag`, points at one with `$ref`. A header marked `required` must be
+on every response of that status, or the contract gate fails. A route that answers 304 documents
+it with no body, and the `If-None-Match` request header that produces it.
+
 ## Error Handling
 
 - Throw `AppError(message, statusCode)` for known errors

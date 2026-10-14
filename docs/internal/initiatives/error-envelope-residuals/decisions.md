@@ -125,3 +125,59 @@ type from prose.
 should name it. An operation mounted before the limiter would be documented with a 429 it cannot
 return; none is in the spec today (`/health` and `/ready` are not documented). If one is added, the
 exemption goes in the same loop and in the validator, by path.
+
+## D-09 — Response headers are declared from shared components: the refresh cookie and the analytics validator
+
+- **Status:** Accepted
+- **Date:** 2026-10-14
+
+Micro entry for register row B-13 (the todo of 2026-09-20; lakira-frontend's F-15), on
+`fix/spec-set-cookie-and-304`. Written before any code.
+
+**Context.** The spec is a contract lakira-frontend generates types from, and no registration
+under `src/lib/openapi/` declares a response header. Register, login, refresh and switch-org set
+the refresh cookie and none documents it; `POST /auth/refresh` documents the cookie it reads and
+not the one it sets. Both analytics routes send `ETag` and `Cache-Control` and answer 304 to a
+matching `If-None-Match`, and the spec has none of it. Read while planning, and in neither the
+todo nor the analysis: `POST /auth/logout` clears the same cookie, which is a `Set-Cookie` too.
+**Decision.** Five points.
+
+1. `components.headers` gains `RefreshCookie`, `ClearedRefreshCookie`, `ETag` and
+   `VisualizationCacheControl`, declared once in `src/lib/openapi/openapi-config.ts`. A route
+   points at them with `$ref`.
+2. Five routes carry the cookie: register, login, refresh and switch-org reference
+   `RefreshCookie` on their success response, and logout references `ClearedRefreshCookie`.
+3. Both analytics routes document the conditional request whole: the two headers on the 200, a
+   304 with the same two and no body, and the optional `If-None-Match` request header.
+4. A header a route always sends is marked `required`, unless the contract gate shows that to be
+   wrong. Its `response_headers_conformance` check has never had a documented header to judge.
+5. The cookie's name comes from the app's name, as it does where the spec already names it.
+
+**Options considered.** Writing the header out per route: rejected, five copies to drift. A rule
+in `scripts/validate-openapi.ts` that a cookie-setting route must declare it: rejected, the
+validator cannot know which handlers set a cookie, so the rule would be a hand-kept list and a
+second place to forget. Documenting the 304 without the request header: rejected, a 304 with no
+documented way to ask for one is half a contract. Taking B-47 and the spec part of B-65 in the
+same change, so the frontend syncs once: not taken, neither has been analysed.
+**Consequences.** Nothing a route sends changes. lakira-frontend's generated types gain response
+headers on seven operations and a 304 on two when it next syncs the spec. A new route that sets a
+cookie or a validator declares it from these components; nothing checks that it does.
+**What the contract gate showed.** `npm run contract:local:gate` (Schemathesis 4.4.4) on the
+tree at `61df15f`: 42 of 47 operations selected, 1443 cases generated and passed, 2 warnings. On
+the branch: the same 42, 1446 cases generated and passed, the same 2 warnings. To see whether
+`response_headers_conformance` judges a `required` header at all, one that no route sends was
+declared beside the cookie and the gate run again: it failed with "Missing required headers" on
+`POST /auth/register` and `POST /auth/login`, and the probe was removed. So point 4 stands, and
+every header here is `required`.
+**What the gate does not reach.** The same probe did not fail on `POST /auth/refresh` or
+`POST /auth/switch-org`, which reference the same component: the gate never gets a success from
+either (it holds no refresh cookie and no second organization; both are in its standing
+warnings). It never sends `If-None-Match` with a real validator either, so it never sees a 304.
+`__tests__/integration/api/spec-response-headers.test.ts` sends all seven requests for real and
+checks each response against the headers the spec marks required for that status.
+**From the review,** my own. The fork test counted one backticked mention of the cookie's name
+in the spec; there are three now, and the count was updated. A fork's spec still holds nothing
+of the upstream's name. The example `Max-Age=604800` is seven days, the default lifetime; a
+deployment that changes `REFRESH_TOKEN_TTL_DAYS` sends another number, and the description says
+"the refresh token's lifetime". `Secure` is described as added in staging and production, which
+is what the controller does. Not graded by anyone else.

@@ -1,6 +1,6 @@
 # Backend debt register
 
-**As of:** 2026-10-14, backend `dev` at `6429fda`. Ranked by [D-01](decisions.md).
+**As of:** 2026-10-14, backend `dev` at `61df15f`. Ranked by [D-01](decisions.md).
 
 **"What's next" is the first row below whose state is `ready`.** A row above it that is waiting on
 someone is reported with it, as a gap. How rows are added and closed:
@@ -46,14 +46,13 @@ B-08, B-09 and B-10 are fixed (see Closed).
 
 ## Tier 5 — P3 and ungraded
 
-B-12 is fixed (see Closed). Analysed, because the frontend is party to them or a grader found
+B-12 and B-13 are fixed (see Closed). Analysed, because the frontend is party to them or a grader found
 them twice:
 
-| ID   | Item                                                                                               | Sev | Owed to | State | Size | Source                                                                                                  | Analysis                                           |
-| ---- | -------------------------------------------------------------------------------------------------- | --- | ------- | ----- | ---- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| B-13 | `Set-Cookie` on four auth endpoints and the 304 on two analytics routes are not in the spec (F-15) | P3  | FE      | ready | ≤½d  | N2; [todo](../../todos/2026-09-20-todo-document-set-cookie-responses.md)                                | [analysis](analysis-set-cookie-and-304-in-spec.md) |
-| B-14 | Any `x-request-id` a client sends is accepted unchecked (F-14)                                     | —   | us, FE  | ready | ≤1h  | A05b § 6 (carried from 2026-06-05); lakira-frontend `2026-10-04-todo-backend-request-id-unvalidated.md` | [analysis](analysis-x-request-id.md)               |
-| B-15 | No shared pre-production smoke sequence is written down (F-16)                                     | P3  | FE      | ready | ≤1h  | N1                                                                                                      | [analysis](analysis-decisions-owed-to-frontend.md) |
+| ID   | Item                                                           | Sev | Owed to | State | Size | Source                                                                                                  | Analysis                                           |
+| ---- | -------------------------------------------------------------- | --- | ------- | ----- | ---- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| B-14 | Any `x-request-id` a client sends is accepted unchecked (F-14) | —   | us, FE  | ready | ≤1h  | A05b § 6 (carried from 2026-06-05); lakira-frontend `2026-10-04-todo-backend-request-id-unvalidated.md` | [analysis](analysis-x-request-id.md)               |
+| B-15 | No shared pre-production smoke sequence is written down (F-16) | P3  | FE      | ready | ≤1h  | N1                                                                                                      | [analysis](analysis-decisions-owed-to-frontend.md) |
 
 Listed, not analysed ([D-03](decisions.md)). Security and privacy:
 
@@ -155,4 +154,5 @@ Rows move here when their fix is written, with the branch; the PR number is adde
 | B-08 | Bootstrap leaves `.env.test` on another login when `DB_USER` is not the template's (W3)            | #164 (`7cbe2db`); [`fork-test-credentials` D-05](../fork-test-credentials/decisions.md)                                                               | Not yet; a run is owed                                           |
 | B-09 | `--name lakira-x` is renamed twice (T3)                                                            | #164 (`7cbe2db`), with B-08: a name that holds `lakira` is refused                                                                                    | Not yet; a run is owed                                           |
 | B-10 | Five domain repository interfaces import a type from the application layer (R11)                   | #165 (`6429fda`); [`boundary-rule-residuals` D-09](../boundary-rule-residuals/decisions.md); ADR-0058 gains decision 6                                | Not yet; a run is owed                                           |
-| B-12 | The `guest` refusal reads the separate fields; the connection uses `RABBITMQ_URL` (W4)             | `fix/rabbitmq-guest-url-refusal`; [`jwt-secret-minimum-length` D-04](../jwt-secret-minimum-length/decisions.md); ADR-0036 amended                     | Not yet; a run is owed                                           |
+| B-12 | The `guest` refusal reads the separate fields; the connection uses `RABBITMQ_URL` (W4)             | #167 (`61df15f`); [`jwt-secret-minimum-length` D-04](../jwt-secret-minimum-length/decisions.md); ADR-0036 amended                                     | Not yet; a run is owed                                           |
+| B-13 | `Set-Cookie` on four auth endpoints and the 304 on two analytics routes are not in the spec (F-15) | `fix/spec-set-cookie-and-304`; [`error-envelope-residuals` D-09](../error-envelope-residuals/decisions.md); five routes, with logout                  | Not graded by an audit; the frontend syncs the spec              |

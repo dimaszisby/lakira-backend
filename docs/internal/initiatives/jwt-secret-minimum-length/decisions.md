@@ -97,7 +97,7 @@ deploy; if it has to be reverted, the revert should not take a broker change wit
 
 ## D-04 — The `guest` refusal judges the credentials the connection will use
 
-- **Status:** Accepted
+- **Status:** Accepted (merged in #167, `61df15f`)
 - **Date:** 2026-10-14
 
 Micro entry for register row B-12 (finding W4 of `audit-2026-10-12.md`, P3), the work D-03 put

@@ -65,6 +65,34 @@ import {
   GetTrendParamsSchema,
 } from "@/types/api/zod-request-params.schema.js";
 
+// Response headers, declared once in openapi-config.ts (kit
+// error-envelope-residuals, D-09). A route that sets the refresh cookie, clears
+// it, or sends the analytics validator points at these; it does not describe
+// the header again.
+const REFRESH_COOKIE_HEADERS = {
+  "Set-Cookie": { $ref: "#/components/headers/RefreshCookie" },
+};
+const CLEARED_REFRESH_COOKIE_HEADERS = {
+  "Set-Cookie": { $ref: "#/components/headers/ClearedRefreshCookie" },
+};
+const VALIDATOR_HEADERS = {
+  ETag: { $ref: "#/components/headers/ETag" },
+  "Cache-Control": { $ref: "#/components/headers/VisualizationCacheControl" },
+};
+// Both analytics routes answer a matching If-None-Match with this.
+const NOT_MODIFIED_RESPONSE = {
+  description:
+    "Not modified: `If-None-Match` matched the current `ETag`. No body; reuse the stored response.",
+  headers: VALIDATOR_HEADERS,
+};
+const conditionalRequestHeaders = z.object({
+  "If-None-Match": z.string().optional().openapi({
+    description:
+      "The `ETag` of a response stored earlier. When it still matches, the answer is a 304 with no body.",
+    example: '"mJ3k0sVw2xQ9uYtR1aBcDeFgHiJ"',
+  }),
+});
+
 // Register all schemas with the OpenAPIRegistry
 // This is done in openapi-schemas.ts directly using registry.register
 
@@ -87,6 +115,7 @@ registry.registerPath({
   responses: {
     201: {
       description: "User registered successfully",
+      headers: REFRESH_COOKIE_HEADERS,
       content: {
         "application/json": {
           schema: LoginResponseSchema,
@@ -132,6 +161,7 @@ registry.registerPath({
   responses: {
     200: {
       description: "User logged in successfully",
+      headers: REFRESH_COOKIE_HEADERS,
       content: {
         "application/json": {
           schema: LoginResponseSchema,
@@ -230,6 +260,7 @@ registry.registerPath({
   responses: {
     200: {
       description: "User logged out successfully",
+      headers: CLEARED_REFRESH_COOKIE_HEADERS,
       content: {
         "application/json": {
           schema: SuccessResponseSchema,
@@ -265,6 +296,7 @@ registry.registerPath({
   responses: {
     200: {
       description: "New access token issued; new refresh cookie set",
+      headers: REFRESH_COOKIE_HEADERS,
       content: {
         "application/json": {
           schema: RefreshResponseSchema,
@@ -479,6 +511,7 @@ registry.registerPath({
   responses: {
     200: {
       description: "Organization switched; new tokens issued",
+      headers: REFRESH_COOKIE_HEADERS,
       content: {
         "application/json": {
           schema: RefreshResponseSchema,
@@ -1767,16 +1800,19 @@ registry.registerPath({
   security: [{ BearerAuth: [] }],
   request: {
     query: DashboardVisualizationQueryParamsSchema,
+    headers: conditionalRequestHeaders,
   },
   responses: {
     200: {
       description: "Dashboard visualization payload",
+      headers: VALIDATOR_HEADERS,
       content: {
         "application/json": {
           schema: successEnvelope(DashboardVisualizationResponseSchema),
         },
       },
     },
+    304: NOT_MODIFIED_RESPONSE,
     400: {
       $ref: "#/components/responses/BadRequestError",
     },
@@ -1798,16 +1834,19 @@ registry.registerPath({
   request: {
     params: GetTrendParamsSchema,
     query: VisualizationQueryParamsSchema,
+    headers: conditionalRequestHeaders,
   },
   responses: {
     200: {
       description: "Visualization payload for the requested metric",
+      headers: VALIDATOR_HEADERS,
       content: {
         "application/json": {
           schema: successEnvelope(VisualizationResponseSchema),
         },
       },
     },
+    304: NOT_MODIFIED_RESPONSE,
     400: {
       $ref: "#/components/responses/BadRequestError",
     },
@@ -1894,6 +1933,10 @@ export const getOpenApiDocumentation = () => {
     parameters: {
       ...(baseComponents.parameters ?? {}),
       ...(generatedComponents.parameters ?? {}),
+    },
+    headers: {
+      ...(baseComponents.headers ?? {}),
+      ...(generatedComponents.headers ?? {}),
     },
   } as ComponentsObject;
 

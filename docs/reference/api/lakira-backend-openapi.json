@@ -46,6 +46,40 @@
     }
   ],
   "components": {
+    "headers": {
+      "RefreshCookie": {
+        "description": "Sets the `lakira_refresh` cookie to a new opaque refresh token. The cookie is `HttpOnly` and `SameSite=Strict`, scoped to `Path=/api/v1/auth/refresh`, with `Max-Age` set to the refresh token's lifetime. `Secure` is added in staging and production. A browser sends it to `POST /auth/refresh` only; script cannot read it.",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "example": "lakira_refresh=dGVzdC1yZWZyZXNoLXRva2Vu; Max-Age=604800; Path=/api/v1/auth/refresh; HttpOnly; SameSite=Strict"
+      },
+      "ClearedRefreshCookie": {
+        "description": "Clears the `lakira_refresh` cookie: an empty value with an expiry in the past, on the same `Path=/api/v1/auth/refresh`, `HttpOnly` and `SameSite=Strict`.",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "example": "lakira_refresh=; Path=/api/v1/auth/refresh; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Strict"
+      },
+      "ETag": {
+        "description": "A strong validator for the response body: a quoted digest that changes whenever the body does. Send it back in `If-None-Match` to get a 304 when nothing changed.",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "example": "\"mJ3k0sVw2xQ9uYtR1aBcDeFgHiJ\""
+      },
+      "VisualizationCacheControl": {
+        "description": "Always `private, no-cache`: a client may store the response and must revalidate it with `If-None-Match` before each reuse.",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "example": "private, no-cache"
+      }
+    },
     "securitySchemes": {
       "BearerAuth": {
         "type": "http",
@@ -2138,6 +2172,11 @@
         "responses": {
           "201": {
             "description": "User registered successfully",
+            "headers": {
+              "Set-Cookie": {
+                "$ref": "#/components/headers/RefreshCookie"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2185,6 +2224,11 @@
         "responses": {
           "200": {
             "description": "User logged in successfully",
+            "headers": {
+              "Set-Cookie": {
+                "$ref": "#/components/headers/RefreshCookie"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2300,6 +2344,11 @@
         "responses": {
           "200": {
             "description": "User logged out successfully",
+            "headers": {
+              "Set-Cookie": {
+                "$ref": "#/components/headers/ClearedRefreshCookie"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2340,6 +2389,11 @@
         "responses": {
           "200": {
             "description": "New access token issued; new refresh cookie set",
+            "headers": {
+              "Set-Cookie": {
+                "$ref": "#/components/headers/RefreshCookie"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2564,6 +2618,11 @@
         "responses": {
           "200": {
             "description": "Organization switched; new tokens issued",
+            "headers": {
+              "Set-Cookie": {
+                "$ref": "#/components/headers/RefreshCookie"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -5002,11 +5061,29 @@
             "description": "Maximum number of metrics to include",
             "name": "limit",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The `ETag` of a response stored earlier. When it still matches, the answer is a 304 with no body.",
+              "example": "\"mJ3k0sVw2xQ9uYtR1aBcDeFgHiJ\""
+            },
+            "required": false,
+            "name": "If-None-Match",
+            "in": "header"
           }
         ],
         "responses": {
           "200": {
             "description": "Dashboard visualization payload",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/VisualizationCacheControl"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -5024,6 +5101,17 @@
                     }
                   ]
                 }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: `If-None-Match` matched the current `ETag`. No body; reuse the stored response.",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/VisualizationCacheControl"
               }
             }
           },
@@ -5124,11 +5212,29 @@
             "description": "Relative range such as 7d or 12m (defaults to 30d; minimum is 1). The range runs through the end of the current bucket in the `tz` zone, so it includes values logged today, and it starts that many hours, days, weeks, months or years before that end; `meta.range.endISO` is therefore in the future. Provide either this parameter or both `start` and `end`, not both; large windows may be rejected based on the bucket size.",
             "name": "last",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The `ETag` of a response stored earlier. When it still matches, the answer is a 304 with no body.",
+              "example": "\"mJ3k0sVw2xQ9uYtR1aBcDeFgHiJ\""
+            },
+            "required": false,
+            "name": "If-None-Match",
+            "in": "header"
           }
         ],
         "responses": {
           "200": {
             "description": "Visualization payload for the requested metric",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/VisualizationCacheControl"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -5146,6 +5252,17 @@
                     }
                   ]
                 }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: `If-None-Match` matched the current `ETag`. No body; reuse the stored response.",
+            "headers": {
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/VisualizationCacheControl"
               }
             }
           },
