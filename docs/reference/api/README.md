@@ -60,6 +60,15 @@ seeded primary organization, its members and a pool of deletable memberships
 | `POST /api/v1/invites/accept`   | excluded by name: a valid token exists only in an invite email, so every generated body is a random token the API rightly answers with 400. Included, it passes but tests only that rejection. The accept path is covered by the integration suite |
 | `Dummy Data` tag (3 operations) | no recorded reason                                                                                                                                                                                                                                 |
 
+## Request id
+
+Every response carries an `x-request-id` header, and the same id is on every log line the
+request writes and on any Sentry event it raises. A caller may send its own id in the request's
+`x-request-id` header. It is used only when it is 1 to 64 characters of letters, digits, `.`, `_`
+and `-`; a UUID fits. Anything else, including a header sent twice, is replaced by a UUID the
+backend mints, and the value sent is neither echoed nor logged. The header is not in the spec
+([ADR-0027](../../explanation/decisions/adr-0027-asynclocalstorage-for-request-correlation.md)).
+
 ## Known gaps
 
 - ~~Error responses are under-specified.~~ Closed by caveat C3 (`75cfdaa`, #79): every operation

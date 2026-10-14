@@ -128,7 +128,7 @@ exemption goes in the same loop and in the validator, by path.
 
 ## D-09 — Response headers are declared from shared components: the refresh cookie and the analytics validator
 
-- **Status:** Accepted
+- **Status:** Accepted (merged in #168, `6f686e6`)
 - **Date:** 2026-10-14
 
 Micro entry for register row B-13 (the todo of 2026-09-20; lakira-frontend's F-15), on

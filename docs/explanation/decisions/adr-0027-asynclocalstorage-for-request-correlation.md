@@ -27,6 +27,12 @@ Use the built-in `AsyncLocalStorage` from `node:async_hooks`. Export a singleton
 - Anywhere in the call tree that needs the current request ID (logger format, Sentry tags, future tracer): `requestIdStorage.getStore()`.
 - The worker process (`src/worker.ts`) gets the same primitive but with a per-message store rather than per-request. Track that as a follow-up; do not block this kit.
 
+> **2026-10-14:** an incoming `x-request-id` is used only when it is 1 to 64 characters of
+> `[A-Za-z0-9._-]`; anything else, a header sent twice included, is replaced by a minted UUID and
+> neither echoed nor logged. Until then any non-empty value was taken, so a caller could put text
+> of any length on every log line of its request and on its Sentry event (register row B-14; kit
+> [`observability`](../../internal/initiatives/observability/decisions.md), D-05).
+
 ## Links
 
 - `audit-2026-05-01.md` § [P0-5.1]
