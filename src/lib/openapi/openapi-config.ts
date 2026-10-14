@@ -3,7 +3,7 @@ import {
   extendZodWithOpenApi,
 } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
-import { APP_DISPLAY_NAME } from "@/config/app-name.js";
+import { APP_DISPLAY_NAME, APP_SHORT_NAME } from "@/config/app-name.js";
 
 extendZodWithOpenApi(z);
 
@@ -62,6 +62,46 @@ export const openApiDocument = {
     },
   ],
   components: {
+    // Response headers a client depends on, declared once and referenced by the
+    // routes that send them (kit error-envelope-residuals, D-09). Until 2026-10-14
+    // the spec declared no response header at all. Each is `required` because the
+    // route sends it on every response that names it; the contract gate's
+    // response_headers_conformance check holds the spec to that.
+    headers: {
+      RefreshCookie: {
+        description:
+          `Sets the \`${APP_SHORT_NAME}_refresh\` cookie to a new opaque refresh token. ` +
+          "The cookie is `HttpOnly` and `SameSite=Strict`, scoped to `Path=/api/v1/auth/refresh`, " +
+          "with `Max-Age` set to the refresh token's lifetime. `Secure` is added in staging and production. " +
+          "A browser sends it to `POST /auth/refresh` only; script cannot read it.",
+        required: true,
+        schema: { type: "string" },
+        example: `${APP_SHORT_NAME}_refresh=dGVzdC1yZWZyZXNoLXRva2Vu; Max-Age=604800; Path=/api/v1/auth/refresh; HttpOnly; SameSite=Strict`,
+      },
+      ClearedRefreshCookie: {
+        description:
+          `Clears the \`${APP_SHORT_NAME}_refresh\` cookie: an empty value with an expiry in the past, ` +
+          "on the same `Path=/api/v1/auth/refresh`, `HttpOnly` and `SameSite=Strict`.",
+        required: true,
+        schema: { type: "string" },
+        example: `${APP_SHORT_NAME}_refresh=; Path=/api/v1/auth/refresh; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Strict`,
+      },
+      ETag: {
+        description:
+          "A strong validator for the response body: a quoted digest that changes whenever the body does. " +
+          "Send it back in `If-None-Match` to get a 304 when nothing changed.",
+        required: true,
+        schema: { type: "string" },
+        example: '"mJ3k0sVw2xQ9uYtR1aBcDeFgHiJ"',
+      },
+      VisualizationCacheControl: {
+        description:
+          "Always `private, no-cache`: a client may store the response and must revalidate it with `If-None-Match` before each reuse.",
+        required: true,
+        schema: { type: "string" },
+        example: "private, no-cache",
+      },
+    },
     securitySchemes: {
       BearerAuth: {
         type: "http",

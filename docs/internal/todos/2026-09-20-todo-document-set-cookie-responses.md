@@ -1,6 +1,6 @@
 # Todo — the refresh cookie is set by four endpoints and documented by none
 
-- **Status:** Open
+- **Status:** Fixed on `fix/spec-set-cookie-and-304` ([`error-envelope-residuals` D-09](../initiatives/error-envelope-residuals/decisions.md), register row B-13), with the 304 on both analytics routes and a fifth route, logout, which clears the cookie
 - **Created:** 2026-09-20
 - **Owner:** unassigned
 - **Origin:** discovered while planning the `registration-session` kit

@@ -724,7 +724,9 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
       });
 
       it("names the refresh cookie the server sets, in both places", () => {
-        expect(raw.split(`\`${derived.short}_refresh\``)).toHaveLength(2);
+        // Once in the refresh route's description, and once in each of the two
+        // cookie header components.
+        expect(raw.split(`\`${derived.short}_refresh\``)).toHaveLength(4);
         expect(raw.split(`"name": "${derived.short}_refresh"`)).toHaveLength(2);
       });
 
