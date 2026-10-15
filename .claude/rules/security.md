@@ -5,7 +5,9 @@
 Applied in this order by `mountHttpPipeline` (`src/shared/middleware/http-pipeline.ts`), which
 `src/server.ts` calls once before it registers anything else (ADR-0061):
 
-1. `requestIdMiddleware` — AsyncLocalStorage correlation id (ADR-0027)
+1. `requestIdMiddleware` — AsyncLocalStorage correlation id (ADR-0027). An incoming
+   `x-request-id` is used only when it is 1 to 64 characters of `[A-Za-z0-9._-]`; anything else
+   is replaced by a minted UUID
 2. `accessLogMiddleware` — one line per request
 3. `helmet()` — secure HTTP headers
 4. HTTPS redirect — production only
