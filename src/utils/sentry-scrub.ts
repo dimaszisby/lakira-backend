@@ -1,6 +1,7 @@
 import { isIP } from "node:net";
 import { SENSITIVE_KEY_PATTERN } from "../config/sensitive-keys.js";
 import { redactObject } from "./logger.js";
+import { maskQuotedValues } from "./mask-quoted-values.js";
 
 /**
  * The parts of a Sentry event this scrubber touches. Structural rather than importing
@@ -271,7 +272,11 @@ export const scrubSentryEvent = <T extends ScrubbableEvent>(event: T): T => {
   }
   for (const exception of event.exception?.values ?? []) {
     if (typeof exception.value === "string") {
-      exception.value = scrubText(exception.value);
+      // A database error's message can quote a submitted value (D-16).
+      const value = exception.type?.startsWith("Sequelize")
+        ? maskQuotedValues(exception.value)
+        : exception.value;
+      exception.value = scrubText(value);
     }
   }
   if (event.extra) {

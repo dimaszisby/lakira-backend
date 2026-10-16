@@ -107,6 +107,14 @@ Review of a first fix found two more ways the same payload gets out, both confir
   Postgres quotes a submitted value in a few (`invalid input syntax for type uuid: "…"`). A
   body-parser message quotes the first characters of a malformed body. This residual is accepted:
   the message is what makes the line usable, and the values it can quote are short.
+
+  > **2026-10-17:** narrowed. A database error's quoted values are now masked: from its first `"`
+  > to its last becomes `"[value]"`, in the record's message and stack, in a nested error's
+  > message, and in a Sentry exception of a `Sequelize` type
+  > ([`log-redaction-coverage` D-16](../../internal/initiatives/log-redaction-coverage/decisions.md);
+  > register row B-20). The body-parser line logs only its `type` since D-09. Any other error's
+  > message text is still not scanned.
+
 - **A plain object is not an error.** A rejection reason or a `cause` that is a plain object, or
   an error from another realm that is not an `instanceof Error`, is redacted by key like any
   metadata. That is not new, and no ORM payload arrives that way today.

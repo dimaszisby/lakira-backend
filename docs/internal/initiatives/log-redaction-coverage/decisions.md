@@ -531,7 +531,7 @@ deliberate:
 
 ## D-15 — A rate-limiter store key names an email address by its hash
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #175, `1a8a127`)
 - **Date:** 2026-10-16
 
 Micro entry for register row B-19
@@ -554,3 +554,35 @@ adds a secret, which is a decision of its own. A new ADR: not written, since ADR
 holds the rule and is amended, as ADR-0036 was for B-07 and B-12.
 **Consequences.** Counters under the old keys are orphaned on deploy and expire within the hour,
 so every address gets one fresh window.
+
+## D-16 — A database error's message is logged with its quoted values masked
+
+- **Status:** Proposed
+- **Date:** 2026-10-17
+
+Micro entry for register row B-20
+([todo](../../todos/2026-10-05-todo-log-lines-that-carry-row-or-body-text.md)). Two of its three
+lines were fixed by D-08 and D-09; this is the third. Branch `fix/db-error-quoted-values`; commits
+carry `refs: log-redaction-coverage`.
+
+**Context.** `src/shared/middleware/error.ts` logs `Database error: <message>` with the error.
+Postgres quotes a submitted value in some messages (`invalid input syntax for type uuid: "…"`).
+ADR-0059 accepted that as a residual. The owner chose on 2026-10-16 to close it by masking. The
+text reaches four places: the record's message (Winston appends the error's own message to the
+template, so it is there twice), the record's stack, a nested error's `message` in metadata, and
+Sentry, since a database error answers 500 and is captured.
+**Decision.** `maskQuotedValues` (`src/utils/mask-quoted-values.ts`) replaces everything from the
+first `"` to the last with `"[value]"`; a lone `"` masks to the end. The logger applies it to
+every database error, one whose `original` is an object: the error's raw message is replaced by
+the masked one wherever it appears in the record's message and stack, and in a nested error's
+`message`. The Sentry scrubber applies it to an exception whose type starts with `Sequelize`.
+Any other error is untouched.
+**Options considered.** Masking in `error.ts` only: rejected, it misses Winston's appended copy,
+the stack and Sentry. Pairing quotes one by one: rejected, Postgres does not escape a quote inside
+a value, so `"a"b"` would leak `b`. Masking quotes in every error: rejected, it hides third-party
+messages for no reason. Fixed text plus `db.code`: offered to the owner and not chosen; it loses
+the line of free text that makes a fault readable.
+**Consequences.** A message that quotes two identifiers loses the text between them:
+`insert or update on table "a" violates foreign key constraint "b"` becomes
+`insert or update on table "[value]"`. The SQLSTATE and the constraint, table and column names
+stay in `db`. ADR-0059 gets a dated note narrowing its residual.
