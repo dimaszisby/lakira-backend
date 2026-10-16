@@ -146,6 +146,27 @@ describe("scrubSentryEvent: the places an address can ride in", () => {
     expect(event.message).toBe("mail to [email] failed");
   });
 
+  // Kit log-redaction-coverage, D-16: a database error answers 500 and is
+  // captured; Postgres quotes a submitted value in some messages.
+  it("masks the quoted values of a Sequelize exception and no other", () => {
+    const event = scrubSentryEvent({
+      exception: {
+        values: [
+          {
+            type: "SequelizeDatabaseError",
+            value: 'invalid input syntax for type uuid: "not-a-uuid"',
+          },
+          { type: "Error", value: 'bad option "verbose"' },
+        ],
+      },
+    });
+
+    expect(event.exception!.values![0].value).toBe(
+      'invalid input syntax for type uuid: "[value]"',
+    );
+    expect(event.exception!.values![1].value).toBe('bad option "verbose"');
+  });
+
   it("cleans breadcrumb messages and masks and trims their data", () => {
     const event = scrubSentryEvent({
       breadcrumbs: [

@@ -2,6 +2,7 @@ import { createLogger, format, transports, Logger } from "winston";
 import { SENSITIVE_KEY_PATTERN } from "../config/sensitive-keys.js";
 import { requestIdStorage } from "@/shared/middleware/request-id.js";
 import { APP_NAME } from "@/config/app-name.js";
+import { maskQuotedValues } from "@/utils/mask-quoted-values.js";
 
 const { combine, timestamp, printf, errors, colorize, json, splat } = format;
 // Reads process.env directly rather than the Zod-validated env — see app-name.ts:1-3;
@@ -76,6 +77,24 @@ const describeDbError = (error: Error): Record<string, string> | undefined => {
   return Object.keys(db).length > 0 ? db : undefined;
 };
 
+// A database error's message can quote a submitted value. Wherever the raw
+// message appears, in the record's message or stack or a nested error's
+// message, it is replaced by its masked form (log-redaction-coverage D-16).
+// Only a database error: one whose `original` is an object, as above.
+function maskDbText<T>(text: T, error: Error): T {
+  if (typeof text !== "string") return text;
+  const { original } = error as { original?: unknown };
+  if (original === null || typeof original !== "object") return text;
+  const raws = [error.message, (original as { message?: unknown }).message];
+  let masked: string = text;
+  for (const raw of raws) {
+    if (typeof raw === "string" && raw.length > 0) {
+      masked = masked.split(raw).join(maskQuotedValues(raw));
+    }
+  }
+  return masked as T;
+}
+
 /** The allowlisted view of an error: its scalar identity fields, and `db`. */
 export function summarizeError(error: Error): Record<string, unknown> {
   const source = error as unknown as Record<string, unknown>;
@@ -102,7 +121,7 @@ const MAX_DEPTH = 5;
  */
 export function redactObject(obj: unknown, depth: number): unknown {
   if (obj instanceof Error) {
-    return { ...summarizeError(obj), message: obj.message };
+    return { ...summarizeError(obj), message: maskDbText(obj.message, obj) };
   }
   if (obj === null || typeof obj !== "object" || obj instanceof Date) {
     return obj;
@@ -171,8 +190,8 @@ const reduceLoggedErrors = format((info) => {
       ...summarizeError(info),
       level: record.level,
       [LEVEL]: record[LEVEL],
-      message: info.message,
-      stack: info.stack,
+      message: maskDbText(info.message, info),
+      stack: maskDbText(info.stack, info),
       service: APP_NAME,
       release,
     } as unknown as typeof info;
@@ -181,8 +200,8 @@ const reduceLoggedErrors = format((info) => {
   // `logger.log({ level, message: err })`.
   if (record.message instanceof Error) {
     const error = record.message;
-    record.message = error.message;
-    record.stack = error.stack;
+    record.message = maskDbText(error.message, error);
+    record.stack = maskDbText(error.stack, error);
     Object.assign(record, summarizeError(error));
   }
 
@@ -194,6 +213,10 @@ const reduceLoggedErrors = format((info) => {
       for (const key of Object.keys(arg)) {
         if (!RECORD_FIELDS.has(key)) delete record[key];
       }
+      // Winston has appended the error's message to the record's, and copied
+      // its stack.
+      record.message = maskDbText(record.message, arg);
+      record.stack = maskDbText(record.stack, arg);
     }
     const reduced = args.map((arg) =>
       arg instanceof Error ? summarizeError(arg) : redactObject(arg, 0),

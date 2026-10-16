@@ -378,6 +378,91 @@ describe("logger: an error's payload", () => {
   });
 });
 
+// Kit log-redaction-coverage, D-16 (register row B-20): Postgres quotes a
+// submitted value in some messages. The error middleware logs the message, and
+// Winston appends it again and keeps it in the stack.
+const QUOTING_MESSAGE = `invalid input syntax for type uuid: "${EMAIL}"`;
+const quotingDatabaseError = () =>
+  new DatabaseError(
+    Object.assign(new Error(QUOTING_MESSAGE), {
+      code: "22P02",
+      sql: 'SELECT * FROM "metrics" WHERE "id" = $1',
+    }) as ConstructorParameters<typeof DatabaseError>[0],
+  );
+
+describe("logger: a database error's quoted values", () => {
+  let lines: string[];
+  let capture: InstanceType<typeof transports.Stream>;
+
+  beforeEach(() => {
+    lines = [];
+    capture = new transports.Stream({
+      stream: new Writable({
+        write(chunk, _encoding, done) {
+          lines.push(String(chunk));
+          done();
+        },
+      }),
+    });
+    logger.add(capture);
+  });
+
+  afterEach(() => {
+    logger.remove(capture);
+  });
+
+  const lastLine = () => lines[lines.length - 1];
+
+  it("are masked in the message and the stack of the middleware's line", () => {
+    const err = quotingDatabaseError();
+    logger.error(`Database error: ${err.original.message}`, err);
+
+    expect(lastLine()).not.toContain("victim");
+    const record = JSON.parse(lastLine()) as Record<string, unknown>;
+    expect(String(record.message)).toContain(
+      'Database error: invalid input syntax for type uuid: "[value]"',
+    );
+    expect(String(record.stack)).toContain(
+      'SequelizeDatabaseError: invalid input syntax for type uuid: "[value]"',
+    );
+    expect(record.db).toEqual({ code: "22P02" });
+  });
+
+  it("are masked when the error is the record itself", () => {
+    logger.error(quotingDatabaseError());
+
+    expect(lastLine()).not.toContain("victim");
+    expect(JSON.parse(lastLine()).message).toBe(
+      'invalid input syntax for type uuid: "[value]"',
+    );
+  });
+
+  it("are masked when the error is the record's message", () => {
+    logger.log({ level: "error", message: quotingDatabaseError() as never });
+
+    expect(lastLine()).not.toContain("victim");
+    expect(JSON.parse(lastLine()).message).toBe(
+      'invalid input syntax for type uuid: "[value]"',
+    );
+  });
+
+  it("are masked in an error nested in metadata", () => {
+    logger.error("task failed", { err: quotingDatabaseError() });
+
+    expect(lastLine()).not.toContain("victim");
+    const record = JSON.parse(lastLine()) as { err: { message: string } };
+    expect(record.err.message).toBe(
+      'invalid input syntax for type uuid: "[value]"',
+    );
+  });
+
+  it("leave an error that is not a database error as it was", () => {
+    logger.error("task failed", new Error('bad option "verbose"'));
+
+    expect(lastLine()).toContain('bad option \\"verbose\\"');
+  });
+});
+
 describe("redactObject: an error value", () => {
   it("is reduced to its allowlisted fields", () => {
     const result = redactObject({ err: uniqueError() }, 0) as {

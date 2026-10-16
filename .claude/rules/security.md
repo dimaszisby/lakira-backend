@@ -116,7 +116,10 @@ and limits stop being shared across instances (twelve-factor TF-12).
   is written (`name`, `code`, `statusCode` and the like, plus `db.code`, `db.constraint`,
   `db.table`), so a database error's SQL and bound values never reach the log (ADR-0059). That
   holds wherever the error sits: as an argument, or nested in a metadata object or an array. Do not
-  attach context to an error to get it logged; pass it by name in a metadata object
+  attach context to an error to get it logged; pass it by name in a metadata object. A database
+  error's message can quote a submitted value, so what it quotes becomes `"[value]"` in the
+  message, the stack and Sentry (`src/utils/mask-quoted-values.ts`); the SQLSTATE and the
+  constraint, table and column names stay in `db`
 - `EMAIL_PROVIDER=console` logs every email body, tokens included. Startup refuses it unless
   `NODE_ENV` is `development` or `test` (ADR-0049). Email adapters never log the recipient.
 - `EMAIL_PROVIDER=mailpit` sends every email, tokens included, to a local catcher. Startup
