@@ -27,7 +27,7 @@ verbatim from a clean clone.
 - [`development/`](./how-to/development/) — regenerate the OpenAPI spec, run Postgres in Docker,
   read application logs, read outbound email locally
 - [`testing/`](./how-to/testing/) — run the test suites
-- [`ci-cd/`](./how-to/ci-cd/) — the daily pipeline playbook
+- [`ci-cd/`](./how-to/ci-cd/) — the daily pipeline playbook, the pre-production smoke sequence
 - [`security/`](./how-to/security/) — run an audit, the release delta SOP, the branch model
 
 ## Reference — information-oriented

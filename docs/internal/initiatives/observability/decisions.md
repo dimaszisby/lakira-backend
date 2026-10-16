@@ -22,7 +22,7 @@ Promoted to the architecture decision registry as **[ADR-0033](../../../explanat
 
 ## D-05 — An incoming `x-request-id` is used only when it has a safe shape
 
-- **Status:** Accepted
+- **Status:** Accepted (merged in #169, `afdff06`)
 - **Date:** 2026-10-14
 
 Micro entry for register row B-14 (carried by the audits since 2026-06-05, ungraded; the

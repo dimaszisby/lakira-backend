@@ -41,6 +41,12 @@ this note says what is decided, what blocks it, and who moves next.
 - **What cannot:** run it against production, which does not exist.
 - **Next move:** the backend's. It is the one row of the three that is ready.
 
+> **2026-10-16:** the "State" line missed a third neighbour. `npm run test:smoke`
+> (`tests/smoke/run-smoke.mjs`, #72) does exercise a deployed environment: CI runs it as
+> `smoke_staging` and before a production deploy. It checks the release, `/ready`, `/health` and a
+> 401 without a token, and never logs in. The sequence, written on `docs/pre-production-smoke`,
+> starts with it ([`ci-pipeline` D-01](../ci-pipeline/decisions.md)).
+
 ## Not verified
 
 - The staging `CORS_ORIGIN` value, and whether staging is still deployed at the URL the Notion

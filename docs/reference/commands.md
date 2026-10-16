@@ -63,14 +63,14 @@ npx jest --runInBand --selectProjects unit -- path/to/file.test.ts
 Require a built server on port 4000 plus seeded fixtures. `contract:local:*` orchestrates all of
 it; the `test:contract:*` scripts assume a server is already up.
 
-| Command                                    | Does                                                     |
-| ------------------------------------------ | -------------------------------------------------------- |
-| `npm run contract:local:quick`             | Build, seed, boot, run Schemathesis (fastest profile)    |
-| `npm run contract:local:gate`              | Profile used as the CI gate                              |
-| `npm run contract:local:full`              | Full fuzzing profile                                     |
-| `npm run test:smoke`                       | Smoke-test a deployed environment (`SMOKE_BASE_URL`)     |
-| `npm run test:contract:schemathesis:local` | Schemathesis only, against a running server              |
-| `npm run seed:contract-tests`              | Write deterministic fixtures to `tmp/contract-seed.json` |
+| Command                                    | Does                                                                                                                                                    |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run contract:local:quick`             | Build, seed, boot, run Schemathesis (fastest profile)                                                                                                   |
+| `npm run contract:local:gate`              | Profile used as the CI gate                                                                                                                             |
+| `npm run contract:local:full`              | Full fuzzing profile                                                                                                                                    |
+| `npm run test:smoke`                       | Smoke-test a deployed environment (`SMOKE_BASE_URL`); step 1 of [the pre-production sequence](../how-to/ci-cd/run-the-pre-production-smoke-sequence.md) |
+| `npm run test:contract:schemathesis:local` | Schemathesis only, against a running server                                                                                                             |
+| `npm run seed:contract-tests`              | Write deterministic fixtures to `tmp/contract-seed.json`                                                                                                |
 
 Schemathesis needs Python ≥ 3.11:
 
