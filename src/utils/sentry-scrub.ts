@@ -8,6 +8,9 @@ import { redactObject } from "./logger.js";
  */
 export type ScrubbableEvent = {
   message?: string;
+  transaction?: string;
+  tags?: Record<string, unknown>;
+  logentry?: { message?: string; params?: unknown[] };
   request?: {
     url?: string;
     headers?: Record<string, string>;
@@ -38,10 +41,26 @@ export type ScrubbableTransaction = ScrubbableEvent & {
   spans?: ScrubbableSpan[];
 };
 
+/**
+ * A Sentry log, for `beforeSendLog`. The SDK passes a parameterized message as a
+ * `String` object that also carries the template and its values.
+ */
+export type ScrubbableLog = {
+  message: unknown;
+  attributes?: Record<string, unknown>;
+};
+
 const REDACTED = "***REDACTED***";
 
 /** Everything from the query string or the fragment on. A list search rides there. */
 export const stripQuery = (url: string): string => url.replace(/[?#].*$/s, "");
+
+// The `user:password@` of a URL of any scheme: a connection URL in an error
+// message carries its password there (D-14).
+const USERINFO_IN_TEXT = /\b([a-z][\w+.-]{0,30}:\/\/)[^\s/?#@]{1,512}@/gi;
+
+const stripUserinfo = (text: string): string =>
+  text.replace(USERINFO_IN_TEXT, "$1[credentials]@");
 
 // Every quantifier is bounded: an error message can echo request text, and an
 // unbounded run retried from each position costs quadratic time.
@@ -53,7 +72,7 @@ const JWT_IN_TEXT =
   /eyJ[\w-]{5,2000}\.[\w-]{5,4000}\.[\w-]{0,2000}(?:\.[\w-]{0,4000}){0,2}/g;
 const SCHEME_TOKEN_IN_TEXT = /\b(Bearer|Basic)\s+[\w.~+/=-]{8,4000}/gi;
 const EMAIL_IN_TEXT =
-  /(?:"[^"\s]{1,64}"|[\p{L}\p{N}._%+'-]{1,64})(?:@|%40)[\p{L}\p{N}.-]{1,253}\.\p{L}{2,24}/giu;
+  /(?:"[^"\r\n]{1,64}"|[\p{L}\p{N}._%+'-]{1,64})(?:@|%40)[\p{L}\p{N}.-]{1,253}\.\p{L}{2,24}/giu;
 
 const ZONE_ID = /%[\w.-]+$/;
 
@@ -93,6 +112,10 @@ const maskAddressRun = (run: string): string => {
 const maskAddresses = (text: string): string =>
   text.replace(ADDRESS_CANDIDATE, maskAddressRun);
 
+/** A URL value: no query string, no userinfo, no address. The path is kept (D-14). */
+const cleanUrl = (url: string): string =>
+  maskAddresses(stripUserinfo(stripQuery(url)));
+
 /** The same, for every string of a context or of `extra`, at any depth. */
 const maskAddressesDeep = (value: unknown, depth = 0): unknown => {
   if (typeof value === "string") return maskAddresses(value);
@@ -112,13 +135,16 @@ const maskAddressesDeep = (value: unknown, depth = 0): unknown => {
 
 /**
  * Cleans free text that leaves for Sentry: an exception's message, a breadcrumb, a
- * header value. In this order, so a query string takes its address with it. It
- * catches a query string, a token and an address. It does not catch a name or any
- * other detail a message holds, nor a key with no recognisable shape
- * (kit log-redaction-coverage, D-12).
+ * header value. In this order, so a query string takes its address with it, and
+ * userinfo goes before the email pattern can take half of it. It catches userinfo,
+ * a query string, a token and an address. It does not catch a name or any other
+ * detail a message holds, nor a key with no recognisable shape
+ * (kit log-redaction-coverage, D-12 and D-14).
  */
 export const scrubText = (text: string): string =>
-  (text.length > MAX_TEXT ? `${text.slice(0, MAX_TEXT)}[Truncated]` : text)
+  stripUserinfo(
+    text.length > MAX_TEXT ? `${text.slice(0, MAX_TEXT)}[Truncated]` : text,
+  )
     .replace(URL_IN_TEXT, "$1")
     .replace(QUERY_IN_TEXT, "$1")
     .replace(JWT_IN_TEXT, "[token]")
@@ -159,7 +185,7 @@ const scrubValue = (key: string, value: unknown, depth: number): unknown => {
     // Reached for an item of an array: an attribute's own value is dropped with
     // its key in scrubData.
     if (isAddress(value)) return REDACTED;
-    if (URL_KEY.test(key)) return maskAddresses(stripQuery(value));
+    if (URL_KEY.test(key)) return cleanUrl(value);
     return SENSITIVE_KEY_PATTERN.test(key) ? REDACTED : scrubText(value);
   }
   if (SENSITIVE_KEY_PATTERN.test(key)) return REDACTED;
@@ -201,9 +227,23 @@ export const scrubSentryEvent = <T extends ScrubbableEvent>(event: T): T => {
   if (typeof event.message === "string") {
     event.message = scrubText(event.message);
   }
+  // The matched route as a rule, but an unmatched raw path reaches it as well.
+  if (typeof event.transaction === "string") {
+    event.transaction = scrubText(event.transaction);
+  }
+  if (isRecord(event.tags)) event.tags = scrubData(event.tags);
+  if (event.logentry) {
+    const { logentry } = event;
+    if (typeof logentry.message === "string") {
+      logentry.message = scrubText(logentry.message);
+    }
+    if (Array.isArray(logentry.params)) {
+      logentry.params = scrubValue("params", logentry.params, 0) as unknown[];
+    }
+  }
   if (event.request) {
     if (typeof event.request.url === "string") {
-      event.request.url = maskAddresses(stripQuery(event.request.url));
+      event.request.url = cleanUrl(event.request.url);
     }
     delete event.request.query_string;
     if (event.request.headers) {
@@ -291,4 +331,23 @@ export const scrubSentryTransaction = <T extends ScrubbableTransaction>(
   scrubSentryEvent(event);
   for (const span of event.spans ?? []) scrubSentrySpan(span);
   return event;
+};
+
+/**
+ * `beforeSendLog`. Sentry logs are off (`enableLogs` is not set); the hook is wired
+ * so that turning them on cannot skip the scrubber (D-14). A parameterized message
+ * becomes a plain string: its template values are the raw arguments.
+ */
+export const scrubSentryLog = <T extends ScrubbableLog>(log: T): T => {
+  log.message = scrubText(String(log.message));
+  if (isRecord(log.attributes)) log.attributes = scrubData(log.attributes);
+  return log;
+};
+
+/** Every hook `Sentry.init` takes, as one object, so none is left out of it. */
+export const SENTRY_SCRUB_HOOKS = {
+  beforeSend: scrubSentryEvent,
+  beforeSendTransaction: scrubSentryTransaction,
+  beforeSendSpan: scrubSentrySpan,
+  beforeSendLog: scrubSentryLog,
 };

@@ -77,16 +77,19 @@ and limits stop being shared across instances (twelve-factor TF-12).
   masked copy. Metadata nested deeper than five levels is written as `[Truncated]`, never passed
   through (ADR-0059)
 - Everything Sentry would send passes through `src/utils/sentry-scrub.ts` first: events through
-  `scrubSentryEvent`, transactions and spans through their own hooks, since neither reaches
-  `beforeSend`. It masks credential headers, drops cookies, and applies the key pattern to the
-  body, `extra`, `contexts`, breadcrumb data and span attributes. It cuts the query string from
-  the request URL and from any URL in a header, a breadcrumb or a span, reduces `user` to its id,
-  and drops the client address. A network address is judged by its value, not its name: an
-  attribute holding one is dropped, and in free text, in a URL's host and in a context it becomes
-  `[address]`. Free text (exception messages, breadcrumbs) loses email
-  addresses, JWTs, bearer tokens and query strings by pattern; it does **not** lose a name or any
-  other detail a message holds, so do not put one in an error message. A database span keeps its
-  operation and never its statement
+  `scrubSentryEvent`, transactions, spans and logs through their own hooks, since none reaches
+  `beforeSend`. `Sentry.init` spreads `SENTRY_SCRUB_HOOKS`, so a new hook goes in that object; a
+  test runs it through the real SDK. Logs are off, and their hook is set anyway. The scrubber
+  masks credential headers, drops cookies, and applies the key pattern to the body, `extra`,
+  `contexts`, `tags`, breadcrumb data, span and log attributes. It cuts the query string and the
+  `user:password@` from the request URL and from any URL in a header, a breadcrumb or a span,
+  reduces `user` to its id, and drops the client address. A network address is judged by its
+  value, not its name: an attribute holding one is dropped, and in free text, in a URL's host and
+  in a context it becomes `[address]`. Free text (exception messages, the transaction name,
+  `logentry`, breadcrumbs) loses email addresses, JWTs, bearer tokens, query strings and the
+  userinfo of a URL of any scheme by pattern; it does **not** lose a name or any other detail a
+  message holds, so do not put one in an error message. A database span keeps its operation and
+  never its statement
 - Never log passwords, tokens, or PII
 - Redaction is by key and does not scan message text, so nothing personal is ever interpolated
   into a log message. Name a person by user id; where there is no user, name an email address by

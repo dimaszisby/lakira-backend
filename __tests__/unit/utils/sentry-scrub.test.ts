@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import {
   scrubSentryEvent,
+  scrubSentryLog,
   scrubSentrySpan,
   scrubSentryTransaction,
   scrubText,
@@ -702,5 +703,144 @@ describe("scrubSentryEvent: addresses outside span attributes", () => {
 
     expect(once).toBe("connect ECONNREFUSED [address], then [address].");
     expect(scrubText(once)).toBe(once);
+  });
+});
+
+// W5 of audit-2026-10-12 and the review leftovers of D-12 (D-14).
+describe("W5: userinfo, three more event fields and logs", () => {
+  it.each([
+    [
+      "a postgres URL",
+      "connect failed postgres://app:s3cretpw@db:5432/lakira",
+      "connect failed postgres://[credentials]@db:5432/lakira",
+    ],
+    [
+      "a redis URL with no user",
+      "redis://:s3cretpw@cache.internal:6379 down",
+      "redis://[credentials]@cache.internal:6379 down",
+    ],
+    [
+      "an amqp URL with an address for a host",
+      "amqp://guest:s3cretpw@10.0.0.5:5672",
+      "amqp://[credentials]@[address]",
+    ],
+    [
+      "an https URL",
+      "fetch https://user:s3cretpw@api.example.com/v1?q=1 failed",
+      "fetch https://[credentials]@api.example.com/v1 failed",
+    ],
+    [
+      "a quoted email local part with a space",
+      'from "a b"@example.com',
+      "from [email]",
+    ],
+  ])("cleans %s in text", (_name, input, expected) => {
+    expect(scrubText(input)).toBe(expected);
+  });
+
+  it("is the same on a second pass over userinfo", () => {
+    const once = scrubText("postgres://app:pw@db/lakira");
+    expect(scrubText(once)).toBe(once);
+  });
+
+  it("leaves a URL with no userinfo alone", () => {
+    expect(scrubText("see https://api.example.com/v1/x")).toBe(
+      "see https://api.example.com/v1/x",
+    );
+  });
+
+  it("strips userinfo from the request URL and keeps its path", () => {
+    const event = scrubSentryEvent({
+      request: { url: "https://u:pw@h.example/api/v1/metrics/7?x=1" },
+    });
+
+    expect(event.request!.url).toBe(
+      "https://[credentials]@h.example/api/v1/metrics/7",
+    );
+  });
+
+  it("strips userinfo from a URL attribute", () => {
+    const span = scrubSentrySpan({
+      op: "http.client",
+      description: "GET https://u:pw@h.example/p",
+      data: { "url.full": "https://u:pw@h.example/p?x=1" },
+    });
+
+    expect(span.description).toBe("GET https://[credentials]@h.example/p");
+    expect(span.data!["url.full"]).toBe("https://[credentials]@h.example/p");
+  });
+
+  it("cleans the transaction name", () => {
+    const event = scrubSentryEvent({
+      transaction: `GET /api/v1/metrics?email=${EMAIL}`,
+    });
+
+    expect(event.transaction).toBe("GET /api/v1/metrics");
+  });
+
+  it("cleans tags as attribute data", () => {
+    const event = scrubSentryEvent({
+      tags: {
+        who: EMAIL,
+        url: "https://u:p@h.example/x?y=1",
+        peer: "203.0.113.9",
+        level: 3,
+      },
+    });
+
+    expect(event.tags).toEqual({
+      who: "[email]",
+      url: "https://[credentials]@h.example/x",
+      level: 3,
+    });
+  });
+
+  it("cleans the logentry message and its parameters", () => {
+    const event = scrubSentryEvent({
+      logentry: {
+        message: `user ${EMAIL} and %s`,
+        params: [EMAIL, 7, { password: "pw" }],
+      },
+    });
+
+    expect(event.logentry).toEqual({
+      message: "user [email] and %s",
+      params: ["[email]", 7, { password: "***REDACTED***" }],
+    });
+  });
+
+  it("cleans a Sentry log's message and attributes", () => {
+    // The SDK passes a parameterized message as a String object.
+    const message = Object.assign(new String(`login ${EMAIL}`), {
+      __sentry_template_string__: "login %s",
+      __sentry_template_values__: [EMAIL],
+    });
+    const log = scrubSentryLog({
+      level: "info",
+      message,
+      attributes: {
+        "url.full": "https://u:p@h.example/x?y=1",
+        "client.address": "203.0.113.9",
+        note: `from ${EMAIL}`,
+      },
+    });
+
+    expect(log.message).toBe("login [email]");
+    expect(log.attributes).toEqual({
+      "url.full": "https://[credentials]@h.example/x",
+      note: "from [email]",
+    });
+  });
+
+  // Accepted in D-14 rather than fixed. Changing one of these is a decision.
+  it.each([
+    ["a single-label domain (D-14)", "who: alice@localhost"],
+    [
+      "a name in a constraint message (D-14)",
+      "Key (name)=(Alice Smith) exists",
+    ],
+    ["a key with no scheme in front (D-14)", "key sk_live_abcdefghijklmnop"],
+  ])("keeps %s", (_name, input) => {
+    expect(scrubText(input)).toBe(input);
   });
 });
