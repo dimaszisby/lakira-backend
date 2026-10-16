@@ -41,11 +41,7 @@ import { requireOrgRole } from "./features/shared/auth/infrastructure/http/asser
 import { sendError } from "@/shared/utils/error-envelope.js";
 import { attachClientErrorHandler } from "@/shared/middleware/client-error.js";
 import * as Sentry from "@sentry/node";
-import {
-  scrubSentryEvent,
-  scrubSentrySpan,
-  scrubSentryTransaction,
-} from "./utils/sentry-scrub.js";
+import { SENTRY_SCRUB_HOOKS } from "./utils/sentry-scrub.js";
 import {
   SHUTDOWN_DRAIN_TIMEOUT_MS,
   drainBackgroundTasks,
@@ -67,10 +63,9 @@ if (env.SENTRY_DSN) {
     // sendDefaultPii defaults to false, but the SDK still attaches the request URL
     // with its query string, the request headers and an error's message. These
     // clean all three, and what application code passes.
-    // Transactions and spans never reach beforeSend, so each has its own hook.
-    beforeSend: scrubSentryEvent,
-    beforeSendTransaction: scrubSentryTransaction,
-    beforeSendSpan: scrubSentrySpan,
+    // Transactions, spans and logs never reach beforeSend, so each has its own
+    // hook. Logs are off; their hook is set so turning them on cannot skip it.
+    ...SENTRY_SCRUB_HOOKS,
   });
 }
 

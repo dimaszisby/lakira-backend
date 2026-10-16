@@ -1,6 +1,8 @@
 # Todo — what the review of the Sentry scrubber left open
 
-- **Status:** Open (all P3)
+- **Status:** Closed 2026-10-16 on `fix/sentry-scrubber-gaps`
+  ([`log-redaction-coverage` D-14](../initiatives/log-redaction-coverage/decisions.md)), register
+  row B-16. Each item says below whether it was fixed or accepted
 - **Created:** 2026-10-10
 - **Owner:** unassigned
 - **Origin:** the security review of `fix/c5-sentry-scrubber`
@@ -26,3 +28,22 @@ Read in the code and the SDK source by the reviewer; not reproduced unless it sa
   upgraded.
 - **Cosmetic.** A URL in angle brackets or followed by a comma can lose that character with its
   query string; `git@github.com:org/repo` becomes `[email]:org/repo`.
+
+## Outcome (2026-10-16, D-14)
+
+- **Transaction name and `logentry`:** fixed. Both are cleaned as text, and `tags` as attribute
+  data.
+- **Free text the patterns do not know:** accepted, as D-12 stated. Tests pin a name, a key with no
+  `Bearer` and a single-label domain, so a change to them is deliberate. A server-side scrubbing
+  rule in the Sentry project is the owner's to add.
+- **`user-agent` and other non-credential headers:** accepted. They describe a browser, not a
+  person, and are cleaned as text.
+- **The wiring has no test:** fixed. `SENTRY_SCRUB_HOOKS` is the object `Sentry.init` spreads, and
+  `__tests__/unit/utils/sentry-hooks.sdk.test.ts` runs it through the real SDK with a stub
+  transport, for an error event and for a log.
+- **Cosmetic:** the angle bracket did not reproduce. `git@github.com:org/repo` and a comma after a
+  query string are accepted.
+
+Also fixed under W5 of `audit-2026-10-12.md`: the userinfo of a URL of any scheme, in text and in
+URL values, and a quoted email local part with a space. A `beforeSendLog` hook is wired, with logs
+still off.

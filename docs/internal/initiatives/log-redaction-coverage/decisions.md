@@ -486,3 +486,45 @@ fixes were made after the review and have not been graded.** Left open and filed
 `event.server_name`, which is the host's own name and can embed an address; a hook that throws,
 after which the SDK sends its own event unscrubbed; and addresses written with leading zeros or
 separated by spaces alone.
+
+## D-14 — The scrubber cleans a URL's userinfo, three more event fields and Sentry logs
+
+- **Status:** Proposed
+- **Date:** 2026-10-16
+
+Micro entry for finding W5 of `audit-2026-10-12.md` and the review leftovers of D-12
+([todo](../../todos/2026-10-10-todo-sentry-scrubber-review-leftovers.md)), register row B-16.
+Commits carry `refs: log-redaction-coverage`. Nothing here is C5's route; that is W1 (D-13).
+
+**Context.** Reproduced against the scrubber at `5960efd`. A connection URL in an error message
+kept its password: `postgres://app:pw@db:5432/lakira` left unchanged, and `amqp://guest:pw@10.0.0.5`
+lost only its address. A URL value (`request.url`, a span's `url.full`) kept its `user:password@`.
+Where userinfo was cleaned at all, it was by accident: `https://user:pw@api.example.com` became
+`https://user:[email]` because the password and the host looked like an email address. Three
+fields of an error event were not touched: `transaction`, `tags` and `logentry`. A quoted email
+local part with a space passed. No `beforeSendLog` hook existed, so turning Sentry logs on would
+have sent them unscrubbed. The SDK hooks were checked only by a throwaway script.
+**Decision.** The userinfo of a URL of any scheme becomes `[credentials]`, in free text and in a
+URL value, and in text that runs before the email pattern. A URL value keeps its path: no route
+takes a secret in its path (the path parameters are `:id` and `:metricId`). `transaction` is
+cleaned as text, `tags` as attribute data (an address-valued tag drops, a URL-keyed tag is cleaned
+as a URL), and `logentry` as text, its message and each parameter. The email pattern accepts a
+quoted local part with a space. A new `scrubSentryLog` cleans a log's message as text and its
+attributes as data, and is wired now, with logs still off. The four hooks are exported as one
+object, `SENTRY_SCRUB_HOOKS`, which `Sentry.init` spreads, and a test runs them through the real
+SDK.
+**Options considered.** Dropping a URL's path along with its query: rejected, the path is how an
+event is read and holds no value today. Adding the log hook only when logs are turned on:
+rejected, that is the change most likely to forget it. Matching a query string's tail across a
+space: rejected, nothing can tell where such a tail ends without eating the rest of the message.
+**Consequences.** Accepted and not fixed, each pinned by a test named for this entry so a change is
+deliberate:
+
+- a query string written with a raw space keeps the text after the space. Express keeps `%20`, so
+  only a message the app formats itself could hold one, and none does;
+- a name, a value Postgres quotes, and a key with no `Bearer` in front still pass (D-12's limit).
+  The remedy is the rule in `security.md`, or a server-side scrubbing rule in the Sentry project;
+- `alice@localhost` passes: a single-label domain is a development address;
+- `user-agent` and other headers that carry no credential still leave, cleaned as text;
+- `git@github.com:org/repo` becomes `[email]:org/repo`, and a comma right after a query string
+  goes with it: cosmetic, on the safe side.

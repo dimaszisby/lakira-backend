@@ -7,7 +7,7 @@ convention; this log starts with the first decision taken after it.
 
 ## D-01 — The pre-production smoke sequence is one how-to page, built on `test:smoke`
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #171, `5960efd`)
 - **Date:** 2026-10-16
 
 Micro entry for register row B-15 (P3; the frontend's F-16, asked on 2026-02-18), on
