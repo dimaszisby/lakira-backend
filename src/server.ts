@@ -100,7 +100,7 @@ export const serverReady = serverBootstrapPromise;
 // * Environment Variables
 
 const app: Application = express();
-app.set("trust proxy", env.TRUST_PROXY ?? 1);
+app.set("trust proxy", env.TRUST_PROXY);
 
 // * Middlewares
 // The order is in one place, mountHttpPipeline (ADR-0061). The probes are handed to
@@ -220,6 +220,12 @@ const startServer = async () => {
     const PORT = env.PORT || 5000;
     server = app.listen(PORT, () => {
       logger.info(`[SERVER] ${APP_NAME} running on port ${PORT}`);
+      // What every per-IP limiter's req.ip depends on (register-rate-limiter D-05).
+      // In the message too: the development console prints no metadata.
+      const trustProxyHops: unknown = app.get("trust proxy");
+      logger.info(`[SERVER] Trusting ${String(trustProxyHops)} proxy hop(s)`, {
+        trustProxyHops,
+      });
     });
     attachClientErrorHandler(server);
   } catch (error) {
