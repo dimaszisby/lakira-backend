@@ -32,3 +32,12 @@ onto the envelope is `error-envelope-residuals` Phase 2, waiting on the frontend
 **Options considered.** Give this one the envelope now: rejected, it would leave two 429 shapes in
 the API, worse than one consistent exception.
 **Consequences.** Phase 2 moves it with the rest.
+
+## D-04 — A per-IP limiter keys an IPv6 client by its /64
+
+- **Status:** Proposed
+- **Date:** 2026-10-16
+
+Promoted to the architecture decision registry as **[ADR-0063](../../../explanation/decisions/adr-0063-a-per-ip-limiter-keys-an-ipv6-client-by-its-64.md)**.
+That file is authoritative; this entry is a pointer. Register row B-18, its IPv6 half; branch
+`fix/limiter-ipv6-subnet`.

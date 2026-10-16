@@ -44,6 +44,10 @@ Per route (`src/shared/middleware/rate-limiter.ts`):
 - **Password reset** and **email verification**: per hour, each keyed both by email and by IP
   (`RATE_LIMIT_PASSWORD_RESET_{EMAIL,IP}_MAX`, `RATE_LIMIT_EMAIL_VERIFICATION_{EMAIL,IP}_MAX`)
 
+Every key built from the client's address goes through `clientIpKey`: IPv4 whole, an IPv6 client
+by its /64, and `::ffff:a.b.c.d` as IPv4 (ADR-0063). `architecture.test.ts` fails on a limiter
+that keys on the raw `req.ip` or sets no `keyGenerator`.
+
 Store: in-memory under `NODE_ENV=test`; everywhere else Redis. Outside tests the in-memory store is
 used only when `REDIS_REQUIRED=false` **and** Redis is not connected — it then logs a warning,
 and limits stop being shared across instances (twelve-factor TF-12).

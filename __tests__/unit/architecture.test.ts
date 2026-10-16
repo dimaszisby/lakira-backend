@@ -616,6 +616,40 @@ describe("Architecture enforcement", () => {
       expect(helper).not.toMatch(/\.json\(/);
     });
 
+    // ADR-0063: a key read from the raw address lets an IPv6 client rotate
+    // through its /64 for a fresh budget. Without a keyGenerator the library's
+    // default is that raw address.
+    const limitersKeyedOnRawIp = (content: string): number =>
+      limiterCalls(content).filter((call) => {
+        const start = call.search(/\bkeyGenerator\s*:/);
+        if (start === -1) return true;
+        const key = call.slice(start, call.indexOf("store:", start));
+        return /\breq\.ip\b/.test(key.replaceAll("clientIpKey(req.ip)", ""));
+      }).length;
+
+    it("flags a limiter that keys on the raw address", () => {
+      const keyed =
+        "rateLimit({ keyGenerator: (req) => `x:${clientIpKey(req.ip)}`, store: s })";
+
+      expect(limitersKeyedOnRawIp(keyed)).toBe(0);
+      expect(
+        limitersKeyedOnRawIp(
+          [
+            keyed,
+            "rateLimit({ store: s, max: 1 })",
+            'rateLimit({ keyGenerator: (req) => req.ip || "anonymous", store: s })',
+            "rateLimit({ keyGenerator: (req) => `x:${req.ip}`, store: s })",
+          ].join("\n"),
+        ),
+      ).toBe(3);
+    });
+
+    it("every limiter keys the address through clientIpKey", () => {
+      const content = fs.readFileSync(path.join(SRC, LIMITER_FILE), "utf-8");
+
+      expect(limitersKeyedOnRawIp(content)).toBe(0);
+    });
+
     it("flags a numeric status written into a body", () => {
       expect(
         numericStatusBodies({
