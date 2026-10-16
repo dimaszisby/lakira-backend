@@ -100,7 +100,7 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0060](./adr-0060-the-app-takes-its-name-from-its-package.md)                  | The app takes its name from its package when `APP_NAME` is unset                                                 | Accepted               | 2026-10-07 | app-name-from-package D-01, D-03    |
 | [ADR-0061](./adr-0061-a-request-is-counted-before-its-body-is-parsed.md)           | A request is counted before its body is parsed                                                                   | Accepted               | 2026-10-13 | production-readiness D-04           |
 | [ADR-0062](./adr-0062-a-relative-range-ends-with-the-current-bucket.md)            | A relative analytics range ends with the current bucket, in the requested zone                                   | Accepted               | 2026-10-13 | analytics-relative-range D-01..03   |
-| [ADR-0063](./adr-0063-a-per-ip-limiter-keys-an-ipv6-client-by-its-64.md)           | A per-IP rate limiter keys an IPv6 client by its /64                                                             | Proposed               | 2026-10-16 | register-rate-limiter D-04          |
+| [ADR-0063](./adr-0063-a-per-ip-limiter-keys-an-ipv6-client-by-its-64.md)           | A per-IP rate limiter keys an IPv6 client by its /64                                                             | Accepted               | 2026-10-16 | register-rate-limiter D-04          |
 
 ## Adding one
 

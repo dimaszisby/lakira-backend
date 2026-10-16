@@ -46,7 +46,9 @@ Per route (`src/shared/middleware/rate-limiter.ts`):
 
 Every key built from the client's address goes through `clientIpKey`: IPv4 whole, an IPv6 client
 by its /64, and `::ffff:a.b.c.d` as IPv4 (ADR-0063). `architecture.test.ts` fails on a limiter
-that keys on the raw `req.ip` or sets no `keyGenerator`.
+that keys on the raw `req.ip` or sets no `keyGenerator`. `req.ip` itself comes from `TRUST_PROXY`,
+a whole number of hops (default 1; blank, negative or fractional is refused at startup), and the
+server logs the value in use once it listens.
 
 Store: in-memory under `NODE_ENV=test`; everywhere else Redis. Outside tests the in-memory store is
 used only when `REDIS_REQUIRED=false` **and** Redis is not connected — it then logs a warning,

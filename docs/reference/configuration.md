@@ -44,7 +44,7 @@ secrets to end in one of the suffix words, or add a term to that module.
 | `ACCESS_TOKEN_TTL_SEC`   | number                                               | `900` (15 min)                                                   |
 | `REFRESH_TOKEN_TTL_DAYS` | number                                               | `30`                                                             |
 | `CORS_ORIGIN`            | string                                               | optional — comma-separated allowlist                             |
-| `TRUST_PROXY`            | number                                               | optional — hops to trust behind a load balancer                  |
+| `TRUST_PROXY`            | whole number, 0 or more; blank refused               | `1` — proxy hops in front of the app                             |
 | `REQUEST_BODY_LIMIT`     | string                                               | `1mb`                                                            |
 | `DEFAULT_TZ`             | string                                               | `Asia/Jakarta`                                                   |
 
@@ -155,7 +155,9 @@ worker before `npm test`, because it would consume the test's messages.
 
 > `RATE_LIMIT_REGISTER_IP_MAX` bounds `POST /auth/register` per client IP (ADR-0053). Every per-IP
 > limit is only as good as `req.ip`, which depends on `TRUST_PROXY` matching the real number of
-> proxies in front of the app; see the ADR's consequences.
+> proxies in front of the app; see the ADR's consequences. Startup refuses a blank, negative or
+> fractional `TRUST_PROXY`, and once listening it logs `[SERVER] Trusting N proxy hop(s)` with the
+> value in use (`register-rate-limiter` D-05).
 
 > `DISABLE_RATE_LIMITING=true` turns off **every** limiter. It exists for test and fuzzing
 > runs. Startup **refuses** it when `NODE_ENV=production`, along with the other

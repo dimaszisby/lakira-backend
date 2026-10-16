@@ -301,7 +301,18 @@ const envSchema = z
       .default(process.env.RENDER_GIT_COMMIT || "unknown"),
 
     // HTTP
-    TRUST_PROXY: z.coerce.number().optional(),
+    // Hops of proxy in front of the app; req.ip, and so every per-IP limiter, depends
+    // on it. A whole number only: coercion read a blank value as 0, which trusts no
+    // proxy, and 1.5 as two hops (kit register-rate-limiter, D-05).
+    TRUST_PROXY: z
+      .string()
+      .trim()
+      .regex(/^\d+$/, {
+        message:
+          "TRUST_PROXY must be a whole number of proxy hops, or be removed to use 1",
+      })
+      .default("1")
+      .transform(Number),
     REQUEST_BODY_LIMIT: z.string().default("1mb"),
     SWAGGER_REQUIRE_AUTH: z
       .string()

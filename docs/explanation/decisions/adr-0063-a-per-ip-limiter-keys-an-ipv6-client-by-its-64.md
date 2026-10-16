@@ -1,6 +1,6 @@
 # ADR-0063 — A per-IP rate limiter keys an IPv6 client by its /64
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #173, `71af760`)
 - **Date:** 2026-10-16
 - **Related:** [ADR-0053](./adr-0053-registration-rate-limited-per-ip.md) (registration is limited
   per IP; its Consequences named this gap); [ADR-0057](./adr-0057-rate-limiters-answer-through-the-error-envelope.md)

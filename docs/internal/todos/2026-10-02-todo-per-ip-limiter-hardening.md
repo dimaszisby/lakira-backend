@@ -1,8 +1,9 @@
 # Todo — per-IP rate limiters: IPv6 subnets and the trusted hop count
 
-- **Status:** Partly (P3). Item 1 fixed on `fix/limiter-ipv6-subnet`
+- **Status:** Partly (P3). Item 1 fixed in #173
   ([ADR-0063](../../explanation/decisions/adr-0063-a-per-ip-limiter-keys-an-ipv6-client-by-its-64.md));
-  items 2 and 3 open, with register rows B-18 and B-05
+  item 2 fixed on `fix/trust-proxy-startup-check` (`register-rate-limiter` D-05) except the
+  per-environment record; that and item 3 stay open with register row B-05
 - **Created:** 2026-10-02
 - **Owner:** unassigned
 - **Origin:** review of kit `register-rate-limiter`; recorded in ADR-0053 § Consequences
@@ -19,7 +20,9 @@ register IP):
    fresh budget each time. The installed `express-rate-limit` is 7.5.1, which has neither the
    `ipKeyGenerator` helper nor the IPv6 key-generator validation that later majors add, so nothing
    warns.
-2. **`req.ip` depends on `TRUST_PROXY`** (`src/server.ts`, default 1 hop). With two proxies in
+2. **Partly fixed 2026-10-16 (`register-rate-limiter` D-05):** `TRUST_PROXY` is now a checked
+   whole number and startup logs it; each environment's hop count is still unrecorded (B-05).
+   **`req.ip` depends on `TRUST_PROXY`** (`src/server.ts`, default 1 hop). With two proxies in
    front, every client shares the edge's address; with the value set higher than the real hop
    count, `X-Forwarded-For` is client-controlled. The hop count of staging and production is not
    recorded anywhere in the repo, and `.env.example` leaves `TRUST_PROXY` commented out.
