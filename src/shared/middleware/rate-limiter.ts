@@ -201,7 +201,7 @@ export const createPasswordResetEmailRateLimiter = () =>
             (req.body as { email?: unknown } | undefined)?.email,
           );
           return email
-            ? `password-reset:email:${email}`
+            ? `password-reset:email:${hashEmail(email)}`
             : `password-reset:ip:${clientIpKey(req.ip)}`;
         },
         store: maybeCreateStore(),
@@ -253,7 +253,7 @@ export const createEmailVerificationEmailRateLimiter = () =>
           const email =
             typeof req.user?.email === "string" ? req.user.email : null;
           return email
-            ? `email-verification:email:${email}`
+            ? `email-verification:email:${hashEmail(email)}`
             : `email-verification:ip:${clientIpKey(req.ip)}`;
         },
         store: maybeCreateStore(),

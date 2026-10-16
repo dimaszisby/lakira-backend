@@ -14,6 +14,14 @@ The audit flagged no per-account brute-force protection ([P1-4.4]). The existing
 
 1. Use a lightweight Redis sliding-window counter (INCR + EXPIRE) rather than adding `express-brute` as a dependency.
 2. Key: `auth:lockout:<sha256(email)>` — hash the email to avoid storing PII in Redis.
+
+   > **2026-10-16:** the rule now covers the rate-limiter keys as well. The password-reset and
+   > email-verification limiters key on `hashEmail` too
+   > (`<prefix>:email:<sha256>`), and `__tests__/unit/architecture.test.ts` fails on a limiter key
+   > that interpolates an address any other way
+   > ([`log-redaction-coverage` D-15](../../internal/initiatives/log-redaction-coverage/decisions.md);
+   > register row B-19).
+
 3. Threshold: 5 failures in 15 minutes → 429.
 4. Reset on success (DEL key).
 5. Graceful degradation: if Redis is unreachable, log a warning and allow the login attempt (don't block auth because the lockout store is down).

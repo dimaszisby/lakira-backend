@@ -1,6 +1,6 @@
 # Backend debt register
 
-**As of:** 2026-10-16, backend `dev` at `71af760`. Ranked by [D-01](decisions.md).
+**As of:** 2026-10-16, backend `dev` at `702a418`. Ranked by [D-01](decisions.md).
 
 **"What's next" is the first row below whose state is `ready`.** A row above it that is waiting on
 someone is reported with it, as a gap. How rows are added and closed:
@@ -46,13 +46,12 @@ B-08, B-09 and B-10 are fixed (see Closed).
 
 ## Tier 5 — P3 and ungraded
 
-B-12, B-13, B-14 and B-15 are fixed (see Closed). B-18 is fixed (see Closed); recording each environment's hop count moved to B-05. No analysed row is open in this tier.
+B-12, B-13, B-14 and B-15 are fixed (see Closed). B-18 is fixed (see Closed); recording each environment's hop count moved to B-05. B-19 is fixed (see Closed). No analysed row is open in this tier.
 
 Listed, not analysed ([D-03](decisions.md)). Security and privacy:
 
 | ID   | Item                                                                                                                                                                                            | Sev | State           | Source                                                                                                          |
 | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | --------------- | --------------------------------------------------------------------------------------------------------------- |
-| B-19 | Two limiter store keys hold an email address                                                                                                                                                    | P3  | ready           | `2026-10-05-todo-limiter-keys-hold-email-address.md`                                                            |
 | B-20 | Two log lines still carry row data or request text                                                                                                                                              | P3  | ready           | `2026-10-05-todo-log-lines-that-carry-row-or-body-text.md` (Partly)                                             |
 | B-21 | `NODE_ENV=Production` and three defaults; other startup and config leftovers                                                                                                                    | P3  | ready           | `2026-10-10-todo-startup-and-config-review-leftovers.md`                                                        |
 | B-22 | Security polish: redirect built from `Host`; staging shows provider errors; no limiter on verify-email (S13)                                                                                    | P3  | ready           | A03 § 6 S13                                                                                                     |
@@ -151,4 +150,5 @@ Rows move here when their fix is written, with the branch; the PR number is adde
 | B-15 | No shared pre-production smoke sequence is written down (F-16)                                                     | #171 (`5960efd`); [`ci-pipeline` D-01](../ci-pipeline/decisions.md); `docs/how-to/ci-cd/run-the-pre-production-smoke-sequence.md`                                                              | Not graded by an audit; the frontend links it                    |
 | B-16 | Scrubber gaps in free text and URL values; no hook for logs (W5)                                                   | #172 (`6dc3c7f`); [`log-redaction-coverage` D-14](../log-redaction-coverage/decisions.md); the leftovers todo is closed                                                                        | Not yet; a run is owed                                           |
 | B-18 | Per-IP limiters keyed an IPv6 client per address (its first half)                                                  | #173 (`71af760`); [ADR-0063](../../../explanation/decisions/adr-0063-a-per-ip-limiter-keys-an-ipv6-client-by-its-64.md); [`register-rate-limiter` D-04](../register-rate-limiter/decisions.md) | Not graded by an audit                                           |
-| B-18 | `TRUST_PROXY` accepted a blank, negative or fractional hop count, and no startup line printed it (its second half) | `fix/trust-proxy-startup-check`; [`register-rate-limiter` D-05](../register-rate-limiter/decisions.md); each environment's hop count moves to B-05                                             | Not graded by an audit                                           |
+| B-18 | `TRUST_PROXY` accepted a blank, negative or fractional hop count, and no startup line printed it (its second half) | #174 (`702a418`); [`register-rate-limiter` D-05](../register-rate-limiter/decisions.md); each environment's hop count moves to B-05                                                            | Not graded by an audit                                           |
+| B-19 | Two limiter store keys held an email address                                                                       | `fix/limiter-keys-hash-email`; [`log-redaction-coverage` D-15](../log-redaction-coverage/decisions.md); ADR-0032 amended                                                                       | Not graded by an audit                                           |
