@@ -1,6 +1,7 @@
 # Todo — two rate-limiter store keys hold an email address
 
-- **Status:** Open (P3)
+- **Status:** Closed (P3). Fixed on `fix/limiter-keys-hash-email`: both keys hold `hashEmail`
+  ([`log-redaction-coverage` D-15](../initiatives/log-redaction-coverage/decisions.md))
 - **Created:** 2026-10-05
 - **Owner:** unassigned
 - **Origin:** found while fixing audit finding S8; kit

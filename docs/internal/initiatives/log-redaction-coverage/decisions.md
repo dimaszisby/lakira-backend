@@ -528,3 +528,29 @@ deliberate:
 - `user-agent` and other headers that carry no credential still leave, cleaned as text;
 - `git@github.com:org/repo` becomes `[email]:org/repo`, and a comma right after a query string
   goes with it: cosmetic, on the safe side.
+
+## D-15 — A rate-limiter store key names an email address by its hash
+
+- **Status:** Proposed
+- **Date:** 2026-10-16
+
+Micro entry for register row B-19
+([todo](../../todos/2026-10-05-todo-limiter-keys-hold-email-address.md)), found under D-05.
+Branch `fix/limiter-keys-hash-email`; commits carry `refs: log-redaction-coverage`.
+
+**Context.** Two keys in `src/shared/middleware/rate-limiter.ts` held the address itself:
+`password-reset:email:<address>`, from the request body, trimmed and lower-cased, and
+`email-verification:email:<address>`, from `req.user.email` as stored. With the Redis store each
+address sat in a key for the hour of the window. Their log lines already named it by `hashEmail`,
+and the login lockout's key is `auth:lockout:<hashEmail(address)>`, the rule ADR-0032 set.
+**Decision.** Both keys are `<prefix>:email:${hashEmail(email)}`. `hashEmail` trims and
+lower-cases, so the verification key now normalizes too. The IP fallbacks and the log lines are
+unchanged. ADR-0032 gets a dated note extending its rule to these keys, and a test in
+`architecture.test.ts` fails on a limiter key that interpolates an email any other way.
+**Options considered.** A keyed hash (HMAC with a secret): rejected for this row. Plain SHA-256
+lets someone who can read Redis test a list of candidate addresses, but `hashEmail` is shared by
+the lockout keys and the log lines so that they can be matched; keying it changes all three and
+adds a secret, which is a decision of its own. A new ADR: not written, since ADR-0032 already
+holds the rule and is amended, as ADR-0036 was for B-07 and B-12.
+**Consequences.** Counters under the old keys are orphaned on deploy and expire within the hour,
+so every address gets one fresh window.

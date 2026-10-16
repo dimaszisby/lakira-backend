@@ -44,7 +44,7 @@ That file is authoritative; this entry is a pointer. Register row B-18, its IPv6
 
 ## D-05 — `TRUST_PROXY` must be a whole number of hops, and startup prints it
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #174, `702a418`)
 - **Date:** 2026-10-16
 
 **Context.** Register row B-18, its second half; branch `fix/trust-proxy-startup-check`. Every

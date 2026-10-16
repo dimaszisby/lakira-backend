@@ -650,6 +650,41 @@ describe("Architecture enforcement", () => {
       expect(limitersKeyedOnRawIp(content)).toBe(0);
     });
 
+    // log-redaction-coverage D-15 (ADR-0032): a store key names an email address
+    // by its hash, as the lockout does; the address itself would sit in Redis for
+    // the hour of the window.
+    const limitersKeyedOnEmail = (content: string): number =>
+      limiterCalls(content).filter((call) => {
+        const start = call.search(/\bkeyGenerator\s*:/);
+        if (start === -1) return false;
+        const key = call.slice(start, call.indexOf("store:", start));
+        return [...key.matchAll(/\$\{([^}]*)\}/g)].some(
+          ([, expr]) => /email/i.test(expr) && !/^\s*hashEmail\(/.test(expr),
+        );
+      }).length;
+
+    it("flags a limiter key that holds an email address", () => {
+      const hashed =
+        "rateLimit({ keyGenerator: (req) => `x:email:${hashEmail(email)}`, store: s })";
+
+      expect(limitersKeyedOnEmail(hashed)).toBe(0);
+      expect(
+        limitersKeyedOnEmail(
+          [
+            hashed,
+            "rateLimit({ keyGenerator: (req) => `x:email:${email}`, store: s })",
+            "rateLimit({ keyGenerator: (req) => `x:${req.user.email}`, store: s })",
+          ].join("\n"),
+        ),
+      ).toBe(2);
+    });
+
+    it("every limiter names an email address by its hash", () => {
+      const content = fs.readFileSync(path.join(SRC, LIMITER_FILE), "utf-8");
+
+      expect(limitersKeyedOnEmail(content)).toBe(0);
+    });
+
     it("flags a numeric status written into a body", () => {
       expect(
         numericStatusBodies({

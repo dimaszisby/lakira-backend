@@ -1,6 +1,7 @@
 import { describe, beforeEach, it, expect, jest } from "@jest/globals";
 import type { AuthRequest } from "@/types/request.context.js";
 import type { Response } from "express";
+import { hashEmail } from "@/utils/email-hash.js";
 import {
   clientIpKey,
   createGlobalRateLimiter,
@@ -202,6 +203,21 @@ describe("rate limiter middleware", () => {
     expect(limiter.keyGenerator(req)).toBe("9.9.9.9");
   });
 
+  it("keys the password reset email limiter on the address's hash", () => {
+    redisClient.isOpen = true;
+    const limiter = unwrapLimiter(createPasswordResetEmailRateLimiter());
+    const keyFor = (email: unknown) =>
+      limiter.keyGenerator({ body: { email }, ip: "1.2.3.4" } as AuthRequest);
+
+    // log-redaction-coverage D-15: never the address itself in a store key.
+    expect(keyFor("test@example.com")).toBe(
+      `password-reset:email:${hashEmail("test@example.com")}`,
+    );
+    expect(keyFor(" Test@Example.com ")).toBe(keyFor("test@example.com"));
+    expect(keyFor("test@example.com")).not.toContain("example.com");
+    expect(keyFor("   ")).toBe("password-reset:ip:1.2.3.4");
+  });
+
   it("uses per-email key and configured max for email verification email limiter", () => {
     redisClient.isOpen = true;
     const limiter = unwrapLimiter(createEmailVerificationEmailRateLimiter());
@@ -213,9 +229,19 @@ describe("rate limiter middleware", () => {
     } as AuthRequest;
     const anonReq = { ip: "1.2.3.4" } as AuthRequest;
 
+    // log-redaction-coverage D-15: the store key names the address by its hash.
     expect(limiter.keyGenerator(authedReq)).toBe(
-      "email-verification:email:test@example.com",
+      `email-verification:email:${hashEmail("test@example.com")}`,
     );
+    expect(limiter.keyGenerator(authedReq)).toMatch(
+      /^email-verification:email:[a-f0-9]{64}$/,
+    );
+    expect(
+      limiter.keyGenerator({
+        user: { id: "user-1", email: "Test@Example.com" },
+        ip: "1.2.3.4",
+      } as AuthRequest),
+    ).toBe(limiter.keyGenerator(authedReq));
     expect(limiter.keyGenerator(anonReq)).toBe("email-verification:ip:1.2.3.4");
     expect(limiter.max).toBe(envMock.RATE_LIMIT_EMAIL_VERIFICATION_EMAIL_MAX);
 
