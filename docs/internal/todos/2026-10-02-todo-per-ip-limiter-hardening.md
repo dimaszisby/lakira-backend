@@ -1,6 +1,8 @@
 # Todo — per-IP rate limiters: IPv6 subnets and the trusted hop count
 
-- **Status:** Open (P3)
+- **Status:** Partly (P3). Item 1 fixed on `fix/limiter-ipv6-subnet`
+  ([ADR-0063](../../explanation/decisions/adr-0063-a-per-ip-limiter-keys-an-ipv6-client-by-its-64.md));
+  items 2 and 3 open, with register rows B-18 and B-05
 - **Created:** 2026-10-02
 - **Owner:** unassigned
 - **Origin:** review of kit `register-rate-limiter`; recorded in ADR-0053 § Consequences
@@ -13,7 +15,7 @@ Three weaknesses shared by every per-IP limiter in `src/shared/middleware/rate-l
 user and analytics fallbacks, switch-org fallback, password-reset IP, email-verification IP,
 register IP):
 
-1. **IPv6 is keyed per address.** A client with an IPv6 /64 can rotate source addresses and get a
+1. **Fixed 2026-10-16 (ADR-0063).** **IPv6 is keyed per address.** A client with an IPv6 /64 can rotate source addresses and get a
    fresh budget each time. The installed `express-rate-limit` is 7.5.1, which has neither the
    `ipKeyGenerator` helper nor the IPv6 key-generator validation that later majors add, so nothing
    warns.

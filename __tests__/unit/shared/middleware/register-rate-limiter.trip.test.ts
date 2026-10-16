@@ -66,4 +66,17 @@ describe("register IP rate limiter (real limiter)", () => {
 
     expect((await from("198.51.100.9")).status).toBe(201);
   });
+
+  // ADR-0063: rotating addresses inside one IPv6 /64 does not buy a new budget.
+  it("gives every address in one IPv6 /64 one budget", async () => {
+    const app = await buildApp();
+    const from = (ip: string) =>
+      request(app).post("/register").set("X-Forwarded-For", ip);
+
+    expect((await from("2001:db8:0:1::1")).status).toBe(201);
+    expect((await from("2001:db8:0:1::2")).status).toBe(201);
+    expect((await from("2001:db8:0:1:ffff::3")).status).toBe(429);
+
+    expect((await from("2001:db8:0:2::1")).status).toBe(201);
+  });
 });

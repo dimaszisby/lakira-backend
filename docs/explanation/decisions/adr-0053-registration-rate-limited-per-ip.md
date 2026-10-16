@@ -70,6 +70,9 @@ It uses the shared Redis store outside tests, becomes a no-op under `DISABLE_RAT
   fresh budget for each. The installed `express-rate-limit` (7.5.1) has no IPv6 subnet helper.
   Shared by all per-IP limiters; tracked in
   `docs/internal/todos/2026-10-02-todo-per-ip-limiter-hardening.md`.
+  > **2026-10-16:** resolved by [ADR-0063](./adr-0063-a-per-ip-limiter-keys-an-ipv6-client-by-its-64.md).
+  > Every per-IP key now counts an IPv6 client by its /64. The hop count above is still open
+  > (register rows B-18 and B-05).
 - **The 429 body is the current rate-limit shape** (`{status: 429, message}`), documented on the
   route in OpenAPI. When `error-envelope-residuals` Phase 2 moves the limiters onto the error
   envelope, this one moves with them.

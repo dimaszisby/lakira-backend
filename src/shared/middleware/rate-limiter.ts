@@ -1,3 +1,4 @@
+import { isIPv6 } from "node:net";
 import { env } from "@/config/envManager.js";
 import rateLimit, { type Options } from "express-rate-limit";
 import RedisStore from "rate-limit-redis";
@@ -7,6 +8,53 @@ import { AuthRequest } from "@/types/request.context.js";
 import logger from "@/utils/logger.js";
 import { hashEmail } from "@/utils/email-hash.js";
 import { sendError } from "@/shared/utils/error-envelope.js";
+
+/** The eight 16-bit groups of an IPv6 address, or null when it is not one. */
+const ipv6Groups = (ip: string): number[] | null => {
+  const bare = ip.replace(/%.*$/, "");
+  if (!isIPv6(bare)) return null;
+  // A dotted IPv4 tail ("64:ff9b::192.0.2.1") is two groups.
+  const tail = /(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(bare);
+  const hex = tail
+    ? bare.slice(0, tail.index) +
+      `${((+tail[1] << 8) | +tail[2]).toString(16)}:` +
+      ((+tail[3] << 8) | +tail[4]).toString(16)
+    : bare;
+  const [head, rest] = hex.split("::");
+  const left = head ? head.split(":") : [];
+  const right = rest ? rest.split(":") : [];
+  const zeros =
+    rest === undefined ? [] : Array(8 - left.length - right.length).fill("0");
+  return [...left, ...zeros, ...right].map((group) => parseInt(group, 16));
+};
+
+/**
+ * The part of a client's address a per-IP limiter counts (ADR-0063). IPv4 is
+ * kept whole. An IPv6 client is keyed by its /64, which it can fill with
+ * addresses at will. The server listens dual-stack, so an IPv4 client can
+ * arrive as `::ffff:a.b.c.d`; that is turned back into IPv4 first, or every
+ * IPv4 client would share the all-zero /64.
+ */
+export const clientIpKey = (ip: string | undefined): string => {
+  if (!ip) return "anonymous";
+  const groups = ipv6Groups(ip);
+  if (!groups) return ip;
+  if (
+    groups.slice(0, 5).every((group) => group === 0) &&
+    groups[5] === 0xffff
+  ) {
+    return [
+      groups[6] >> 8,
+      groups[6] & 0xff,
+      groups[7] >> 8,
+      groups[7] & 0xff,
+    ].join(".");
+  }
+  return `${groups
+    .slice(0, 4)
+    .map((group) => group.toString(16))
+    .join(":")}::/64`;
+};
 
 const noopRateLimiter: RequestHandler = (_req, _res, next) => next();
 let disableNoticeLogged = false;
@@ -57,6 +105,7 @@ export const createGlobalRateLimiter = () =>
   env.DISABLE_RATE_LIMITING
     ? (maybeLogDisableNotice(), noopRateLimiter)
     : rateLimit({
+        keyGenerator: (req: AuthRequest): string => clientIpKey(req.ip),
         store: maybeCreateStore(),
         windowMs: 15 * 60 * 1000,
         max: env.RATE_LIMIT_GLOBAL_MAX,
@@ -75,7 +124,7 @@ export const createUserRateLimiter = () =>
     ? (maybeLogDisableNotice(), noopRateLimiter)
     : rateLimit({
         keyGenerator: (req: AuthRequest): string => {
-          return req.user?.id ? `user:${req.user.id}` : req.ip || "anonymous";
+          return req.user?.id ? `user:${req.user.id}` : clientIpKey(req.ip);
         },
         store: maybeCreateStore(),
         windowMs: 15 * 60 * 1000,
@@ -98,7 +147,7 @@ export const createAnalyticsRateLimiter = () =>
         keyGenerator: (req: AuthRequest): string => {
           return req.user?.id
             ? `analytics:${req.user.id}`
-            : req.ip || "anonymous";
+            : clientIpKey(req.ip);
         },
         store: maybeCreateStore(),
         windowMs: 60 * 1000,
@@ -121,7 +170,7 @@ export const createSwitchOrgRateLimiter = () =>
         keyGenerator: (req: AuthRequest): string => {
           return req.user?.id
             ? `switch-org:${req.user.id}`
-            : req.ip || "anonymous";
+            : clientIpKey(req.ip);
         },
         store: maybeCreateStore(),
         windowMs: 15 * 60 * 1000,
@@ -153,7 +202,7 @@ export const createPasswordResetEmailRateLimiter = () =>
           );
           return email
             ? `password-reset:email:${email}`
-            : `password-reset:ip:${req.ip || "anonymous"}`;
+            : `password-reset:ip:${clientIpKey(req.ip)}`;
         },
         store: maybeCreateStore(),
         windowMs: 60 * 60 * 1000,
@@ -182,7 +231,7 @@ export const createPasswordResetIpRateLimiter = () =>
     ? (maybeLogDisableNotice(), noopRateLimiter)
     : rateLimit({
         keyGenerator: (req: AuthRequest): string =>
-          `password-reset-ip:${req.ip || "anonymous"}`,
+          `password-reset-ip:${clientIpKey(req.ip)}`,
         store: maybeCreateStore(),
         windowMs: 60 * 60 * 1000,
         max: env.RATE_LIMIT_PASSWORD_RESET_IP_MAX,
@@ -205,7 +254,7 @@ export const createEmailVerificationEmailRateLimiter = () =>
             typeof req.user?.email === "string" ? req.user.email : null;
           return email
             ? `email-verification:email:${email}`
-            : `email-verification:ip:${req.ip || "anonymous"}`;
+            : `email-verification:ip:${clientIpKey(req.ip)}`;
         },
         store: maybeCreateStore(),
         windowMs: 60 * 60 * 1000,
@@ -229,7 +278,7 @@ export const createEmailVerificationIpRateLimiter = () =>
     ? (maybeLogDisableNotice(), noopRateLimiter)
     : rateLimit({
         keyGenerator: (req: AuthRequest): string =>
-          `email-verification-ip:${req.ip || "anonymous"}`,
+          `email-verification-ip:${clientIpKey(req.ip)}`,
         store: maybeCreateStore(),
         windowMs: 60 * 60 * 1000,
         max: env.RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX,
@@ -254,7 +303,7 @@ export const createRegisterIpRateLimiter = () =>
     ? (maybeLogDisableNotice(), noopRateLimiter)
     : rateLimit({
         keyGenerator: (req: AuthRequest): string =>
-          `register-ip:${req.ip || "anonymous"}`,
+          `register-ip:${clientIpKey(req.ip)}`,
         store: maybeCreateStore(),
         windowMs: 60 * 60 * 1000,
         max: env.RATE_LIMIT_REGISTER_IP_MAX,

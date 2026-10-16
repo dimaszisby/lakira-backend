@@ -489,7 +489,7 @@ separated by spaces alone.
 
 ## D-14 — The scrubber cleans a URL's userinfo, three more event fields and Sentry logs
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #172, `6dc3c7f`)
 - **Date:** 2026-10-16
 
 Micro entry for finding W5 of `audit-2026-10-12.md` and the review leftovers of D-12

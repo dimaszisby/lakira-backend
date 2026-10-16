@@ -2,9 +2,13 @@ import { describe, beforeEach, it, expect, jest } from "@jest/globals";
 import type { AuthRequest } from "@/types/request.context.js";
 import type { Response } from "express";
 import {
+  clientIpKey,
   createGlobalRateLimiter,
   createUserRateLimiter,
   createAnalyticsRateLimiter,
+  createSwitchOrgRateLimiter,
+  createPasswordResetEmailRateLimiter,
+  createPasswordResetIpRateLimiter,
   createEmailVerificationEmailRateLimiter,
   createEmailVerificationIpRateLimiter,
   createRegisterIpRateLimiter,
@@ -309,5 +313,82 @@ describe("rate limiter middleware", () => {
     expect(loggerMock.info).toHaveBeenCalledWith(
       "[RATE LIMITER] DISABLE_RATE_LIMITING=true — skipping throttling (contract tests / fuzzing runs).",
     );
+  });
+});
+
+// ADR-0063: an IPv6 client is keyed by its /64, an IPv4 client as before.
+describe("clientIpKey", () => {
+  it.each([
+    ["no address", undefined, "anonymous"],
+    ["an empty address", "", "anonymous"],
+    ["IPv4", "203.0.113.9", "203.0.113.9"],
+    ["IPv4-mapped IPv6, dotted", "::ffff:203.0.113.9", "203.0.113.9"],
+    ["IPv4-mapped IPv6, in hex", "::ffff:cb00:7109", "203.0.113.9"],
+    ["IPv4-mapped IPv6, upper case", "::FFFF:203.0.113.9", "203.0.113.9"],
+    ["an IPv6 address", "2001:db8:0:1::a", "2001:db8:0:1::/64"],
+    [
+      "the full spelling of one",
+      "2001:0DB8:0000:0001:ffff:0001:0002:0003",
+      "2001:db8:0:1::/64",
+    ],
+    ["a zone id", "fe80::1%eth0", "fe80:0:0:0::/64"],
+    ["a dotted IPv4 tail", "64:ff9b::192.0.2.1", "64:ff9b:0:0::/64"],
+    ["loopback", "::1", "0:0:0:0::/64"],
+    ["the unspecified address", "::", "0:0:0:0::/64"],
+    ["something that is not an address", "not-an-ip", "not-an-ip"],
+  ])("keys %s", (_name, ip, expected) => {
+    expect(clientIpKey(ip)).toBe(expected);
+  });
+
+  it("gives neighbouring /64s different keys", () => {
+    expect(clientIpKey("2001:db8:0:1::1")).not.toBe(
+      clientIpKey("2001:db8:0:2::1"),
+    );
+  });
+});
+
+describe("every per-IP key groups an IPv6 /64 (ADR-0063)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    envMock.DISABLE_RATE_LIMITING = false;
+  });
+
+  // A keyGenerator the library's default would apply when a limiter sets none.
+  const defaultKey = (req: AuthRequest) => req.ip;
+
+  it.each([
+    ["global", createGlobalRateLimiter, ""],
+    ["user", createUserRateLimiter, ""],
+    ["analytics", createAnalyticsRateLimiter, ""],
+    ["switch-org", createSwitchOrgRateLimiter, ""],
+    [
+      "password reset email",
+      createPasswordResetEmailRateLimiter,
+      "password-reset:ip:",
+    ],
+    [
+      "password reset IP",
+      createPasswordResetIpRateLimiter,
+      "password-reset-ip:",
+    ],
+    [
+      "email verification email",
+      createEmailVerificationEmailRateLimiter,
+      "email-verification:ip:",
+    ],
+    [
+      "email verification IP",
+      createEmailVerificationIpRateLimiter,
+      "email-verification-ip:",
+    ],
+    ["register", createRegisterIpRateLimiter, "register-ip:"],
+  ])("the %s limiter", (_name, create, prefix) => {
+    const limiter = unwrapLimiter(create());
+    const keyOf = (ip: string) =>
+      (limiter.keyGenerator ?? defaultKey)({ ip, body: {} } as AuthRequest);
+
+    expect(keyOf("2001:db8:0:1::a")).toBe(`${prefix}2001:db8:0:1::/64`);
+    expect(keyOf("2001:db8:0:1:ffff:1:2:3")).toBe(`${prefix}2001:db8:0:1::/64`);
+    expect(keyOf("::ffff:203.0.113.9")).toBe(`${prefix}203.0.113.9`);
   });
 });
