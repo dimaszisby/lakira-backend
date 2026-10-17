@@ -26,7 +26,12 @@ export async function withTestEnv<T>(
     [string, string | undefined]
   >) {
     previousValues[key] = process.env[key];
-    process.env[key] = value;
+    // Assigning undefined to process.env stores the string "undefined".
+    if (typeof value === "undefined") {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
   }
 
   try {

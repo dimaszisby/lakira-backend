@@ -15,7 +15,9 @@ const config = {
   development: {
     url: process.env.DEVELOPMENT_DATABASE_URL,
     dialect: "postgres",
-    logging: console.log,
+    // Migration SQL is printed only on request, as the app's own DB_LOGGING does
+    // (kit log-redaction-coverage, D-17).
+    logging: process.env.DB_LOGGING === "true" ? console.log : false,
     username: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,

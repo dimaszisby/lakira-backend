@@ -1,6 +1,6 @@
 # Backend debt register
 
-**Status:** Register and eleven analyses written; nothing is fixed here. Top ready row: B-21. Fixed so far: B-01, B-02, B-06, B-07, B-08, B-09, B-10, B-12, B-13, B-14, B-15, B-16, B-17, B-18, B-19, B-20 and B-49. A dated audit run is owed after B-01.
+**Status:** Register and eleven analyses written; nothing is fixed here. Top ready row: B-22. Fixed so far: B-01, B-02, B-06, B-07, B-08, B-09, B-10, B-12, B-13, B-14, B-15, B-16, B-17, B-18, B-19, B-20, B-21 and B-49. A dated audit run is owed after B-01.
 **Slug:** `backend-debt-register` · **Branch:** `docs/backend-debt-register`
 
 - [Register](register.md) — every open item, ranked. **"What's next" is answered from here**

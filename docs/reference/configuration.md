@@ -36,17 +36,20 @@ secrets to end in one of the suffix words, or add a term to that module.
 
 ## Core
 
-| Variable                 | Type                                                 | Default                                                          |
-| ------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------- |
-| `NODE_ENV`               | `development` \| `test` \| `staging` \| `production` | `development`; the production image sets `production` (ADR-0050) |
-| `PORT`                   | number                                               | `5000`                                                           |
-| `JWT_SECRET`             | string, 32+ characters in staging and production     | **required**                                                     |
-| `ACCESS_TOKEN_TTL_SEC`   | number                                               | `900` (15 min)                                                   |
-| `REFRESH_TOKEN_TTL_DAYS` | number                                               | `30`                                                             |
-| `CORS_ORIGIN`            | string                                               | optional — comma-separated allowlist                             |
-| `TRUST_PROXY`            | whole number, 0 or more; blank refused               | `1` — proxy hops in front of the app                             |
-| `REQUEST_BODY_LIMIT`     | string                                               | `1mb`                                                            |
-| `DEFAULT_TZ`             | string                                               | `Asia/Jakarta`                                                   |
+| Variable                 | Type                                                           | Default                                                          |
+| ------------------------ | -------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `NODE_ENV`               | `development` \| `test` \| `staging` \| `production`, any case | `development`; the production image sets `production` (ADR-0050) |
+| `PORT`                   | number                                                         | `5000`                                                           |
+| `JWT_SECRET`             | string, 32+ characters in staging and production               | **required**                                                     |
+| `ACCESS_TOKEN_TTL_SEC`   | number                                                         | `900` (15 min)                                                   |
+| `REFRESH_TOKEN_TTL_DAYS` | number                                                         | `30`                                                             |
+| `CORS_ORIGIN`            | string                                                         | optional — comma-separated allowlist                             |
+| `TRUST_PROXY`            | whole number, 0 or more; blank refused                         | `1` — proxy hops in front of the app                             |
+| `REQUEST_BODY_LIMIT`     | string                                                         | `1mb`                                                            |
+| `DEFAULT_TZ`             | string                                                         | `Asia/Jakarta`                                                   |
+
+> `NODE_ENV` is read in any case: `Production` runs as `production`, and every default that
+> depends on it, such as `DB_SSL_REJECT_UNAUTHORIZED`, follows the lowercase name.
 
 ## Database
 
@@ -71,7 +74,8 @@ the per-environment URL is selected by `NODE_ENV`.
 > in production (ADR-0036). `DB_LOGGING=true` routes SQL through `logger.debug`, so it only
 > produces output when `LOG_LEVEL` is `debug` or lower. It is a development tool: the statement
 > text carries the values of its `WHERE` clause, so it is **refused** in production (ADR-0036) and
-> has no effect in staging or test.
+> has no effect in staging or test. It also decides whether development migrations print their SQL
+> (`src/config/config.cjs`); they do not by default.
 >
 > Logs go to **stdout only**; the app writes no log files (ADR-0041). Access-log lines carry the
 > request path with the query string stripped — redaction covers log metadata, not URL strings or
@@ -214,15 +218,15 @@ like every other URL.
 
 ## Observability & operations
 
-| Variable                    | Type    | Default                                         |
-| --------------------------- | ------- | ----------------------------------------------- |
-| `SENTRY_DSN`                | string  | optional — Sentry is off when unset             |
-| `SENTRY_TRACES_SAMPLE_RATE` | number  | `0`                                             |
-| `APP_RELEASE`               | string  | `"unknown"` (falls back to `RENDER_GIT_COMMIT`) |
-| `SWAGGER_REQUIRE_AUTH`      | boolean | `true`                                          |
-| `ENABLE_DUMMY_ENDPOINTS`    | boolean | `true` in development/test, else `false`        |
-| `ALLOW_TEST_HTTP_SERVER`    | boolean | `false`                                         |
-| `JEST_TIMEOUT`              | number  | `30000`                                         |
+| Variable                    | Type                            | Default                                         |
+| --------------------------- | ------------------------------- | ----------------------------------------------- |
+| `SENTRY_DSN`                | DSN; a malformed one is refused | optional — Sentry is off when unset or blank    |
+| `SENTRY_TRACES_SAMPLE_RATE` | number                          | `0`                                             |
+| `APP_RELEASE`               | string                          | `"unknown"` (falls back to `RENDER_GIT_COMMIT`) |
+| `SWAGGER_REQUIRE_AUTH`      | boolean                         | `true`                                          |
+| `ENABLE_DUMMY_ENDPOINTS`    | boolean                         | `true` in development/test, else `false`        |
+| `ALLOW_TEST_HTTP_SERVER`    | boolean                         | `false`                                         |
+| `JEST_TIMEOUT`              | number                          | `30000`                                         |
 
 ## Branding
 

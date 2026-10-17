@@ -1,6 +1,8 @@
 # Todo — what the review of the startup-URL and `DB_LOGGING` fixes left open
 
-- **Status:** Open (all P3)
+- **Status:** Closed (all P3), on `fix/startup-config-leftovers`
+  ([`log-redaction-coverage` D-17](../initiatives/log-redaction-coverage/decisions.md)). Each
+  item's outcome is under Resolution
 - **Created:** 2026-10-10
 - **Owner:** unassigned
 - **Origin:** the security review of `fix/c6-startup-url-db-logging`
@@ -30,3 +32,17 @@ All read in the code by the reviewer and not reproduced.
   that production starts with `DB_LOGGING` unset.
 - **Dead branches.** The three `Number.isNaN` port checks in `zodEnv.ts` cannot be reached:
   `new URL` rejects a non-numeric port first. The `PORT` transform's error says `REDIS_PORT`.
+
+## Resolution
+
+- **`NODE_ENV=Production`:** reproduced. Against the build on `dev`, it gave
+  `DB_SSL_REJECT_UNAUTHORIZED=false` and `LOG_LEVEL=debug`; the logger itself already used `http`.
+  The schema is now built from the lowercased value, at parse time, and a test covers three spellings.
+  Seven defaults read it, not three; the other four were wrong only harmlessly.
+- **Development migrations:** print SQL only with `DB_LOGGING=true`.
+- **RabbitMQ credentials:** `buildAmqpUrl` encodes the user and password.
+- **Third-party messages:** amqplib's errors quote no URL; `@sentry/core` prints a DSN it cannot
+  parse in full. A malformed `SENTRY_DSN` is now refused at startup, by name.
+- **Tests:** `withTestEnv` now unsets a variable whose override is `undefined`; the
+  `DATABASE_URL` fallback and production's `DB_LOGGING` default each have a case.
+- **Dead branches:** removed; the `PORT` error says `PORT`.
