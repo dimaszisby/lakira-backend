@@ -36,10 +36,15 @@ ADR-0042 makes this image the deploy artefact. It has to be proven before that w
       refusal — so the image's default really is production;
    5. in production mode it serves `/api/v1/health` (reporting `production` and the `APP_RELEASE`
       it was given) and `/api/v1/ready` (database and Redis both `ok`), and answers plain HTTP
-      with the 301 redirect;
+      with the 301 redirect (a 403 since 2026-10-17; see the note below);
    6. `docker stop` ends it with exit code 0.
 2. **A workflow, `Image Smoke` (`.github/workflows/image-smoke.yml`), runs it** on the same
    triggers as `Fork Smoke`: every push to the working branches and every pull request.
+
+   > **2026-10-17:** check 5 now expects plain HTTP to get `403` on an API route and `200` on
+   > `/health`, since production refuses plain HTTP rather than redirecting it
+   > ([`error-envelope-residuals` D-10](../../internal/initiatives/error-envelope-residuals/decisions.md)).
+
 3. **The smoke brings its own Postgres and Redis** as throwaway containers on a private Docker
    network. Postgres runs with TLS, because production mode connects over TLS
    (`src/config/db.ts`); it uses the self-signed certificate the official image ships. Only the

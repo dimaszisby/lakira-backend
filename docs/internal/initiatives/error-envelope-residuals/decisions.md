@@ -181,3 +181,45 @@ of the upstream's name. The example `Max-Age=604800` is seven days, the default 
 deployment that changes `REFRESH_TOKEN_TTL_DAYS` sends another number, and the description says
 "the refresh token's lifetime". `Secure` is described as added in staging and production, which
 is what the controller does. Not graded by anyone else.
+
+## D-10 — Plain HTTP in production is refused, not redirected; staging masks 5xx messages
+
+- **Status:** Proposed
+- **Date:** 2026-10-17
+
+Micro entry for register row B-22 (audit finding S13, `audit-2026-10-03.md`), on
+`fix/security-polish-s13`. Written before any code. The owner chose both points on 2026-10-17.
+
+**Context.** S13 has four parts. Two are about what an error response says. Production redirected
+plain HTTP to `https://` plus the request's own `Host` header, so the target was whatever host the
+client named; the production API URL is undecided (register row B-04), so no setting could supply
+the real one. And the error handler masked a 5xx message only when `NODE_ENV=production`, so
+staging answered with a provider's error text. The other two parts need no decision:
+`POST /auth/verify-email` had only the global limiter, and `fork-smoke.yml` declared no
+`permissions:`.
+**Decision.** Two points, and two that follow existing patterns.
+
+1. In production, a request that is neither TLS nor marked `x-forwarded-proto: https` gets `403`
+   with the error envelope, message `HTTPS is required`. No `Host` is read and no URL is built.
+   The check moves from after `helmet()` to just after the probes, still ahead of the limiter and
+   the parsers, so a refused request is neither counted nor parsed. `/health` and `/ready` answer
+   over plain HTTP: a platform health check that reaches the app without `x-forwarded-proto` got
+   a 301 before, which a platform reads as healthy, and would read a 403 as a failed deploy. The
+   probes read no body and say nothing they do not say over HTTPS. Decided while writing the
+   tests, on reading that the image smoke always marks its probes as HTTPS and so cannot show
+   what the platform sends. The pipeline option `redirectToHttps` becomes `requireHttps`.
+2. A 5xx message is masked unless `NODE_ENV` is `development` or `test`.
+3. `POST /verify-email` puts `emailVerificationIpRateLimiter` first, sharing its budget with
+   `/resend-verification` as `/reset-password` shares the reset limiter with `/forgot-password`.
+4. `fork-smoke.yml` declares `permissions: contents: read`, as every other workflow does.
+
+**Options considered.** A configured host to redirect to: rejected, the production API URL is
+undecided, so the redirect would stay off until B-04 lands. An allowlist of hosts: rejected, no
+variable names the API's own host. `426 Upgrade Required`: rejected, it asks for a protocol upgrade
+on the same connection, not a move to TLS. A redirect keeps no value for an API client either: a
+301 turns a `POST` into a `GET`. Leaving staging unmasked for debugging: offered and not chosen;
+the real text is in the log line and in Sentry.
+**Consequences.** A client that relied on the redirect gets a 403 and must use `https://`; the
+probes are the one exception. On
+staging, the frontend sees "Something went wrong!" for a 5xx. ADR-0061 and ADR-0055 get dated
+notes. The image smoke's check 5 expects the 403.

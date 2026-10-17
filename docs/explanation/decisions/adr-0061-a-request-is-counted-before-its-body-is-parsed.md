@@ -52,6 +52,13 @@ in `src/server.ts`.
    | 11  | `xss-clean`          | after the parsers it sanitises                                      |
    | 12  | `hpp`                |                                                                     |
 
+   > **2026-10-17:** row 4 changed. Plain HTTP in production is refused with a `403`, not
+   > redirected, and the check now runs just after the probes (row 7), still ahead of the limiter
+   > and the parsers: a refused request is neither counted nor parsed. The probes answer plain
+   > HTTP, for a platform health check that sends no `x-forwarded-proto`
+   > ([`error-envelope-residuals` D-10](../../internal/initiatives/error-envelope-residuals/decisions.md);
+   > register row B-22, audit S13).
+
 2. **The order lives in one function**, `mountHttpPipeline` in
    `src/shared/middleware/http-pipeline.ts`. `src/server.ts` calls it once, before it registers
    anything else on the app, and passes it the limiter and a callback that mounts the probes.
@@ -96,7 +103,7 @@ in `src/server.ts`.
   server passes the real limiter and registers nothing on the app before the pipeline, and no
   other file under `src/` imports a parser or the security middleware.
 - `__tests__/integration/health/` proves on the real app that both probes ignore a body.
-- `npm run docker:smoke` exercises the probes and the redirect in production mode.
+- `npm run docker:smoke` exercises the probes and the refusal of plain HTTP in production mode.
 
 Not enforced by a test: that the real app, with rate limiting on, counts before it parses. The
 integration suite disables rate limiting. It was checked by hand on the built server when this

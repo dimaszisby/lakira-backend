@@ -7,6 +7,9 @@ import xssClean from "xss-clean";
 import { accessLogMiddleware } from "./access-log.js";
 import { disallowTraceMethod } from "./method-guard.js";
 import { requestIdMiddleware } from "./request-id.js";
+import { sendError } from "@/shared/utils/error-envelope.js";
+
+const HTTPS_REQUIRED_MESSAGE = "HTTPS is required";
 
 export type HttpPipelineOptions = {
   /** The app-wide limiter. A no-op when rate limiting is disabled. */
@@ -14,8 +17,8 @@ export type HttpPipelineOptions = {
   corsOrigins: string[];
   /** `REQUEST_BODY_LIMIT`, in the form body-parser takes ("1mb"). */
   bodyLimit: string;
-  /** Production only: a plain-HTTP request is answered with a 301. */
-  redirectToHttps: boolean;
+  /** Production only: a plain-HTTP request is refused with a 403, probes excepted. */
+  requireHttps: boolean;
   /** Registers `/health` and `/ready` at the point the pipeline reserves for them. */
   mountProbes: (app: Application) => void;
 };
@@ -37,19 +40,6 @@ export const mountHttpPipeline = (
 
   app.use(helmet()); // Secure HTTP headers
 
-  // HTTPS redirect — after helmet() so the 301 response includes HSTS and other security headers
-  if (options.redirectToHttps) {
-    app.use((req, res, next) => {
-      if (!req.secure && req.get("x-forwarded-proto") !== "https") {
-        return res.redirect(
-          301,
-          `https://${req.headers.host ?? ""}${req.originalUrl}`,
-        );
-      }
-      next();
-    });
-  }
-
   // Disallow TRACE (and similar unsupported verbs) globally so contracts receive 405 responses.
   app.use(disallowTraceMethod);
 
@@ -65,6 +55,21 @@ export const mountHttpPipeline = (
   // Ahead of the limiter, so a platform probe is never throttled, and ahead of the
   // parsers, so a probe reads no body.
   options.mountProbes(app);
+
+  // HTTPS required — production only. Refused, not redirected: a redirect target
+  // built from the Host header is whatever host the client names, and a 301 turns
+  // a POST into a GET. Below the probes, so a platform health check that sends no
+  // x-forwarded-proto still passes; above the limiter and the parsers, so a refused
+  // request is neither counted nor parsed (error-envelope-residuals D-10).
+  if (options.requireHttps) {
+    app.use((req, res, next) => {
+      if (!req.secure && req.get("x-forwarded-proto") !== "https") {
+        sendError(res, 403, HTTPS_REQUIRED_MESSAGE);
+        return;
+      }
+      next();
+    });
+  }
 
   app.use(options.limiter);
 

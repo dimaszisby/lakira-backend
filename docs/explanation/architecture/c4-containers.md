@@ -70,7 +70,7 @@ graph LR
     r["request"] --> json["express.json"] --> cookie["cookie-parser"]
     cookie --> rid["request-id<br/><small>AsyncLocalStorage</small>"]
     rid --> alog["access log"] --> helm["helmet"]
-    helm --> https["HTTPS redirect<br/><small>production only</small>"] --> xss["xss-clean"] --> hpp["hpp"]
+    helm --> https["HTTPS required<br/><small>production only; 403</small>"] --> xss["xss-clean"] --> hpp["hpp"]
     hpp --> trace["disallow TRACE"] --> cors["cors"]
     cors --> rl["global rate limiter<br/><small>after /health, /ready</small>"]
     rl --> route["feature router"] --> auth["authMiddleware<br/><small>per route</small>"]

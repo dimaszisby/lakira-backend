@@ -83,6 +83,7 @@ export const createAuthRouter = () => {
 
   router.post(
     "/verify-email",
+    emailVerificationIpRateLimiter,
     requireJsonObjectBody(),
     validate(verifyEmailSchema),
     verifyEmail,

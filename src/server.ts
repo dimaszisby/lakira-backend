@@ -149,7 +149,7 @@ mountHttpPipeline(app, {
   limiter: globalRateLimiter,
   corsOrigins,
   bodyLimit: env.REQUEST_BODY_LIMIT,
-  redirectToHttps: env.NODE_ENV === "production",
+  requireHttps: env.NODE_ENV === "production",
   mountProbes,
 });
 
