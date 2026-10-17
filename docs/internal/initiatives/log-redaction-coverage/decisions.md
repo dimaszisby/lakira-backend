@@ -557,7 +557,7 @@ so every address gets one fresh window.
 
 ## D-16 — A database error's message is logged with its quoted values masked
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #176, `6704344`)
 - **Date:** 2026-10-17
 
 Micro entry for register row B-20
@@ -586,3 +586,34 @@ the line of free text that makes a fault readable.
 `insert or update on table "a" violates foreign key constraint "b"` becomes
 `insert or update on table "[value]"`. The SQLSTATE and the constraint, table and column names
 stay in `db`. ADR-0059 gets a dated note narrowing its residual.
+
+## D-17 — The env schema's defaults follow the normalized NODE_ENV; a malformed SENTRY_DSN is refused
+
+- **Status:** Proposed
+- **Date:** 2026-10-17
+
+Micro entry for register row B-21
+([todo](../../todos/2026-10-10-todo-startup-and-config-review-leftovers.md)), the leftovers of the
+review of D-10 and D-11. Branch `fix/startup-config-leftovers`; commits carry
+`refs: log-redaction-coverage`.
+
+**Context.** `zodEnv.ts` built its schema once, at module load, and seven defaults compared the raw
+`process.env.NODE_ENV` with a lowercase name. The schema lowercases `NODE_ENV` itself, so
+`NODE_ENV=Production` ran as production while `DB_SSL_REJECT_UNAUTHORIZED` took its
+non-production default, `false`, and `db.ts`'s production config stopped checking the database's
+certificate. Because the defaults were read at import, no test could set `NODE_ENV` and see them
+change. Separately, `@sentry/core` prints a `SENTRY_DSN` it cannot parse in full, with
+`console.error`; amqplib's connection errors quote no URL.
+**Decision.** The schema is built by `buildEnvSchema(nodeEnv)`. `buildEnv` parses `NODE_ENV` first,
+on its own path, and passes the normalized value in, so every default that depends on it, and the
+`APP_RELEASE` default, is read at parse time. A `SENTRY_DSN` that does not have the shape of
+Sentry's own DSN pattern is refused at startup, naming the variable and not the value; blank still
+means off. Development migrations log SQL only with `DB_LOGGING=true`. `buildAmqpUrl` encodes the
+user and password. The `PORT` error names `PORT`, three unreachable port checks go, and
+`withTestEnv` unsets a variable whose override is `undefined`.
+**Options considered.** Lowercasing `process.env.NODE_ENV` in each default: rejected, the defaults
+stay frozen at import and untestable. Optional fields filled after parsing: rejected, it widens
+every consumer's types. Leaving the DSN to Sentry: rejected, a malformed value is printed whole and
+Sentry silently stays off.
+**Consequences.** A `SENTRY_DSN` that Sentry could not parse, which left Sentry off without a word,
+now refuses startup. `NODE_ENV` in any case gets the defaults of its lowercase name.

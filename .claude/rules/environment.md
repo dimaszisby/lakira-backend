@@ -19,7 +19,9 @@ For tests: `resetEnvCacheForTesting()` clears the cache so test env can be reloa
 
 ## Key Environment Variables
 
-- `NODE_ENV`: `"development" | "test" | "staging" | "production"` (default: `"development"`)
+- `NODE_ENV`: `"development" | "test" | "staging" | "production"` (default: `"development"`), in
+  any case. The schema is built from the lowercased value, so a default that depends on
+  `NODE_ENV` reads the `nodeEnv` argument of `buildEnvSchema`, never `process.env.NODE_ENV`
 - `PORT`: number (default: 5000)
 - `JWT_SECRET`: required, no default. In `production` and `staging` startup refuses one shorter
   than 32 characters, and the `.env.example` placeholder (ADR-0036)

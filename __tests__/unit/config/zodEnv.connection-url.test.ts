@@ -150,3 +150,66 @@ describe("the RabbitMQ login the env reports", () => {
     ).toEqual({ user: "from_field", password: "field-pw" });
   });
 });
+
+// Kit log-redaction-coverage, D-17 (register row B-21).
+describe("the variable a startup error names", () => {
+  let printed: string[];
+  let spy: ReturnType<typeof jest.spyOn>;
+
+  beforeEach(() => {
+    printed = [];
+    spy = jest.spyOn(console, "error").mockImplementation((...args) => {
+      printed.push(args.map(String).join(" "));
+    });
+  });
+
+  afterEach(() => {
+    spy.mockRestore();
+  });
+
+  const failure = (overrides: Record<string, string | undefined>) =>
+    withTestEnv(() => undefined, {
+      overrides: { NODE_ENV: "development", ...overrides },
+    }).then(
+      () => null,
+      (reason: unknown) => reason as Error & { issues?: unknown },
+    );
+
+  it("is DATABASE_URL when the environment's own URL is unset", async () => {
+    const error = await failure({
+      DEVELOPMENT_DATABASE_URL: undefined,
+      DATABASE_URL: `postgresql://${USER}:${PASSWORD}@${HOST}:notaport/app`,
+    });
+
+    expect(error?.message).toContain("DATABASE_URL is invalid");
+    expect(error?.message).not.toContain("DEVELOPMENT_DATABASE_URL");
+    expect([error?.message, ...printed].join("\n")).not.toContain(PASSWORD);
+  });
+
+  it("is PORT, not REDIS_PORT, for a PORT that is not a number", async () => {
+    const error = await failure({ PORT: "abc" });
+
+    expect(error?.message).toBe("PORT must be a valid number");
+  });
+
+  // @sentry/core prints a DSN it cannot parse, whole, with console.error.
+  it("is SENTRY_DSN for a malformed DSN, and the value is not printed", async () => {
+    const dsn = `https://${PASSWORD}`;
+    const error = await failure({ SENTRY_DSN: dsn });
+
+    expect(error).toMatchObject({
+      issues: expect.arrayContaining([
+        expect.objectContaining({ path: ["SENTRY_DSN"] }),
+      ]),
+    });
+    const everything = [JSON.stringify(error), ...printed].join("\n");
+    expect(everything).not.toContain(PASSWORD);
+  });
+
+  it.each([
+    ["a DSN", "https://abc123@o1.ingest.sentry.io/42"],
+    ["blank, which leaves Sentry off", ""],
+  ])("accepts %s", async (_label, dsn) => {
+    await expect(failure({ SENTRY_DSN: dsn })).resolves.toBeNull();
+  });
+});
