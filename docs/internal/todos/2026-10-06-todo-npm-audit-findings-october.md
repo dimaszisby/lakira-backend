@@ -1,6 +1,6 @@
 # Todo — `npm audit` findings left after the `proxy-addr` fix
 
-- **Status:** Open. None of these trips the security gate
+- **Status:** Partly fixed. Step 1, the in-range fixes, on `fix/npm-audit-in-range` (`npm-audit-findings` D-06; register row B-25). Step 2 open
 - **Created:** 2026-10-06
 - **Owner:** unassigned
 - **Origin:** kit [`npm-audit-findings`](../initiatives/npm-audit-findings/decisions.md) D-05, which
@@ -36,3 +36,19 @@ outside the gate's scope and inside the dependency policy's "next sprint" target
 
 Check whether each finding is still open before starting: advisories are revised, and a later
 install may already have moved a package.
+
+## Resolution
+
+**Step 1, 2026-10-18.** Rechecked first: by then `npm audit` on `dev` (`7658716`) reported 45
+findings, 1 critical, 35 high and 9 moderate. Two were new since this todo: a critical in
+`handlebars` (through `ts-jest`) and a high in `lint-staged`. `npm audit fix` without `--force`
+moved `handlebars`, `lint-staged`, `axios`, `fast-uri`, `brace-expansion`, `nodemon` (3.1.11 to
+3.1.14) and `moment`, all within their ranges; `package.json` did not change. After: 39 findings,
+0 critical, 31 high, 8 moderate; production 2 moderate, both the accepted `uuid` root.
+
+**Step 2, still open, as measured on 2026-10-18:**
+
+- `jest` 30, which also clears `@types/jest` and `sprintf-js`.
+- `jest-junit` 17, not in the table above; it carries the `uuid` advisory in development.
+- `braces` via `nodemon` is not a major away, as the table said: npm's only offer is
+  `nodemon@1.14.10`, a downgrade. It waits for an upstream fix.

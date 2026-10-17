@@ -141,7 +141,41 @@ Rules for adding an override:
 - These dev-only alerts do **not** ship to production builds, but we keep them documented with owners so we can react once upstream fixes exist.
 - Junior devs should reference this table before running `npm audit`; do **not** run `npm audit fix --force` (per policy) because it would downgrade or break the toolchain.
 
-## Current Audit Snapshot (2026-09-29)
+## Current Audit Snapshot (2026-10-18)
+
+Full `npm audit`: **39 findings: 0 critical, 31 high, 8 moderate**, all in development tooling.
+`npm audit --omit=dev`: **2 moderate, 0 high/critical** — the value the CI gate evaluates.
+
+### What changed
+
+Advisories published after 2026-09-29 took the tree to 45 findings (1 critical, 35 high,
+9 moderate), with no lockfile change. `npm audit fix`, without `--force`, moved seven roots inside
+their declared ranges; `package.json` did not change.
+
+| Package           | From   | To     | Reached through    | Ships |
+| ----------------- | ------ | ------ | ------------------ | ----- |
+| `handlebars`      | 4.7.9  | 4.7.10 | `ts-jest`          | no    |
+| `lint-staged`     | 16.2.7 | 16.4.0 | direct             | no    |
+| `axios`           | 1.19.0 | 1.20.0 | `wait-on`          | no    |
+| `fast-uri`        | 3.1.6  | 3.1.8  | commitlint → `ajv` | no    |
+| `brace-expansion` | 2.1.4  | 2.1.7  | `minimatch@9`      | no    |
+| `nodemon`         | 3.1.11 | 3.1.14 | direct             | no    |
+| `moment`          | 2.30.1 | 2.31.0 | `sequelize`        | yes   |
+
+### What remains
+
+| Root                                         | Severity | Why it stays                                                                                     |
+| -------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------ |
+| `jest` 29 (with `@types/jest`, `sprintf-js`) | high     | needs `jest` 30, a major; its own change (register row B-25)                                     |
+| `jest-junit`                                 | moderate | needs `jest-junit` 17, a major; its own change (B-25)                                            |
+| `braces` via `nodemon`                       | high     | no fix: npm offers `nodemon@1.14.10`, a downgrade. Waits for an upstream release                 |
+| `uuid` via `sequelize`                       | moderate | accepted, `npm-audit-findings` D-04; one of the two production findings, with `sequelize` itself |
+
+Full record: `docs/internal/initiatives/npm-audit-findings/` D-06.
+
+## Superseded Snapshot (2026-09-29)
+
+> Superseded by the 2026-10-18 snapshot above. Retained as a record of what was true then.
 
 Full `npm audit`: **3 moderate, 0 critical, 0 high, 0 low**.
 `npm audit --omit=dev`: **2 moderate, 0 high/critical** — the value the CI gate evaluates.

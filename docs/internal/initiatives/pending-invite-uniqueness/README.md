@@ -1,6 +1,6 @@
 # One pending invite per organization and email
 
-**Status:** Fixed on `fix/pending-invite-uniqueness`; awaiting merge. Register row B-24. Promoted to ADR-0064.
+**Status:** Merged in #180 (`7658716`). Register row B-24. Promoted to ADR-0064.
 **Slug:** `pending-invite-uniqueness` · **Branch:** `fix/pending-invite-uniqueness`
 
 Lean kit — no plan; acceptance criteria live in the checklist.
