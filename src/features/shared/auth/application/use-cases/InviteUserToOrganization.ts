@@ -5,6 +5,10 @@ import { OrganizationRepository } from "../../domain/repositories/OrganizationRe
 import { EmailSender } from "../ports/EmailSender.js";
 import type { InviteRole } from "../../domain/entities/OrganizationInvite.js";
 
+/** Also what the repository answers when the unique index refuses a second invite. */
+export const PENDING_INVITE_EXISTS_MESSAGE =
+  "An invitation is already pending for this email";
+
 export type InviteUserToOrganizationInput = {
   organizationId: string;
   email: string;
@@ -46,19 +50,24 @@ export class InviteUserToOrganization {
     }
 
     const email = input.email.trim().toLowerCase();
+    const now = this.deps.now ? this.deps.now() : new Date();
+
+    // The unique index covers expired invites too, and none of them can be
+    // accepted (kit pending-invite-uniqueness, D-01).
+    await this.inviteRepo.deleteExpiredPendingByEmailAndOrg(
+      email,
+      input.organizationId,
+      now,
+    );
 
     const pendingInvite = await this.inviteRepo.findPendingByEmailAndOrg(
       email,
       input.organizationId,
     );
     if (pendingInvite) {
-      throw new AppError(
-        "An invitation is already pending for this email",
-        409,
-      );
+      throw new AppError(PENDING_INVITE_EXISTS_MESSAGE, 409);
     }
 
-    const now = this.deps.now ? this.deps.now() : new Date();
     const ttlDays = this.deps.ttlDays ?? 7;
 
     const rawToken = crypto.randomBytes(32).toString("base64url");

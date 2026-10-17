@@ -78,15 +78,15 @@ Unique on `(user_id, organization_id)` — one membership per user per organizat
 
 ### `organization_invites`
 
-| Column            | Type         | Null | Default             | Notes                            |
-| ----------------- | ------------ | ---- | ------------------- | -------------------------------- |
-| `id`              | uuid         | no   | `gen_random_uuid()` | PK                               |
-| `organization_id` | uuid         | no   |                     | → `organizations` **CASCADE**    |
-| `email`           | varchar(255) | no   |                     | invitee                          |
-| `role`            | varchar(20)  | no   |                     | role granted on accept           |
-| `token_hash`      | char(64)     | no   |                     | unique; SHA-256 of the raw token |
-| `expires_at`      | timestamptz  | no   |                     |                                  |
-| `accepted_at`     | timestamptz  | yes  |                     | null while pending               |
+| Column            | Type         | Null | Default             | Notes                                                                                  |
+| ----------------- | ------------ | ---- | ------------------- | -------------------------------------------------------------------------------------- |
+| `id`              | uuid         | no   | `gen_random_uuid()` | PK                                                                                     |
+| `organization_id` | uuid         | no   |                     | → `organizations` **CASCADE**                                                          |
+| `email`           | varchar(255) | no   |                     | invitee; one unaccepted invite per organization and email, case-insensitive (ADR-0064) |
+| `role`            | varchar(20)  | no   |                     | role granted on accept                                                                 |
+| `token_hash`      | char(64)     | no   |                     | unique; SHA-256 of the raw token                                                       |
+| `expires_at`      | timestamptz  | no   |                     |                                                                                        |
+| `accepted_at`     | timestamptz  | yes  |                     | null while pending                                                                     |
 
 ---
 

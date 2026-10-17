@@ -70,7 +70,7 @@ Each environment's real hop count is still not recorded; that moves to register 
 
 ## D-06 — A limiter keyed by user runs after `authMiddleware`
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #179, `8af8465`)
 - **Date:** 2026-10-17
 
 **Context.** Register row B-23, audit finding R10 (`audit-2026-09-29.md`); branch
@@ -96,7 +96,7 @@ only.
 
 ## D-07 — Each limiter counts in its own Redis namespace
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #179, `8af8465`)
 - **Date:** 2026-10-17
 
 **Context.** Found while checking D-06 end to end, on branch `fix/user-limiter-after-auth`; not

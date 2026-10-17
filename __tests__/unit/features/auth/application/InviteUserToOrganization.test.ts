@@ -43,6 +43,7 @@ const build = () => {
     save: jest.fn(),
     findByTokenHash: jest.fn(),
     findPendingByEmailAndOrg: jest.fn(),
+    deleteExpiredPendingByEmailAndOrg: jest.fn(),
     markAccepted: jest.fn(),
   };
   const orgRepo: jest.Mocked<OrganizationRepository> = {
@@ -163,6 +164,55 @@ describe("InviteUserToOrganization", () => {
         inviterRole: "owner",
       }),
     ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  // Kit pending-invite-uniqueness, D-01. The unique index covers expired
+  // invites too, so re-inviting first deletes an expired one.
+  it("deletes an expired invite for the email before saving", async () => {
+    const { sut, inviteRepo, orgRepo, emailSender } = build();
+    orgRepo.findById.mockResolvedValue(makeOrg());
+    inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
+    inviteRepo.save.mockResolvedValue(makePendingInvite());
+    emailSender.send.mockResolvedValue(undefined);
+
+    await sut.execute({
+      organizationId: "org-1",
+      email: "  Invited@Example.COM  ",
+      role: "member",
+      inviterUserId: "user-1",
+      inviterRole: "owner",
+    });
+
+    expect(inviteRepo.deleteExpiredPendingByEmailAndOrg).toHaveBeenCalledWith(
+      "invited@example.com",
+      "org-1",
+      NOW,
+    );
+    expect(
+      inviteRepo.deleteExpiredPendingByEmailAndOrg.mock.invocationCallOrder[0],
+    ).toBeLessThan(inviteRepo.save.mock.invocationCallOrder[0]);
+  });
+
+  // A concurrent invite that passed the same check loses at the index; the
+  // repository answers 409 and no email goes out.
+  it("sends no email when save reports a pending invite", async () => {
+    const { sut, inviteRepo, orgRepo, emailSender } = build();
+    orgRepo.findById.mockResolvedValue(makeOrg());
+    inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
+    inviteRepo.save.mockRejectedValue(
+      new AppError("An invitation is already pending for this email", 409),
+    );
+
+    await expect(
+      sut.execute({
+        organizationId: "org-1",
+        email: "invited@example.com",
+        role: "member",
+        inviterUserId: "user-1",
+        inviterRole: "owner",
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(emailSender.send).not.toHaveBeenCalled();
   });
 
   it("stores SHA-256 hash, not raw token", async () => {
