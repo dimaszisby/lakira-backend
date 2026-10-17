@@ -1,6 +1,6 @@
 # ADR-0064 — A pending invite is unique per organization and email
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #180, `7658716`)
 - **Date:** 2026-10-18
 - **Related:** [ADR-0031](./adr-0031-invite-token-format-mirrors-password-reset.md) (the invite
   token and its lifetime); [ADR-0029](./adr-0029-fk-cascade-behaviour-on-organization-id.md)

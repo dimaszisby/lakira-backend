@@ -111,6 +111,38 @@ declares `~2.0.7`, so the patched release is inside the range and `package.json`
   exists and costs one lockfile entry, and an exception would have to be revisited whenever
   `TRUST_PROXY` handling changes.
 
-**Consequences.** No ADR: no dependency is added or removed and no declared range changes, the same
+**Consequences.** Full `npm audit` went from 45 findings (1 critical, 35 high, 9 moderate) to 39
+(0 critical, 31 high, 8 moderate); `--omit=dev` from 3 moderate to 2, the accepted `uuid` root
+(D-04). No ADR: no dependency is added or removed and no declared range changes, the same
 ground this kit recorded for #120. `req.ip` is computed by this package and every rate limiter keys
 on it, so the image smoke and the full test gate run with the change.
+
+---
+
+## D-06 — Take every in-range fix in one change; the majors stay separate
+
+- **Status:** Proposed
+- **Date:** 2026-10-18
+- **Size:** Micro — single commit, no separate kit. Commits carry `refs: npm-audit-findings`.
+
+**Context.** Register row B-25, step 1 of
+`docs/internal/todos/2026-10-06-todo-npm-audit-findings-october.md`; branch
+`fix/npm-audit-in-range`. On `dev` at `7658716`, `npm audit` reported 45 findings (1 critical,
+35 high, 9 moderate); `--omit=dev` reported 3 moderate, so the CI gate passed. Since the todo was
+written, a critical in `handlebars` (through `ts-jest`) and a high in `lint-staged` had been
+published. `npm audit fix --dry-run` moved seven roots within their declared ranges: `handlebars`,
+`lint-staged`, `axios`, `fast-uri`, `brace-expansion`, `moment` and `nodemon`. Only `moment`
+ships, as a dependency of `sequelize`.
+**Decision.** Apply `npm audit fix`, never `--force`, and read the lockfile diff before the gates.
+It changed `package-lock.json` only; npm 11 left the declared ranges in `package.json` as they
+were, and they already admit every patched release. What it cannot reach is not in this change:
+`jest` 30 (with `@types/jest` and `sprintf-js`) and `jest-junit` 17 are majors, each its own
+change as the todo says. `braces` under `nodemon` has no fix at all: npm offers
+`nodemon@1.14.10`, a downgrade, so it waits for an upstream release.
+**Options considered.** `--force`: rejected, as in D-04; it would downgrade `sequelize` and cross
+the `jest` major in one unreadable diff. One root at a time, as D-05 did for `proxy-addr`: rejected
+here, since nothing is blocked and seven separate lockfile changes cost more review than one diff
+checked against a list. Raising the floors in `package.json` by hand: not done; the lockfile is
+what installs, and `npm ci` refuses a lockfile that disagrees with it.
+**Consequences.** No ADR: no dependency is added or removed and no declared range is crossed, the
+ground D-05 recorded. `moment` changes inside the image, so the image smoke runs.
