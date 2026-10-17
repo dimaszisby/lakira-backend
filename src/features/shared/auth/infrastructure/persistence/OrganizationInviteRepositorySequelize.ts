@@ -1,4 +1,5 @@
-import { Op } from "sequelize";
+import { Op, UniqueConstraintError, col, fn, where } from "sequelize";
+import AppError from "@/utils/AppError.js";
 import { models } from "@/infrastructure/db/models.js";
 import { OrganizationInvite } from "../../domain/entities/OrganizationInvite.js";
 import {
@@ -6,6 +7,15 @@ import {
   OrganizationInviteRepository,
 } from "../../domain/repositories/OrganizationInviteRepository.js";
 import type { OrganizationInvite as InviteModel } from "./models/organization-invite.sequelize.js";
+import { PENDING_INVITE_EXISTS_MESSAGE } from "../../application/use-cases/InviteUserToOrganization.js";
+
+// Migration 20261018000001: one unaccepted invite per organization and email.
+const PENDING_EMAIL_INDEX = "uq_organization_invites_pending_email";
+
+const isPendingEmailConflict = (err: unknown): boolean =>
+  err instanceof UniqueConstraintError &&
+  (err.parent as { constraint?: string } | undefined)?.constraint ===
+    PENDING_EMAIL_INDEX;
 
 const toDomain = (row: InviteModel): OrganizationInvite =>
   OrganizationInvite.fromPersistence({
@@ -21,15 +31,23 @@ const toDomain = (row: InviteModel): OrganizationInvite =>
 
 export class OrganizationInviteRepositorySequelize implements OrganizationInviteRepository {
   async save(data: CreateOrganizationInviteDTO): Promise<OrganizationInvite> {
-    const created = await models.OrganizationInvite.create({
-      organizationId: data.organizationId,
-      email: data.email,
-      role: data.role,
-      tokenHash: data.tokenHash,
-      expiresAt: data.expiresAt,
-    });
-    await created.reload();
-    return toDomain(created);
+    try {
+      const created = await models.OrganizationInvite.create({
+        organizationId: data.organizationId,
+        email: data.email,
+        role: data.role,
+        tokenHash: data.tokenHash,
+        expiresAt: data.expiresAt,
+      });
+      await created.reload();
+      return toDomain(created);
+    } catch (err) {
+      // A concurrent invite passed the same pending check first.
+      if (isPendingEmailConflict(err)) {
+        throw new AppError(PENDING_INVITE_EXISTS_MESSAGE, 409);
+      }
+      throw err;
+    }
   }
 
   async findByTokenHash(hash: string): Promise<OrganizationInvite | null> {
@@ -52,6 +70,24 @@ export class OrganizationInviteRepositorySequelize implements OrganizationInvite
       },
     });
     return row ? toDomain(row) : null;
+  }
+
+  async deleteExpiredPendingByEmailAndOrg(
+    email: string,
+    organizationId: string,
+    now: Date,
+  ): Promise<void> {
+    // Matched as the index matches, so a row stored in another case goes too.
+    await models.OrganizationInvite.destroy({
+      where: {
+        [Op.and]: [
+          where(fn("lower", col("email")), email.toLowerCase()),
+          { organizationId },
+          { acceptedAt: { [Op.is]: null } },
+          { expiresAt: { [Op.lte]: now } },
+        ],
+      },
+    });
   }
 
   async markAccepted(id: string, now: Date): Promise<void> {

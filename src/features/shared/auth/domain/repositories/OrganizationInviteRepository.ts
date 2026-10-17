@@ -18,5 +18,11 @@ export interface OrganizationInviteRepository {
     email: string,
     organizationId: string,
   ): Promise<OrganizationInvite | null>;
+  /** Deletes the unaccepted invites for this email that expired by `now`. */
+  deleteExpiredPendingByEmailAndOrg(
+    email: string,
+    organizationId: string,
+    now: Date,
+  ): Promise<void>;
   markAccepted(id: string, now: Date): Promise<void>;
 }

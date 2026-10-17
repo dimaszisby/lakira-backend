@@ -57,6 +57,7 @@ const build = () => {
     save: jest.fn(),
     findByTokenHash: jest.fn(),
     findPendingByEmailAndOrg: jest.fn(),
+    deleteExpiredPendingByEmailAndOrg: jest.fn(),
     markAccepted: jest.fn(),
   };
   const membershipRepo: jest.Mocked<MembershipRepository> = {

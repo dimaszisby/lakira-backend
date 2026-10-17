@@ -7,6 +7,8 @@ import {
 import { overrideOrgFeatureForTest } from "@/features/shared/auth/infrastructure/http/organization.controller.js";
 import { buildAuthFeature } from "@/features/shared/auth/feature.js";
 import type { EmailMessage } from "@/features/shared/auth/application/ports/EmailSender.js";
+import { OrganizationInviteRepositorySequelize } from "@/features/shared/auth/infrastructure/persistence/OrganizationInviteRepositorySequelize.js";
+import { models } from "@/infrastructure/db/models.js";
 
 // ---------- helpers ----------
 
@@ -87,6 +89,108 @@ describe("Organization Membership API", () => {
         .send({ email: "a@b.com", role: "member" });
 
       expect(res.status).toBe(401);
+    });
+
+    // Kit pending-invite-uniqueness (register row B-24). The pending check is
+    // backed by a partial unique index on (organization_id, lower(email)) for
+    // unaccepted invites, D-01.
+    describe("one pending invite per organization and email", () => {
+      const invite = (token: string, orgId: string, email: string) =>
+        api
+          .post(`/api/v1/organizations/${orgId}/invites`)
+          .set("Authorization", authHeader(token))
+          .send({ email, role: "member" });
+
+      const invitesFor = (organizationId: string) =>
+        models.OrganizationInvite.findAll({ where: { organizationId } });
+
+      it("AC-1: two concurrent invites store one row and send one email", async () => {
+        const { token } = await createTestUser();
+        const orgId = decodeOrgId(token);
+        const email = buildUserPayload().email;
+
+        const statuses = (
+          await Promise.all([
+            invite(token, orgId, email),
+            invite(token, orgId, email),
+          ])
+        )
+          .map((res) => res.status)
+          .sort();
+
+        expect(statuses).toEqual([201, 409]);
+        expect(await invitesFor(orgId)).toHaveLength(1);
+        expect(emailCapture.sent).toHaveLength(1);
+      });
+
+      it("AC-1: a save that skips the check is refused with the same 409", async () => {
+        const { token } = await createTestUser();
+        const orgId = decodeOrgId(token);
+        const repo = new OrganizationInviteRepositorySequelize();
+        const row = (tokenHash: string) => ({
+          organizationId: orgId,
+          email: "race@example.com",
+          role: "member" as const,
+          tokenHash,
+          expiresAt: new Date(Date.now() + 60_000),
+        });
+
+        await repo.save(row("a".repeat(64)));
+
+        await expect(repo.save(row("b".repeat(64)))).rejects.toMatchObject({
+          statusCode: 409,
+          message: "An invitation is already pending for this email",
+        });
+      });
+
+      it("AC-2: re-inviting after expiry succeeds and removes the expired invite", async () => {
+        const { token } = await createTestUser();
+        const orgId = decodeOrgId(token);
+        const email = buildUserPayload().email;
+
+        expect((await invite(token, orgId, email)).status).toBe(201);
+        await models.OrganizationInvite.update(
+          { expiresAt: new Date(Date.now() - 60_000) },
+          { where: { organizationId: orgId } },
+        );
+
+        expect((await invite(token, orgId, email)).status).toBe(201);
+        const rows = await invitesFor(orgId);
+        expect(rows).toHaveLength(1);
+        expect(rows[0].expiresAt.getTime()).toBeGreaterThan(Date.now());
+      });
+
+      it("AC-3: an accepted invite does not block a new one", async () => {
+        const { token } = await createTestUser();
+        const orgId = decodeOrgId(token);
+        const email = buildUserPayload().email;
+
+        expect((await invite(token, orgId, email)).status).toBe(201);
+        await models.OrganizationInvite.update(
+          { acceptedAt: new Date() },
+          { where: { organizationId: orgId } },
+        );
+
+        expect((await invite(token, orgId, email)).status).toBe(201);
+        expect(await invitesFor(orgId)).toHaveLength(2);
+      });
+
+      it("AC-5: an invite stored in another case still conflicts", async () => {
+        const { token } = await createTestUser();
+        const orgId = decodeOrgId(token);
+        await models.OrganizationInvite.create({
+          organizationId: orgId,
+          email: "Mixed.Case@Example.com",
+          role: "member",
+          tokenHash: "c".repeat(64),
+          expiresAt: new Date(Date.now() + 60_000),
+        });
+
+        const res = await invite(token, orgId, "mixed.case@example.com");
+
+        expect(res.status).toBe(409);
+        expect(await invitesFor(orgId)).toHaveLength(1);
+      });
     });
   });
 
