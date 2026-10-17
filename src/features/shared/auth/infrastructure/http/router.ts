@@ -56,8 +56,8 @@ export const createAuthRouter = () => {
   router.get("/profile", authMiddleware, getProfile);
   router.put(
     "/profile",
-    userRateLimiter,
     authMiddleware,
+    userRateLimiter,
     requireJsonObjectBody(),
     validate(updateUserSchema),
     updateProfile,
@@ -99,8 +99,8 @@ export const createAuthRouter = () => {
 
   router.post(
     "/switch-org",
-    switchOrgRateLimiter,
     authMiddleware,
+    switchOrgRateLimiter,
     requireJsonObjectBody(),
     validate(switchOrgSchema),
     switchOrg,

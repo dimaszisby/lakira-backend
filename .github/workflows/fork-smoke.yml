@@ -30,6 +30,9 @@ on:
       - staging
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: fork-smoke-${{ github.ref }}
   cancel-in-progress: true

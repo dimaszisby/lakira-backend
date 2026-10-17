@@ -67,3 +67,55 @@ every line; it belongs with B-05's decision. An ADR: not written, since no valid
 behaviour; a value that already mis-configured the boundary is refused, the pattern ADR-0036 set.
 **Consequences.** A deploy whose `TRUST_PROXY` is blank, negative or fractional stops starting.
 Each environment's real hop count is still not recorded; that moves to register row B-05.
+
+## D-06 — A limiter keyed by user runs after `authMiddleware`
+
+- **Status:** Proposed
+- **Date:** 2026-10-17
+
+**Context.** Register row B-23, audit finding R10 (`audit-2026-09-29.md`); branch
+`fix/user-limiter-after-auth`. `userRateLimiter` and `switchOrgRateLimiter` key on `req.user?.id`
+and fall back to the client's address. `authMiddleware` is what sets `req.user`, and on eight
+routes the limiter ran first: all six organization, invite and membership routes, which R10 names,
+and `PUT /auth/profile` and `POST /auth/switch-org`, found in the same pass. Every authenticated
+request on them was counted by IP, so users behind one address shared a budget and one user on two
+networks had two.
+**Decision.** On a route that runs `authMiddleware`, a limiter keyed by user
+(`userRateLimiter`, `switchOrgRateLimiter`, `analyticsRateLimiter`) comes after it, in the route's
+own chain. `architecture.test.ts` fails on a router call that names one ahead of
+`authMiddleware`. Routes without `authMiddleware` (`/login`, `/logout`, `/refresh`) keep their
+limiter and are counted by IP, as intended.
+**Options considered.** `router.use(authMiddleware)`, as the metric routers do: rejected here,
+since these routers also mount `methodNotAllowed`, and a 405 would become a 401. Keep an IP
+limiter ahead of auth as well: rejected; no metric route has one, and the global limiter already
+counts unauthenticated requests by IP.
+**Consequences.** A request with no token or a bad one gets its 401 from `authMiddleware` without
+being counted by these limiters; only the global limiter (100 per 15 min per IP) counts it, as on
+every metric route. A 401 on these routes carries the global limiter's `RateLimit-*` headers
+only.
+
+## D-07 — Each limiter counts in its own Redis namespace
+
+- **Status:** Proposed
+- **Date:** 2026-10-17
+
+**Context.** Found while checking D-06 end to end, on branch `fix/user-limiter-after-auth`; not
+in any audit or the register. Every limiter's `RedisStore` used the library's default prefix,
+`rl:`. The global limiter keys on `clientIpKey(req.ip)`, and the user, analytics and switch-org
+limiters fall back to the same `clientIpKey(req.ip)` when there is no user. So they counted one
+key, `rl:<ip>`, seen in local Redis as `rl:127.0.0.1`. After D-06 the fallback still runs on
+`/login`, `/logout` and `/refresh`, which have no `authMiddleware`: each request there adds two to
+the shared count, and the user limit (50) is read against a count the global limiter (100) also
+writes. Once an address has sent 50 requests of any kind in 15 minutes, logging in and refreshing
+are refused. Behind a shared proxy (B-05) that is every user at once. The in-memory store, used in
+tests and when Redis is optional and down, gives each limiter its own store, which is why no test
+saw it.
+**Decision.** `maybeCreateStore(name)` takes the limiter's name and gives its store the prefix
+`rl:<name>:`. The nine limiters pass nine distinct names. A unit test builds all nine with Redis
+open and fails on a missing or repeated prefix. The keys themselves are unchanged.
+**Options considered.** Prefix the IP fallback keys only (`user-ip:`, and so on): rejected, since
+it fixes the three keys known today and leaves the next limiter free to collide; a prefix per store
+holds for any key. Drop the namespaces some keys already carry (`register-ip:`), now redundant:
+rejected as churn; they are harmless.
+**Consequences.** Every Redis key a limiter writes changes name, so each counter starts from zero
+once, on the deploy that ships this. The old keys expire within their window (an hour at most).

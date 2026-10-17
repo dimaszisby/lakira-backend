@@ -184,7 +184,7 @@ is what the controller does. Not graded by anyone else.
 
 ## D-10 — Plain HTTP in production is refused, not redirected; staging masks 5xx messages
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #178, `71c2cb6`; part 4, `fork-smoke.yml`, missed that commit and landed with `fix/user-limiter-after-auth`)
 - **Date:** 2026-10-17
 
 Micro entry for register row B-22 (audit finding S13, `audit-2026-10-03.md`), on

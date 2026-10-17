@@ -66,7 +66,7 @@ importing a feature must construct nothing (ADR-0045).
 // 4xx — the caller's fault
 { "status": "fail", "message": "...", "errors": [{ "field": "body.name", "message": "..." }] }
 
-// 5xx — ours; the message is replaced with "Something went wrong!" in production
+// 5xx — ours; the message is replaced with "Something went wrong!" except in development and test
 { "status": "error", "message": "..." }
 ```
 
@@ -128,7 +128,9 @@ it with no body, and the `If-None-Match` request header that produces it.
 - Throw `AppError(message, statusCode)` for known errors
 - Async handlers must be wrapped with `catchAsync()` from `src/utils/catch-async.ts`
 - Global `errorHandler` dispatches: `ZodError` → 400, `AppError` → custom status, `UniqueConstraintError` → 409
-- Development: full error + stack trace; Production: generic message
+- Development and test: the real message, and in development the stack trace; staging and
+  production: a 5xx message is replaced with "Something went wrong!" (`error-envelope-residuals`
+  D-10)
 
 ## Body Enforcement
 
