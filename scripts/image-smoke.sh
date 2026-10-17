@@ -12,7 +12,7 @@
 #   4. It defaults to NODE_ENV=production (ADR-0050): a production-unsafe switch
 #      is refused at startup when NODE_ENV is not set.
 #   5. In production mode it serves /health and /ready against Postgres (over
-#      TLS, as production connects) and Redis, and redirects plain HTTP.
+#      TLS, as production connects) and Redis, and refuses plain HTTP.
 #   6. It stops cleanly on SIGTERM.
 #   7. With no APP_NAME it is named after its own package (ADR-0060).
 #
@@ -177,7 +177,7 @@ docker run -d --name "$APP" --network "$NETWORK" -p 127.0.0.1::5000 \
 port="$(docker port "$APP" 5000/tcp | head -n 1 | sed 's/.*://')"
 base="http://127.0.0.1:${port}/api/v1"
 
-# Production mode redirects plain HTTP; a TLS-terminating proxy sets this header.
+# Production mode refuses plain HTTP; a TLS-terminating proxy sets this header.
 https=(-H "X-Forwarded-Proto: https")
 
 deadline=$((SECONDS + WAIT_SECONDS))
@@ -204,10 +204,15 @@ until ready="$(curl -sS --max-time 10 "${https[@]}" "${base}/ready" 2>/dev/null)
   sleep 1
 done
 
-plain="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "${base}/health")"
-[[ "$plain" == "301" ]] ||
-  fail "5. serves in production mode" "plain HTTP answered ${plain}, expected the 301 redirect"
-pass "5. serves in production mode (/health, /ready, HTTPS redirect; release ${RELEASE})"
+# Plain HTTP is refused, and redirected nowhere; the probes still answer it, for a
+# platform health check that sends no X-Forwarded-Proto (error-envelope-residuals D-10).
+plain="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "${base}/auth/profile")"
+[[ "$plain" == "403" ]] ||
+  fail "5. serves in production mode" "plain HTTP answered ${plain}, expected 403"
+plain_probe="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "${base}/health")"
+[[ "$plain_probe" == "200" ]] ||
+  fail "5. serves in production mode" "/health over plain HTTP answered ${plain_probe}, expected 200"
+pass "5. serves in production mode (/health, /ready, plain HTTP refused; release ${RELEASE})"
 
 # ---------------------------------------------------------------------------
 # 6. Stops cleanly

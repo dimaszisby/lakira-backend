@@ -148,8 +148,10 @@ describe("error middleware", () => {
     });
   });
 
-  it("masks 5xx messages in production", () => {
-    envMock.NODE_ENV = "production";
+  // Staging was unmasked until error-envelope-residuals D-10 (register row B-22,
+  // audit S13), so it answered with a provider's error text.
+  it.each(["production", "staging"])("masks 5xx messages in %s", (nodeEnv) => {
+    envMock.NODE_ENV = nodeEnv;
     const err = new AppError("Resend email send failed: bad api key", 500);
     const res = createResponse();
 
@@ -161,6 +163,23 @@ describe("error middleware", () => {
       message: "Something went wrong!",
     });
   });
+
+  it.each(["development", "test"])(
+    "keeps the real 5xx message in %s",
+    (nodeEnv) => {
+      envMock.NODE_ENV = nodeEnv;
+      const err = new AppError("Resend email send failed: bad api key", 500);
+      const res = createResponse();
+
+      handler(err, {} as AuthRequest, res, jest.fn());
+
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "Resend email send failed: bad api key",
+        }),
+      );
+    },
+  );
 
   it("emits the unified envelope for malformed JSON", () => {
     envMock.NODE_ENV = "test";

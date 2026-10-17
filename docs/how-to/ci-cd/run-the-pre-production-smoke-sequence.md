@@ -130,7 +130,7 @@ its `x-request-id`, which every response carries.
 - **Everything else.** It is one user's round trip, not a regression suite. CI's tests and the
   contract gate are that.
 - **Run on your own machine,** it cannot show the `Secure` flag, which is set only when `NODE_ENV`
-  is `staging` or `production`, or the HTTPS redirect, which is on only in production.
+  is `staging` or `production`, or the refusal of plain HTTP, which is on only in production.
 
 It is run by hand. Until it is automated, a skipped run leaves no trace, so note the result where
 you record the promotion.

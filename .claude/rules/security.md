@@ -10,13 +10,15 @@ Applied in this order by `mountHttpPipeline` (`src/shared/middleware/http-pipeli
    is replaced by a minted UUID
 2. `accessLogMiddleware` — one line per request
 3. `helmet()` — secure HTTP headers
-4. HTTPS redirect — production only
-5. `disallowTraceMethod` — blocks TRACE requests
-6. `cors` — `CORS_ORIGIN` allowlist; ahead of the limiter so a browser can read a 429
-7. `/api/v1/health` and `/api/v1/ready` — ahead of the limiter, so a platform probe is never
+4. `disallowTraceMethod` — blocks TRACE requests
+5. `cors` — `CORS_ORIGIN` allowlist; ahead of the limiter so a browser can read a 429
+6. `/api/v1/health` and `/api/v1/ready` — ahead of the limiter, so a platform probe is never
    throttled, and ahead of the parsers, so a probe reads no body. `/ready` runs its database and
    Redis checks at most once per 2 s window (`src/shared/utils/readiness-probe.ts`); a new check
    added to it goes through that probe
+7. HTTPS required — production only. Plain HTTP gets `403`, never a redirect: a redirect built
+   from `Host` goes wherever the client says. Below the probes, so a platform health check without
+   `x-forwarded-proto` still passes (`error-envelope-residuals` D-10)
 8. `globalRateLimiter` — the only app-wide limiter; the rest are attached per route
 9. `express.json()` — body parsing. **Nothing above this line reads a request body**: a request
    is counted before it is parsed
@@ -41,7 +43,9 @@ Per route (`src/shared/middleware/rate-limiter.ts`):
 - **Switch org**: per 15 min, `RATE_LIMIT_SWITCH_ORG_MAX`
 - **Registration**: per hour, per client IP, first in the `POST /auth/register` chain,
   `RATE_LIMIT_REGISTER_IP_MAX` (ADR-0053)
-- **Password reset** and **email verification**: per hour, each keyed both by email and by IP
+- **Password reset** and **email verification**: per hour, each keyed both by email and by IP.
+  The token-submitting routes, `/reset-password` and `/verify-email`, go through the per-IP
+  limiter of the route that sent the token, first in their chain
   (`RATE_LIMIT_PASSWORD_RESET_{EMAIL,IP}_MAX`, `RATE_LIMIT_EMAIL_VERIFICATION_{EMAIL,IP}_MAX`)
 
 Every key built from the client's address goes through `clientIpKey`: IPv4 whole, an IPv6 client

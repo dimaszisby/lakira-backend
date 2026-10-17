@@ -589,7 +589,7 @@ stay in `db`. ADR-0059 gets a dated note narrowing its residual.
 
 ## D-17 — The env schema's defaults follow the normalized NODE_ENV; a malformed SENTRY_DSN is refused
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #177, `863c75b`)
 - **Date:** 2026-10-17
 
 Micro entry for register row B-21

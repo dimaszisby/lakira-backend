@@ -23,7 +23,7 @@ import { getRequestId } from "@/shared/middleware/request-id.js";
 const MALFORMED_JSON_MESSAGE =
   "Malformed JSON payload. Provide a valid JSON object.";
 
-/** Shown instead of a 5xx message in production so internals never leak. */
+/** Shown instead of a 5xx message outside development and test, so internals never leak. */
 const MASKED_SERVER_ERROR_MESSAGE = "Something went wrong!";
 
 /**
@@ -151,13 +151,16 @@ export const createErrorHandler =
     }
 
     // Masking is a 5xx concern: a server fault may carry a database string or an
-    // internal identifier, so production replaces it. A 4xx describes what the
+    // internal identifier, so every environment but development and test replaces
+    // it. Staging was unmasked until error-envelope-residuals D-10. A 4xx describes what the
     // *client* got wrong and is safe — and useless once masked. Masking both was
     // C3 defect 2: production answered every 404/400/403/409 with
     // `{"status":"error","message":"Something went wrong!"}` while the spec, and
     // every other environment, promised the real message.
     const isMaskedServerError =
-      env.NODE_ENV === "production" && appError.statusCode >= 500;
+      env.NODE_ENV !== "development" &&
+      env.NODE_ENV !== "test" &&
+      appError.statusCode >= 500;
 
     sendError(
       res,

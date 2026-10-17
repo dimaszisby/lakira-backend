@@ -21,14 +21,14 @@ const limiterOf = (max: number): RequestHandler =>
   });
 
 const build = (
-  overrides: { max?: number; redirectToHttps?: boolean } = {},
+  overrides: { max?: number; requireHttps?: boolean } = {},
 ): Application => {
   const app = express();
   mountHttpPipeline(app, {
     limiter: limiterOf(overrides.max ?? 2),
     corsOrigins: [ORIGIN],
     bodyLimit: "1kb",
-    redirectToHttps: overrides.redirectToHttps ?? false,
+    requireHttps: overrides.requireHttps ?? false,
     mountProbes: (probed) => {
       probed.get("/probe", (req, res) => {
         res.json({ status: "ok", body: req.body as unknown });
@@ -152,22 +152,38 @@ describe("mountHttpPipeline: the order of the global middleware", () => {
   });
 
   describe("in production mode", () => {
-    it("redirects plain HTTP before counting or parsing, probes included", async () => {
-      const app = build({ max: 1, redirectToHttps: true });
+    // Kit error-envelope-residuals, D-10 (register row B-22, audit S13). The redirect
+    // used to send the client to https:// plus its own Host header.
+    it("refuses plain HTTP with 403 before counting or parsing, and redirects nowhere", async () => {
+      const app = build({ max: 1, requireHttps: true });
 
-      const probe = await request(app).get("/probe");
       const first = await postMalformed(app);
-      const second = await postMalformed(app);
+      const second = await postMalformed(app).set("Host", "evil.example");
+      const third = await request(app).get("/echo");
 
-      expect([probe.status, first.status, second.status]).toEqual([
-        301, 301, 301,
+      expect([first.status, second.status, third.status]).toEqual([
+        403, 403, 403,
       ]);
-      expect(first.headers.location).toMatch(/^https:\/\//);
-      expect(first.headers["x-content-type-options"]).toBe("nosniff");
+      for (const res of [first, second, third]) {
+        expect(res.headers.location).toBeUndefined();
+        expect(res.body).toEqual({
+          status: "fail",
+          message: "HTTPS is required",
+        });
+        expect(res.headers["x-content-type-options"]).toBe("nosniff");
+      }
+    });
+
+    // A platform health check may reach the app without x-forwarded-proto. It got a
+    // 301 before, which reads as healthy; a 403 would read as a failed deploy.
+    it("still answers a probe over plain HTTP", async () => {
+      const probe = await request(build({ requireHttps: true })).get("/probe");
+
+      expect(probe.status).toBe(200);
     });
 
     it("lets a request through that a proxy marks as HTTPS", async () => {
-      const res = await request(build({ redirectToHttps: true }))
+      const res = await request(build({ requireHttps: true }))
         .get("/probe")
         .set("x-forwarded-proto", "https");
 

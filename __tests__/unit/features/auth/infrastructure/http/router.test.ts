@@ -90,4 +90,18 @@ describe("auth router", () => {
       "register",
     ]);
   });
+
+  // A token submission is limited per IP first, sharing the budget of the route
+  // that sent the token. /verify-email had only the global limiter (audit S13;
+  // kit error-envelope-residuals, D-10).
+  it.each([
+    ["/reset-password", "passwordResetIpRateLimiter", "resetPassword"],
+    ["/verify-email", "emailVerificationIpRateLimiter", "verifyEmail"],
+  ])("puts the per-IP limiter first on POST %s", (path, limiter, handler) => {
+    const router = routerFor();
+    const call = router.post.mock.calls.find(([p]) => p === path);
+
+    expect(call?.[1]).toBe(limiter);
+    expect(call?.[call.length - 1]).toBe(handler);
+  });
 });

@@ -1,6 +1,6 @@
 # Todo — what the review of the startup-URL and `DB_LOGGING` fixes left open
 
-- **Status:** Closed (all P3), on `fix/startup-config-leftovers`
+- **Status:** Closed (all P3). Fixed in #177
   ([`log-redaction-coverage` D-17](../initiatives/log-redaction-coverage/decisions.md)). Each
   item's outcome is under Resolution
 - **Created:** 2026-10-10
