@@ -86,7 +86,9 @@ const limitExceeded = (
   },
 });
 
-const maybeCreateStore = () => {
+// Each limiter counts under its own prefix. With the library default, "rl:", the
+// global limiter and an IP fallback wrote the same key (register-rate-limiter D-07).
+const maybeCreateStore = (name: string) => {
   if (env.NODE_ENV === "test") return undefined;
 
   if (!env.REDIS_REQUIRED && !redisClient.isOpen) {
@@ -97,6 +99,7 @@ const maybeCreateStore = () => {
   }
 
   return new RedisStore({
+    prefix: `rl:${name}:`,
     sendCommand: (...args: string[]) => redisClient.sendCommand(args),
   });
 };
@@ -106,7 +109,7 @@ export const createGlobalRateLimiter = () =>
     ? (maybeLogDisableNotice(), noopRateLimiter)
     : rateLimit({
         keyGenerator: (req: AuthRequest): string => clientIpKey(req.ip),
-        store: maybeCreateStore(),
+        store: maybeCreateStore("global"),
         windowMs: 15 * 60 * 1000,
         max: env.RATE_LIMIT_GLOBAL_MAX,
         standardHeaders: true,
@@ -126,7 +129,7 @@ export const createUserRateLimiter = () =>
         keyGenerator: (req: AuthRequest): string => {
           return req.user?.id ? `user:${req.user.id}` : clientIpKey(req.ip);
         },
-        store: maybeCreateStore(),
+        store: maybeCreateStore("user"),
         windowMs: 15 * 60 * 1000,
         max: env.RATE_LIMIT_USER_MAX,
         standardHeaders: true,
@@ -149,7 +152,7 @@ export const createAnalyticsRateLimiter = () =>
             ? `analytics:${req.user.id}`
             : clientIpKey(req.ip);
         },
-        store: maybeCreateStore(),
+        store: maybeCreateStore("analytics"),
         windowMs: 60 * 1000,
         max: env.RATE_LIMIT_ANALYTICS_MAX,
         standardHeaders: true,
@@ -172,7 +175,7 @@ export const createSwitchOrgRateLimiter = () =>
             ? `switch-org:${req.user.id}`
             : clientIpKey(req.ip);
         },
-        store: maybeCreateStore(),
+        store: maybeCreateStore("switch-org"),
         windowMs: 15 * 60 * 1000,
         max: env.RATE_LIMIT_SWITCH_ORG_MAX,
         standardHeaders: true,
@@ -204,7 +207,7 @@ export const createPasswordResetEmailRateLimiter = () =>
             ? `password-reset:email:${hashEmail(email)}`
             : `password-reset:ip:${clientIpKey(req.ip)}`;
         },
-        store: maybeCreateStore(),
+        store: maybeCreateStore("password-reset-email"),
         windowMs: 60 * 60 * 1000,
         max: env.RATE_LIMIT_PASSWORD_RESET_EMAIL_MAX,
         standardHeaders: true,
@@ -232,7 +235,7 @@ export const createPasswordResetIpRateLimiter = () =>
     : rateLimit({
         keyGenerator: (req: AuthRequest): string =>
           `password-reset-ip:${clientIpKey(req.ip)}`,
-        store: maybeCreateStore(),
+        store: maybeCreateStore("password-reset-ip"),
         windowMs: 60 * 60 * 1000,
         max: env.RATE_LIMIT_PASSWORD_RESET_IP_MAX,
         standardHeaders: true,
@@ -256,7 +259,7 @@ export const createEmailVerificationEmailRateLimiter = () =>
             ? `email-verification:email:${hashEmail(email)}`
             : `email-verification:ip:${clientIpKey(req.ip)}`;
         },
-        store: maybeCreateStore(),
+        store: maybeCreateStore("email-verification-email"),
         windowMs: 60 * 60 * 1000,
         max: env.RATE_LIMIT_EMAIL_VERIFICATION_EMAIL_MAX,
         standardHeaders: true,
@@ -279,7 +282,7 @@ export const createEmailVerificationIpRateLimiter = () =>
     : rateLimit({
         keyGenerator: (req: AuthRequest): string =>
           `email-verification-ip:${clientIpKey(req.ip)}`,
-        store: maybeCreateStore(),
+        store: maybeCreateStore("email-verification-ip"),
         windowMs: 60 * 60 * 1000,
         max: env.RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX,
         standardHeaders: true,
@@ -304,7 +307,7 @@ export const createRegisterIpRateLimiter = () =>
     : rateLimit({
         keyGenerator: (req: AuthRequest): string =>
           `register-ip:${clientIpKey(req.ip)}`,
-        store: maybeCreateStore(),
+        store: maybeCreateStore("register-ip"),
         windowMs: 60 * 60 * 1000,
         max: env.RATE_LIMIT_REGISTER_IP_MAX,
         standardHeaders: true,

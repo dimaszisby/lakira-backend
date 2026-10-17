@@ -143,6 +143,34 @@ describe("rate limiter middleware", () => {
     expect(redisClient.sendCommand).toHaveBeenCalledWith(commandArgs);
   });
 
+  // Kit register-rate-limiter, D-07. With the library's default prefix every
+  // store wrote under "rl:", and the global limiter and the user limiter's IP
+  // fallback counted the same key, rl:<ip>.
+  it("gives each limiter's Redis store a prefix of its own", () => {
+    redisClient.isOpen = true;
+    const factories = [
+      createGlobalRateLimiter,
+      createUserRateLimiter,
+      createAnalyticsRateLimiter,
+      createSwitchOrgRateLimiter,
+      createPasswordResetEmailRateLimiter,
+      createPasswordResetIpRateLimiter,
+      createEmailVerificationEmailRateLimiter,
+      createEmailVerificationIpRateLimiter,
+      createRegisterIpRateLimiter,
+    ];
+
+    const prefixes = factories.map(
+      (create) => unwrapLimiter(create()).store.storeOptions.prefix,
+    );
+
+    expect(prefixes).toHaveLength(9);
+    for (const prefix of prefixes) {
+      expect(prefix).toMatch(/^rl:[a-z-]+:$/);
+    }
+    expect(new Set(prefixes).size).toBe(prefixes.length);
+  });
+
   it("logs offender identity for user rate limiter", () => {
     redisClient.isOpen = true;
     const limiter = unwrapLimiter(createUserRateLimiter());

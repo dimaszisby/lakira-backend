@@ -104,4 +104,21 @@ describe("auth router", () => {
     expect(call?.[1]).toBe(limiter);
     expect(call?.[call.length - 1]).toBe(handler);
   });
+
+  // A limiter keyed by user runs after authMiddleware, which sets req.user;
+  // ahead of it, every request was counted by IP (audit R10; kit
+  // register-rate-limiter, D-06).
+  it.each<["put" | "post", string, string, string]>([
+    ["put", "/profile", "userRateLimiter", "updateProfile"],
+    ["post", "/switch-org", "switchOrgRateLimiter", "switchOrg"],
+  ])(
+    "runs authMiddleware ahead of the limiter on %s %s",
+    (method, path, limiter, handler) => {
+      const router = routerFor();
+      const call = router[method].mock.calls.find(([p]) => p === path);
+
+      expect(call?.slice(1, 3)).toEqual(["authMiddleware", limiter]);
+      expect(call?.[call.length - 1]).toBe(handler);
+    },
+  );
 });

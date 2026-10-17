@@ -23,12 +23,12 @@ import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.j
 export const createOrganizationRouter = () => {
   const router = Router();
 
-  router.get("/", userRateLimiter, authMiddleware, listMyOrganizations);
+  router.get("/", authMiddleware, userRateLimiter, listMyOrganizations);
 
   router.post(
     "/:id/invites",
-    userRateLimiter,
     authMiddleware,
+    userRateLimiter,
     requireJsonObjectBody(),
     validate(createInviteSchema),
     createInvite,
@@ -36,8 +36,8 @@ export const createOrganizationRouter = () => {
 
   router.get(
     "/:id/members",
-    userRateLimiter,
     authMiddleware,
+    userRateLimiter,
     validate(listMembersSchema),
     listMembers,
   );
@@ -54,8 +54,8 @@ export const createInviteRouter = () => {
 
   router.post(
     "/accept",
-    userRateLimiter,
     authMiddleware,
+    userRateLimiter,
     requireJsonObjectBody(),
     validate(acceptInviteSchema),
     acceptInvite,
@@ -71,16 +71,16 @@ export const createMembershipRouter = () => {
 
   router.delete(
     "/:id",
-    userRateLimiter,
     authMiddleware,
+    userRateLimiter,
     validate(removeMembershipSchema),
     removeMembership,
   );
 
   router.patch(
     "/:id",
-    userRateLimiter,
     authMiddleware,
+    userRateLimiter,
     requireJsonObjectBody(),
     validate(changeMemberRoleSchema),
     changeMemberRole,

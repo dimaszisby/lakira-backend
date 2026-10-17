@@ -705,4 +705,56 @@ describe("Architecture enforcement", () => {
       expect(numericStatusBodies(files)).toEqual([]);
     });
   });
+
+  // Kit register-rate-limiter, D-06 (audit R10). These limiters key on req.user,
+  // which authMiddleware sets. Mounted ahead of it they found no user and counted
+  // every request by IP. Reads source text, one entry per router call.
+  describe("a limiter keyed by user runs after auth", () => {
+    const USER_KEYED_LIMITER =
+      /\b(?:userRateLimiter|switchOrgRateLimiter|analyticsRateLimiter)\b/;
+
+    const routerCalls = (content: string): string[] =>
+      content
+        .split(/\brouter\.(?:get|post|put|patch|delete|all|use)\(/)
+        .slice(1);
+    const limitersAheadOfAuth = (content: string): string[] =>
+      routerCalls(content).filter((call) => {
+        const auth = call.search(/\bauthMiddleware\b/);
+        const limiter = call.search(USER_KEYED_LIMITER);
+        return auth !== -1 && limiter !== -1 && limiter < auth;
+      });
+
+    const routerFiles = (): string[] =>
+      getAllTsFiles(SRC_FEATURES).filter((file) =>
+        /router\.ts$/.test(path.basename(file)),
+      );
+
+    it("flags a user-keyed limiter ahead of authMiddleware", () => {
+      const sample = [
+        'router.get("/a", userRateLimiter, authMiddleware, a);',
+        'router.post("/b", authMiddleware, userRateLimiter, b);',
+        'router.post("/c", switchOrgRateLimiter, authMiddleware, c);',
+        'router.post("/d", userRateLimiter, d);',
+        "router.use(authMiddleware);",
+        'router.get("/e", analyticsRateLimiter, e);',
+      ].join("\n");
+
+      expect(limitersAheadOfAuth(sample)).toHaveLength(2);
+    });
+
+    it("finds none in src/features", () => {
+      const files = routerFiles();
+      const offenders = files
+        .map((file) => ({
+          file: path.relative(SRC_FEATURES, file).split(path.sep).join("/"),
+          calls: limitersAheadOfAuth(fs.readFileSync(file, "utf-8")).length,
+        }))
+        .filter(({ calls }) => calls !== 0);
+
+      expect(offenders).toEqual([]);
+      expect(files.map((file) => path.basename(file))).toEqual(
+        expect.arrayContaining(["organization.router.ts", "router.ts"]),
+      );
+    });
+  });
 });

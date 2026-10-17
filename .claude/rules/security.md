@@ -48,6 +48,13 @@ Per route (`src/shared/middleware/rate-limiter.ts`):
   limiter of the route that sent the token, first in their chain
   (`RATE_LIMIT_PASSWORD_RESET_{EMAIL,IP}_MAX`, `RATE_LIMIT_EMAIL_VERIFICATION_{EMAIL,IP}_MAX`)
 
+A limiter keyed by user (`userRateLimiter`, `switchOrgRateLimiter`, `analyticsRateLimiter`) runs
+**after** `authMiddleware` on any route that has it: ahead of it there is no `req.user`, and the
+request is counted by IP (`register-rate-limiter` D-06). `architecture.test.ts` fails on a router
+call that puts one first. Under Redis, each limiter counts under its own prefix, `rl:<name>:`, set
+by `maybeCreateStore(name)`; with one shared prefix the global limiter and an IP fallback counted
+the same key (D-07). A new limiter passes a name of its own.
+
 Every key built from the client's address goes through `clientIpKey`: IPv4 whole, an IPv6 client
 by its /64, and `::ffff:a.b.c.d` as IPv4 (ADR-0063). `architecture.test.ts` fails on a limiter
 that keys on the raw `req.ip` or sets no `keyGenerator`. `req.ip` itself comes from `TRUST_PROXY`,
