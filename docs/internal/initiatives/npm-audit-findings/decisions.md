@@ -121,7 +121,7 @@ on it, so the image smoke and the full test gate run with the change.
 
 ## D-06 — Take every in-range fix in one change; the majors stay separate
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #181, `324fb19`)
 - **Date:** 2026-10-18
 - **Size:** Micro — single commit, no separate kit. Commits carry `refs: npm-audit-findings`.
 
@@ -146,3 +146,42 @@ checked against a list. Raising the floors in `package.json` by hand: not done; 
 what installs, and `npm ci` refuses a lockfile that disagrees with it.
 **Consequences.** No ADR: no dependency is added or removed and no declared range is crossed, the
 ground D-05 recorded. `moment` changes inside the image, so the image smoke runs.
+
+---
+
+## D-07 — Take Jest 30 on its own; `jest-junit` 17 follows separately
+
+- **Status:** Proposed
+- **Date:** 2026-10-18
+
+Promoted to the architecture decision registry as **[ADR-0065](../../../explanation/decisions/adr-0065-tests-run-on-jest-30.md)**.
+That file is authoritative; this entry is a pointer. Register row B-25; branch `fix/jest-30`.
+
+---
+
+## D-08 — Importing the app opens no database connection
+
+- **Status:** Proposed
+- **Date:** 2026-10-18
+- **Size:** Micro — part of the D-07 commit.
+
+**Context.** On Jest 30 the integration run passed all 249 tests and still failed a suite:
+`TypeError: Cannot read properties of undefined (reading 'Socket')` from `pg`, after "You are
+trying to `require` a file after the Jest environment has been torn down", naming
+`VisualizationCacheRedis.integration.test.ts` and `auth-lockout.test.ts`. Both skip every test
+when `ENABLE_REDIS_INTEGRATION` is off, and Jest runs no `beforeAll`/`afterAll` in a file with
+nothing to run, on 29 as on 30 (32 `afterAll` runs for 34 files on each). Importing
+`src/server.ts`, which `jest.setup.ts` does, called `sequelize.authenticate()` at import and nothing
+awaited it; in those two files nothing closed it either, and `pg` asked for `net` after the
+teardown. Jest 29 let that pass unreported; Jest 30 fails whichever suite runs next. The exported
+`serverReady` that carried the promise had no reader.
+**Decision.** Remove the import-time check and `serverReady`. Importing `src/server.ts` still
+registers the models; the connection is checked where it is used, by `startServer` before it
+listens and by `jest.setup.ts` in its `beforeAll`. Chosen by the owner over the two below.
+**Options considered.** A separate PR first: the same diff, one more round trip, and Jest 30
+cannot merge green without it. Leave `src` alone and stop the two suites leaking, by ignoring them
+in config when Redis integration is off: keeps an import with a network side effect that awaits
+nothing.
+**Consequences.** A database that is down at startup is reported once, by `startServer`, which
+exits 1; before, an unhandled rejection from the import-time check came with it. The integration
+run on Jest 30: 32 suites passed, 2 skipped, 249 tests, no teardown error.

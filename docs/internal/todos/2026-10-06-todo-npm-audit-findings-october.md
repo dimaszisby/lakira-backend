@@ -1,6 +1,6 @@
 # Todo — `npm audit` findings left after the `proxy-addr` fix
 
-- **Status:** Partly fixed. Step 1, the in-range fixes, on `fix/npm-audit-in-range` (`npm-audit-findings` D-06; register row B-25). Step 2 open
+- **Status:** Partly fixed. Step 1, the in-range fixes, in #181 (`npm-audit-findings` D-06); Jest 30 on `fix/jest-30` (D-07, ADR-0065). `jest-junit` 17 open; register row B-25
 - **Created:** 2026-10-06
 - **Owner:** unassigned
 - **Origin:** kit [`npm-audit-findings`](../initiatives/npm-audit-findings/decisions.md) D-05, which
@@ -46,9 +46,16 @@ moved `handlebars`, `lint-staged`, `axios`, `fast-uri`, `brace-expansion`, `node
 3.1.14) and `moment`, all within their ranges; `package.json` did not change. After: 39 findings,
 0 critical, 31 high, 8 moderate; production 2 moderate, both the accepted `uuid` root.
 
-**Step 2, still open, as measured on 2026-10-18:**
+**Step 2, Jest 30, 2026-10-18.** `jest` 29.7.0 to 30.5.2 and `@types/jest` to 30.0.0 (ADR-0065).
+After: 26 findings, 0 critical, 3 high (`braces`, `chokidar`, `nodemon`), 23 moderate; production
+unchanged at 2. Jest 30 does not clear `sprintf-js` as expected: `babel-plugin-istanbul` 8 still
+reaches it through `@istanbuljs/load-nyc-config`, `js-yaml` 3 and `argparse` 1, and npm offers no
+fix but downgrades.
 
-- `jest` 30, which also clears `@types/jest` and `sprintf-js`.
+**Still open, as measured on 2026-10-18:**
+
 - `jest-junit` 17, not in the table above; it carries the `uuid` advisory in development.
 - `braces` via `nodemon` is not a major away, as the table said: npm's only offer is
   `nodemon@1.14.10`, a downgrade. It waits for an upstream fix.
+- `sprintf-js` via `js-yaml` 3 under `babel-plugin-istanbul`: no fix but downgrades; it waits for
+  `@istanbuljs/load-nyc-config` to move off `js-yaml` 3.
