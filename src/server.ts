@@ -79,23 +79,17 @@ if (env.SENTRY_DSN) {
  *  5. Start the server based on config/prompt
  */
 
-const skipDbBootstrap = env.SKIP_DB_LIFECYCLE;
-const initialDbBootstrap = async () => {
-  if (!skipDbBootstrap) {
-    loadModels();
-    await sequelize.authenticate();
-  } else {
-    logger.info(
-      "[SERVER] SKIP_DB_LIFECYCLE enabled — skipping initial DB bootstrap.",
-    );
-  }
-};
-
-const serverBootstrapPromise = initialDbBootstrap().catch((error) => {
-  logger.error("[SERVER] Initial database bootstrap failed.", error);
-  throw error;
-});
-export const serverReady = serverBootstrapPromise;
+// Importing this module opens no connection: startServer checks the database
+// before it listens, and jest.setup.ts in its beforeAll. A check started here
+// was awaited by nothing, and outlived a test file whose hooks never ran
+// (npm-audit-findings D-08).
+if (env.SKIP_DB_LIFECYCLE) {
+  logger.info(
+    "[SERVER] SKIP_DB_LIFECYCLE enabled — skipping initial DB bootstrap.",
+  );
+} else {
+  loadModels();
+}
 
 // * Environment Variables
 

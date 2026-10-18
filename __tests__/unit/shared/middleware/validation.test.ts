@@ -21,9 +21,13 @@ const createResponse = (): Response => {
 };
 
 // Swap logger.error with a spy so we assert on the same logging surface used in production.
+// winston overloads `error`, and Jest 30 types a spy by its last overload,
+// `(infoObject)`; these assertions use the `(message, ...meta)` one.
 const loggerErrorSpy = jest
   .spyOn(logger, "error")
-  .mockImplementation(() => logger);
+  .mockImplementation(() => logger) as unknown as jest.SpiedFunction<
+  (message: string, ...meta: unknown[]) => typeof logger
+>;
 
 const makeRequest = (overrides: Partial<AuthRequest>): AuthRequest =>
   ({

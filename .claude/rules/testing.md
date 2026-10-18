@@ -17,7 +17,10 @@ Three separate projects in `jest.config.mjs`:
 
 Run a single test: `npx jest --runInBand --selectProjects unit -- path/to/test`
 
-## Coverage Thresholds (CI-enforced)
+## Coverage Thresholds (not enforced)
+
+Set per project in `jest.config.mjs`, where Jest reads none of them, so a run below them still
+exits 0 (register row B-69). Keep coverage above them until that is fixed:
 
 - Unit: 60% statements, 40% branches, 55% functions, 60% lines
 - Integration: 70% statements, 45% branches, 70% functions, 70% lines

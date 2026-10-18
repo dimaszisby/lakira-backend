@@ -143,7 +143,7 @@ Rules for adding an override:
 
 ## Current Audit Snapshot (2026-10-18)
 
-Full `npm audit`: **39 findings: 0 critical, 31 high, 8 moderate**, all in development tooling.
+Full `npm audit`: **26 findings: 0 critical, 3 high, 23 moderate**, all in development tooling.
 `npm audit --omit=dev`: **2 moderate, 0 high/critical** — the value the CI gate evaluates.
 
 ### What changed
@@ -162,16 +162,21 @@ their declared ranges; `package.json` did not change.
 | `nodemon`         | 3.1.11 | 3.1.14 | direct             | no    |
 | `moment`          | 2.30.1 | 2.31.0 | `sequelize`        | yes   |
 
+That left 39 findings (0 critical, 31 high, 8 moderate). Then Jest 30, a major of its own
+(ADR-0065): `jest` 29.7.0 to 30.5.2 and `@types/jest` to 30.0.0, which brought the count to 26
+and cleared every high but `braces` and its parents. One shipped package moved with it: `cjs-module-lexer`, under `@sentry/node`,
+2.2.0 to 2.3.0.
+
 ### What remains
 
-| Root                                         | Severity | Why it stays                                                                                     |
-| -------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------ |
-| `jest` 29 (with `@types/jest`, `sprintf-js`) | high     | needs `jest` 30, a major; its own change (register row B-25)                                     |
-| `jest-junit`                                 | moderate | needs `jest-junit` 17, a major; its own change (B-25)                                            |
-| `braces` via `nodemon`                       | high     | no fix: npm offers `nodemon@1.14.10`, a downgrade. Waits for an upstream release                 |
-| `uuid` via `sequelize`                       | moderate | accepted, `npm-audit-findings` D-04; one of the two production findings, with `sequelize` itself |
+| Root                         | Severity | Why it stays                                                                                                                      |
+| ---------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `jest-junit`                 | moderate | needs `jest-junit` 17, a major; its own change (register row B-25)                                                                |
+| `braces` via `nodemon`       | high     | no fix: npm offers `nodemon@1.14.10`, a downgrade. Waits for an upstream release                                                  |
+| `sprintf-js` via `js-yaml` 3 | moderate | reached through `babel-plugin-istanbul` 8 and `@istanbuljs/load-nyc-config`, which Jest 30 still uses; npm offers only downgrades |
+| `uuid` via `sequelize`       | moderate | accepted, `npm-audit-findings` D-04; one of the two production findings, with `sequelize` itself                                  |
 
-Full record: `docs/internal/initiatives/npm-audit-findings/` D-06.
+Full record: `docs/internal/initiatives/npm-audit-findings/` D-06, and ADR-0065 for Jest 30.
 
 ## Superseded Snapshot (2026-09-29)
 

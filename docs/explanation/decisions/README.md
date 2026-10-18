@@ -102,10 +102,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0062](./adr-0062-a-relative-range-ends-with-the-current-bucket.md)            | A relative analytics range ends with the current bucket, in the requested zone                                   | Accepted               | 2026-10-13 | analytics-relative-range D-01..03   |
 | [ADR-0063](./adr-0063-a-per-ip-limiter-keys-an-ipv6-client-by-its-64.md)           | A per-IP rate limiter keys an IPv6 client by its /64                                                             | Accepted               | 2026-10-16 | register-rate-limiter D-04          |
 | [ADR-0064](./adr-0064-a-pending-invite-is-unique-per-organization-and-email.md)    | A pending invite is unique per organization and email                                                            | Accepted               | 2026-10-18 | pending-invite-uniqueness D-01      |
+| [ADR-0065](./adr-0065-tests-run-on-jest-30.md)                                     | Tests run on Jest 30                                                                                             | Proposed               | 2026-10-18 | npm-audit-findings D-07             |
 
 ## Adding one
 
-Take the next free number — **ADR-0065** as of 2026-10-18 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0066** as of 2026-10-18 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 
