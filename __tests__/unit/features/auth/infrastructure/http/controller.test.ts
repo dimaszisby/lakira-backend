@@ -13,7 +13,6 @@ let logout: ControllerModule["logout"];
 let verifyEmail: ControllerModule["verifyEmail"];
 let resendVerification: ControllerModule["resendVerification"];
 let switchOrg: ControllerModule["switchOrg"];
-let drainBackgroundTasks: typeof import("@/utils/background-tasks.js").drainBackgroundTasks;
 let overrideAuthFeatureForTest: ControllerModule["overrideAuthFeatureForTest"];
 
 type AuthFeature = ReturnType<typeof buildAuthFeature>;
@@ -25,7 +24,7 @@ const getProfileExecute: AsyncMock = jest.fn();
 const updateProfileExecute: AsyncMock = jest.fn();
 const rotateRefreshTokenExecute: AsyncMock = jest.fn();
 const revokeRefreshTokenFamilyExecute: AsyncMock = jest.fn();
-const requestEmailVerificationExecute: AsyncMock = jest.fn(
+const scheduleEmailVerificationExecute: AsyncMock = jest.fn(
   async () => undefined,
 ) as unknown as AsyncMock;
 const verifyEmailExecute: AsyncMock = jest.fn();
@@ -55,7 +54,6 @@ const loadController = async () => {
   resendVerification = controller.resendVerification;
   switchOrg = controller.switchOrg;
   overrideAuthFeatureForTest = controller.overrideAuthFeatureForTest;
-  ({ drainBackgroundTasks } = await import("@/utils/background-tasks.js"));
 };
 
 const buildFeatureMocks = (): AuthFeature =>
@@ -66,7 +64,7 @@ const buildFeatureMocks = (): AuthFeature =>
     updateProfile: { execute: updateProfileExecute },
     rotateRefreshToken: { execute: rotateRefreshTokenExecute },
     revokeRefreshTokenFamily: { execute: revokeRefreshTokenFamilyExecute },
-    requestEmailVerification: { execute: requestEmailVerificationExecute },
+    scheduleEmailVerification: { execute: scheduleEmailVerificationExecute },
     verifyEmail: { execute: verifyEmailExecute },
     switchOrganization: { execute: switchOrganizationExecute },
     loginLockout: {
@@ -128,6 +126,7 @@ describe("Auth HTTP controller", () => {
 
     const response = res();
     await register(req, response, next);
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(registerExecute).toHaveBeenCalledWith({
       email: "user@example.com",
@@ -137,6 +136,10 @@ describe("Auth HTTP controller", () => {
       isPublicProfile: undefined,
       userAgent: "test",
       ip: "127.0.0.1",
+    });
+    expect(scheduleEmailVerificationExecute).toHaveBeenCalledWith({
+      userId: "user-1",
+      reason: "register",
     });
     // AC-1: registration sets the refresh cookie, as login does.
     expect(response.cookie).toHaveBeenCalledWith(
@@ -385,7 +388,7 @@ describe("Auth HTTP controller", () => {
     );
   });
 
-  it("resends verification email fire-and-forget and returns 200 immediately", async () => {
+  it("schedules the verification email on resend and returns 200", async () => {
     const req = {
       user: { id: "user-1", email: "user@example.com" },
       organizationId: "org-1",
@@ -400,9 +403,9 @@ describe("Auth HTTP controller", () => {
     const response = res();
     await resendVerification(req, response, next);
 
-    expect(requestEmailVerificationExecute).toHaveBeenCalledWith({
+    expect(scheduleEmailVerificationExecute).toHaveBeenCalledWith({
       userId: "user-1",
-      email: "user@example.com",
+      reason: "resend",
     });
     expect(response.status).toHaveBeenCalledWith(200);
     expect(response.json).toHaveBeenCalledWith(
@@ -411,34 +414,6 @@ describe("Auth HTTP controller", () => {
         message: expect.stringMatching(/unverified/i),
       }),
     );
-  });
-
-  it("answers 200 even when the verification email fails in the background", async () => {
-    requestEmailVerificationExecute.mockRejectedValueOnce(
-      new Error("smtp down"),
-    );
-    const req = {
-      user: { id: "user-1", email: "user@example.com" },
-      organizationId: "org-1",
-      membership: {
-        id: "mem-1",
-        role: "owner",
-        organizationId: "org-1",
-        userId: "user-1",
-      },
-    } as unknown as AuthRequest;
-
-    const response = res();
-    const errorNext = jest.fn();
-    await resendVerification(req, response, errorNext);
-    await expect(drainBackgroundTasks()).resolves.toBe(0);
-
-    expect(requestEmailVerificationExecute).toHaveBeenCalledWith({
-      userId: "user-1",
-      email: "user@example.com",
-    });
-    expect(response.status).toHaveBeenCalledWith(200);
-    expect(errorNext).not.toHaveBeenCalled();
   });
 
   it("requires authentication for resend verification", async () => {

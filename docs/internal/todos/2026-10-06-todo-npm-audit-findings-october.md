@@ -1,6 +1,6 @@
 # Todo — `npm audit` findings left after the `proxy-addr` fix
 
-- **Status:** Fixed what can be fixed. Step 1, the in-range fixes, in #181 (`npm-audit-findings` D-06); Jest 30 in #182 (D-07, ADR-0065); `jest-junit` 17 on `fix/jest-junit-17` (D-09, ADR-0066). Two findings wait on upstream releases; register row B-25, state `upstream`
+- **Status:** Fixed what can be fixed. Step 1, the in-range fixes, in #181 (`npm-audit-findings` D-06); Jest 30 in #182 (D-07, ADR-0065); `jest-junit` 17 in #183 (D-09, ADR-0066). Two findings wait on upstream releases; register row B-25, state `upstream`
 - **Created:** 2026-10-06
 - **Owner:** unassigned
 - **Origin:** kit [`npm-audit-findings`](../initiatives/npm-audit-findings/decisions.md) D-05, which

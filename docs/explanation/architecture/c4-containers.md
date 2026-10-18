@@ -36,6 +36,7 @@ graph TB
     mq -->|"consume, prefetch 10"| worker
     worker -->|"write results"| pg
     worker -->|"invalidate cache"| redis
+    worker -->|"verification, when queued"| mail
 
     classDef proc fill:#1f6feb,stroke:#1a4f8a,color:#fff
     classDef undeployed fill:#1f6feb,stroke:#f0883e,stroke-width:2px,stroke-dasharray:5 3,color:#fff
@@ -58,8 +59,13 @@ graph TB
 | Required?   | yes                                       | only with `RABBITMQ_ENABLED=true`              |
 
 They share the same `src/`, the same models, and the same database. The worker exists so that
-slow or fire-and-forget work does not occupy a request thread — today that is dummy metric-log
-generation, consumed from `QUEUES.METRIC_LOG_GENERATE_DUMMY`.
+slow or fire-and-forget work does not occupy a request thread, and so that work which must not be
+lost survives a crash. Today it consumes two queues:
+
+- `QUEUES.METRIC_LOG_GENERATE_DUMMY`: dummy metric-log generation;
+- `QUEUES.AUTH_SEND_VERIFICATION_EMAIL`: the verification email, retried and parked on failure
+  ([ADR-0067](../decisions/adr-0067-the-verification-email-is-a-queued-job.md)). With the queue on
+  and no worker running, nobody receives one.
 
 ## Request path through the API server
 

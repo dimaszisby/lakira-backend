@@ -1,6 +1,6 @@
 # Backend debt register
 
-**As of:** 2026-10-18, backend `dev` at `6c0e7a4`. Ranked by [D-01](decisions.md).
+**As of:** 2026-10-18, backend `dev` at `cbb7b87`. Ranked by [D-01](decisions.md).
 
 **"What's next" is the first row below whose state is `ready`.** A row above it that is waiting on
 someone is reported with it, as a gap. How rows are added and closed:
@@ -47,7 +47,7 @@ B-08, B-09 and B-10 are fixed (see Closed).
 
 ## Tier 5 — P3 and ungraded
 
-B-12, B-13, B-14 and B-15 are fixed (see Closed). B-18 is fixed (see Closed); recording each environment's hop count moved to B-05. B-19, B-20, B-21 and B-22 are fixed (see Closed). B-23 is fixed (see Closed), with B-68, found while fixing it. B-24 is fixed (see Closed). No analysed row is open in this tier.
+B-12, B-13, B-14 and B-15 are fixed (see Closed). B-18 is fixed (see Closed); recording each environment's hop count moved to B-05. B-19, B-20, B-21 and B-22 are fixed (see Closed). B-23 is fixed (see Closed), with B-68, found while fixing it. B-24 is fixed (see Closed). B-39 is fixed (see Closed); the reset and invite emails it left moved to B-70. No analysed row is open in this tier.
 
 Listed, not analysed ([D-03](decisions.md)). Security and privacy:
 
@@ -73,11 +73,11 @@ Architecture and code:
 | B-36 | Logger polish (U3)                                                                                                                                            | P3  | ready                  | A05b § 6 U3                                                          |
 | B-37 | No lint rule for floating promises                                                                                                                            | P3  | ready                  | `2026-10-02-todo-no-floating-promises-lint.md`                       |
 | B-38 | Shutdown has no overall bound and no re-entry guard                                                                                                           | P3  | ready                  | `2026-10-02-todo-shutdown-hardening.md`                              |
-| B-39 | Transactional email is not durable                                                                                                                            | P3  | ready                  | `2026-10-02-todo-durable-email-delivery.md`                          |
 | B-40 | Queue design: idempotency key, retry queue, unvalidated payload (R8)                                                                                          | P3  | ready                  | A0929 § 6 R8                                                         |
 | B-41 | No cleanup of `processed_messages`                                                                                                                            | —   | deliberately not built | `2026-09-15-todo-processed-messages-cleanup.md`                      |
 | B-42 | A migration's `down` re-adds foreign keys without `NOT VALID` (R9)                                                                                            | P3  | ready                  | A0929 § 6 R9                                                         |
 | B-64 | `src/utils/token-generator.ts` is a second signing path with a fixed seven-day expiry and no pinned algorithm; only `scripts/seed-contract-tests.ts` calls it | —   | ready                  | [B-07's analysis](analysis-w2-jwt-secret.md) § 7                     |
+| B-70 | The password-reset and invite emails are sent in the request with no retry; a failed reset email is logged and the user is told it was sent                   | —   | ready                  | `2026-10-18-todo-reset-and-invite-email-not-durable.md`              |
 
 API and data:
 
@@ -157,4 +157,5 @@ Rows move here when their fix is written, with the branch; the PR number is adde
 | B-24 | Two concurrent invites for one email and organization could both succeed                                                                                                           | #180 (`7658716`); [ADR-0064](../../../explanation/decisions/adr-0064-a-pending-invite-is-unique-per-organization-and-email.md); a partial unique index, and re-inviting deletes the expired invite                                                 | Not graded by an audit                                           |
 | B-25 | `npm audit` findings fixable in range, a critical in `handlebars` among them (its first half)                                                                                      | #181 (`324fb19`); [`npm-audit-findings` D-06](../npm-audit-findings/decisions.md); 45 findings to 39, no critical; production 2 moderate, the accepted `uuid` root                                                                                 | Not graded by an audit                                           |
 | B-25 | `npm audit` findings fixed by Jest 30 (its Jest half)                                                                                                                              | #182 (`6c0e7a4`); [ADR-0065](../../../explanation/decisions/adr-0065-tests-run-on-jest-30.md), [`npm-audit-findings` D-07, D-08](../npm-audit-findings/decisions.md); 39 findings to 26, highs only `braces` and its parents; production unchanged | Not graded by an audit                                           |
-| B-25 | The `uuid` finding under `jest-junit` 16 (its `jest-junit` half)                                                                                                                   | `fix/jest-junit-17`; [ADR-0066](../../../explanation/decisions/adr-0066-junit-reports-from-jest-junit-17.md); 26 findings to 25; the XML is unchanged in shape                                                                                     | Not graded by an audit                                           |
+| B-25 | The `uuid` finding under `jest-junit` 16 (its `jest-junit` half)                                                                                                                   | #183 (`cbb7b87`); [ADR-0066](../../../explanation/decisions/adr-0066-junit-reports-from-jest-junit-17.md); 26 findings to 25; the XML is unchanged in shape                                                                                        | Not graded by an audit                                           |
+| B-39 | The verification email was sent in memory after the response: a crash lost it, and a failed send was never retried                                                                 | `fix/durable-verification-email`; [ADR-0067](../../../explanation/decisions/adr-0067-the-verification-email-is-a-queued-job.md); a queued job with retries and parking, in-process fallback; reset and invites moved to B-70                       | Not graded by an audit                                           |

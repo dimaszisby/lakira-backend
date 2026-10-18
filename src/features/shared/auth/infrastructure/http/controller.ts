@@ -5,7 +5,6 @@ import { successResponse } from "@/utils/response-formatter.js";
 import catchAsync from "@/utils/catch-async.js";
 import AppError from "@/utils/AppError.js";
 import logger from "@/utils/logger.js";
-import { runInBackground } from "@/utils/background-tasks.js";
 import { LOCKOUT_TTL_SECONDS } from "./loginLockout.js";
 import { toUserResponseDTO } from "../../infrastructure/mappers/UserMapper.js";
 import { buildAuthFeature } from "../../feature.js";
@@ -28,9 +27,12 @@ type AuthFeature = ReturnType<typeof buildAuthFeature>;
 let feature: AuthFeature | undefined;
 const getFeature = (): AuthFeature => (feature ??= buildAuthFeature());
 
-export const overrideAuthFeatureForTest = (custom: AuthFeature) => {
+/** How src/server.ts supplies the wired feature (ADR-0056). */
+export const installAuthFeature = (custom: AuthFeature) => {
   feature = custom;
 };
+
+export const overrideAuthFeatureForTest = installAuthFeature;
 
 const REFRESH_COOKIE_NAME = `${APP_SHORT_NAME}_refresh`;
 const REFRESH_COOKIE_PATH = "/api/v1/auth/refresh";
@@ -83,16 +85,11 @@ export const register = catchAsync(async (req: Request, res: Response) => {
     ip: req.ip ?? null,
   });
 
-  // Not awaited: the response does not wait for the email (ADR-0054).
-  runInBackground(
-    "verification-email:register",
-    () =>
-      getFeature().requestEmailVerification.execute({
-        userId: result.user.id,
-        email: result.user.email,
-      }),
-    { userId: result.user.id },
-  );
+  // Queued for the worker, or sent in process after the response (ADR-0067).
+  await getFeature().scheduleEmailVerification.execute({
+    userId: result.user.id,
+    reason: "register",
+  });
 
   setRefreshCookie(res, result.rawRefreshToken);
 
@@ -239,12 +236,10 @@ export const verifyEmail = catchAsync(async (req: Request, res: Response) => {
 export const resendVerification = catchAsync(
   async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
-    const { id: userId, email } = req.user;
-    runInBackground(
-      "verification-email:resend",
-      () => getFeature().requestEmailVerification.execute({ userId, email }),
-      { userId },
-    );
+    await getFeature().scheduleEmailVerification.execute({
+      userId: req.user.id,
+      reason: "resend",
+    });
     successResponse(res, 200, null, RESEND_VERIFICATION_RESPONSE);
   },
 );

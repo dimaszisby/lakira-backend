@@ -89,7 +89,7 @@ two invites racing is a correctness defect and reads as more than polish.
 
 ## D-04 — A row waiting on a package release has the state `upstream`
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #183, `cbb7b87`)
 - **Date:** 2026-10-18
 
 **Context.** After `jest-junit` 17 (`npm-audit-findings` D-09), row B-25 holds only findings with

@@ -144,3 +144,8 @@ the integration setup both call `drainBackgroundTasks()`.
 - The label names the work in logs and in the drain-timeout warning; keep it stable.
 - `meta` is logged on failure. Ids only — never an email address or a token.
 - The work is not durable: a crash loses it. Anything that must not be lost belongs on the queue.
+- The verification email is on the queue (ADR-0067): `ScheduleEmailVerification` publishes a job
+  the worker sends, and falls back to `runInBackground` only when the queue is off or a publish
+  fails. A new job follows it: the message carries ids, never an address or a token; the handler
+  does its writes and its side effect inside `MessageIdempotencyPort.runOnce`; and its queue is
+  declared through `assertWorkQueue` in `topology.ts`.

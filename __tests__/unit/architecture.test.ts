@@ -410,6 +410,17 @@ describe("Architecture enforcement", () => {
       },
     );
 
+    // The server queues the verification email and the worker sends it
+    // (ADR-0067); one wiring keeps the two sides of the queue the same.
+    it.each(["server.ts", "worker.ts"])(
+      "%s takes the auth feature from the shared wiring",
+      (entry) => {
+        const content = read(entry);
+        expect(content).toContain("buildWiredAuthFeature(");
+        expect(content).not.toMatch(/\bbuildAuthFeature\(/);
+      },
+    );
+
     it.each(["server.ts", "worker.ts"])(
       "%s neither imports the metric-log factory nor builds its cache",
       (entry) => {

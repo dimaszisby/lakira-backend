@@ -42,6 +42,13 @@ import { RefreshTokenCrypto } from "./infrastructure/providers/RefreshTokenCrypt
 import { buildPasswordResetEmail } from "./infrastructure/email/templates/password-reset.js";
 import { buildEmailVerificationEmail } from "./infrastructure/email/templates/email-verification.js";
 import { buildOrganizationInviteEmail } from "./infrastructure/email/templates/organization-invite.js";
+import { ScheduleEmailVerification } from "./application/use-cases/ScheduleEmailVerification.js";
+import { SendVerificationEmailHandler } from "./application/use-cases/SendVerificationEmailHandler.js";
+import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
+import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
+import { NoopMessageQueue } from "@/shared/infrastructure/queue/NoopMessageQueue.js";
+import { SequelizeMessageIdempotency } from "@/shared/infrastructure/queue/SequelizeMessageIdempotency.js";
+import { runInBackground } from "@/utils/background-tasks.js";
 
 const buildEmailSender = (): EmailSender => {
   if (env.EMAIL_PROVIDER === "resend") {
@@ -61,6 +68,9 @@ const buildEmailSender = (): EmailSender => {
 export type AuthFeatureOverrides = {
   emailSender?: EmailSender;
   lockoutRedis?: LockoutRedisClient;
+  /** Where the verification email is queued; the server passes its publisher. */
+  messageQueue?: MessageQueuePort;
+  idempotency?: MessageIdempotencyPort;
 };
 
 export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
@@ -106,6 +116,30 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
     tokenHasher,
   );
 
+  const requestEmailVerification = new RequestEmailVerification(
+    repo,
+    emailVerificationTokenRepo,
+    emailSender,
+    {
+      frontendVerifyUrl: env.FRONTEND_VERIFY_URL,
+      buildEmail: buildEmailVerificationEmail,
+      ttlSec: env.EMAIL_VERIFICATION_TTL_SEC,
+    },
+  );
+  // Queued when the server passes a queue; otherwise, and when a publish fails,
+  // sent in this process after the response, as before (ADR-0067).
+  const scheduleEmailVerification = new ScheduleEmailVerification(
+    overrides.messageQueue ?? new NoopMessageQueue(),
+    {
+      sendInProcess: ({ userId, reason }) =>
+        runInBackground(
+          `verification-email:${reason}`,
+          () => requestEmailVerification.execute({ userId }),
+          { userId },
+        ),
+    },
+  );
+
   return {
     registerUser: new RegisterUser(
       repo,
@@ -135,15 +169,11 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
       },
     ),
     resetPassword: new ResetPassword(repo, resetTokenRepo, hasher),
-    requestEmailVerification: new RequestEmailVerification(
-      repo,
-      emailVerificationTokenRepo,
-      emailSender,
-      {
-        frontendVerifyUrl: env.FRONTEND_VERIFY_URL,
-        buildEmail: buildEmailVerificationEmail,
-        ttlSec: env.EMAIL_VERIFICATION_TTL_SEC,
-      },
+    requestEmailVerification,
+    scheduleEmailVerification,
+    sendVerificationEmailHandler: new SendVerificationEmailHandler(
+      requestEmailVerification,
+      overrides.idempotency ?? new SequelizeMessageIdempotency(),
     ),
     verifyEmail: new VerifyEmail(repo, emailVerificationTokenRepo),
     switchOrganization: new SwitchOrganization(

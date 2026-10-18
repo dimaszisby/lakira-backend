@@ -72,12 +72,14 @@ describe("RequestEmailVerification use case", () => {
       }),
     );
 
-    await sut.execute({ userId: "user-1", email: "user@example.com" });
+    await sut.execute({ userId: "user-1" });
 
     expect(userRepo.findById).toHaveBeenCalledWith("user-1");
+    // In process, no transaction is passed.
     expect(tokenRepo.revokeAllForUser).toHaveBeenCalledWith(
       user.id,
       FROZEN_NOW,
+      undefined,
     );
     expect(tokenRepo.save).toHaveBeenCalledTimes(1);
 
@@ -103,9 +105,7 @@ describe("RequestEmailVerification use case", () => {
     const { sut, userRepo, tokenRepo, emailSender } = build();
     userRepo.findById.mockResolvedValue(null);
 
-    await expect(
-      sut.execute({ userId: "missing", email: "x@example.com" }),
-    ).resolves.toBeUndefined();
+    await expect(sut.execute({ userId: "missing" })).resolves.toBeUndefined();
 
     expect(tokenRepo.revokeAllForUser).not.toHaveBeenCalled();
     expect(emailSender.send).not.toHaveBeenCalled();
@@ -115,7 +115,7 @@ describe("RequestEmailVerification use case", () => {
     const { sut, userRepo, tokenRepo, emailSender } = build();
     userRepo.findById.mockResolvedValue(makeUser(FROZEN_NOW));
 
-    await sut.execute({ userId: "user-1", email: "user@example.com" });
+    await sut.execute({ userId: "user-1" });
 
     expect(tokenRepo.revokeAllForUser).not.toHaveBeenCalled();
     expect(emailSender.send).not.toHaveBeenCalled();
@@ -136,8 +136,63 @@ describe("RequestEmailVerification use case", () => {
     );
     emailSender.send.mockRejectedValue(new Error("smtp down"));
 
-    await expect(
-      sut.execute({ userId: "user-1", email: "user@example.com" }),
-    ).resolves.toBeUndefined();
+    await expect(sut.execute({ userId: "user-1" })).resolves.toBeUndefined();
+  });
+
+  // durable-verification-email D-03: the queued job writes the token in the
+  // caller's transaction and lets a failed send throw, so both roll back.
+  describe("executeInTransaction", () => {
+    const TX = { id: "tx-1" };
+    const saveToken = (tokenRepo: ReturnType<typeof build>["tokenRepo"]) =>
+      tokenRepo.save.mockImplementation(async (data) =>
+        EmailVerificationToken.fromPersistence({
+          id: "token-1",
+          userId: data.userId,
+          tokenHash: data.tokenHash,
+          expiresAt: data.expiresAt,
+          usedAt: null,
+          createdAt: FROZEN_NOW,
+        }),
+      );
+
+    it("writes through the transaction and sends", async () => {
+      const { sut, userRepo, tokenRepo, emailSender } = build();
+      userRepo.findById.mockResolvedValue(makeUser(null));
+      saveToken(tokenRepo);
+
+      await sut.executeInTransaction("user-1", TX);
+
+      expect(tokenRepo.revokeAllForUser).toHaveBeenCalledWith(
+        "user-1",
+        FROZEN_NOW,
+        TX,
+      );
+      expect(tokenRepo.save).toHaveBeenCalledWith(expect.any(Object), TX);
+      expect(emailSender.send).toHaveBeenCalledTimes(1);
+    });
+
+    it("throws when the send fails, after writing the token", async () => {
+      const { sut, userRepo, tokenRepo, emailSender } = build();
+      userRepo.findById.mockResolvedValue(makeUser(null));
+      saveToken(tokenRepo);
+      emailSender.send.mockRejectedValue(new Error("smtp down"));
+
+      await expect(sut.executeInTransaction("user-1", TX)).rejects.toThrow(
+        "smtp down",
+      );
+      expect(tokenRepo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it("sends nothing to a missing or verified user", async () => {
+      const { sut, userRepo, tokenRepo, emailSender } = build();
+      userRepo.findById.mockResolvedValueOnce(null);
+      userRepo.findById.mockResolvedValueOnce(makeUser(FROZEN_NOW));
+
+      await sut.executeInTransaction("missing", TX);
+      await sut.executeInTransaction("user-1", TX);
+
+      expect(tokenRepo.save).not.toHaveBeenCalled();
+      expect(emailSender.send).not.toHaveBeenCalled();
+    });
   });
 });
