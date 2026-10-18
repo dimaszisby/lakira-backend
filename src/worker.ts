@@ -10,6 +10,7 @@ import { QUEUES } from "./shared/infrastructure/queue/topology.js";
 import { loadModels } from "./infrastructure/db/models.js";
 import sequelize from "./config/db.js";
 import { buildWiredMetricLogFeature } from "./composition/metric-log.js";
+import { buildWiredAuthFeature } from "./composition/auth.js";
 
 if (!env.RABBITMQ_ENABLED) {
   logger.error(
@@ -36,6 +37,7 @@ const startWorker = async (): Promise<void> => {
 
   // Handlers come from the feature, wired as the HTTP server wires it (ADR-0056).
   const { dummyLogsHandler } = buildWiredMetricLogFeature();
+  const { sendVerificationEmailHandler } = buildWiredAuthFeature();
 
   retryPublisher = new RabbitMQPublisher();
 
@@ -43,6 +45,13 @@ const startWorker = async (): Promise<void> => {
     new RabbitMQConsumer({
       queue: QUEUES.METRIC_LOG_GENERATE_DUMMY,
       handler: (msg, context) => dummyLogsHandler.handle(msg, context),
+      publisher: retryPublisher,
+    }),
+    // The verification email (ADR-0067).
+    new RabbitMQConsumer({
+      queue: QUEUES.AUTH_SEND_VERIFICATION_EMAIL,
+      handler: (msg, context) =>
+        sendVerificationEmailHandler.handle(msg, context),
       publisher: retryPublisher,
     }),
   );

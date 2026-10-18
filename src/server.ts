@@ -21,6 +21,8 @@ import { createMetricCategoryRouter } from "./features/public/metric-category/in
 import { createVisualizationRouter } from "./features/public/analytics/index.js";
 import { installMetricLogFeature } from "./features/public/metric-log/infrastructure/http/controller.js";
 import { buildWiredMetricLogFeature } from "./composition/metric-log.js";
+import { installAuthFeature } from "./features/shared/auth/infrastructure/http/controller.js";
+import { buildWiredAuthFeature } from "./composition/auth.js";
 
 // Other Setup
 import { globalRateLimiter } from "@/shared/middleware/rate-limiter.js";
@@ -48,11 +50,10 @@ import {
   pendingBackgroundTaskCount,
 } from "./utils/background-tasks.js";
 
-installMetricLogFeature(
-  buildWiredMetricLogFeature({
-    messageQueue: env.RABBITMQ_ENABLED ? new RabbitMQPublisher() : undefined,
-  }),
-);
+// One publisher for every feature that queues work.
+const messageQueue = env.RABBITMQ_ENABLED ? new RabbitMQPublisher() : undefined;
+installMetricLogFeature(buildWiredMetricLogFeature({ messageQueue }));
+installAuthFeature(buildWiredAuthFeature({ messageQueue }));
 
 if (env.SENTRY_DSN) {
   Sentry.init({

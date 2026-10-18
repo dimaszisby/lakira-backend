@@ -8,6 +8,12 @@
 - **Origin:** `D-01` to `D-05` in the drainable-background-work kit —
   [`drainable-background-work`](../../internal/initiatives/drainable-background-work/decisions.md)
 
+> **Status note (2026-10-18).** Partly superseded by
+> [ADR-0067](./adr-0067-the-verification-email-is-a-queued-job.md): with `RABBITMQ_ENABLED=true`
+> the verification email is a job the worker sends, retried and parked by the consumer. The
+> in-process path below still runs when the queue is off or a publish fails, under the same
+> labels. The cache write is unchanged.
+
 ---
 
 ## Context

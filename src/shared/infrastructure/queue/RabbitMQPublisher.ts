@@ -11,6 +11,11 @@ import type {
   PublishOptions,
 } from "@/shared/application/ports/MessageQueuePort.js";
 
+// How long a publish may wait for the broker before it rejects. Without it, a publish
+// made while the broker is unreachable waits for a reconnect that may never come,
+// and the request waiting on it with it (durable-verification-email D-04).
+export const PUBLISH_TIMEOUT_MS = 3_000;
+
 export class RabbitMQPublisher implements MessageQueuePort {
   private channel: ChannelWrapper;
 
@@ -19,6 +24,7 @@ export class RabbitMQPublisher implements MessageQueuePort {
     this.channel = connection.createChannel({
       name: "publisher",
       confirm: true,
+      publishTimeout: PUBLISH_TIMEOUT_MS,
       setup: async (ch: ConfirmChannel) => {
         await assertTopology(ch);
         ch.on("return", (msg) => {

@@ -190,7 +190,7 @@ run on Jest 30: 32 suites passed, 2 skipped, 249 tests, no teardown error.
 
 ## D-09 — Take `jest-junit` 17, the last major B-25 can fix
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #183, `cbb7b87`)
 - **Date:** 2026-10-18
 
 Promoted to the architecture decision registry as **[ADR-0066](../../../explanation/decisions/adr-0066-junit-reports-from-jest-junit-17.md)**.

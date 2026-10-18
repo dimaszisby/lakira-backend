@@ -1,6 +1,6 @@
 # ADR-0066 — JUnit reports come from jest-junit 17
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #183, `cbb7b87`)
 - **Date:** 2026-10-18
 - **Related:** [ADR-0065](./adr-0065-tests-run-on-jest-30.md) (the Jest the reporter runs under)
 - **Origin:** `D-09` in the npm-audit-findings kit —

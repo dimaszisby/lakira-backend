@@ -1,5 +1,6 @@
-import { Op } from "sequelize";
+import { Op, Transaction } from "sequelize";
 import { models } from "@/infrastructure/db/models.js";
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import { EmailVerificationToken } from "../../domain/entities/EmailVerificationToken.js";
 import {
   CreateEmailVerificationTokenDTO,
@@ -10,14 +11,19 @@ import { toDomainEmailVerificationToken } from "../mappers/EmailVerificationToke
 export class EmailVerificationTokenRepositorySequelize implements EmailVerificationTokenRepository {
   async save(
     data: CreateEmailVerificationTokenDTO,
+    tx?: PersistenceTransaction,
   ): Promise<EmailVerificationToken> {
-    const created = await models.EmailVerificationToken.create({
-      userId: data.userId,
-      tokenHash: data.tokenHash,
-      expiresAt: data.expiresAt,
-      usedAt: null,
-    });
-    await created.reload();
+    const transaction = tx as Transaction | undefined;
+    const created = await models.EmailVerificationToken.create(
+      {
+        userId: data.userId,
+        tokenHash: data.tokenHash,
+        expiresAt: data.expiresAt,
+        usedAt: null,
+      },
+      { transaction },
+    );
+    await created.reload({ transaction });
     return toDomainEmailVerificationToken(created);
   }
 
@@ -31,6 +37,7 @@ export class EmailVerificationTokenRepositorySequelize implements EmailVerificat
   async revokeAllForUser(
     userId: string,
     now: Date = new Date(),
+    tx?: PersistenceTransaction,
   ): Promise<void> {
     await models.EmailVerificationToken.update(
       { usedAt: now },
@@ -39,6 +46,7 @@ export class EmailVerificationTokenRepositorySequelize implements EmailVerificat
           userId,
           usedAt: { [Op.is]: null },
         },
+        transaction: tx as Transaction | undefined,
       },
     );
   }

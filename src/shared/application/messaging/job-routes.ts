@@ -13,4 +13,5 @@ export const EXCHANGES = {
 
 export const ROUTING_KEYS = {
   METRIC_LOG_GENERATE_DUMMY: "metric-log.generate-dummy",
+  AUTH_SEND_VERIFICATION_EMAIL: "auth.send-verification-email",
 } as const;

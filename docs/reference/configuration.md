@@ -137,6 +137,13 @@ it is an opt-in Compose service (`docker compose --profile worker up -d`) that s
 own `environment:`, so the `app` service keeps the synchronous fallback. Only the worker enables
 the queue.
 
+**Do not set `RABBITMQ_ENABLED=true` on the server where no worker runs.** The server then queues
+the verification email for the worker to send (ADR-0067), and without a consumer nobody receives
+one. The worker sends it with the email settings above, so it needs the same `EMAIL_PROVIDER`, its
+key, `EMAIL_FROM`, `FRONTEND_VERIFY_URL` and `EMAIL_VERIFICATION_TTL_SEC` as the server. Every
+publish gives up after 3 seconds; register and resend then send the email in process, as with the
+queue off.
+
 The integration suite needs a reachable broker at the default address even though
 `RABBITMQ_ENABLED` stays `false`. The queued-path test runs the consumer in-process and turns
 the queue on for itself. CI supplies RabbitMQ as a service container. Locally, stop the Compose
