@@ -84,3 +84,25 @@ found three values in the repo that a plain minimum length would break.
 **Consequences.** A tier 5 row picked up later starts from its todo, not from an analysis.
 Seventeen rows carry no severity; the next dated audit is asked to grade them, B-24 first, since
 two invites racing is a correctness defect and reads as more than polish.
+
+---
+
+## D-04 — A row waiting on a package release has the state `upstream`
+
+- **Status:** Proposed
+- **Date:** 2026-10-18
+
+**Context.** After `jest-junit` 17 (`npm-audit-findings` D-09), row B-25 holds only findings with
+no fix: `braces` under `nodemon`, where npm's only offer is a downgrade, and `sprintf-js` under
+`js-yaml` 3, which Jest 30 still reaches. Nothing in this repository can close them. Left `ready`,
+the row would stay the answer to "what's next" with no work in it; none of the states the register
+defines (`ready`, `owner`, `FE`, `unexplained`) says "waiting on someone else's release".
+**Decision.** Add the state `upstream`: waiting on a release of a dependency. "What's next" skips
+an `upstream` row as it skips an `owner` row, and reports it as a gap only when the release it
+waits for has appeared. Whoever writes a dependency-policy snapshot rechecks every `upstream` row
+and moves it back to `ready` when a fix exists. D-01's ranking is unchanged; this decides only
+which rows it skips.
+**Options considered.** Close B-25 and leave the two findings in the dependency policy's "What
+remains" alone: rejected, the register is to list every open item. Mark it `kept on purpose`, as
+B-26 is: rejected, B-26 is a choice this repository made and these are not.
+**Consequences.** B-25 is no longer the top ready row; B-27 is.
