@@ -151,7 +151,7 @@ ground D-05 recorded. `moment` changes inside the image, so the image smoke runs
 
 ## D-07 — Take Jest 30 on its own; `jest-junit` 17 follows separately
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #182, `6c0e7a4`)
 - **Date:** 2026-10-18
 
 Promoted to the architecture decision registry as **[ADR-0065](../../../explanation/decisions/adr-0065-tests-run-on-jest-30.md)**.
@@ -161,7 +161,7 @@ That file is authoritative; this entry is a pointer. Register row B-25; branch `
 
 ## D-08 — Importing the app opens no database connection
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #182, `6c0e7a4`)
 - **Date:** 2026-10-18
 - **Size:** Micro — part of the D-07 commit.
 
@@ -185,3 +185,13 @@ nothing.
 **Consequences.** A database that is down at startup is reported once, by `startServer`, which
 exits 1; before, an unhandled rejection from the import-time check came with it. The integration
 run on Jest 30: 32 suites passed, 2 skipped, 249 tests, no teardown error.
+
+---
+
+## D-09 — Take `jest-junit` 17, the last major B-25 can fix
+
+- **Status:** Proposed
+- **Date:** 2026-10-18
+
+Promoted to the architecture decision registry as **[ADR-0066](../../../explanation/decisions/adr-0066-junit-reports-from-jest-junit-17.md)**.
+That file is authoritative; this entry is a pointer. Register row B-25; branch `fix/jest-junit-17`.

@@ -1,6 +1,6 @@
 # Todo — `npm audit` findings left after the `proxy-addr` fix
 
-- **Status:** Partly fixed. Step 1, the in-range fixes, in #181 (`npm-audit-findings` D-06); Jest 30 on `fix/jest-30` (D-07, ADR-0065). `jest-junit` 17 open; register row B-25
+- **Status:** Fixed what can be fixed. Step 1, the in-range fixes, in #181 (`npm-audit-findings` D-06); Jest 30 in #182 (D-07, ADR-0065); `jest-junit` 17 on `fix/jest-junit-17` (D-09, ADR-0066). Two findings wait on upstream releases; register row B-25, state `upstream`
 - **Created:** 2026-10-06
 - **Owner:** unassigned
 - **Origin:** kit [`npm-audit-findings`](../initiatives/npm-audit-findings/decisions.md) D-05, which
@@ -52,9 +52,12 @@ unchanged at 2. Jest 30 does not clear `sprintf-js` as expected: `babel-plugin-i
 reaches it through `@istanbuljs/load-nyc-config`, `js-yaml` 3 and `argparse` 1, and npm offers no
 fix but downgrades.
 
-**Still open, as measured on 2026-10-18:**
+**Step 2, `jest-junit` 17, 2026-10-18.** 16.0.0 to 17.0.0, with its own `uuid` 14.0.3 (ADR-0066).
+The XML it writes is unchanged in shape. After: 25 findings, 0 critical, 3 high, 22 moderate;
+production unchanged at 2.
 
-- `jest-junit` 17, not in the table above; it carries the `uuid` advisory in development.
+**Waiting on upstream, as measured on 2026-10-18:**
+
 - `braces` via `nodemon` is not a major away, as the table said: npm's only offer is
   `nodemon@1.14.10`, a downgrade. It waits for an upstream fix.
 - `sprintf-js` via `js-yaml` 3 under `babel-plugin-istanbul`: no fix but downgrades; it waits for

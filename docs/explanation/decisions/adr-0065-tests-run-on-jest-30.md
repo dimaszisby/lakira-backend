@@ -1,6 +1,6 @@
 # ADR-0065 — Tests run on Jest 30
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #182, `6c0e7a4`)
 - **Date:** 2026-10-18
 - **Related:** [ADR-0046](./adr-0046-node-24-runtime.md) (the runtime the suite runs on)
 - **Origin:** `D-07` in the npm-audit-findings kit —
