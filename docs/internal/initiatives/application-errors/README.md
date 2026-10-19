@@ -1,7 +1,7 @@
 # Application errors
 
-**Status:** Implemented on `refactor/application-errors`; PR open. Register row B-30.
-[ADR-0068](../../../explanation/decisions/adr-0068-the-application-layer-raises-domain-errors.md) (Proposed).
+**Status:** Complete. Merged in #185 (`98f17f6`). Register row B-30.
+[ADR-0068](../../../explanation/decisions/adr-0068-the-application-layer-raises-domain-errors.md) (Accepted).
 **Slug:** `application-errors` · **Branch:** `refactor/application-errors`
 
 - [Plan](application-errors-plan.md) — goals, acceptance criteria, design

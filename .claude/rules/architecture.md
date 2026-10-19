@@ -154,4 +154,5 @@ the integration setup both call `drainBackgroundTasks()`.
   the worker sends, and falls back to `runInBackground` only when the queue is off or a publish
   fails. A new job follows it: the message carries ids, never an address or a token; the handler
   does its writes and its side effect inside `MessageIdempotencyPort.runOnce`; and its queue is
-  declared through `assertWorkQueue` in `topology.ts`.
+  declared through `assertWorkQueue` in `topology.ts`. The password-reset email does the same,
+  with its fallback in the request (ADR-0069).

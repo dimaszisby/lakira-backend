@@ -37,7 +37,8 @@ const startWorker = async (): Promise<void> => {
 
   // Handlers come from the feature, wired as the HTTP server wires it (ADR-0056).
   const { dummyLogsHandler } = buildWiredMetricLogFeature();
-  const { sendVerificationEmailHandler } = buildWiredAuthFeature();
+  const { sendVerificationEmailHandler, sendPasswordResetEmailHandler } =
+    buildWiredAuthFeature();
 
   retryPublisher = new RabbitMQPublisher();
 
@@ -52,6 +53,13 @@ const startWorker = async (): Promise<void> => {
       queue: QUEUES.AUTH_SEND_VERIFICATION_EMAIL,
       handler: (msg, context) =>
         sendVerificationEmailHandler.handle(msg, context),
+      publisher: retryPublisher,
+    }),
+    // The password-reset email (ADR-0069).
+    new RabbitMQConsumer({
+      queue: QUEUES.AUTH_SEND_PASSWORD_RESET_EMAIL,
+      handler: (msg, context) =>
+        sendPasswordResetEmailHandler.handle(msg, context),
       publisher: retryPublisher,
     }),
   );

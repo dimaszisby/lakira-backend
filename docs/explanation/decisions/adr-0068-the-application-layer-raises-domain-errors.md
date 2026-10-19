@@ -1,6 +1,6 @@
 # ADR-0068 — The application layer raises domain errors, not HTTP errors
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #185, `98f17f6`)
 - **Date:** 2026-10-19
 - **Related:** [ADR-0044](./adr-0044-feature-boundaries-and-their-frozen-exceptions.md) and
   feature-boundaries D-06 (the domain's `DomainError`, which this extends);
