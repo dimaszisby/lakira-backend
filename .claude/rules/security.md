@@ -93,10 +93,16 @@ and limits stop being shared across instances (twelve-factor TF-12).
 - The logger masks metadata before it formats the message, so a `%j` or `%o` token prints the
   masked copy. Metadata nested deeper than five levels is written as `[Truncated]`, never passed
   through (ADR-0059)
+- What Sentry collects on its own is set by `SENTRY_DATA_COLLECTION` in
+  `src/utils/sentry-scrub.ts`: every category of `@sentry/node` 11's `dataCollection`, named and
+  off (ADR-0071). An unnamed one is on, bound query parameters included, so a new category the
+  SDK adds is named there too. `Sentry.init` pins `traceLifecycle: "stream"`, and leaves capturing
+  a server error to `errorHandler` (`expressIntegration({ shouldHandleError: false })`): the
+  integration would capture at the throw and send a domain error, a 4xx, as a 5xx
 - Everything Sentry would send passes through `src/utils/sentry-scrub.ts` first: events through
-  `scrubSentryEvent`, transactions, spans and logs through their own hooks, since none reaches
+  `scrubSentryEvent`, streamed spans and logs through their own hooks, since neither reaches
   `beforeSend`. `Sentry.init` spreads `SENTRY_SCRUB_HOOKS`, so a new hook goes in that object; a
-  test runs it through the real SDK. Logs are off, and their hook is set anyway. The scrubber
+  test runs it through the real SDK. The app sends no logs, and their hook is set anyway. The scrubber
   masks credential headers, drops cookies, and applies the key pattern to the body, `extra`,
   `contexts`, `tags`, breadcrumb data, span and log attributes. It cuts the query string and the
   `user:password@` from the request URL and from any URL in a header, a breadcrumb or a span,

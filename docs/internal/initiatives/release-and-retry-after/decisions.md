@@ -2,7 +2,7 @@
 
 ## D-01 — `/health` keeps naming the release
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #190, `15555ca`)
 - **Date:** 2026-10-19
 
 **Context.** The 2026-10-12 audit (§ 6 W7) listed "`/health` returns the release unauthenticated".
@@ -18,7 +18,7 @@ private, this decision is the one to revisit.
 
 ## D-02 — Every 429 in the spec declares `Retry-After`
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #190, `15555ca`)
 - **Date:** 2026-10-19
 
 **Context.** Every path that answers 429 already sends `Retry-After`: express-rate-limit 7.5.1 sets
@@ -36,7 +36,7 @@ already sent is a kit decision (`error-envelope-residuals` D-09, #168).
 
 ## D-03 — The Compose dev image carries the commit it was built from
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #190, `15555ca`)
 - **Date:** 2026-10-19
 
 **Context.** Locally `/health` says `release: "unknown"`: nothing gives the dev image its commit.

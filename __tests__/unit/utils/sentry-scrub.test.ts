@@ -5,7 +5,6 @@ import {
   scrubSentryEvent,
   scrubSentryLog,
   scrubSentrySpan,
-  scrubSentryTransaction,
   scrubText,
 } from "@/utils/sentry-scrub.js";
 
@@ -56,7 +55,7 @@ describe("scrubSentryEvent", () => {
     });
   });
 
-  // This is the path sendDefaultPii:false does NOT cover — see D-02.
+  // This is the path no SDK setting covers: what the app passes itself — see D-02.
   it("redacts secrets passed explicitly via extra", () => {
     const event = scrubSentryEvent({
       extra: { refreshToken: "raw-secret", attemptCount: 3 },
@@ -222,14 +221,17 @@ describe("scrubSentryEvent: the places an address can ride in", () => {
   });
 });
 
-describe("scrubSentrySpan and scrubSentryTransaction", () => {
+// Sentry 11 streams spans: `beforeSendSpan` gets a StreamedSpanJSON, with the op as
+// the `sentry.op` attribute and a name and attributes where 10 had a description and
+// data (sentry-11-data-collection D-03).
+describe("scrubSentrySpan", () => {
   const httpSpan = () => ({
     span_id: "a1",
     trace_id: "t1",
     start_timestamp: 1,
-    op: "http.client",
-    description: `POST https://mail.example/send?to=${EMAIL}`,
-    data: {
+    name: `POST https://mail.example/send?to=${EMAIL}`,
+    attributes: {
+      "sentry.op": "http.client",
       "http.request.method": "POST",
       "url.full": `https://mail.example/send?to=${EMAIL}`,
       "url.query": `to=${EMAIL}`,
@@ -241,9 +243,9 @@ describe("scrubSentrySpan and scrubSentryTransaction", () => {
     span_id: "b2",
     trace_id: "t1",
     start_timestamp: 1,
-    op: "db",
-    description: `SELECT "id" FROM "users" WHERE "email" = '${EMAIL}' LIMIT 1`,
-    data: {
+    name: `SELECT "id" FROM "users" WHERE "email" = '${EMAIL}' LIMIT 1`,
+    attributes: {
+      "sentry.op": "db",
       "db.system": "postgresql",
       "db.statement": `SELECT "id" FROM "users" WHERE "email" = '${EMAIL}' LIMIT 1`,
       "db.query.text": `SELECT "id" FROM "users" WHERE "email" = '${EMAIL}' LIMIT 1`,
@@ -254,57 +256,44 @@ describe("scrubSentrySpan and scrubSentryTransaction", () => {
   it("trims a span's URLs and removes its query attributes", () => {
     const span = scrubSentrySpan(httpSpan());
 
-    expect(span.description).toBe("POST https://mail.example/send");
-    expect(span.data).toEqual({
+    expect(span.name).toBe("POST https://mail.example/send");
+    expect(span.attributes).toEqual({
+      "sentry.op": "http.client",
       "http.request.method": "POST",
       "url.full": "https://mail.example/send",
       "http.url": "https://mail.example/send",
     });
-    expect(span.op).toBe("http.client");
     expect(span.span_id).toBe("a1");
   });
 
   it("keeps a database span's operation and drops its statement", () => {
     const span = scrubSentrySpan(dbSpan());
 
-    expect(span.description).toBe("SELECT");
-    expect(span.data).toEqual({ "db.system": "postgresql", "db.name": "app" });
+    expect(span.name).toBe("SELECT");
+    expect(span.attributes).toEqual({
+      "sentry.op": "db",
+      "db.system": "postgresql",
+      "db.name": "app",
+    });
     expect(text(span)).not.toContain(EMAIL);
   });
 
-  it("scrubs a transaction's request, user, trace data and every span", () => {
-    const event = scrubSentryTransaction({
-      type: "transaction",
-      transaction: "GET /api/v1/metrics",
-      request: {
-        url: `https://x/api/v1/metrics?q=${EMAIL}`,
-        query_string: `q=${EMAIL}`,
-        headers: { cookie: "a=b" },
+  it("masks a header attribute, now a list of values, by its name", () => {
+    const span = scrubSentrySpan({
+      name: "GET /api/v1/metrics",
+      attributes: {
+        "sentry.op": "http.server",
+        "http.request.header.authorization": [`Bearer ${TOKEN}`],
+        "http.request.header.cookie": ["lakira_refresh=abc123"],
+        "http.request.header.accept": ["application/json"],
       },
-      user: { id: "u-1", email: EMAIL },
-      contexts: {
-        trace: {
-          op: "http.server",
-          data: {
-            "url.full": `https://x/api/v1/metrics?q=${EMAIL}`,
-            "url.query": `q=${EMAIL}`,
-            "http.target": `/api/v1/metrics?q=${EMAIL}`,
-          },
-        },
-      },
-      spans: [httpSpan(), dbSpan()],
     });
 
-    expect(text(event)).not.toContain(EMAIL);
-    expect(event.transaction).toBe("GET /api/v1/metrics");
-    expect(event.user).toEqual({ id: "u-1" });
-    expect(event.spans).toHaveLength(2);
-    expect(event.spans![1].description).toBe("SELECT");
-    expect(
-      (event.contexts!.trace as { data: Record<string, unknown> }).data,
-    ).toEqual({
-      "url.full": "https://x/api/v1/metrics",
-      "http.target": "/api/v1/metrics",
+    expect(span.attributes).toEqual({
+      "sentry.op": "http.server",
+      "http.request.header.authorization": "***REDACTED***",
+      "http.request.header.cookie": "***REDACTED***",
+      "http.request.header.accept": ["application/json"],
     });
   });
 });
@@ -414,21 +403,24 @@ describe("scrubSentryEvent: what review found", () => {
 describe("scrubSentrySpan: what review found", () => {
   it("recognises a database span by its attributes when it has no op", () => {
     const span = scrubSentrySpan({
-      description: `INSERT INTO "users" ("email") VALUES ('${EMAIL}')`,
-      data: { "db.system": "postgresql", "db.statement": `… '${EMAIL}'` },
+      name: `INSERT INTO "users" ("email") VALUES ('${EMAIL}')`,
+      attributes: {
+        "db.system": "postgresql",
+        "db.query.text": `… '${EMAIL}'`,
+      },
     });
 
     expect(span).toEqual({
-      description: "INSERT",
-      data: { "db.system": "postgresql" },
+      name: "INSERT",
+      attributes: { "db.system": "postgresql" },
     });
   });
 
   it("drops the client address and gives the same span on a second pass", () => {
     const first = scrubSentrySpan({
-      op: "http.server",
-      description: "GET /api/v1/metrics?q=Alice",
-      data: {
+      name: "GET /api/v1/metrics?q=Alice",
+      attributes: {
+        "sentry.op": "http.server",
         "http.client_ip": "203.0.113.9",
         "client.address": "203.0.113.9",
         "http.route": "/api/v1/metrics",
@@ -436,17 +428,17 @@ describe("scrubSentrySpan: what review found", () => {
     });
 
     expect(first).toEqual({
-      op: "http.server",
-      description: "GET /api/v1/metrics",
-      data: { "http.route": "/api/v1/metrics" },
+      name: "GET /api/v1/metrics",
+      attributes: {
+        "sentry.op": "http.server",
+        "http.route": "/api/v1/metrics",
+      },
     });
     expect(scrubSentrySpan(structuredClone(first))).toEqual(first);
-    expect(scrubSentrySpan({ op: "db", description: "" }).description).toBe(
-      "DB",
-    );
-    expect(scrubSentrySpan({ op: "db", description: "DB" }).description).toBe(
-      "DB",
-    );
+    const db = (name: string) =>
+      scrubSentrySpan({ name, attributes: { "sentry.op": "db" } }).name;
+    expect(db("")).toBe("DB");
+    expect(db("DB")).toBe("DB");
   });
 });
 
@@ -470,11 +462,22 @@ describe("scrubSentrySpan: network addresses", () => {
   ];
 
   // Host names, kept on purpose: they are how a trace is read.
-  const KEPT_HOST_KEYS = ["server.address", "net.host.name", "net.peer.name"];
+  // `address` is Sentry 11's deprecated, namespace-less alias of `server.address`.
+  const KEPT_HOST_KEYS = [
+    "server.address",
+    "address",
+    "net.host.name",
+    "net.peer.name",
+  ];
 
-  const scrubbed = (data: Record<string, unknown>) =>
-    scrubSentrySpan({ op: "http.server", description: "GET /x", data })
-      .data as Record<string, unknown>;
+  // The op attribute is set apart, so each case compares only what it put in.
+  const scrubbed = (data: Record<string, unknown>) => {
+    const { "sentry.op": _op, ...rest } = scrubSentrySpan({
+      name: "GET /x",
+      attributes: { "sentry.op": "http.server", ...data },
+    }).attributes as Record<string, unknown>;
+    return rest;
+  };
 
   it.each(ADDRESSES)("drops every address attribute holding %s", (address) => {
     const data = scrubbed(
@@ -538,44 +541,15 @@ describe("scrubSentrySpan: network addresses", () => {
 
   it("gives the same span on a second pass", () => {
     const first = scrubSentrySpan({
-      op: "http.server",
-      description: "GET /x",
-      data: { "net.peer.ip": "203.0.113.9", hops: ["203.0.113.9"] },
+      name: "GET /x",
+      attributes: {
+        "sentry.op": "http.server",
+        "net.peer.ip": "203.0.113.9",
+        hops: ["203.0.113.9"],
+      },
     });
 
     expect(scrubSentrySpan(structuredClone(first))).toEqual(first);
-  });
-
-  it("cleans a transaction's trace data and each of its spans", () => {
-    const event = scrubSentryTransaction({
-      contexts: {
-        trace: {
-          op: "http.server",
-          data: {
-            "net.peer.ip": "::ffff:203.0.113.9",
-            "net.host.ip": "::ffff:10.0.0.5",
-            "http.route": "/api/v1/health",
-          },
-        },
-      },
-      spans: [
-        {
-          op: "http.client",
-          description: "POST https://mail.example/send",
-          data: {
-            "network.peer.address": "198.51.100.7",
-            "net.peer.ip": "198.51.100.7",
-          },
-        },
-      ],
-    });
-
-    expect(JSON.stringify(event)).not.toMatch(
-      /203\.0\.113|10\.0\.0\.5|198\.51\.100/,
-    );
-    expect(
-      (event.contexts?.trace as { data: Record<string, unknown> }).data,
-    ).toEqual({ "http.route": "/api/v1/health" });
   });
 
   it("cleans the trace data an error event carries", () => {
@@ -680,9 +654,9 @@ describe("scrubSentryEvent: addresses outside span attributes", () => {
       },
     });
     const span = scrubSentrySpan({
-      op: "http.client",
-      description: "GET http://198.51.100.7/send",
-      data: {
+      name: "GET http://198.51.100.7/send",
+      attributes: {
+        "sentry.op": "http.client",
         "url.full": "http://198.51.100.7:8025/api/v1/send?x=1",
         "db.connection_string": "postgresql://10.0.0.5:5432/app",
         "http.url": "https://mail.example.com/send",
@@ -694,9 +668,9 @@ describe("scrubSentryEvent: addresses outside span attributes", () => {
       headers: { host: "[address]", "x-envoy-external-address": "[address]" },
     });
     expect(span).toEqual({
-      op: "http.client",
-      description: "GET http://[address]/send",
-      data: {
+      name: "GET http://[address]/send",
+      attributes: {
+        "sentry.op": "http.client",
         "url.full": "http://[address]/api/v1/send",
         "db.connection_string": "postgresql://[address]/app",
         "http.url": "https://mail.example.com/send",
@@ -782,13 +756,17 @@ describe("W5: userinfo, three more event fields and logs", () => {
 
   it("strips userinfo from a URL attribute", () => {
     const span = scrubSentrySpan({
-      op: "http.client",
-      description: "GET https://u:pw@h.example/p",
-      data: { "url.full": "https://u:pw@h.example/p?x=1" },
+      name: "GET https://u:pw@h.example/p",
+      attributes: {
+        "sentry.op": "http.client",
+        "url.full": "https://u:pw@h.example/p?x=1",
+      },
     });
 
-    expect(span.description).toBe("GET https://[credentials]@h.example/p");
-    expect(span.data!["url.full"]).toBe("https://[credentials]@h.example/p");
+    expect(span.name).toBe("GET https://[credentials]@h.example/p");
+    expect(span.attributes!["url.full"]).toBe(
+      "https://[credentials]@h.example/p",
+    );
   });
 
   it("cleans the transaction name", () => {

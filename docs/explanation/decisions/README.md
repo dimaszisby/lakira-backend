@@ -108,10 +108,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0068](./adr-0068-the-application-layer-raises-domain-errors.md)               | The application layer raises domain errors, not HTTP errors                                                      | Accepted                                            | 2026-10-19 | application-errors D-01 to D-04         |
 | [ADR-0069](./adr-0069-the-password-reset-email-is-a-queued-job.md)                 | The password-reset email is a queued job                                                                         | Accepted                                            | 2026-10-19 | durable-password-reset-email D-01..04   |
 | [ADR-0070](./adr-0070-the-invite-email-is-a-queued-job.md)                         | The invite email is a queued job                                                                                 | Accepted                                            | 2026-10-19 | durable-invite-email D-01..04           |
+| [ADR-0071](./adr-0071-sentry-11-collects-nothing-on-its-own.md)                    | Sentry 11 collects nothing on its own                                                                            | Proposed                                            | 2026-10-20 | sentry-11-data-collection D-01..05      |
 
 ## Adding one
 
-Take the next free number — **ADR-0071** as of 2026-10-19 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0072** as of 2026-10-20 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 
