@@ -10,6 +10,7 @@ import path from "path";
  */
 type Header = { $ref?: string; required?: boolean; description?: string };
 type Response = {
+  $ref?: string;
   description?: string;
   headers?: Record<string, Header>;
   content?: unknown;
@@ -20,7 +21,10 @@ type Operation = {
 };
 type Spec = {
   paths: Record<string, Record<string, Operation>>;
-  components: { headers?: Record<string, Header> };
+  components: {
+    headers?: Record<string, Header>;
+    responses?: Record<string, Response>;
+  };
 };
 
 // Named after the package, as scripts/openapi-spec-path.js names it; that module is
@@ -102,12 +106,12 @@ describe("response headers in the OpenAPI spec", () => {
     },
   );
 
-  it("declares a response header on those seven operations and no other", () => {
+  it("declares a response header on those seven operations and no other, 429s aside", () => {
     const withHeaders = Object.entries(spec.paths).flatMap(([route, item]) =>
       Object.entries(item)
         .filter(([, operation]) =>
-          Object.values(operation.responses ?? {}).some(
-            (response) => response.headers,
+          Object.entries(operation.responses ?? {}).some(
+            ([status, response]) => status !== "429" && response.headers,
           ),
         )
         .map(([method]) => `${method.toUpperCase()} ${route}`),
@@ -122,5 +126,48 @@ describe("response headers in the OpenAPI spec", () => {
       "POST /auth/register",
       "POST /auth/switch-org",
     ]);
+  });
+
+  // Register row B-27 (kit release-and-retry-after, D-02). Every path that answers 429
+  // sends Retry-After: express-rate-limit sets it on every limiter, and the login lockout
+  // sets it itself. The spec did not say so.
+  describe("429 responses", () => {
+    const resolve = (response: Response): Response => {
+      const name = response.$ref?.replace("#/components/responses/", "");
+      return name ? (spec.components.responses?.[name] ?? {}) : response;
+    };
+    const tooManyRequests = Object.entries(spec.paths).flatMap(
+      ([route, item]) =>
+        Object.entries(item)
+          .filter(([, operation]) => operation.responses?.["429"])
+          .map(
+            ([method, operation]) =>
+              [
+                `${method.toUpperCase()} ${route}`,
+                resolve(operation.responses["429"]),
+              ] as const,
+          ),
+    );
+
+    it("are declared on every operation", () => {
+      const operations = Object.values(spec.paths).flatMap((item) =>
+        Object.values(item),
+      );
+      expect(tooManyRequests).toHaveLength(operations.length);
+    });
+
+    it.each(tooManyRequests)("%s declares Retry-After", (_name, response) => {
+      expect(response.headers).toEqual({ "Retry-After": ref("RetryAfter") });
+    });
+
+    it("describes Retry-After as a required number of seconds", () => {
+      const header = spec.components.headers?.RetryAfter as Header & {
+        schema?: { type?: string; minimum?: number };
+      };
+
+      expect(header?.required).toBe(true);
+      expect(header?.schema).toEqual({ type: "integer", minimum: 0 });
+      expect(header?.description).toMatch(/seconds/);
+    });
   });
 });

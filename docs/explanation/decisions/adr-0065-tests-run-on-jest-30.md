@@ -68,7 +68,7 @@ a change of its own.
 - Jest 30 warns that `coverageThreshold` inside a project is not read. Jest 29 did not read it
   either, silently, so the thresholds were never enforced. That is filed as register row B-69 and
   is not changed here.
-  - _Note, 2026-10-19:_ fixed on `fix/coverage-thresholds-enforced`. The thresholds moved to the
+  - _Note, 2026-10-19:_ fixed in #189 (`d3b254e`). The thresholds moved to the
     root config, chosen per run by `JEST_COVERAGE_PROJECT` (`coverage-thresholds-enforced` D-01),
     and the warning is gone.
 - A database that is down at startup is now reported once, by `startServer`, which exits 1.

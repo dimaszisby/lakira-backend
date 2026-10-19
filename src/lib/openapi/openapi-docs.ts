@@ -75,6 +75,11 @@ const REFRESH_COOKIE_HEADERS = {
 const CLEARED_REFRESH_COOKIE_HEADERS = {
   "Set-Cookie": { $ref: "#/components/headers/ClearedRefreshCookie" },
 };
+// Every limiter, and the login lockout, sends Retry-After with its 429
+// (kit release-and-retry-after, D-02).
+const RETRY_AFTER_HEADER = {
+  "Retry-After": { $ref: "#/components/headers/RetryAfter" },
+};
 const VALIDATOR_HEADERS = {
   ETag: { $ref: "#/components/headers/ETag" },
   "Cache-Control": { $ref: "#/components/headers/VisualizationCacheControl" },
@@ -131,6 +136,7 @@ registry.registerPath({
     429: {
       description:
         "Too many registration attempts from this IP (RATE_LIMIT_REGISTER_IP_MAX per hour)",
+      headers: RETRY_AFTER_HEADER,
       content: {
         "application/json": {
           schema: RateLimitErrorSchema,
@@ -348,6 +354,7 @@ registry.registerPath({
     },
     429: {
       description: "Rate limit exceeded for password reset requests",
+      headers: RETRY_AFTER_HEADER,
       content: {
         "application/json": {
           schema: RateLimitErrorSchema,
@@ -393,6 +400,7 @@ registry.registerPath({
     },
     429: {
       description: "Rate limit exceeded for password reset requests",
+      headers: RETRY_AFTER_HEADER,
       content: {
         "application/json": {
           schema: RateLimitErrorSchema,
@@ -437,6 +445,7 @@ registry.registerPath({
     },
     429: {
       description: "Rate limit exceeded for email verification requests",
+      headers: RETRY_AFTER_HEADER,
       content: {
         "application/json": {
           schema: RateLimitErrorSchema,
@@ -476,6 +485,7 @@ registry.registerPath({
     },
     429: {
       description: "Rate limit exceeded for resend verification requests",
+      headers: RETRY_AFTER_HEADER,
       content: {
         "application/json": {
           schema: RateLimitErrorSchema,

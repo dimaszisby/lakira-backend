@@ -237,6 +237,13 @@ like every other URL.
 | `ALLOW_TEST_HTTP_SERVER`    | boolean                         | `false`                                         |
 | `JEST_TIMEOUT`              | number                          | `30000`                                         |
 
+`APP_RELEASE` is the commit `/api/v1/health` reports as `release`, and the release Sentry and the
+logs carry (ADR-0039). An empty value counts as unset. The Compose `app` and `worker` images bake
+it in at build time, so a local image reports the commit it was built from:
+`APP_RELEASE=$(git rev-parse HEAD) docker compose up -d --build app`. It names the checkout's
+`HEAD`, so uncommitted changes are not reflected. Leave it out of `.env`: inside Compose a line
+there, even an empty one, overrides the image's (`release-and-retry-after` D-03).
+
 ## Branding
 
 | Variable   | Type   | Default                              |

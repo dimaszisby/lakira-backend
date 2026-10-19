@@ -103,6 +103,11 @@ still lands and still answers the attribution question.
   **Correction (2026-09-16):** `/api/v1/health` is not in the OpenAPI spec, so no regeneration is
   triggered. The Newman contract tests referenced here were retired in PR #75; what remains is
   Schemathesis, spec-driven, and it never touches `/health`. Actual blast radius is near zero.
+  _Note, 2026-10-19:_ the 2026-10-12 audit asked whether `/health` should name the release to
+  anyone. It keeps doing so: the deploy smoke check (`tests/smoke/run-smoke.mjs`) asserts it
+  without credentials, and the repository is public, so the commit says nothing the source does
+  not. An empty `APP_RELEASE` now counts as unset, and the Compose dev image bakes in the commit
+  it was built from (`release-and-retry-after` D-01, D-03).
 - Sentry issues become attributable to a commit, and Sentry's release-tracking features (regression
   detection, suspect commits) start working. This is the single largest practical gain and it comes
   from Part 1.

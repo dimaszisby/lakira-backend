@@ -18,4 +18,10 @@ RUN npm install
 
 COPY . .
 
+# The commit /health reports as `release` (kit release-and-retry-after, D-03), passed by
+# docker-compose.yml from APP_RELEASE in the shell. Last, so a new commit does not redo
+# npm install.
+ARG APP_RELEASE=unknown
+ENV APP_RELEASE=$APP_RELEASE
+
 CMD ["npm", "run", "dev"]

@@ -314,11 +314,13 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
       // Release identity (ADR-0039 Part 1). CI/platform supplies the commit SHA via
       // APP_RELEASE; Render also auto-sets RENDER_GIT_COMMIT from the branch tip it builds,
       // used as a fallback when APP_RELEASE is unset — APP_RELEASE always wins when both are
-      // set. Defaults to "unknown" for local development, tests, and a fresh fork.
+      // set. Defaults to "unknown" for local development, tests, and a fresh fork. An empty
+      // value counts as unset, as the logger already reads it: `.env.example` shipped
+      // `APP_RELEASE=`, and /health reported "" (release-and-retry-after D-03).
       APP_RELEASE: z
         .string()
         .optional()
-        .default(process.env.RENDER_GIT_COMMIT || "unknown"),
+        .transform((val) => val || process.env.RENDER_GIT_COMMIT || "unknown"),
 
       // HTTP
       // Hops of proxy in front of the app; req.ip, and so every per-IP limiter, depends
