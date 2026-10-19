@@ -1,6 +1,8 @@
 # Todo — the coverage thresholds are not enforced
 
-- **Status:** Open. Register row B-69
+- **Status:** Closed on `fix/coverage-thresholds-enforced` (kit
+  [`coverage-thresholds-enforced`](../initiatives/coverage-thresholds-enforced/README.md), D-01: option 2,
+  with a new variable). Register row B-69
 - **Created:** 2026-10-18
 - **Owner:** unassigned
 - **Origin:** the Jest 30 upgrade

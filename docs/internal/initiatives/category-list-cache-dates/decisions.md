@@ -2,7 +2,7 @@
 
 ## D-01 — The list cache holds a snapshot and rebuilds entities on a hit
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #188, `f5eea43`)
 - **Date:** 2026-10-19
 
 **Context.** `ListCategories` cached the repository's page of `MetricCategory` entities, and the

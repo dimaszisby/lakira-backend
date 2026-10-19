@@ -20,7 +20,9 @@ This guide explains how Lakira Backend’s automation works and what a junior de
    - `npm run test:unit`, then `npm run test:integration` (sequential, `NODE_ENV=test`)
    - `npm run test:unit:coverage` and `npm run test:integration:coverage` — these are the runs that
      enforce the coverage thresholds in `jest.config.mjs` (unit ≥ 60 % statements / ≥ 40 % branches /
-     ≥ 55 % functions / ≥ 60 % lines). Plain `test:unit` collects no coverage and enforces nothing.
+     ≥ 55 % functions / ≥ 60 % lines; integration ≥ 70 / 45 / 70 / 70), each selected by the
+     `JEST_COVERAGE_PROJECT` its script sets. Plain `test:unit` collects no coverage and enforces
+     nothing.
      Artifacts land in `coverage/jest-unit` and `coverage/jest-integration`, both uploaded
 4. **Contract Tests (job: `contract_local`, needs `tests`)**
    - Seeds fixtures, boots the built server, runs Schemathesis against the spec.
