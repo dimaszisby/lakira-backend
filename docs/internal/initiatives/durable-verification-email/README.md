@@ -1,7 +1,7 @@
 # Durable verification email
 
-**Status:** Implemented on `fix/durable-verification-email`; PR open. Register row B-39.
-[ADR-0067](../../../explanation/decisions/adr-0067-the-verification-email-is-a-queued-job.md) (Proposed).
+**Status:** Complete. Merged in #184 (`975de82`). Register row B-39.
+[ADR-0067](../../../explanation/decisions/adr-0067-the-verification-email-is-a-queued-job.md) (Accepted).
 **Slug:** `durable-verification-email` · **Branch:** `fix/durable-verification-email`
 
 - [Plan](durable-verification-email-plan.md) — goals, acceptance criteria, design

@@ -33,10 +33,6 @@ const switchOrganizationExecute: AsyncMock = jest.fn();
 const assertAuthenticatedMock = jest.fn();
 
 const checkLockoutMock: AsyncMock = jest.fn(async () => undefined) as AsyncMock;
-const recordFailedAttemptMock: AsyncMock = jest.fn(
-  async () => undefined,
-) as AsyncMock;
-const resetLockoutMock: AsyncMock = jest.fn(async () => undefined) as AsyncMock;
 
 jest.mock("@/utils/auth-guards.js", () => ({
   assertAuthenticated: assertAuthenticatedMock,
@@ -69,8 +65,6 @@ const buildFeatureMocks = (): AuthFeature =>
     switchOrganization: { execute: switchOrganizationExecute },
     loginLockout: {
       check: checkLockoutMock,
-      recordFailedAttempt: recordFailedAttemptMock,
-      reset: resetLockoutMock,
     },
   }) as unknown as AuthFeature;
 
@@ -198,13 +192,15 @@ describe("Auth HTTP controller", () => {
       }),
     );
     expect(checkLockoutMock).toHaveBeenCalledWith("user@example.com");
-    expect(resetLockoutMock).toHaveBeenCalledWith("user@example.com");
-    expect(recordFailedAttemptMock).not.toHaveBeenCalled();
   });
 
-  it("records a failed attempt when login throws 401", async () => {
-    const { default: AppError } = await import("@/utils/AppError.js");
-    loginExecute.mockRejectedValue(new AppError("Invalid credentials", 401));
+  // application-errors D-04: LoginUser counts the failure; the controller only
+  // checks the lockout and hands the error on.
+  it("passes a failed login to the error handler", async () => {
+    const { UnauthorizedError } =
+      await import("@/shared/domain/errors/DomainError.js");
+    const failure = new UnauthorizedError("Invalid email or password");
+    loginExecute.mockRejectedValue(failure);
 
     const req = {
       body: { email: "user@example.com", password: "Password123!" },
@@ -217,9 +213,8 @@ describe("Auth HTTP controller", () => {
     await login(req, response, errorNext);
     await new Promise((resolve) => setImmediate(resolve));
 
-    expect(recordFailedAttemptMock).toHaveBeenCalledWith("user@example.com");
-    expect(resetLockoutMock).not.toHaveBeenCalled();
-    expect(errorNext).toHaveBeenCalledWith(expect.any(Error));
+    expect(checkLockoutMock).toHaveBeenCalledWith("user@example.com");
+    expect(errorNext).toHaveBeenCalledWith(failure);
   });
 
   it("sets Retry-After header and skips use case when lockout returns 429", async () => {
@@ -241,7 +236,6 @@ describe("Auth HTTP controller", () => {
 
     expect(response.setHeader).toHaveBeenCalledWith("Retry-After", "900");
     expect(loginExecute).not.toHaveBeenCalled();
-    expect(recordFailedAttemptMock).not.toHaveBeenCalled();
     expect(errorNext).toHaveBeenCalledWith(expect.any(Error));
   });
 

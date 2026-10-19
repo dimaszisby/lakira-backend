@@ -1,5 +1,8 @@
 import { jest } from "@jest/globals";
-import AppError from "@/utils/AppError.js";
+import {
+  NotFoundError,
+  UnauthorizedError,
+} from "@/shared/domain/errors/DomainError.js";
 import { UpdateDisplayOptions } from "@/features/metric-settings/application/use-cases/UpdateDisplayOptions.js";
 import { MetricSettingsRepository } from "@/features/metric-settings/domain/repositories/MetricSettingsRepository.js";
 import { CacheInvalidationPort } from "@/features/metric-settings/application/ports/CacheInvalidationPort.js";
@@ -38,7 +41,7 @@ describe("UpdateDisplayOptions", () => {
         chartType: "line",
         color: "#000000",
       }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(UnauthorizedError);
   });
 
   it("throws when settings missing", async () => {
@@ -52,7 +55,7 @@ describe("UpdateDisplayOptions", () => {
         chartType: null,
         color: null,
       }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(NotFoundError);
 
     expect(repo.save).not.toHaveBeenCalled();
   });

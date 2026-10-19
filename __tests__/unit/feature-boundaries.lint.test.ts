@@ -319,10 +319,12 @@ describe("feature boundaries in ESLint (ADR-0044)", () => {
         expectCases(file, [
           ...FEATURE_IMPORTS,
           { spec: "@/types/request.context.js", rejected: false },
-          // AppError is the domain layer's business, in the describe below.
+          // AppError is the inner layers' business, in the describe below.
           {
             spec: "@/utils/AppError.js",
-            rejected: file.startsWith("src/shared/domain/"),
+            rejected:
+              file.startsWith("src/shared/domain/") ||
+              file.startsWith("src/shared/application/"),
           },
         ]);
       },
@@ -363,11 +365,15 @@ describe("feature boundaries in ESLint (ADR-0044)", () => {
 
   // Kit boundary-rule-residuals, D-07. The rule was a list of globs with no case here, and
   // the `@utils/` alias got past it; in src/shared/domain it was not applied at all
-  // (SaaS-readiness caveat C4, audit-2026-10-10 V4).
-  describe("the domain layer imports no AppError", () => {
+  // (SaaS-readiness caveat C4, audit-2026-10-10 V4). Kit application-errors, D-02: the
+  // application layers take the same rule (audit R7).
+  describe("the domain and application layers import no AppError", () => {
     const FEATURE_DOMAIN_FILE =
       "src/features/public/metric-log/domain/entities/MetricLog.ts";
     const SHARED_DOMAIN_FILE = "src/shared/domain/errors/DomainError.ts";
+    const FEATURE_APPLICATION_FILE = FEATURE_FILE;
+    const SHARED_APPLICATION_FILE =
+      "src/shared/application/ports/MessageQueuePort.ts";
 
     const APP_ERROR_SPELLINGS = [
       "@/utils/AppError.js",
@@ -388,10 +394,17 @@ describe("feature boundaries in ESLint (ADR-0044)", () => {
       expectCases(SHARED_DOMAIN_FILE, spellings(true));
     }, 60_000);
 
+    it("rejects every spelling from a feature's application file", () => {
+      expectCases(FEATURE_APPLICATION_FILE, spellings(true));
+    }, 60_000);
+
+    it("rejects every spelling from the shared kernel's application layer", () => {
+      expectCases(SHARED_APPLICATION_FILE, spellings(true));
+    }, 60_000);
+
     it.each([
-      FEATURE_FILE,
       "src/features/public/metric-log/infrastructure/http/controller.ts",
-      "src/shared/application/ports/MessageQueuePort.ts",
+      "src/features/public/metric-log/infrastructure/persistence/repositories/MetricLogRepoSequelize.ts",
       "src/shared/middleware/error.ts",
     ])(
       "leaves %s free to import it",
@@ -409,6 +422,7 @@ describe("feature boundaries in ESLint (ADR-0044)", () => {
       ];
       expectCases(FEATURE_DOMAIN_FILE, cases);
       expectCases(SHARED_DOMAIN_FILE, cases);
+      expectCases(FEATURE_APPLICATION_FILE, cases);
     }, 60_000);
   });
 

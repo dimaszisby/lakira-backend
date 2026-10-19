@@ -1,6 +1,6 @@
 # Durable verification email — Plan
 
-- **Status:** Done
+- **Status:** Done (merged in #184, `975de82`)
 - **Appetite:** 1.5 days — past that, cut the integration retry case, never the guarantees
 - **Date:** 2026-10-18
 

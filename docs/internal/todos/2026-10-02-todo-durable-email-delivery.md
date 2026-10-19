@@ -1,6 +1,6 @@
 # Todo — transactional email is not durable
 
-- **Status:** Closed for the verification email, on `fix/durable-verification-email` (ADR-0067). Password reset and invites moved to B-70
+- **Status:** Closed for the verification email, in #184 (`975de82`, ADR-0067). Password reset and invites moved to B-70
 - **Created:** 2026-10-02
 - **Owner:** unassigned
 - **Origin:** kit `drainable-background-work` D-01; recorded in ADR-0054 § Consequences

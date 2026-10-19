@@ -104,11 +104,12 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0064](./adr-0064-a-pending-invite-is-unique-per-organization-and-email.md)    | A pending invite is unique per organization and email                                                            | Accepted                                            | 2026-10-18 | pending-invite-uniqueness D-01          |
 | [ADR-0065](./adr-0065-tests-run-on-jest-30.md)                                     | Tests run on Jest 30                                                                                             | Accepted                                            | 2026-10-18 | npm-audit-findings D-07                 |
 | [ADR-0066](./adr-0066-junit-reports-from-jest-junit-17.md)                         | JUnit reports come from jest-junit 17                                                                            | Accepted                                            | 2026-10-18 | npm-audit-findings D-09                 |
-| [ADR-0067](./adr-0067-the-verification-email-is-a-queued-job.md)                   | The verification email is a queued job                                                                           | Proposed                                            | 2026-10-18 | durable-verification-email D-01 to D-04 |
+| [ADR-0067](./adr-0067-the-verification-email-is-a-queued-job.md)                   | The verification email is a queued job                                                                           | Accepted                                            | 2026-10-18 | durable-verification-email D-01 to D-04 |
+| [ADR-0068](./adr-0068-the-application-layer-raises-domain-errors.md)               | The application layer raises domain errors, not HTTP errors                                                      | Proposed                                            | 2026-10-19 | application-errors D-01 to D-04         |
 
 ## Adding one
 
-Take the next free number — **ADR-0068** as of 2026-10-18 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0069** as of 2026-10-19 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 

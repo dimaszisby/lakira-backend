@@ -1,6 +1,6 @@
 # Todo — what the review of the `AppError` lint rule left open
 
-- **Status:** Partly (the P2 is fixed in #155; five P3 open)
+- **Status:** Partly (the P2 is fixed in #155, item 4 on `refactor/application-errors`; four P3 open)
 - **Created:** 2026-10-11
 - **Owner:** unassigned
 - **Origin:** the code review of `fix/c4-apperror-lint-rule`
@@ -30,7 +30,9 @@
    import through `@utils/` typechecks, passes Jest and would not resolve in `dist/`. No file in
    `src/` uses either alias. `.claude/rules/code-style.md` tells authors to use them. Either teach
    the script the two aliases or drop them from `tsconfig.json`, Jest and the rule.
-4. **P3 — the lint message cites a section that does not name the rule.** The message ends "See
+4. **Fixed on `refactor/application-errors`** ([`application-errors` D-02](../initiatives/application-errors/decisions.md)):
+   the message now cites `.claude/rules/architecture.md` § Dependency Rules, which names the rule.
+   The finding as filed: **P3 — the lint message cites a section that does not name the rule.** The message ends "See
    .claude/rules/architecture.md § Dependency Rules", and that file never mentions `AppError`.
 5. **P3 — `process.getBuiltinModule("module")` reaches `createRequire` with no import.** Found
    while fixing item 1, not reproduced. The fix refuses an import from node's `module` package;

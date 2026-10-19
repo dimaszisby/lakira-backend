@@ -1,4 +1,7 @@
-import AppError from "@/utils/AppError.js";
+import {
+  ConflictError,
+  ValidationError,
+} from "@/shared/domain/errors/DomainError.js";
 import { parseIsoToDate } from "@/utils/date-io.js";
 import { MetricLogRepository } from "../../domain/repositories/MetricLogRepository.js";
 import { MetricLog } from "../../domain/entities/MetricLog.js";
@@ -23,7 +26,7 @@ export class CreateMetricLog {
 
   async execute(input: Input): Promise<MetricLog> {
     const { userId, organizationId, metricId } = input;
-    if (!metricId) throw new AppError("metricId is required", 400);
+    if (!metricId) throw new ValidationError("metricId is required");
 
     await this.metricAccess.ensureMetricOwnership(
       userId,
@@ -39,15 +42,14 @@ export class CreateMetricLog {
           : new Date();
 
     if (Number.isNaN(timestamp.getTime())) {
-      throw new AppError("loggedAt is invalid", 400);
+      throw new ValidationError("loggedAt is invalid");
     }
 
     if (
       await this.repo.existsAtTimestamp(organizationId, metricId, timestamp)
     ) {
-      throw new AppError(
+      throw new ConflictError(
         "A log entry already exists for this timestamp for this metric",
-        409,
       );
     }
 

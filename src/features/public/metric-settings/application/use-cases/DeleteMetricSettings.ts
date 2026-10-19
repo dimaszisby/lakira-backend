@@ -1,4 +1,7 @@
-import AppError from "@/utils/AppError.js";
+import {
+  NotFoundError,
+  UnauthorizedError,
+} from "@/shared/domain/errors/DomainError.js";
 import { MetricSettingsRepository } from "../../domain/repositories/MetricSettingsRepository.js";
 import { CacheInvalidationPort } from "../ports/CacheInvalidationPort.js";
 
@@ -13,13 +16,13 @@ export class DeleteMetricSettings {
     organizationId: string,
     settingsId: string,
   ): Promise<void> {
-    if (!userId) throw new AppError("User not authenticated", 401);
+    if (!userId) throw new UnauthorizedError("User not authenticated");
     const settings = await this.repo.findById(
       userId,
       organizationId,
       settingsId,
     );
-    if (!settings) throw new AppError("Metric Settings not found", 404);
+    if (!settings) throw new NotFoundError("Metric Settings not found");
 
     await this.repo.delete(organizationId, settings);
     await this.cache.invalidate(

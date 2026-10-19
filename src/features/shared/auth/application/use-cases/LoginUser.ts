@@ -1,10 +1,14 @@
-import AppError from "@/utils/AppError.js";
+import {
+  ForbiddenError,
+  UnauthorizedError,
+} from "@/shared/domain/errors/DomainError.js";
 import { UserRepository } from "../../domain/repositories/UserRepository.js";
 import { MembershipRepository } from "../../domain/repositories/MembershipRepository.js";
 import { PasswordHasher } from "../ports/PasswordHasher.js";
 import { TokenProvider } from "../ports/TokenProvider.js";
 import { AuthUser } from "../../domain/entities/AuthUser.js";
 import { IssueRefreshToken } from "./IssueRefreshToken.js";
+import type { LoginAttemptsPort } from "../ports/LoginAttemptsPort.js";
 
 export type LoginInput = {
   email: string;
@@ -26,19 +30,20 @@ export class LoginUser {
     private hasher: PasswordHasher,
     private tokenProvider: TokenProvider,
     private issueRefreshToken: IssueRefreshToken,
+    private attempts: LoginAttemptsPort,
   ) {}
 
   async execute(input: LoginInput): Promise<LoginResult> {
     const normalized = input.email.trim().toLowerCase();
     const user = await this.repo.findByEmail(normalized);
-    if (!user) throw new AppError("Invalid email or password", 401);
+    if (!user) return this.refuse(input.email);
 
     const valid = await this.hasher.compare(input.password, user.passwordHash);
-    if (!valid) throw new AppError("Invalid email or password", 401);
+    if (!valid) return this.refuse(input.email);
 
     const membership = await this.membershipRepo.findDefaultByUser(user.id);
     if (!membership) {
-      throw new AppError("No active organization membership", 403);
+      throw new ForbiddenError("No active organization membership");
     }
 
     const token = this.tokenProvider.sign({
@@ -55,6 +60,17 @@ export class LoginUser {
       ip: input.ip,
     });
 
+    await this.attempts.reset(input.email);
+
     return { user, token, rawRefreshToken: rawToken };
+  }
+
+  /**
+   * A wrong email or password counts toward the lockout, under the address as
+   * it was typed, which is what the lockout check reads (application-errors D-04).
+   */
+  private async refuse(email: string): Promise<never> {
+    await this.attempts.recordFailure(email);
+    throw new UnauthorizedError("Invalid email or password");
   }
 }

@@ -2,7 +2,6 @@ import { jest } from "@jest/globals";
 import { RemoveMembership } from "@/features/auth/application/use-cases/RemoveMembership.js";
 import { MembershipRepository } from "@/features/auth/domain/repositories/MembershipRepository.js";
 import { Membership } from "@/features/auth/domain/entities/Membership.js";
-import AppError from "@/utils/AppError.js";
 
 const makeMembership = (
   overrides: Partial<{
@@ -63,7 +62,7 @@ describe("RemoveMembership", () => {
         actorRole: "admin",
         actorUserId: "user-admin",
       }),
-    ).rejects.toMatchObject({ statusCode: 403 });
+    ).rejects.toMatchObject({ kind: "forbidden" });
   });
 
   it("throws 404 when membership does not exist", async () => {
@@ -77,7 +76,7 @@ describe("RemoveMembership", () => {
         actorRole: "owner",
         actorUserId: "user-owner",
       }),
-    ).rejects.toMatchObject({ statusCode: 404 });
+    ).rejects.toMatchObject({ kind: "not_found" });
   });
 
   it("throws 404 when membership belongs to a different org", async () => {
@@ -91,7 +90,7 @@ describe("RemoveMembership", () => {
         actorRole: "owner",
         actorUserId: "user-owner",
       }),
-    ).rejects.toMatchObject({ statusCode: 404 });
+    ).rejects.toMatchObject({ kind: "not_found" });
   });
 
   it("throws 400 when trying to remove yourself", async () => {
@@ -107,7 +106,7 @@ describe("RemoveMembership", () => {
         actorRole: "owner",
         actorUserId: "user-owner",
       }),
-    ).rejects.toMatchObject({ statusCode: 400 });
+    ).rejects.toMatchObject({ kind: "validation" });
   });
 
   it("throws 400 when removing the last owner", async () => {
@@ -124,7 +123,7 @@ describe("RemoveMembership", () => {
         actorRole: "owner",
         actorUserId: "user-owner",
       }),
-    ).rejects.toMatchObject({ statusCode: 400 });
+    ).rejects.toMatchObject({ kind: "validation" });
   });
 
   it("allows removing an owner when there are multiple owners", async () => {

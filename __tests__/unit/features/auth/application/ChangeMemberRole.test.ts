@@ -2,7 +2,6 @@ import { jest } from "@jest/globals";
 import { ChangeMemberRole } from "@/features/auth/application/use-cases/ChangeMemberRole.js";
 import { MembershipRepository } from "@/features/auth/domain/repositories/MembershipRepository.js";
 import { Membership } from "@/features/auth/domain/entities/Membership.js";
-import AppError from "@/utils/AppError.js";
 
 const makeMembership = (
   overrides: Partial<{ role: "owner" | "admin" | "member" }> = {},
@@ -62,7 +61,7 @@ describe("ChangeMemberRole", () => {
         newRole: "admin",
         actorRole: "admin",
       }),
-    ).rejects.toMatchObject({ statusCode: 403 });
+    ).rejects.toMatchObject({ kind: "forbidden" });
   });
 
   it("throws 404 when membership does not exist", async () => {
@@ -76,7 +75,7 @@ describe("ChangeMemberRole", () => {
         newRole: "admin",
         actorRole: "owner",
       }),
-    ).rejects.toMatchObject({ statusCode: 404 });
+    ).rejects.toMatchObject({ kind: "not_found" });
   });
 
   it("throws 404 when membership belongs to a different org", async () => {
@@ -90,7 +89,7 @@ describe("ChangeMemberRole", () => {
         newRole: "admin",
         actorRole: "owner",
       }),
-    ).rejects.toMatchObject({ statusCode: 404 });
+    ).rejects.toMatchObject({ kind: "not_found" });
   });
 
   it("no-ops when role is already the same", async () => {
@@ -123,7 +122,7 @@ describe("ChangeMemberRole", () => {
         newRole: "admin",
         actorRole: "owner",
       }),
-    ).rejects.toMatchObject({ statusCode: 400 });
+    ).rejects.toMatchObject({ kind: "validation" });
   });
 
   it("allows demoting an owner when there are multiple owners", async () => {

@@ -1,4 +1,8 @@
-import AppError from "@/utils/AppError.js";
+import {
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from "@/shared/domain/errors/DomainError.js";
 import { MembershipRepository } from "../../domain/repositories/MembershipRepository.js";
 import type { MembershipRole } from "../../domain/entities/Membership.js";
 
@@ -14,16 +18,16 @@ export class ChangeMemberRole {
 
   async execute(input: ChangeMemberRoleInput): Promise<void> {
     if (input.actorRole !== "owner") {
-      throw new AppError("Forbidden: only owner can change member roles", 403);
+      throw new ForbiddenError("Forbidden: only owner can change member roles");
     }
 
     const membership = await this.membershipRepo.findById(input.membershipId);
     if (!membership) {
-      throw new AppError("Membership not found", 404);
+      throw new NotFoundError("Membership not found");
     }
 
     if (membership.organizationId !== input.organizationId) {
-      throw new AppError("Membership not found", 404);
+      throw new NotFoundError("Membership not found");
     }
 
     if (membership.role === input.newRole) {
@@ -36,9 +40,8 @@ export class ChangeMemberRole {
         "owner",
       );
       if (ownerCount <= 1) {
-        throw new AppError(
+        throw new ValidationError(
           "Cannot demote the last owner of the organization",
-          400,
         );
       }
     }

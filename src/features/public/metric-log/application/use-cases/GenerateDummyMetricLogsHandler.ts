@@ -1,6 +1,9 @@
-import AppError from "@/utils/AppError.js";
 import logger from "@/utils/logger.js";
 import { TerminalMessageError } from "@/shared/application/errors/TerminalMessageError.js";
+import {
+  DomainError,
+  type DomainErrorKind,
+} from "@/shared/domain/errors/DomainError.js";
 import type { MetricAccessPort } from "../ports/MetricAccessPort.js";
 import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import type {
@@ -21,7 +24,11 @@ type JobPayload = {
 const TYPES: Array<"manual" | "automatic"> = ["manual", "automatic"];
 
 /** Access rejections that will not change on retry; any other failure may be transient. */
-const TERMINAL_ACCESS_STATUSES = new Set([401, 403, 404]);
+const TERMINAL_ACCESS_KINDS: ReadonlySet<DomainErrorKind> = new Set([
+  "unauthorized",
+  "forbidden",
+  "not_found",
+]);
 
 export class GenerateDummyMetricLogsHandler {
   constructor(
@@ -47,8 +54,8 @@ export class GenerateDummyMetricLogsHandler {
       await this.access.ensureMetricOwnership(userId, organizationId, metricId);
     } catch (error) {
       if (
-        error instanceof AppError &&
-        TERMINAL_ACCESS_STATUSES.has(error.statusCode)
+        error instanceof DomainError &&
+        TERMINAL_ACCESS_KINDS.has(error.kind)
       ) {
         throw new TerminalMessageError(error.message, { cause: error });
       }

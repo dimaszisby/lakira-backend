@@ -1,6 +1,10 @@
+import {
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+} from "@/shared/domain/errors/DomainError.js";
 import { MetricRepository } from "../../domain/repositories/MetricRepository.js";
 import { CachePort } from "../ports/CachePort.js";
-import AppError from "@/utils/AppError.js";
 
 import type { Metric } from "../../domain/entities/Metric.js";
 
@@ -33,7 +37,7 @@ export class UpdateMetric {
         organizationId,
         data.categoryId,
       );
-      if (!exists) throw new AppError("Category not found", 404);
+      if (!exists) throw new NotFoundError("Category not found");
     }
 
     if (data.originalMetricId != null) {
@@ -41,7 +45,7 @@ export class UpdateMetric {
         userId,
         data.originalMetricId,
       );
-      if (!exists) throw new AppError("Original metric not found", 404);
+      if (!exists) throw new NotFoundError("Original metric not found");
     }
 
     if (data.name !== undefined) {
@@ -53,7 +57,7 @@ export class UpdateMetric {
           organizationId,
           data.name,
         );
-        if (exists) throw new AppError("Metric already exists", 409);
+        if (exists) throw new ConflictError("Metric already exists");
       }
     }
 
@@ -71,7 +75,7 @@ export class UpdateMetric {
     if (data.isPublic !== undefined) update.isPublic = data.isPublic;
 
     if (!Object.keys(update).length) {
-      throw new AppError("Update payload cannot be empty", 400);
+      throw new ValidationError("Update payload cannot be empty");
     }
 
     metric.update(update);

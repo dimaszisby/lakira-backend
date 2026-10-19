@@ -1,4 +1,4 @@
-import AppError from "@/utils/AppError.js";
+import { NotFoundError } from "@/shared/domain/errors/DomainError.js";
 import { MetricCategoryRepository } from "../../domain/repositories/MetricCategoryRepository.js";
 
 export class GetCategory {
@@ -11,7 +11,7 @@ export class GetCategory {
       categoryId,
     );
     if (!category) {
-      throw new AppError("Metric Category not found", 404);
+      throw new NotFoundError("Metric Category not found");
     }
     return category;
   }

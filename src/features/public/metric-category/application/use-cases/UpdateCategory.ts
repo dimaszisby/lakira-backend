@@ -1,4 +1,7 @@
-import AppError from "@/utils/AppError.js";
+import {
+  ConflictError,
+  NotFoundError,
+} from "@/shared/domain/errors/DomainError.js";
 import { MetricCategoryRepository } from "../../domain/repositories/MetricCategoryRepository.js";
 import { CachePort } from "../ports/CachePort.js";
 import { METRIC_CATEGORY_CURSOR_NAMESPACE_ALL } from "../cache.constants.js";
@@ -32,13 +35,13 @@ export class UpdateCategory {
       categoryId,
     );
     if (!current) {
-      throw new AppError("Metric Category not found", 404);
+      throw new NotFoundError("Metric Category not found");
     }
 
     if (name && name !== current.name) {
       const exists = await this.repo.existsByName(userId, organizationId, name);
       if (exists) {
-        throw new AppError("Metric Category name already exists", 409);
+        throw new ConflictError("Metric Category name already exists");
       }
     }
 

@@ -1,4 +1,8 @@
-import AppError from "@/utils/AppError.js";
+import {
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+} from "@/shared/domain/errors/DomainError.js";
 import { parseIsoToDate } from "@/utils/date-io.js";
 import { MetricLogRepository } from "../../domain/repositories/MetricLogRepository.js";
 import { MetricLog } from "../../domain/entities/MetricLog.js";
@@ -28,7 +32,7 @@ export class UpdateMetricLog {
     updates,
   }: Input): Promise<MetricLog> {
     const log = await this.repo.findById(userId, organizationId, logId);
-    if (!log) throw new AppError("Log not found", 404);
+    if (!log) throw new NotFoundError("Log not found");
 
     if (typeof updates.logValue !== "undefined") {
       try {
@@ -36,7 +40,7 @@ export class UpdateMetricLog {
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Invalid log value";
-        throw new AppError(message, 400);
+        throw new ValidationError(message);
       }
     }
     if (typeof updates.type !== "undefined") {
@@ -48,7 +52,7 @@ export class UpdateMetricLog {
           ? updates.loggedAt
           : (parseIsoToDate(updates.loggedAt) as Date);
       if (Number.isNaN(timestamp.getTime())) {
-        throw new AppError("loggedAt is invalid", 400);
+        throw new ValidationError("loggedAt is invalid");
       }
       if (
         await this.repo.existsAtTimestamp(
@@ -58,9 +62,8 @@ export class UpdateMetricLog {
           log.id,
         )
       ) {
-        throw new AppError(
+        throw new ConflictError(
           "A log entry already exists for this timestamp for this metric",
-          409,
         );
       }
       log.setLoggedAt(timestamp);

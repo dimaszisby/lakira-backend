@@ -115,22 +115,13 @@ export const login = catchAsync(async (req: Request, res: Response) => {
     throw err;
   }
 
-  let result;
-  try {
-    result = await getFeature().loginUser.execute({
-      email,
-      password,
-      userAgent: req.headers["user-agent"] ?? null,
-      ip: req.ip ?? null,
-    });
-  } catch (err) {
-    if (err instanceof AppError && err.statusCode === 401) {
-      await getFeature().loginLockout.recordFailedAttempt(email);
-    }
-    throw err;
-  }
-
-  await getFeature().loginLockout.reset(email);
+  // A failure is counted, and a success resets, inside the use case.
+  const result = await getFeature().loginUser.execute({
+    email,
+    password,
+    userAgent: req.headers["user-agent"] ?? null,
+    ip: req.ip ?? null,
+  });
 
   setRefreshCookie(res, result.rawRefreshToken);
 

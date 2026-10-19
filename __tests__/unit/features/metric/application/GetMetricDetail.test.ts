@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import AppError from "@/utils/AppError.js";
+import { ForbiddenError } from "@/shared/domain/errors/DomainError.js";
 import { GetMetricDetail } from "@/features/metric/application/queries/GetMetricDetail.js";
 import type { MetricDomainExtended } from "@/features/metric/domain/metric.domain.js";
 
@@ -61,7 +61,7 @@ describe("GetMetricDetail query", () => {
         organizationId: TEST_ORG_ID,
         metricId: "metric-1",
       }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it("returns metric when authorized", async () => {

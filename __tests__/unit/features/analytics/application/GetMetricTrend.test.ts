@@ -1,5 +1,5 @@
 import { describe, it, expect, jest, beforeEach } from "@jest/globals";
-import AppError from "@/utils/AppError.js";
+import { ForbiddenError } from "@/shared/domain/errors/DomainError.js";
 import { GetMetricTrend } from "@/features/analytics/application/queries/GetMetricTrend.js";
 import type { MetricAccessPort } from "@/features/public/analytics/application/ports/MetricAccessPort.js";
 import type {
@@ -41,24 +41,24 @@ describe("GetMetricTrend", () => {
   it("throws 401 when userId is missing", async () => {
     await expect(
       ctx.sut.execute({ ...BASE, userId: "" }),
-    ).rejects.toMatchObject({ statusCode: 401 });
+    ).rejects.toMatchObject({ kind: "unauthorized" });
     expect(ctx.metricAccess.ensureMetricOwnership).not.toHaveBeenCalled();
   });
 
   it("throws 400 when metricId is missing", async () => {
     await expect(
       ctx.sut.execute({ ...BASE, metricId: "" }),
-    ).rejects.toMatchObject({ statusCode: 400 });
+    ).rejects.toMatchObject({ kind: "validation" });
     expect(ctx.metricAccess.ensureMetricOwnership).not.toHaveBeenCalled();
   });
 
   it("propagates ownership check failure without calling trendRepo", async () => {
     ctx.metricAccess.ensureMetricOwnership.mockRejectedValue(
-      new AppError("Forbidden", 403),
+      new ForbiddenError("Forbidden"),
     );
 
     await expect(ctx.sut.execute(BASE)).rejects.toMatchObject({
-      statusCode: 403,
+      kind: "forbidden",
     });
     expect(ctx.trendRepo.findTrendPoints).not.toHaveBeenCalled();
   });

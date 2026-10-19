@@ -1,4 +1,4 @@
-import AppError from "@/utils/AppError.js";
+import { ConflictError } from "@/shared/domain/errors/DomainError.js";
 import { MetricCategoryRepository } from "../../domain/repositories/MetricCategoryRepository.js";
 import { CachePort } from "../ports/CachePort.js";
 import { METRIC_CATEGORY_CURSOR_NAMESPACE_ALL } from "../cache.constants.js";
@@ -19,7 +19,7 @@ export class CreateCategory {
 
   async execute({ userId, organizationId, name, color, icon }: Input) {
     if (await this.repo.existsByName(userId, organizationId, name)) {
-      throw new AppError("Category already exists", 409);
+      throw new ConflictError("Category already exists");
     }
     const category = await this.repo.create(userId, organizationId, {
       name,

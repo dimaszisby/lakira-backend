@@ -5,6 +5,13 @@ import { createErrorHandler } from "@/shared/middleware/error.js";
 import { Metric } from "@/features/metric/domain/entities/Metric.js";
 import { buildMetricSettings } from "../../factories/metric-settings.js";
 import { InvalidTokenError } from "@/features/auth/domain/errors/InvalidTokenError.js";
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  UnauthorizedError,
+  ValidationError,
+} from "@/shared/domain/errors/DomainError.js";
 
 /**
  * Characterisation test for the error envelope produced by domain-layer throws.
@@ -164,5 +171,22 @@ describe("domain throws produce a stable error envelope", () => {
     expect(status).toBe(401);
     expect(body).toMatchObject({ status: "fail" });
     expect(body.message).toBe("Unauthorized: Invalid token");
+  });
+
+  // application-errors D-01: use cases throw these instead of AppError, and the
+  // status and message every client parses must come out as before.
+  it.each([
+    [ValidationError, 400, "Passwords do not match"],
+    [UnauthorizedError, 401, "Invalid email or password"],
+    [ForbiddenError, 403, "Forbidden: only owner or admin can invite members"],
+    [NotFoundError, 404, "Metric not found"],
+    [ConflictError, 409, "Email already in use"],
+  ])("%p → %i with its own message", (ErrorClass, expected, message) => {
+    const { status, body } = envelopeFor(() => {
+      throw new ErrorClass(message);
+    });
+
+    expect(status).toBe(expected);
+    expect(body).toMatchObject({ status: "fail", message });
   });
 });

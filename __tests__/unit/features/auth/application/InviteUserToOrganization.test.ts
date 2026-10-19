@@ -132,7 +132,7 @@ describe("InviteUserToOrganization", () => {
         inviterUserId: "user-1",
         inviterRole: "member",
       }),
-    ).rejects.toMatchObject({ statusCode: 403 });
+    ).rejects.toMatchObject({ kind: "forbidden" });
   });
 
   it("throws 404 when organization does not exist", async () => {
@@ -147,7 +147,7 @@ describe("InviteUserToOrganization", () => {
         inviterUserId: "user-1",
         inviterRole: "owner",
       }),
-    ).rejects.toMatchObject({ statusCode: 404 });
+    ).rejects.toMatchObject({ kind: "not_found" });
   });
 
   it("throws 409 when a pending invite already exists", async () => {
@@ -163,7 +163,7 @@ describe("InviteUserToOrganization", () => {
         inviterUserId: "user-1",
         inviterRole: "owner",
       }),
-    ).rejects.toMatchObject({ statusCode: 409 });
+    ).rejects.toMatchObject({ kind: "conflict" });
   });
 
   // Kit pending-invite-uniqueness, D-01. The unique index covers expired

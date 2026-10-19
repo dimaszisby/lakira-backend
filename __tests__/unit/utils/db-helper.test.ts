@@ -49,7 +49,7 @@ describe("db-helper", () => {
         validateMetricAccess("", TEST_ORG_ID, "metric-1"),
       ).rejects.toMatchObject({
         message: "User not authenticated",
-        statusCode: 401,
+        kind: "unauthorized",
       });
       expect(metricFindOne).not.toHaveBeenCalled();
     });
@@ -59,7 +59,10 @@ describe("db-helper", () => {
 
       await expect(
         validateMetricAccess("user-1", TEST_ORG_ID, "metric-1"),
-      ).rejects.toMatchObject({ message: "Metric not found", statusCode: 404 });
+      ).rejects.toMatchObject({
+        message: "Metric not found",
+        kind: "not_found",
+      });
     });
 
     it("throws when metric is owned by another user", async () => {
@@ -69,7 +72,7 @@ describe("db-helper", () => {
         validateMetricAccess("user-1", TEST_ORG_ID, "metric-1"),
       ).rejects.toMatchObject({
         message: "Unauthorized access to metric",
-        statusCode: 403,
+        kind: "forbidden",
       });
     });
 

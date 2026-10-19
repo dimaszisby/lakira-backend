@@ -1,5 +1,8 @@
 import { jest } from "@jest/globals";
-import AppError from "@/utils/AppError.js";
+import {
+  ConflictError,
+  UnauthorizedError,
+} from "@/shared/domain/errors/DomainError.js";
 import { CreateMetricSettings } from "@/features/metric-settings/application/use-cases/CreateMetricSettings.js";
 import { MetricSettingsRepository } from "@/features/metric-settings/domain/repositories/MetricSettingsRepository.js";
 import { CacheInvalidationPort } from "@/features/metric-settings/application/ports/CacheInvalidationPort.js";
@@ -41,7 +44,7 @@ describe("CreateMetricSettings", () => {
         organizationId: "org-1",
         metricId: "metric-1",
       }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(UnauthorizedError);
 
     expect(repo.findByMetricId).not.toHaveBeenCalled();
   });
@@ -57,7 +60,7 @@ describe("CreateMetricSettings", () => {
         organizationId: "org-1",
         metricId: "metric-1",
       }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(ConflictError);
 
     expect(repo.create).not.toHaveBeenCalled();
     expect(metricAccess.ensureMetricOwnership).toHaveBeenCalledWith(
