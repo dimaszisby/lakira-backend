@@ -1,6 +1,6 @@
 # ADR-0070 — The invite email is a queued job
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #187, `f6ec4a5`)
 - **Date:** 2026-10-19
 - **Related:** [ADR-0067](./adr-0067-the-verification-email-is-a-queued-job.md) and
   [ADR-0069](./adr-0069-the-password-reset-email-is-a-queued-job.md) (the same pattern, for the

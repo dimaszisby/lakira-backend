@@ -2,8 +2,8 @@
 
 - **Status:** Fixed. The password-reset half in #186 (`631108f`,
   [ADR-0069](../../explanation/decisions/adr-0069-the-password-reset-email-is-a-queued-job.md)); the
-  invite half on `fix/durable-invite-email`
-  ([ADR-0070](../../explanation/decisions/adr-0070-the-invite-email-is-a-queued-job.md)). Register
+  invite half in #187 (`f6ec4a5`,
+  [ADR-0070](../../explanation/decisions/adr-0070-the-invite-email-is-a-queued-job.md)). Register
   row B-70; what a parked invite email leaves is B-71
 - **Created:** 2026-10-18
 - **Owner:** unassigned
