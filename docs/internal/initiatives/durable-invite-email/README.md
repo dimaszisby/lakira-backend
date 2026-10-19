@@ -1,7 +1,7 @@
 # Durable invite email
 
-**Status:** Implemented on `fix/durable-invite-email`; PR open. Register row B-70, its invite half.
-[ADR-0070](../../../explanation/decisions/adr-0070-the-invite-email-is-a-queued-job.md) (Proposed).
+**Status:** Done, merged in #187 (`f6ec4a5`). Register row B-70, its invite half.
+[ADR-0070](../../../explanation/decisions/adr-0070-the-invite-email-is-a-queued-job.md) (Accepted).
 What a parked invite email leaves is register row B-71.
 **Slug:** `durable-invite-email` · **Branch:** `fix/durable-invite-email`
 

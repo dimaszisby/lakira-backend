@@ -1,6 +1,6 @@
 # Backend debt register
 
-**As of:** 2026-10-19, backend `dev` at `631108f`. Ranked by [D-01](decisions.md).
+**As of:** 2026-10-19, backend `dev` at `f6ec4a5`. Ranked by [D-01](decisions.md).
 
 **"What's next" is the first row below whose state is `ready`.** A row above it that is waiting on
 someone is reported with it, as a gap. How rows are added and closed:
@@ -31,7 +31,7 @@ can close C5 (ADR-002, ADR-012).
 | B-04 | The production API URL is undecided (F-11)                                                                                                            | P2  | FE      | owner     | —    | N1; `docs/reference/ci-pipeline/pipeline-overview.md:159`                     | [analysis](analysis-decisions-owed-to-frontend.md) |
 | B-05 | The browser's IP is lost through the frontend proxy, so proxied users share per-IP budgets; each environment's proxy hop count is not recorded (F-03) | P2  | FE, us  | owner, FE | ≤½d  | N2; [todo](../../todos/2026-10-02-todo-per-ip-limiter-hardening.md); ADR-0053 | [analysis](analysis-client-ip-and-trust-proxy.md)  |
 
-B-02 is fixed (see Closed).
+B-02 is fixed (see Closed). B-72 was filed and fixed in one PR (see Closed).
 
 ## Tier 3 — P2 security
 
@@ -160,4 +160,5 @@ Rows move here when their fix is written, with the branch; the PR number is adde
 | B-39 | The verification email was sent in memory after the response: a crash lost it, and a failed send was never retried                                                                 | #184 (`975de82`); [ADR-0067](../../../explanation/decisions/adr-0067-the-verification-email-is-a-queued-job.md); a queued job with retries and parking, in-process fallback; reset and invites moved to B-70                                       | Not graded by an audit                                           |
 | B-30 | The application layer spoke HTTP: `AppError` in 37 `application/` files, queue terminality from status codes, the lockout policy in the controller (R7)                            | #185 (`98f17f6`); [ADR-0068](../../../explanation/decisions/adr-0068-the-application-layer-raises-domain-errors.md); 85 throws to `DomainError` subclasses, messages and statuses unchanged; lint refuses `AppError` in both application layers    | Not yet; a run is owed                                           |
 | B-70 | The password-reset email was sent in the request; a failed send was logged and the user told it was sent (first half)                                                              | #186 (`631108f`); [ADR-0069](../../../explanation/decisions/adr-0069-the-password-reset-email-is-a-queued-job.md); a queued job with retries and parking; sent in the request when the queue is off                                                | Not graded by an audit                                           |
-| B-70 | The invite email was sent in the request; a failed send left the invite saved, so the retry answered 409 for seven days (second half)                                              | `fix/durable-invite-email`; [ADR-0070](../../../explanation/decisions/adr-0070-the-invite-email-is-a-queued-job.md); a queued job with retries and parking; with the queue off, the invite and the send share one transaction                      | Not graded by an audit                                           |
+| B-70 | The invite email was sent in the request; a failed send left the invite saved, so the retry answered 409 for seven days (second half)                                              | #187 (`f6ec4a5`); [ADR-0070](../../../explanation/decisions/adr-0070-the-invite-email-is-a-queued-job.md); a queued job with retries and parking; with the queue off, the invite and the send share one transaction                                | Not graded by an audit                                           |
+| B-72 | `GET /metric-categories` answered a repeated query with a 500: the list cache held entities, which lost their dates in JSON (N1, Part 1, raised 2026-10-17)                        | `fix/category-list-cache-dates`; the cache holds a snapshot and rebuilds entities on a hit; cache version 3                                                                                                                                        | Not graded by an audit                                           |
