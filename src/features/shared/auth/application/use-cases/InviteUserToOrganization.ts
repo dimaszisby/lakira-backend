@@ -1,5 +1,9 @@
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from "@/shared/domain/errors/DomainError.js";
 import crypto from "node:crypto";
-import AppError from "@/utils/AppError.js";
 import { OrganizationInviteRepository } from "../../domain/repositories/OrganizationInviteRepository.js";
 import { OrganizationRepository } from "../../domain/repositories/OrganizationRepository.js";
 import { EmailSender } from "../ports/EmailSender.js";
@@ -38,15 +42,14 @@ export class InviteUserToOrganization {
 
   async execute(input: InviteUserToOrganizationInput): Promise<void> {
     if (input.inviterRole !== "owner" && input.inviterRole !== "admin") {
-      throw new AppError(
+      throw new ForbiddenError(
         "Forbidden: only owner or admin can invite members",
-        403,
       );
     }
 
     const org = await this.orgRepo.findById(input.organizationId);
     if (!org) {
-      throw new AppError("Organization not found", 404);
+      throw new NotFoundError("Organization not found");
     }
 
     const email = input.email.trim().toLowerCase();
@@ -65,7 +68,7 @@ export class InviteUserToOrganization {
       input.organizationId,
     );
     if (pendingInvite) {
-      throw new AppError(PENDING_INVITE_EXISTS_MESSAGE, 409);
+      throw new ConflictError(PENDING_INVITE_EXISTS_MESSAGE);
     }
 
     const ttlDays = this.deps.ttlDays ?? 7;

@@ -1,5 +1,8 @@
 import { jest } from "@jest/globals";
-import AppError from "@/utils/AppError.js";
+import {
+  NotFoundError,
+  UnauthorizedError,
+} from "@/shared/domain/errors/DomainError.js";
 import { DeleteMetricSettings } from "@/features/metric-settings/application/use-cases/DeleteMetricSettings.js";
 import { MetricSettingsRepository } from "@/features/metric-settings/domain/repositories/MetricSettingsRepository.js";
 import { CacheInvalidationPort } from "@/features/metric-settings/application/ports/CacheInvalidationPort.js";
@@ -33,7 +36,7 @@ describe("DeleteMetricSettings", () => {
     const { sut } = setup();
     await expect(
       sut.execute("", TEST_ORG_ID, "settings-1"),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(UnauthorizedError);
   });
 
   it("throws when settings cannot be found", async () => {
@@ -42,7 +45,7 @@ describe("DeleteMetricSettings", () => {
 
     await expect(
       sut.execute("user-1", TEST_ORG_ID, "settings-unknown"),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(NotFoundError);
     expect(repo.delete).not.toHaveBeenCalled();
   });
 

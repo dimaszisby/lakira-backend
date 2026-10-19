@@ -1,4 +1,7 @@
-import AppError from "@/utils/AppError.js";
+import {
+  ForbiddenError,
+  UnauthorizedError,
+} from "@/shared/domain/errors/DomainError.js";
 import { UserRepository } from "../../domain/repositories/UserRepository.js";
 import { MembershipRepository } from "../../domain/repositories/MembershipRepository.js";
 import { RefreshTokenRepository } from "../../domain/repositories/RefreshTokenRepository.js";
@@ -34,14 +37,13 @@ export class SwitchOrganization {
       input.organizationId,
     );
     if (!membership || !membership.isActive()) {
-      throw new AppError(
+      throw new ForbiddenError(
         "Forbidden: No active membership in this organization",
-        403,
       );
     }
 
     const user = await this.userRepo.findById(input.userId);
-    if (!user) throw new AppError("Unauthorized: User not found", 401);
+    if (!user) throw new UnauthorizedError("Unauthorized: User not found");
 
     const activeTokens = await this.refreshTokenRepo.findActiveByUser(
       input.userId,

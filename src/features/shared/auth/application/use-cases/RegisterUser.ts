@@ -1,4 +1,7 @@
-import AppError from "@/utils/AppError.js";
+import {
+  ConflictError,
+  ValidationError,
+} from "@/shared/domain/errors/DomainError.js";
 import { UserRepository } from "../../domain/repositories/UserRepository.js";
 import { OrganizationRepository } from "../../domain/repositories/OrganizationRepository.js";
 import { MembershipRepository } from "../../domain/repositories/MembershipRepository.js";
@@ -37,17 +40,17 @@ export class RegisterUser {
 
   async execute(input: RegisterInput): Promise<AuthResult> {
     if (input.password !== input.passwordConfirmation) {
-      throw new AppError("Passwords do not match", 400);
+      throw new ValidationError("Passwords do not match");
     }
 
     const email = input.email.trim().toLowerCase();
     const username = input.username.trim();
 
     if (await this.repo.existsByEmail(email)) {
-      throw new AppError("Email already in use", 409);
+      throw new ConflictError("Email already in use");
     }
     if (await this.repo.existsByUsername(username)) {
-      throw new AppError("Username already in use", 409);
+      throw new ConflictError("Username already in use");
     }
 
     const passwordHash = await this.hasher.hash(input.password);

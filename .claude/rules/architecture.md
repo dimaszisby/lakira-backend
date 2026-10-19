@@ -38,6 +38,12 @@ features/{name}/
   transaction handle a repository accepts is `PersistenceTransaction` from
   `@/shared/domain/PersistenceTransaction.js`, and nothing else declares it
 - **Application layer** depends on domain only, uses port interfaces for external concerns
+- **Neither inner layer speaks HTTP.** Domain and application code throws a `DomainError` subclass
+  from `@/shared/domain/errors/DomainError.js` (`ValidationError`, `UnauthorizedError`,
+  `ForbiddenError`, `NotFoundError`, `ConflictError`), never `AppError`, which carries a status
+  code. `src/shared/middleware/error.ts` maps the kind to a status. Lint refuses an `AppError`
+  import in `domain/` and `application/`, in features and in `src/shared` (ADR-0068). Code that
+  reacts to an error reads its kind, never a status
 - Both are lint-enforced (ADR-0058): in `domain/` and `application/`, an import with an
   `infrastructure` path segment is rejected, and so are the driver packages (`express`,
   `sequelize`, `amqplib`, `redis`, `jsonwebtoken`, `bcrypt` and the rest of that list in

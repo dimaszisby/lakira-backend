@@ -58,8 +58,10 @@ importing a feature must construct nothing (ADR-0045).
 { "status": "success", "message": "...", "data": { ... }, "success": true }
 ```
 
-**Errors** — throw them. Handlers `throw new AppError(message, statusCode)`; the global
-`errorHandler` renders the single envelope through `sendError()` in
+**Errors** — throw them. Domain and application code throws a `DomainError` subclass
+(`ValidationError`, `UnauthorizedError`, `ForbiddenError`, `NotFoundError`, `ConflictError`);
+HTTP-facing infrastructure code may `throw new AppError(message, statusCode)`. The global
+`errorHandler` maps a kind to its status and renders the single envelope through `sendError()` in
 `src/shared/utils/error-envelope.ts`. Do not hand-format an error body in a controller.
 
 ```json
@@ -125,9 +127,13 @@ it with no body, and the `If-None-Match` request header that produces it.
 
 ## Error Handling
 
-- Throw `AppError(message, statusCode)` for known errors
+- Domain and application code throws a `DomainError` subclass, which says what went wrong, not
+  which status to answer (ADR-0068); lint refuses `AppError` there. Middleware, controllers and
+  other infrastructure may throw `AppError(message, statusCode)`
 - Async handlers must be wrapped with `catchAsync()` from `src/utils/catch-async.ts`
-- Global `errorHandler` dispatches: `ZodError` → 400, `AppError` → custom status, `UniqueConstraintError` → 409
+- Global `errorHandler` dispatches: `ZodError` → 400, `AppError` → its status, `DomainError` → by
+  kind (`validation` 400, `unauthorized` 401, `forbidden` 403, `not_found` 404, `conflict` 409),
+  `UniqueConstraintError` → 409
 - Development and test: the real message, and in development the stack trace; staging and
   production: a 5xx message is replaced with "Something went wrong!" (`error-envelope-residuals`
   D-10)

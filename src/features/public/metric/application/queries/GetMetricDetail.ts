@@ -1,4 +1,4 @@
-import AppError from "@/utils/AppError.js";
+import { ForbiddenError } from "@/shared/domain/errors/DomainError.js";
 import type {
   IncludeKey,
   MetricDetailQuery,
@@ -28,7 +28,7 @@ export class GetMetricDetail {
 
     if (!metric) return null;
     if (!metric.isPublic && metric.userId !== userId) {
-      throw new AppError("Unauthorized", 403);
+      throw new ForbiddenError("Unauthorized");
     }
 
     return metric;

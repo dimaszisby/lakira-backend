@@ -101,17 +101,19 @@ const FEATURE_DEEP_IMPORTS_EXCEPT_MODELS = {
   message: FEATURE_BOUNDARY_MESSAGE,
 };
 
-// An HTTP status code has no business in a domain entity. Entities raise a
-// DomainError kind; src/shared/middleware/error.ts maps it. This was the third of
-// SaaS-readiness caveat C4's three claims.
+// An HTTP status code has no business in a domain entity or a use case. Both raise
+// a DomainError kind; src/shared/middleware/error.ts maps it. The domain half was
+// the third of SaaS-readiness caveat C4's three claims; the application half is
+// audit R7 (application-errors D-02).
 // A regex on the file name, not a list of spellings: the list had three, and the
 // `@utils/` alias and an extensionless relative path got past it (audit-2026-10-10 V4).
 // Any import whose last segment is `AppError` or `AppError.js` is refused;
-// __tests__/unit/feature-boundaries.lint.test.ts proves each spelling in both domain layers.
-const DOMAIN_LAYER_HTTP_ERROR = {
+// __tests__/unit/feature-boundaries.lint.test.ts proves each spelling in all four
+// inner layers.
+const INNER_LAYER_HTTP_ERROR = {
   regex: "(?:^|/)AppError(?:\\.js)?$",
   message:
-    "AppError carries an HTTP statusCode, which the domain layer must not know. Throw a DomainError (or ValidationError) from @/shared/domain/errors/DomainError.js and let the error middleware map it. See .claude/rules/architecture.md § Dependency Rules.",
+    "AppError carries an HTTP statusCode, which the domain and application layers must not know. Throw a DomainError subclass (ValidationError, UnauthorizedError, ForbiddenError, NotFoundError, ConflictError) from @/shared/domain/errors/DomainError.js and let the error middleware map it. See .claude/rules/architecture.md § Dependency Rules.",
 };
 
 // The application layer depends on domain and ports only. The models barrel is
@@ -319,7 +321,7 @@ export default [
             ...LEGACY_IMPORT_PATTERNS,
             FEATURE_DEEP_IMPORTS,
             SIBLING_COMPOSITION_ROOT,
-            DOMAIN_LAYER_HTTP_ERROR,
+            INNER_LAYER_HTTP_ERROR,
             DOMAIN_LAYER_APPLICATION,
             INNER_LAYER_INFRASTRUCTURE,
             INNER_LAYER_DRIVER_PACKAGES,
@@ -339,6 +341,7 @@ export default [
             FEATURE_DEEP_IMPORTS,
             SIBLING_COMPOSITION_ROOT,
             APPLICATION_LAYER_ORM,
+            INNER_LAYER_HTTP_ERROR,
             INNER_LAYER_INFRASTRUCTURE,
             INNER_LAYER_DRIVER_PACKAGES,
           ],
@@ -390,6 +393,7 @@ export default [
           patterns: [
             ...LEGACY_IMPORT_PATTERNS,
             SHARED_CODE_FEATURE_IMPORT,
+            INNER_LAYER_HTTP_ERROR,
             INNER_LAYER_INFRASTRUCTURE,
             INNER_LAYER_DRIVER_PACKAGES,
           ],
@@ -398,7 +402,7 @@ export default [
     },
   },
   {
-    // Its domain takes the feature domain's AppError rule as well.
+    // Its domain takes the inner layers' AppError rule as well.
     files: ["src/shared/domain/**/*.ts"],
     rules: {
       "no-restricted-imports": [
@@ -407,7 +411,7 @@ export default [
           patterns: [
             ...LEGACY_IMPORT_PATTERNS,
             SHARED_CODE_FEATURE_IMPORT,
-            DOMAIN_LAYER_HTTP_ERROR,
+            INNER_LAYER_HTTP_ERROR,
             DOMAIN_LAYER_APPLICATION,
             INNER_LAYER_INFRASTRUCTURE,
             INNER_LAYER_DRIVER_PACKAGES,

@@ -1,4 +1,8 @@
 import { jest } from "@jest/globals";
+import {
+  ConflictError,
+  ValidationError,
+} from "@/shared/domain/errors/DomainError.js";
 import { RegisterUser } from "@/features/auth/application/use-cases/RegisterUser.js";
 import { UserRepository } from "@/features/auth/domain/repositories/UserRepository.js";
 import { OrganizationRepository } from "@/features/auth/domain/repositories/OrganizationRepository.js";
@@ -11,7 +15,6 @@ import { AuthUser } from "@/features/auth/domain/entities/AuthUser.js";
 import { Organization } from "@/features/auth/domain/entities/Organization.js";
 import { Membership } from "@/features/auth/domain/entities/Membership.js";
 import { RefreshToken } from "@/features/auth/domain/entities/RefreshToken.js";
-import AppError from "@/utils/AppError.js";
 
 // Sentinel handed to the use case by the fake TransactionPort. Every write must
 // receive this exact value, which is how the test proves they share one
@@ -263,7 +266,7 @@ describe("RegisterUser use case", () => {
         password: "one",
         passwordConfirmation: "two",
       }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it("throws when email already exists", async () => {
@@ -277,6 +280,6 @@ describe("RegisterUser use case", () => {
         password: "Password123!",
         passwordConfirmation: "Password123!",
       }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 });

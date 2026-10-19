@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import AppError from "@/utils/AppError.js";
+import { ValidationError } from "@/shared/domain/errors/DomainError.js";
 import { GetDashboardVisualization } from "@/features/analytics/application/queries/GetDashboardVisualization.js";
 import type { VisualizationReadRepository } from "@/features/analytics/application/ports/VisualizationReadRepository.js";
 import { withTestEnv } from "@/tests/env-test-utils.js";
@@ -81,7 +81,7 @@ describe("GetDashboardVisualization query", () => {
         startISO: baseInput.endISO,
         endISO: baseInput.startISO,
       }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(ValidationError);
     expect(repo.fetchDashboardVisualization).not.toHaveBeenCalled();
   });
 });

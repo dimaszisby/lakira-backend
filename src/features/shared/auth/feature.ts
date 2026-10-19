@@ -16,6 +16,7 @@ import { ConsoleEmailSender } from "./infrastructure/providers/ConsoleEmailSende
 import { ResendEmailSender } from "./infrastructure/providers/ResendEmailSender.js";
 import { MailpitEmailSender } from "./infrastructure/providers/MailpitEmailSender.js";
 import { EmailSender } from "./application/ports/EmailSender.js";
+import type { LoginAttemptsPort } from "./application/ports/LoginAttemptsPort.js";
 import { OrganizationRepositorySequelize } from "./infrastructure/persistence/OrganizationRepositorySequelize.js";
 import { MembershipRepositorySequelize } from "./infrastructure/persistence/MembershipRepositorySequelize.js";
 import { SequelizeTransactionPort } from "./infrastructure/persistence/SequelizeTransactionPort.js";
@@ -76,11 +77,14 @@ export type AuthFeatureOverrides = {
 export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
   const lockoutRedis: LockoutRedisClient =
     overrides.lockoutRedis ?? (redisClient as unknown as LockoutRedisClient);
+  // The edge checks the lockout and answers 429; LoginUser counts the failures
+  // (application-errors D-04).
   const loginLockout = {
     check: (email: string) => checkLockout(email, lockoutRedis),
-    recordFailedAttempt: (email: string) =>
-      recordFailedAttempt(email, lockoutRedis),
-    reset: (email: string) => resetLockout(email, lockoutRedis),
+  };
+  const loginAttempts: LoginAttemptsPort = {
+    recordFailure: (email) => recordFailedAttempt(email, lockoutRedis),
+    reset: (email) => resetLockout(email, lockoutRedis),
   };
   const repo = new UserRepositorySequelize();
   const orgRepo = new OrganizationRepositorySequelize();
@@ -156,6 +160,7 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
       hasher,
       token,
       issueRefreshToken,
+      loginAttempts,
     ),
     getProfile: new GetProfile(repo),
     updateProfile: new UpdateProfile(repo, hasher),

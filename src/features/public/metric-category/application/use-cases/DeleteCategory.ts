@@ -1,4 +1,4 @@
-import AppError from "@/utils/AppError.js";
+import { NotFoundError } from "@/shared/domain/errors/DomainError.js";
 import { MetricCategoryRepository } from "../../domain/repositories/MetricCategoryRepository.js";
 import { CachePort } from "../ports/CachePort.js";
 import { METRIC_CATEGORY_CURSOR_NAMESPACE_ALL } from "../cache.constants.js";
@@ -16,7 +16,7 @@ export class DeleteCategory {
       categoryId,
     );
     if (!category) {
-      throw new AppError("Metric Category not found", 404);
+      throw new NotFoundError("Metric Category not found");
     }
 
     await this.repo.delete(userId, organizationId, categoryId);

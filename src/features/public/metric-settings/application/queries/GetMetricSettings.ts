@@ -1,4 +1,7 @@
-import AppError from "@/utils/AppError.js";
+import {
+  NotFoundError,
+  UnauthorizedError,
+} from "@/shared/domain/errors/DomainError.js";
 import { MetricSettings } from "../../domain/entities/MetricSettings.js";
 import { MetricSettingsRepository } from "../../domain/repositories/MetricSettingsRepository.js";
 
@@ -10,10 +13,10 @@ export class GetMetricSettings {
     organizationId: string,
     settingsId: string,
   ): Promise<MetricSettings> {
-    if (!userId) throw new AppError("User not authenticated", 401);
+    if (!userId) throw new UnauthorizedError("User not authenticated");
 
     const found = await this.repo.findById(userId, organizationId, settingsId);
-    if (!found) throw new AppError("Metric Settings not found", 404);
+    if (!found) throw new NotFoundError("Metric Settings not found");
 
     return found;
   }

@@ -1,4 +1,5 @@
 import { jest } from "@jest/globals";
+import { UnauthorizedError } from "@/shared/domain/errors/DomainError.js";
 import { RotateRefreshToken } from "@/features/auth/application/use-cases/RotateRefreshToken.js";
 import { IssueRefreshToken } from "@/features/auth/application/use-cases/IssueRefreshToken.js";
 import {
@@ -12,7 +13,6 @@ import { TokenHasher } from "@/features/auth/application/ports/TokenHasher.js";
 import { RefreshToken } from "@/features/auth/domain/entities/RefreshToken.js";
 import { AuthUser } from "@/features/auth/domain/entities/AuthUser.js";
 import { Membership } from "@/features/auth/domain/entities/Membership.js";
-import AppError from "@/utils/AppError.js";
 import crypto from "node:crypto";
 
 const RAW_TOKEN = "test-raw-token-base64url";
@@ -147,7 +147,7 @@ describe("RotateRefreshToken use case", () => {
     refreshTokenRepo.findByTokenHashForUpdate.mockResolvedValue(null);
 
     await expect(sut.execute({ rawToken: "unknown" })).rejects.toMatchObject({
-      statusCode: 401,
+      kind: "unauthorized",
     });
   });
 
@@ -157,7 +157,7 @@ describe("RotateRefreshToken use case", () => {
     refreshTokenRepo.findByTokenHashForUpdate.mockResolvedValue(revoked);
 
     await expect(sut.execute({ rawToken: RAW_TOKEN })).rejects.toMatchObject({
-      statusCode: 401,
+      kind: "unauthorized",
     });
 
     expect(refreshTokenRepo.revokeFamily).toHaveBeenCalledWith("fam-1");
@@ -171,7 +171,7 @@ describe("RotateRefreshToken use case", () => {
     refreshTokenRepo.findByTokenHashForUpdate.mockResolvedValue(expired);
 
     await expect(sut.execute({ rawToken: RAW_TOKEN })).rejects.toMatchObject({
-      statusCode: 401,
+      kind: "unauthorized",
     });
 
     expect(refreshTokenRepo.revokeFamily).toHaveBeenCalledWith("fam-1");
@@ -185,7 +185,7 @@ describe("RotateRefreshToken use case", () => {
     userRepo.findById.mockResolvedValue(null);
 
     await expect(sut.execute({ rawToken: RAW_TOKEN })).rejects.toBeInstanceOf(
-      AppError,
+      UnauthorizedError,
     );
   });
 
@@ -198,7 +198,7 @@ describe("RotateRefreshToken use case", () => {
     membershipRepo.findByUserAndOrg.mockResolvedValue(null);
 
     await expect(sut.execute({ rawToken: RAW_TOKEN })).rejects.toMatchObject({
-      statusCode: 401,
+      kind: "unauthorized",
     });
   });
 
@@ -211,7 +211,7 @@ describe("RotateRefreshToken use case", () => {
     membershipRepo.findDefaultByUser.mockResolvedValue(null);
 
     await expect(sut.execute({ rawToken: RAW_TOKEN })).rejects.toMatchObject({
-      statusCode: 401,
+      kind: "unauthorized",
     });
   });
 });

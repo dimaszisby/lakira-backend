@@ -1,5 +1,5 @@
+import { ValidationError } from "@/shared/domain/errors/DomainError.js";
 import crypto from "node:crypto";
-import AppError from "@/utils/AppError.js";
 import { UserRepository } from "../../domain/repositories/UserRepository.js";
 import { PasswordResetTokenRepository } from "../../domain/repositories/PasswordResetTokenRepository.js";
 import { PasswordHasher } from "../ports/PasswordHasher.js";
@@ -26,7 +26,7 @@ export class ResetPassword {
 
   async execute(input: ResetPasswordInput): Promise<void> {
     if (input.password !== input.passwordConfirmation) {
-      throw new AppError("Passwords do not match", 400);
+      throw new ValidationError("Passwords do not match");
     }
 
     const now = this.deps.now ? this.deps.now() : new Date();
@@ -37,12 +37,12 @@ export class ResetPassword {
 
     const token = await this.tokenRepo.findByTokenHash(tokenHash);
     if (!token || token.isUsed() || token.isExpired(now)) {
-      throw new AppError(INVALID_TOKEN_MESSAGE, 400);
+      throw new ValidationError(INVALID_TOKEN_MESSAGE);
     }
 
     const user = await this.userRepo.findById(token.userId);
     if (!user) {
-      throw new AppError(INVALID_TOKEN_MESSAGE, 400);
+      throw new ValidationError(INVALID_TOKEN_MESSAGE);
     }
 
     const passwordHash = await this.hasher.hash(input.password);

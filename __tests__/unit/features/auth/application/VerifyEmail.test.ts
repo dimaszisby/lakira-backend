@@ -1,11 +1,11 @@
 import crypto from "node:crypto";
+import { ValidationError } from "@/shared/domain/errors/DomainError.js";
 import { jest } from "@jest/globals";
 import { VerifyEmail } from "@/features/auth/application/use-cases/VerifyEmail.js";
 import { UserRepository } from "@/features/auth/domain/repositories/UserRepository.js";
 import { EmailVerificationTokenRepository } from "@/features/auth/domain/repositories/EmailVerificationTokenRepository.js";
 import { AuthUser } from "@/features/auth/domain/entities/AuthUser.js";
 import { EmailVerificationToken } from "@/features/auth/domain/entities/EmailVerificationToken.js";
-import AppError from "@/utils/AppError.js";
 
 const FROZEN_NOW = new Date("2026-05-08T10:00:00.000Z");
 const RAW_TOKEN = "raw-token-value";
@@ -110,7 +110,7 @@ describe("VerifyEmail use case", () => {
 
     await expect(sut.execute({ token: RAW_TOKEN })).rejects.toMatchObject({
       message: "Verification link is invalid or has expired.",
-      statusCode: 400,
+      kind: "validation",
     });
   });
 
@@ -121,16 +121,16 @@ describe("VerifyEmail use case", () => {
 
     await expect(sut.execute({ token: RAW_TOKEN })).rejects.toMatchObject({
       message: "Verification link is invalid or has expired.",
-      statusCode: 400,
+      kind: "validation",
     });
   });
 
-  it("throws AppError instances", async () => {
+  it("throws a ValidationError", async () => {
     const { sut, tokenRepo } = build();
     tokenRepo.findByTokenHash.mockResolvedValue(null);
 
     await expect(sut.execute({ token: RAW_TOKEN })).rejects.toBeInstanceOf(
-      AppError,
+      ValidationError,
     );
   });
 });

@@ -2,7 +2,7 @@
 
 ## D-01 — The verification email is a job on the existing queue
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #184, `975de82`)
 - **Date:** 2026-10-18
 
 Promoted to the architecture decision registry as **[ADR-0067](../../../explanation/decisions/adr-0067-the-verification-email-is-a-queued-job.md)**,
@@ -12,7 +12,7 @@ That file is authoritative; this entry is a pointer. Register row B-39; branch
 
 ## D-02 — The message carries the user id only; the worker mints the token
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #184, `975de82`)
 - **Date:** 2026-10-18
 
 Promoted with D-01 to **[ADR-0067](../../../explanation/decisions/adr-0067-the-verification-email-is-a-queued-job.md)**,
@@ -20,7 +20,7 @@ decision 2. That file is authoritative; this entry is a pointer.
 
 ## D-03 — Send inside the idempotency transaction: at least once
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #184, `975de82`)
 - **Date:** 2026-10-18
 
 Promoted with D-01 to **[ADR-0067](../../../explanation/decisions/adr-0067-the-verification-email-is-a-queued-job.md)**,
@@ -28,7 +28,7 @@ decision 3. That file is authoritative; this entry is a pointer.
 
 ## D-04 — Fall back in process when the publish fails; every publish has a timeout
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #184, `975de82`)
 - **Date:** 2026-10-18
 
 Promoted with D-01 to **[ADR-0067](../../../explanation/decisions/adr-0067-the-verification-email-is-a-queued-job.md)**,

@@ -1,4 +1,4 @@
-import AppError from "@/utils/AppError.js";
+import { UnauthorizedError } from "@/shared/domain/errors/DomainError.js";
 import logger from "@/utils/logger.js";
 import {
   RefreshTokenRepository,
@@ -55,7 +55,7 @@ export class RotateRefreshToken {
       );
 
       if (!existing) {
-        throw new AppError("Unauthorized: Invalid refresh token", 401);
+        throw new UnauthorizedError("Unauthorized: Invalid refresh token");
       }
 
       if (existing.isRevoked()) {
@@ -79,7 +79,7 @@ export class RotateRefreshToken {
 
       const user = await this.userRepo.findById(existing.userId);
       if (!user) {
-        throw new AppError("Unauthorized: User not found", 401);
+        throw new UnauthorizedError("Unauthorized: User not found");
       }
 
       let organizationId: string;
@@ -89,9 +89,8 @@ export class RotateRefreshToken {
           existing.organizationId,
         );
         if (!membership || !membership.isActive()) {
-          throw new AppError(
+          throw new UnauthorizedError(
             "Unauthorized: Organization membership inactive",
-            401,
           );
         }
         organizationId = existing.organizationId;
@@ -100,7 +99,9 @@ export class RotateRefreshToken {
           existing.userId,
         );
         if (!membership) {
-          throw new AppError("Unauthorized: No organization membership", 401);
+          throw new UnauthorizedError(
+            "Unauthorized: No organization membership",
+          );
         }
         organizationId = membership.organizationId;
       }
@@ -146,7 +147,7 @@ export class RotateRefreshToken {
         });
       }
       await this.refreshTokenRepo.revokeFamily(result.familyId);
-      throw new AppError("Unauthorized: Invalid refresh token", 401);
+      throw new UnauthorizedError("Unauthorized: Invalid refresh token");
     }
 
     return result as RotateRefreshTokenResult;

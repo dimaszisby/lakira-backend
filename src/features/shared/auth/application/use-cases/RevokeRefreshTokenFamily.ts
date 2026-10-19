@@ -1,4 +1,4 @@
-import AppError from "@/utils/AppError.js";
+import { UnauthorizedError } from "@/shared/domain/errors/DomainError.js";
 import { RefreshTokenRepository } from "../../domain/repositories/RefreshTokenRepository.js";
 import { TokenHasher } from "../ports/TokenHasher.js";
 
@@ -13,7 +13,7 @@ export class RevokeRefreshTokenFamily {
     const existing = await this.refreshTokenRepo.findByTokenHash(tokenHash);
 
     if (!existing) {
-      throw new AppError("Unauthorized: Invalid refresh token", 401);
+      throw new UnauthorizedError("Unauthorized: Invalid refresh token");
     }
 
     await this.refreshTokenRepo.revokeFamily(existing.familyId);

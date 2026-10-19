@@ -1,6 +1,6 @@
 # ADR-0067 — The verification email is a queued job
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #184, `975de82`)
 - **Date:** 2026-10-18
 - **Related:** supersedes the verification-email part of
   [ADR-0054](./adr-0054-post-response-work-is-tracked-and-drained.md);

@@ -1,9 +1,12 @@
 import { jest } from "@jest/globals";
+import {
+  ConflictError,
+  NotFoundError,
+} from "@/shared/domain/errors/DomainError.js";
 import { UpdateProfile } from "@/features/auth/application/use-cases/UpdateProfile.js";
 import { UserRepository } from "@/features/auth/domain/repositories/UserRepository.js";
 import { PasswordHasher } from "@/features/auth/application/ports/PasswordHasher.js";
 import { AuthUser } from "@/features/auth/domain/entities/AuthUser.js";
-import AppError from "@/utils/AppError.js";
 
 const makeUser = () =>
   AuthUser.fromPersistence({
@@ -70,7 +73,7 @@ describe("UpdateProfile use case", () => {
 
     await expect(
       sut.execute({ userId: "missing", email: "user@example.com" }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("throws when email already taken", async () => {
@@ -80,6 +83,6 @@ describe("UpdateProfile use case", () => {
 
     await expect(
       sut.execute({ userId: "user-1", email: "new@example.com" }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 });

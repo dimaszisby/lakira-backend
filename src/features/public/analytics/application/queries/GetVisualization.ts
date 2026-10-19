@@ -1,4 +1,4 @@
-import AppError from "@/utils/AppError.js";
+import { ValidationError } from "@/shared/domain/errors/DomainError.js";
 import { env } from "@/config/envManager.js";
 import type { FillMode, VizResponse } from "../../domain/types.js";
 import {
@@ -49,14 +49,13 @@ function assertBounds(startISO: string, endISO: string, spec: BucketSpec) {
   const end = Date.parse(endISO);
 
   if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
-    throw new AppError("Invalid date range", 400);
+    throw new ValidationError("Invalid date range");
   }
 
   const est = Math.ceil((end - start) / spec.approxMs) + 2;
   if (est > MAX_BUCKETS) {
-    throw new AppError(
+    throw new ValidationError(
       `Range too large for ${spec.iso} (~${est} buckets, max=${MAX_BUCKETS})`,
-      400,
     );
   }
 }

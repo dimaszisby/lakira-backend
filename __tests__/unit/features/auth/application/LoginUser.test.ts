@@ -9,7 +9,8 @@ import { RefreshTokenRepository } from "@/features/auth/domain/repositories/Refr
 import { TokenHasher } from "@/features/auth/application/ports/TokenHasher.js";
 import { AuthUser } from "@/features/auth/domain/entities/AuthUser.js";
 import { Membership } from "@/features/auth/domain/entities/Membership.js";
-import AppError from "@/utils/AppError.js";
+import { UnauthorizedError } from "@/shared/domain/errors/DomainError.js";
+import type { LoginAttemptsPort } from "@/features/auth/application/ports/LoginAttemptsPort.js";
 
 const makeUser = () =>
   AuthUser.fromPersistence({
@@ -80,14 +81,27 @@ const build = () => {
     tokenHasher,
     30,
   );
+  const attempts: jest.Mocked<LoginAttemptsPort> = {
+    recordFailure: jest.fn(),
+    reset: jest.fn(),
+  };
   const sut = new LoginUser(
     repo,
     membershipRepo,
     hasher,
     token,
     issueRefreshToken,
+    attempts,
   );
-  return { sut, repo, membershipRepo, hasher, token, refreshTokenRepo };
+  return {
+    sut,
+    repo,
+    membershipRepo,
+    hasher,
+    token,
+    refreshTokenRepo,
+    attempts,
+  };
 };
 
 describe("LoginUser use case", () => {
@@ -96,8 +110,15 @@ describe("LoginUser use case", () => {
   });
 
   it("returns token and refresh token when credentials are valid", async () => {
-    const { sut, repo, membershipRepo, hasher, token, refreshTokenRepo } =
-      build();
+    const {
+      sut,
+      repo,
+      membershipRepo,
+      hasher,
+      token,
+      refreshTokenRepo,
+      attempts,
+    } = build();
     const user = makeUser();
     repo.findByEmail.mockResolvedValue(user);
     membershipRepo.findDefaultByUser.mockResolvedValue(makeMembership());
@@ -116,35 +137,52 @@ describe("LoginUser use case", () => {
     expect(result.token).toBe("jwt");
     expect(result.rawRefreshToken).toBeDefined();
     expect(refreshTokenRepo.save).toHaveBeenCalled();
+    // application-errors D-04: a success clears the count, under the address
+    // as typed, which is what the lockout check reads.
+    expect(attempts.reset).toHaveBeenCalledWith(" User@example.com ");
+    expect(attempts.recordFailure).not.toHaveBeenCalled();
   });
 
-  it("throws when user is not found", async () => {
-    const { sut, repo } = build();
+  // application-errors D-04: the use case decides what counts toward the
+  // lockout. The controller used to, by matching a 401.
+  it("records a failed attempt and throws when user is not found", async () => {
+    const { sut, repo, attempts } = build();
     repo.findByEmail.mockResolvedValue(null);
 
     await expect(
-      sut.execute({ email: "missing@example.com", password: "Password123!" }),
-    ).rejects.toBeInstanceOf(AppError);
+      sut.execute({ email: "Missing@example.com", password: "Password123!" }),
+    ).rejects.toBeInstanceOf(UnauthorizedError);
+    expect(attempts.recordFailure).toHaveBeenCalledTimes(1);
+    expect(attempts.recordFailure).toHaveBeenCalledWith("Missing@example.com");
+    expect(attempts.reset).not.toHaveBeenCalled();
   });
 
-  it("throws when password mismatch", async () => {
-    const { sut, repo, hasher } = build();
+  it("records a failed attempt and throws when password mismatch", async () => {
+    const { sut, repo, hasher, attempts } = build();
     repo.findByEmail.mockResolvedValue(makeUser());
     hasher.compare.mockResolvedValue(false);
 
     await expect(
       sut.execute({ email: "user@example.com", password: "WrongPassword" }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toMatchObject({
+      kind: "unauthorized",
+      message: "Invalid email or password",
+    });
+    expect(attempts.recordFailure).toHaveBeenCalledTimes(1);
+    expect(attempts.recordFailure).toHaveBeenCalledWith("user@example.com");
+    expect(attempts.reset).not.toHaveBeenCalled();
   });
 
-  it("throws 403 when user has no active membership", async () => {
-    const { sut, repo, hasher, membershipRepo } = build();
+  it("throws 403 when user has no active membership, counting nothing", async () => {
+    const { sut, repo, hasher, membershipRepo, attempts } = build();
     repo.findByEmail.mockResolvedValue(makeUser());
     hasher.compare.mockResolvedValue(true);
     membershipRepo.findDefaultByUser.mockResolvedValue(null);
 
     await expect(
       sut.execute({ email: "user@example.com", password: "Password123!" }),
-    ).rejects.toMatchObject({ statusCode: 403 });
+    ).rejects.toMatchObject({ kind: "forbidden" });
+    expect(attempts.recordFailure).not.toHaveBeenCalled();
+    expect(attempts.reset).not.toHaveBeenCalled();
   });
 });
