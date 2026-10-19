@@ -32,3 +32,6 @@ export const buildAnalyticsFeature = (
     getMetricTrend: new GetMetricTrend(metricAccess, trendRepo),
   };
 };
+
+/** What `buildAnalyticsFeature` builds: the type a router and its controller are handed (ADR-0072). */
+export type AnalyticsFeature = ReturnType<typeof buildAnalyticsFeature>;

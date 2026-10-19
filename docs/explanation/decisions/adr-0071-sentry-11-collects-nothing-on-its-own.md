@@ -1,6 +1,6 @@
 # ADR-0071 — Sentry 11 collects nothing on its own
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #191, `cb25531`)
 - **Date:** 2026-10-20
 - **Related:** [ADR-0039](./adr-0039-release-identity-and-immutable-artifacts.md) (the release
   Sentry carries); [ADR-0059](./adr-0059-an-error-passed-to-the-logger-is-reduced-to-an-allowlist.md)

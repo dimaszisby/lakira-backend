@@ -1,11 +1,10 @@
 import {
-  api,
   authHeader,
   createCategory,
   createTestUser,
 } from "../helpers/test-utils.js";
+import { appWith } from "../helpers/app-with.js";
 import { buildMetricCategoryFeature } from "@/features/metric-category/feature.js";
-import { overrideMetricCategoryFeatureForTest } from "@/features/metric-category/infrastructure/http/controller.js";
 import type { CachePort } from "@/features/metric-category/application/ports/CachePort.js";
 
 /**
@@ -42,20 +41,25 @@ const FRONTEND_QUERY = "?limit=50&sort=-createdAt&includeTotal=true";
 describe("GET /metric-categories through the list cache", () => {
   let token: string;
   let cache: JsonCache;
+  // An app of this test's own, whose category feature holds the cache.
+  let app: ReturnType<typeof appWith>;
 
   const list = (query = FRONTEND_QUERY) =>
-    api
+    app
       .get(`/api/v1/metric-categories${query}`)
       .set("Authorization", authHeader(token));
 
+  // Through this app, so its cache is the one the create invalidates.
+  const createThroughCache = (name: string) =>
+    app
+      .post("/api/v1/metric-categories")
+      .set("Authorization", authHeader(token))
+      .send({ name, color: "#D9D9D9", icon: "x" });
+
   beforeEach(async () => {
     cache = new JsonCache();
-    overrideMetricCategoryFeatureForTest(buildMetricCategoryFeature({ cache }));
+    app = appWith({ metricCategory: buildMetricCategoryFeature({ cache }) });
     ({ token } = await createTestUser());
-  });
-
-  afterAll(() => {
-    overrideMetricCategoryFeatureForTest(buildMetricCategoryFeature());
   });
 
   // AC-1 and AC-2.
@@ -106,7 +110,7 @@ describe("GET /metric-categories through the list cache", () => {
     await createCategory(token);
     expect((await list()).body.data.items).toHaveLength(1);
 
-    await createCategory(token);
+    expect((await createThroughCache("Second")).status).toBe(201);
     const res = await list();
 
     expect(res.status).toBe(200);

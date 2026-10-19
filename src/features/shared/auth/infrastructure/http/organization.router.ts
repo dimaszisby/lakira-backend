@@ -1,12 +1,6 @@
 import { Router } from "express";
-import {
-  createInvite,
-  acceptInvite,
-  removeMembership,
-  changeMemberRole,
-  listMembers,
-  listMyOrganizations,
-} from "./organization.controller.js";
+import { createOrganizationController } from "./organization.controller.js";
+import type { AuthFeature } from "../../feature.js";
 import { authMiddleware } from "./authMiddleware.js";
 import { userRateLimiter } from "@/shared/middleware/rate-limiter.js";
 import { validate } from "@/shared/middleware/validation.js";
@@ -20,10 +14,16 @@ import {
 import { methodNotAllowed } from "@/shared/middleware/method-guard.js";
 import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.js";
 
-export const createOrganizationRouter = () => {
+export const createOrganizationRouter = (feature: AuthFeature) => {
+  const controller = createOrganizationController(feature);
   const router = Router();
 
-  router.get("/", authMiddleware, userRateLimiter, listMyOrganizations);
+  router.get(
+    "/",
+    authMiddleware,
+    userRateLimiter,
+    controller.listMyOrganizations,
+  );
 
   router.post(
     "/:id/invites",
@@ -31,7 +31,7 @@ export const createOrganizationRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(createInviteSchema),
-    createInvite,
+    controller.createInvite,
   );
 
   router.get(
@@ -39,7 +39,7 @@ export const createOrganizationRouter = () => {
     authMiddleware,
     userRateLimiter,
     validate(listMembersSchema),
-    listMembers,
+    controller.listMembers,
   );
 
   router.all("/", methodNotAllowed(["GET"]));
@@ -49,7 +49,8 @@ export const createOrganizationRouter = () => {
   return router;
 };
 
-export const createInviteRouter = () => {
+export const createInviteRouter = (feature: AuthFeature) => {
+  const controller = createOrganizationController(feature);
   const router = Router();
 
   router.post(
@@ -58,7 +59,7 @@ export const createInviteRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(acceptInviteSchema),
-    acceptInvite,
+    controller.acceptInvite,
   );
 
   router.all("/accept", methodNotAllowed(["POST"]));
@@ -66,7 +67,8 @@ export const createInviteRouter = () => {
   return router;
 };
 
-export const createMembershipRouter = () => {
+export const createMembershipRouter = (feature: AuthFeature) => {
+  const controller = createOrganizationController(feature);
   const router = Router();
 
   router.delete(
@@ -74,7 +76,7 @@ export const createMembershipRouter = () => {
     authMiddleware,
     userRateLimiter,
     validate(removeMembershipSchema),
-    removeMembership,
+    controller.removeMembership,
   );
 
   router.patch(
@@ -83,7 +85,7 @@ export const createMembershipRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(changeMemberRoleSchema),
-    changeMemberRole,
+    controller.changeMemberRole,
   );
 
   router.all("/:id", methodNotAllowed(["DELETE", "PATCH"]));

@@ -39,3 +39,6 @@ export const buildMetricFeature = (overrides: MetricFeatureOverrides = {}) => {
     generateDummyMetrics: new GenerateDummyMetrics(repo, cache, tx),
   };
 };
+
+/** What `buildMetricFeature` builds: the type a router and its controller are handed (ADR-0072). */
+export type MetricFeature = ReturnType<typeof buildMetricFeature>;

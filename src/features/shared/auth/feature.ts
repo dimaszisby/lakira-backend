@@ -235,3 +235,6 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
     loginLockout,
   };
 };
+
+/** What `buildAuthFeature` builds: the type a router and its controller are handed (ADR-0072). */
+export type AuthFeature = ReturnType<typeof buildAuthFeature>;

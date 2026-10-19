@@ -1,37 +1,15 @@
-import express, { Application } from "express";
-import { env, loadEnvOrExit } from "./config/envManager.js";
+import { env } from "./config/envManager.js";
 import http from "http";
-import swaggerUi from "swagger-ui-express";
-import { getOpenApiDocumentation } from "./lib/openapi/openapi-docs.js";
 import logger, { flushLogs } from "@/utils/logger.js";
 import { APP_NAME } from "@/config/app-name.js";
 
-// Routes
-// Routers are built here, at mount time — importing a feature constructs nothing (ADR-0045).
-import {
-  createAuthRouter,
-  createOrganizationRouter,
-  createInviteRouter,
-  createMembershipRouter,
-} from "./features/shared/auth/index.js";
-import { createMetricRouter } from "./features/public/metric/index.js";
-import { createMetricLogRouter } from "./features/public/metric-log/index.js";
-import { createMetricSettingsRouter } from "./features/public/metric-settings/index.js";
-import { createMetricCategoryRouter } from "./features/public/metric-category/index.js";
-import { createVisualizationRouter } from "./features/public/analytics/index.js";
-import { installMetricLogFeature } from "./features/public/metric-log/infrastructure/http/controller.js";
-import { buildWiredMetricLogFeature } from "./composition/metric-log.js";
-import { installAuthFeature } from "./features/shared/auth/infrastructure/http/controller.js";
-import { installOrgFeature } from "./features/shared/auth/infrastructure/http/organization.controller.js";
-import { buildWiredAuthFeature } from "./composition/auth.js";
+// The app and its features: every feature built once, here, and handed to its
+// router (ADR-0072). Importing a feature constructs nothing (ADR-0045).
+import { createApp } from "./app.js";
+import { buildWiredFeatures } from "./composition/features.js";
 
 // Other Setup
-import { globalRateLimiter } from "@/shared/middleware/rate-limiter.js";
-import { mountHttpPipeline } from "@/shared/middleware/http-pipeline.js";
-import { notFoundHandler } from "@/shared/middleware/not-found.js";
-import { createReadinessProbe } from "@/shared/utils/readiness-probe.js";
-import { errorHandler } from "@/shared/middleware/error.js";
-import { disconnectRedis, redisClient } from "./utils/redis-client.js";
+import { disconnectRedis } from "./utils/redis-client.js";
 import {
   connectRabbitMQ,
   disconnectRabbitMQ,
@@ -39,9 +17,6 @@ import {
 import { RabbitMQPublisher } from "./shared/infrastructure/queue/RabbitMQPublisher.js";
 import sequelize from "./config/db.js";
 import { loadModels } from "./infrastructure/db/models.js";
-import { authMiddleware } from "./features/shared/auth/infrastructure/http/authMiddleware.js";
-import { requireOrgRole } from "./features/shared/auth/infrastructure/http/assertHasOrgRole.js";
-import { sendError } from "@/shared/utils/error-envelope.js";
 import { attachClientErrorHandler } from "@/shared/middleware/client-error.js";
 import * as Sentry from "@sentry/node";
 import {
@@ -56,10 +31,7 @@ import {
 
 // One publisher for every feature that queues work.
 const messageQueue = env.RABBITMQ_ENABLED ? new RabbitMQPublisher() : undefined;
-installMetricLogFeature(buildWiredMetricLogFeature({ messageQueue }));
-const authFeature = buildWiredAuthFeature({ messageQueue });
-installAuthFeature(authFeature);
-installOrgFeature(authFeature);
+const features = buildWiredFeatures({ messageQueue });
 
 if (env.SENTRY_DSN) {
   Sentry.init({
@@ -111,100 +83,7 @@ if (env.SKIP_DB_LIFECYCLE) {
 
 // * Environment Variables
 
-const app: Application = express();
-app.set("trust proxy", env.TRUST_PROXY);
-
-// * Middlewares
-// The order is in one place, mountHttpPipeline (ADR-0061). The probes are handed to
-// it so that it can place them: ahead of the limiter, so a platform probe is never
-// throttled, and ahead of the body parsers, so a probe parses nothing.
-const corsOrigins = loadEnvOrExit().CORS_ORIGIN ?? ["http://localhost:3000"];
-
-const mountProbes = (probed: Application): void => {
-  // Health check — registered before rate limiter so probes are never throttled
-  probed.get("/api/v1/health", (_req, res) => {
-    res.json({
-      status: "ok",
-      environment: env.NODE_ENV,
-      release: env.APP_RELEASE,
-      timestamp: new Date().toISOString(),
-    });
-  });
-
-  // Readiness probe: the database and Redis, each with a 2 s budget. It stays ahead of
-  // the rate limiter so a platform probe is never throttled, and its result is held for
-  // 2 s so that a flood of calls costs one check per window, not one each.
-  const readinessProbe = createReadinessProbe({
-    checks: {
-      db: () => sequelize.authenticate(),
-      redis: () => redisClient.ping(),
-    },
-    timeoutMs: 2000,
-    windowMs: 2000,
-  });
-
-  probed.get("/api/v1/ready", (_req, res) => {
-    void readinessProbe()
-      .then(({ ok, checks }) => {
-        res.status(ok ? 200 : 503).json({
-          status: ok ? "ok" : "degraded",
-          checks,
-        });
-      })
-      .catch(() => {
-        sendError(res, 500, "Readiness check failed");
-      });
-  });
-};
-
-mountHttpPipeline(app, {
-  limiter: globalRateLimiter,
-  corsOrigins,
-  bodyLimit: env.REQUEST_BODY_LIMIT,
-  requireHttps: env.NODE_ENV === "production",
-  mountProbes,
-});
-
-// * Routes
-app.use("/api/v1/auth", createAuthRouter());
-app.use("/api/v1/organizations", createOrganizationRouter());
-app.use("/api/v1/invites", createInviteRouter());
-app.use("/api/v1/memberships", createMembershipRouter());
-app.use("/api/v1/metrics", createMetricRouter());
-app.use("/api/v1/metric-categories", createMetricCategoryRouter());
-app.use("/api/v1/metric-settings", createMetricSettingsRouter());
-app.use("/api/v1/metric-logs", createMetricLogRouter());
-// DDD based routes
-app.use("/api/v1/analytics", createVisualizationRouter());
-
-// * Admin routes — guarded by authMiddleware + org role check
-const adminRouter = express.Router();
-adminRouter.use(authMiddleware, requireOrgRole("admin", "owner"));
-adminRouter.get("/_ping", (_req, res) =>
-  res.json({ status: "ok", scope: "admin" }),
-);
-app.use("/api/v1/admin", adminRouter);
-
-// Serve OpenAPI documentation
-// TODO: Developer Note -> Learn more about OpenAPI and Swagger integration
-const openApiDocument = getOpenApiDocumentation();
-const swaggerGuards = env.SWAGGER_REQUIRE_AUTH ? [authMiddleware] : [];
-
-// Raw OpenAPI JSON endpoint for tooling/codegen
-app.get("/api/v1/docs/openapi.json", ...swaggerGuards, (_req, res) => {
-  res.json(openApiDocument);
-});
-
-app.use(
-  "/api/v1/docs",
-  ...swaggerGuards,
-  swaggerUi.serve,
-  swaggerUi.setup(openApiDocument),
-);
-
-// * Unmatched routes, then the global error handler
-app.use(notFoundHandler);
-app.use(errorHandler);
+const app = createApp(features);
 
 // HTTP Server Reference
 let server: http.Server | null = null;

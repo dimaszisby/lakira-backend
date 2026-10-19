@@ -14,6 +14,12 @@
 > `feature.ts`, so that the server and the worker share one wiring; it may not import `index.ts`,
 > which would load the HTTP stack into the worker.
 
+> **Status note (2026-10-20).** The deferred option below, injecting built features into router
+> factories, is taken by [ADR-0072](./adr-0072-features-are-handed-to-their-routers.md). The
+> controllers' lazy slots and their override hooks are gone; this record's rule, that importing a
+> feature module constructs nothing, stands. The trends crossing named under Consequences is gone
+> too.
+
 ---
 
 ## Context

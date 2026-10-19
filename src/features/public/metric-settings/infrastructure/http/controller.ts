@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { buildMetricSettingsFeature } from "../../feature.js";
+import type { MetricSettingsFeature } from "../../feature.js";
 import catchAsync from "@/utils/catch-async.js";
 import { successResponse } from "@/utils/response-formatter.js";
 import { AuthRequest } from "@/types/request.context.js";
@@ -18,21 +18,14 @@ import {
 } from "./schema.zod.js";
 import { pickValidated } from "@/shared/middleware/validated.js";
 
-type Feature = ReturnType<typeof buildMetricSettingsFeature>;
-// Built on first use, never at import (ADR-0045).
-let feature: Feature | undefined;
-const getFeature = (): Feature => (feature ??= buildMetricSettingsFeature());
+type Feature = MetricSettingsFeature;
 
-export const overrideMetricSettingsFeatureForTest = (custom: Feature) => {
-  feature = custom;
-};
-
-export const createMetricSettings = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const createMetricSettings = (feature: Feature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { body } = pickValidated(createMetricSettingsSchema)(req);
     const payload = body;
-    const created = await getFeature().createSettings.execute({
+    const created = await feature.createSettings.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       ...payload,
@@ -44,14 +37,13 @@ export const createMetricSettings = catchAsync(
       toMetricSettingsResponseDTO(created.snapshot()),
       "Metric settings created successfully",
     );
-  },
-);
+  });
 
-export const getAllMetricSettingsViaCursor = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const getAllMetricSettingsViaCursor = (feature: Feature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { query } = pickValidated(listMetricSettingsViaCursorSchema)(req);
-    const result = await getFeature().listSettings.execute({
+    const result = await feature.listSettings.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       ...query,
@@ -70,27 +62,25 @@ export const getAllMetricSettingsViaCursor = catchAsync(
     };
 
     successResponse(res, 200, dto, "Metric settings fetched successfully");
-  },
-);
+  });
 
-export const getMetricSettingsById = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const getMetricSettingsById = (feature: Feature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { params } = pickValidated(getMetricSettingsSchema)(req);
-    const settings = await getFeature().getSettings.execute(
+    const settings = await feature.getSettings.execute(
       req.user.id,
       req.user.organizationId,
       params.id,
     );
     successResponse(res, 200, toMetricSettingsResponseDTO(settings.snapshot()));
-  },
-);
+  });
 
-export const updateMetricSettings = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const updateMetricSettings = (feature: Feature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { body, params } = pickValidated(updateMetricSettingsSchema)(req);
-    const updated = await getFeature().updateSettings.execute(
+    const updated = await feature.updateSettings.execute(
       req.user.id,
       req.user.organizationId,
       params.id,
@@ -102,27 +92,25 @@ export const updateMetricSettings = catchAsync(
       toMetricSettingsResponseDTO(updated.snapshot()),
       "Metric settings updated successfully",
     );
-  },
-);
+  });
 
-export const deleteMetricSettings = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const deleteMetricSettings = (feature: Feature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { params } = pickValidated(deleteMetricSettingsSchema)(req);
-    await getFeature().deleteSettings.execute(
+    await feature.deleteSettings.execute(
       req.user.id,
       req.user.organizationId,
       params.id,
     );
     successResponse(res, 200, null, "Metric settings deleted successfully");
-  },
-);
+  });
 
-export const updateGoalAchievement = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const updateGoalAchievement = (feature: Feature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { params } = pickValidated(getMetricSettingsSchema)(req);
-    const updated = await getFeature().updateGoalAchievement.execute(
+    const updated = await feature.updateGoalAchievement.execute(
       req.user.id,
       req.user.organizationId,
       params.id,
@@ -133,15 +121,14 @@ export const updateGoalAchievement = catchAsync(
       toMetricSettingsResponseDTO(updated.snapshot()),
       "Goal marked as achieved",
     );
-  },
-);
+  });
 
-export const updateDisplayOptions = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const updateDisplayOptions = (feature: Feature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { body, params } = pickValidated(updateDisplayOptionsSchema)(req);
     const { displayOptions } = body;
-    const updated = await getFeature().updateDisplayOptions.execute(
+    const updated = await feature.updateDisplayOptions.execute(
       req.user.id,
       req.user.organizationId,
       params.id,
@@ -153,5 +140,15 @@ export const updateDisplayOptions = catchAsync(
       toDisplayOptionsResponseDTO(updated.snapshot().displayOptions),
       "Display options updated",
     );
-  },
-);
+  });
+
+/** Every handler, closed over the feature the router hands it (ADR-0072). */
+export const createMetricSettingsController = (feature: Feature) => ({
+  createMetricSettings: createMetricSettings(feature),
+  getAllMetricSettingsViaCursor: getAllMetricSettingsViaCursor(feature),
+  getMetricSettingsById: getMetricSettingsById(feature),
+  updateMetricSettings: updateMetricSettings(feature),
+  deleteMetricSettings: deleteMetricSettings(feature),
+  updateGoalAchievement: updateGoalAchievement(feature),
+  updateDisplayOptions: updateDisplayOptions(feature),
+});

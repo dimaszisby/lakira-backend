@@ -1,6 +1,5 @@
 import { jest } from "@jest/globals";
 import { createMetricSettingsRouter } from "@/features/metric-settings/infrastructure/http/router.js";
-import * as controllerModule from "@/features/metric-settings/infrastructure/http/controller.js";
 import { metricSettingsCursorCacheKey } from "@/features/metric-settings/infrastructure/http/cache-keys.js";
 
 type RouterDouble = {
@@ -61,15 +60,22 @@ jest.mock("@/utils/logger.js", () => ({
 
 jest.mock(
   "@/features/metric-settings/infrastructure/http/controller.js",
-  () => ({
-    createMetricSettings: jest.fn(),
-    getMetricSettingsById: jest.fn(),
-    updateMetricSettings: jest.fn(),
-    deleteMetricSettings: jest.fn(),
-    updateGoalAchievement: jest.fn(),
-    updateDisplayOptions: jest.fn(),
-    getAllMetricSettingsViaCursor: jest.fn(),
-  }),
+  () => {
+    // One set of handler mocks, returned by every call of the factory (ADR-0072).
+    const handlers = {
+      createMetricSettings: jest.fn(),
+      getMetricSettingsById: jest.fn(),
+      updateMetricSettings: jest.fn(),
+      deleteMetricSettings: jest.fn(),
+      updateGoalAchievement: jest.fn(),
+      updateDisplayOptions: jest.fn(),
+      getAllMetricSettingsViaCursor: jest.fn(),
+    };
+    return {
+      createMetricSettingsController: jest.fn(() => handlers),
+      handlers,
+    };
+  },
 );
 
 jest.mock(
@@ -85,9 +91,13 @@ jest.mock(
   }),
 );
 
-const controllerMocks = controllerModule as jest.Mocked<
-  typeof controllerModule
->;
+const controllerMocks = (
+  jest.requireMock(
+    "@/features/metric-settings/infrastructure/http/controller.js",
+  ) as {
+    handlers: Record<string, jest.Mock>;
+  }
+).handlers;
 
 const {
   createMetricSettings: createMetricSettingsMock,
@@ -156,7 +166,7 @@ describe("metric settings router", () => {
   });
 
   const buildRouter = () => {
-    createMetricSettingsRouter();
+    createMetricSettingsRouter({} as any);
     return getLastRouterInstance();
   };
 

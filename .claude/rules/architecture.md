@@ -135,8 +135,15 @@ Two surfaces per feature (ADR-0045):
   which the provider exports from its `public.ts`. `MetricAccessPort` is the worked example: one
   copy each in metric-log, metric-settings and analytics, all satisfied by `MetricAccessSequelize`.
 - **Importing a feature module constructs nothing.** No router, feature or middleware is built at
-  module scope; controllers build their feature on first use (`feature ??= buildXFeature()`).
-  `__tests__/unit/architecture.test.ts` enforces this.
+  module scope. `__tests__/unit/architecture.test.ts` enforces this.
+- **A feature is handed to its router** (ADR-0072). `src/composition/features.ts`
+  (`buildWiredFeatures`) builds every feature once; `src/app.ts` (`createApp`) hands each to its
+  router, `createXRouter(feature)`, which builds `createXController(feature)`. A controller keeps
+  no module-level slot and builds nothing, and no file exports an `install*Feature` or `*ForTest`
+  hook; `architecture.test.ts` fails on each. A test that needs a different feature builds an app
+  of its own with `appWith({ ... })` (`__tests__/integration/helpers/app-with.ts`) or calls the
+  controller factory with a stub. One slot is left on purpose: `authMiddleware`'s default
+  instance, which routers and tests refer to by identity
 - Use `.js` extensions in all import paths (ESM)
 
 ## Post-response work

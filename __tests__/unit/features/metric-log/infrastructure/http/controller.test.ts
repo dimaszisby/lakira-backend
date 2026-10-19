@@ -5,6 +5,7 @@ import type {
 } from "@/features/metric-log/application/ports/MetricLogQueryPort.js";
 type ControllerModule =
   typeof import("@/features/metric-log/infrastructure/http/controller.js");
+type Handlers = ReturnType<ControllerModule["createMetricLogController"]>;
 
 const pickValidatedMock = jest.fn();
 jest.mock("@/shared/middleware/validated.js", () => ({
@@ -38,22 +39,15 @@ const makeRes = () => {
 };
 
 describe("Metric log controller", () => {
-  let createMetricLog: ControllerModule["createMetricLog"];
-  let getLogById: ControllerModule["getLogById"];
-  let getAggregatedStats: ControllerModule["getAggregatedStats"];
-  let generateDummyMetricLogs: ControllerModule["generateDummyMetricLogs"];
-  let getUserLogLibrariesViaCursor: ControllerModule["getUserLogLibrariesViaCursor"];
-  let overrideMetricLogFeatureForTest: ControllerModule["overrideMetricLogFeatureForTest"];
+  let createMetricLog: Handlers["createMetricLog"];
+  let getLogById: Handlers["getLogById"];
+  let getAggregatedStats: Handlers["getAggregatedStats"];
+  let generateDummyMetricLogs: Handlers["generateDummyMetricLogs"];
+  let getUserLogLibrariesViaCursor: Handlers["getUserLogLibrariesViaCursor"];
+  let createMetricLogController: ControllerModule["createMetricLogController"];
 
   beforeAll(async () => {
-    ({
-      createMetricLog,
-      getLogById,
-      getAggregatedStats,
-      generateDummyMetricLogs,
-      getUserLogLibrariesViaCursor,
-      overrideMetricLogFeatureForTest,
-    } =
+    ({ createMetricLogController } =
       await import("@/features/metric-log/infrastructure/http/controller.js"));
   });
 
@@ -64,7 +58,13 @@ describe("Metric log controller", () => {
       params: req.params ?? {},
       query: req.query ?? {},
     }));
-    overrideMetricLogFeatureForTest({
+    ({
+      createMetricLog,
+      getLogById,
+      getAggregatedStats,
+      generateDummyMetricLogs,
+      getUserLogLibrariesViaCursor,
+    } = createMetricLogController({
       createLog: { execute: createLogExecute },
       getLog: { execute: getLogExecute },
       updateLog: { execute: updateLogExecute },
@@ -72,7 +72,7 @@ describe("Metric log controller", () => {
       getStats: { execute: getStatsExecute },
       generateDummyLogs: { execute: generateDummyExecute },
       listLogs: { execute: listLogsExecute },
-    } as any);
+    } as any));
     listLogsExecute.mockResolvedValue({
       items: [],
       sort: "-createdAt",

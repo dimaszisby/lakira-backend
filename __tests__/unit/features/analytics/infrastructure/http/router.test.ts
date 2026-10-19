@@ -39,10 +39,14 @@ jest.mock("@/utils/catch-async.js", () => ({
   default: jest.fn((handler: any) => catchAsyncWrap(handler)),
 }));
 
-jest.mock("@/features/analytics/infrastructure/http/controller.js", () => ({
-  handleGetDashboardVisualization: jest.fn(),
-  handleGetVisualization: jest.fn(),
-}));
+jest.mock("@/features/analytics/infrastructure/http/controller.js", () => {
+  // One set of handler mocks, returned by every call of the factory (ADR-0072).
+  const handlers = {
+    handleGetDashboardVisualization: jest.fn(),
+    handleGetVisualization: jest.fn(),
+  };
+  return { createAnalyticsController: jest.fn(() => handlers), handlers };
+});
 
 jest.mock("@/features/analytics/infrastructure/http/schema.zod.js", () => ({
   getDashboardVizSchema: "getDashboardVizSchema",
@@ -65,12 +69,16 @@ validateMock.mockImplementation((schema: unknown) => validateResult(schema));
 const {
   handleGetDashboardVisualization: handleDashboardMock,
   handleGetVisualization: handleVisualizationMock,
-} = jest.requireMock(
-  "@/features/analytics/infrastructure/http/controller.js",
-) as {
-  handleGetDashboardVisualization: jest.Mock;
-  handleGetVisualization: jest.Mock;
-};
+} = (
+  jest.requireMock(
+    "@/features/analytics/infrastructure/http/controller.js",
+  ) as {
+    handlers: {
+      handleGetDashboardVisualization: jest.Mock;
+      handleGetVisualization: jest.Mock;
+    };
+  }
+).handlers;
 
 const catchAsyncModule = jest.requireMock("@/utils/catch-async.js") as {
   default: jest.Mock;
@@ -82,9 +90,9 @@ const instantiateRouter = (): RouterDouble => {
     // The module constructs nothing on import (ADR-0045); build the router explicitly.
     const { createVisualizationRouter } =
       require("@/features/analytics/infrastructure/http/router.js") as {
-        createVisualizationRouter: () => unknown;
+        createVisualizationRouter: (feature: unknown) => unknown;
       };
-    createVisualizationRouter();
+    createVisualizationRouter({});
   });
   const result = RouterMock.mock.results[RouterMock.mock.results.length - 1];
   if (!result || result.type !== "return" || !result.value) {

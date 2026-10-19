@@ -5,10 +5,11 @@ import type { buildMetricFeature } from "@/features/metric/feature.js";
 
 type ControllerModule =
   typeof import("@/features/metric/infrastructure/http/controller.js");
-let createMetric: ControllerModule["createMetric"];
-let getUserDetailMetricById: ControllerModule["getUserDetailMetricById"];
-let deleteMetric: ControllerModule["deleteMetric"];
-let overrideMetricFeatureForTest: ControllerModule["overrideMetricFeatureForTest"];
+type Handlers = ReturnType<ControllerModule["createMetricController"]>;
+let createMetric: Handlers["createMetric"];
+let getUserDetailMetricById: Handlers["getUserDetailMetricById"];
+let deleteMetric: Handlers["deleteMetric"];
+let createMetricController: ControllerModule["createMetricController"];
 
 const mockPickValidated = jest.fn();
 jest.mock("@/shared/middleware/validated.js", () => ({
@@ -45,10 +46,7 @@ const buildFeatureMocks = (): MetricFeature =>
 const loadController = async () => {
   const controller =
     await import("@/features/metric/infrastructure/http/controller.js");
-  createMetric = controller.createMetric;
-  getUserDetailMetricById = controller.getUserDetailMetricById;
-  deleteMetric = controller.deleteMetric;
-  overrideMetricFeatureForTest = controller.overrideMetricFeatureForTest;
+  createMetricController = controller.createMetricController;
 };
 
 const res = () =>
@@ -65,7 +63,11 @@ const flushAsync = () =>
 
 beforeAll(async () => {
   await loadController();
-  overrideMetricFeatureForTest(buildFeatureMocks());
+  ({ createMetric, getUserDetailMetricById, deleteMetric } =
+    createMetricController({
+      metric: buildFeatureMocks(),
+      metricTrend: {} as never,
+    }));
 });
 
 describe("Metric HTTP controller", () => {
@@ -76,7 +78,11 @@ describe("Metric HTTP controller", () => {
       params: req.params ?? {},
       query: req.query ?? {},
     }));
-    overrideMetricFeatureForTest(buildFeatureMocks());
+    ({ createMetric, getUserDetailMetricById, deleteMetric } =
+      createMetricController({
+        metric: buildFeatureMocks(),
+        metricTrend: {} as never,
+      }));
   });
 
   it("creates metric via use case", async () => {

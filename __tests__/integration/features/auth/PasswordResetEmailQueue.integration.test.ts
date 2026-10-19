@@ -1,9 +1,9 @@
 import type { ChannelWrapper } from "amqp-connection-manager";
 import type { Channel } from "amqplib";
-import { api, buildUserPayload } from "../../helpers/test-utils.js";
+import { buildUserPayload } from "../../helpers/test-utils.js";
+import { appWith } from "../../helpers/app-with.js";
 import { NoopMessageQueue } from "@/shared/infrastructure/queue/NoopMessageQueue.js";
 import { buildWiredAuthFeature } from "@/composition/auth.js";
-import { overrideAuthFeatureForTest } from "@/features/auth/infrastructure/http/controller.js";
 import type {
   EmailMessage,
   EmailSender,
@@ -37,6 +37,10 @@ import { models } from "@/infrastructure/db/models.js";
  * Delivery is asynchronous, so every wait polls for an outcome with a bounded
  * timeout. Nothing sleeps a fixed interval.
  */
+
+// An app of this file's own, rebuilt with a replaced feature where a test needs
+// one (inject-features-into-routers D-05).
+let api = appWith({});
 
 const QUEUE = QUEUES.AUTH_SEND_PASSWORD_RESET_EMAIL;
 const RETRY_QUEUE = retryQueueFor(QUEUE);
@@ -98,10 +102,11 @@ describe("The password-reset email via RabbitMQ", () => {
     close: async () => undefined,
   });
 
-  const useServer = (queue: MessageQueuePort) =>
-    overrideAuthFeatureForTest(
-      buildWiredAuthFeature({ messageQueue: queue, emailSender: sender }),
-    );
+  const useServer = (queue: MessageQueuePort) => {
+    api = appWith({
+      auth: buildWiredAuthFeature({ messageQueue: queue, emailSender: sender }),
+    });
+  };
 
   /** The worker's side: the handler src/worker.ts builds, with this test's sender. */
   const startConsumer = (retry: { maxRetries?: number } = {}) => {
@@ -206,7 +211,7 @@ describe("The password-reset email via RabbitMQ", () => {
   });
 
   afterAll(async () => {
-    overrideAuthFeatureForTest(buildWiredAuthFeature());
+    api = appWith({});
     await stopConsumer();
     await publisher?.close();
     await inspector?.close();

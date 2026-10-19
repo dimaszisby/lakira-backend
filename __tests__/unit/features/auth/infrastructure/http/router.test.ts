@@ -48,22 +48,26 @@ jest.mock("@/features/auth/infrastructure/http/authMiddleware.js", () => ({
   authMiddleware: "authMiddleware",
 }));
 
-jest.mock("@/features/auth/infrastructure/http/controller.js", () => ({
-  register: "register",
-  login: "login",
-  getProfile: "getProfile",
-  updateProfile: "updateProfile",
-  logout: "logout",
-  refresh: "refresh",
-  forgotPassword: "forgotPassword",
-  resetPassword: "resetPassword",
-  verifyEmail: "verifyEmail",
-  resendVerification: "resendVerification",
-  switchOrg: "switchOrg",
-}));
+jest.mock("@/features/auth/infrastructure/http/controller.js", () => {
+  // One set of handler mocks, returned by every call of the factory (ADR-0072).
+  const handlers = {
+    register: "register",
+    login: "login",
+    getProfile: "getProfile",
+    updateProfile: "updateProfile",
+    logout: "logout",
+    refresh: "refresh",
+    forgotPassword: "forgotPassword",
+    resetPassword: "resetPassword",
+    verifyEmail: "verifyEmail",
+    resendVerification: "resendVerification",
+    switchOrg: "switchOrg",
+  };
+  return { createAuthController: jest.fn(() => handlers), handlers };
+});
 
 const routerFor = (): RouterDouble => {
-  createAuthRouter();
+  createAuthRouter({} as any);
   return RouterMock.mock.results[RouterMock.mock.results.length - 1]
     .value as RouterDouble;
 };
