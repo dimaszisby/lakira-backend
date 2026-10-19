@@ -24,7 +24,8 @@ npm run db:migrate:test                  # once, and after every new migration; 
 npm test                                 # unit, then integration — never combine the projects
 npm run test:unit
 npm run test:integration
-npm run test:unit:coverage               # with coverage thresholds
+npm run test:unit:coverage               # fails below the unit coverage thresholds
+npm run test:integration:coverage        # fails below the integration coverage thresholds
 ```
 
 **Running one file or one test.** A bare path after `--` does **not** filter; pass it explicitly:
