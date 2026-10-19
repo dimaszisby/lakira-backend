@@ -27,7 +27,7 @@ metric-category/
 │   ├── cache/                  Redis adapter
 │   └── mappers/                row ⇄ entity
 ├── feature.ts                  wires it together
-├── index.ts                    its routers, for src/server.ts only
+├── index.ts                    its routers, for src/app.ts only
 └── public.ts                   what other features may import (ADR-0044)
 ```
 
@@ -134,7 +134,8 @@ export class CountCategories {
 
 **4. Wire it** — add `countCategories: new CountCategories(repo)` to `feature.ts`.
 
-**5. Expose it** — a controller handler, then a route in `router.ts` behind `authMiddleware`.
+**5. Expose it** — a controller handler, added to what `createMetricCategoryController(feature)`
+returns, then a route in `router.ts` behind `authMiddleware`.
 Return through the shared response formatter so the envelope matches every other endpoint.
 
 **6. Register it in OpenAPI** — `src/lib/openapi/openapi-docs.ts`. Skipping this makes CI fail:

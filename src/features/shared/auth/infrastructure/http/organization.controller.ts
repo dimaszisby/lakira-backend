@@ -14,22 +14,9 @@ import {
   orgIdParam,
   membershipIdParam,
 } from "./organization.schema.zod.js";
-import { buildAuthFeature } from "../../feature.js";
+import type { AuthFeature } from "../../feature.js";
 
-type OrgFeature = ReturnType<typeof buildAuthFeature>;
-// Built on first use, never at import (ADR-0045).
-let feature: OrgFeature | undefined;
-const getFeature = (): OrgFeature => (feature ??= buildAuthFeature());
-
-/**
- * How src/server.ts supplies the wired feature, so the invite email is queued
- * with the server's publisher (ADR-0056, ADR-0070).
- */
-export const installOrgFeature = (custom: OrgFeature) => {
-  feature = custom;
-};
-
-export const overrideOrgFeatureForTest = installOrgFeature;
+type OrgFeature = AuthFeature;
 
 const pickCreateInvite = pickValidated(
   z.object({ body: createInviteBody, params: orgIdParam }),
@@ -41,8 +28,8 @@ const pickChangeMemberRole = pickValidated(
 const pickMembershipId = pickValidated(z.object({ params: membershipIdParam }));
 const pickOrgId = pickValidated(z.object({ params: orgIdParam }));
 
-export const createInvite = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const createInvite = (feature: OrgFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const {
       body: { email, role },
@@ -54,7 +41,7 @@ export const createInvite = catchAsync(
     }
     assertHasOrgRole(req, "owner", "admin");
 
-    await getFeature().inviteUserToOrganization.execute({
+    await feature.inviteUserToOrganization.execute({
       organizationId,
       email,
       role,
@@ -63,27 +50,25 @@ export const createInvite = catchAsync(
     });
 
     successResponse(res, 201, null, "Invitation sent successfully");
-  },
-);
+  });
 
-export const acceptInvite = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const acceptInvite = (feature: OrgFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const {
       body: { token },
     } = pickAcceptInvite(req);
 
-    await getFeature().acceptInvite.execute({
+    await feature.acceptInvite.execute({
       rawToken: token,
       userId: req.user.id,
     });
 
     successResponse(res, 200, null, "Invitation accepted");
-  },
-);
+  });
 
-export const removeMembership = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const removeMembership = (feature: OrgFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const {
       params: { id: membershipId },
@@ -91,7 +76,7 @@ export const removeMembership = catchAsync(
 
     assertHasOrgRole(req, "owner");
 
-    await getFeature().removeMembership.execute({
+    await feature.removeMembership.execute({
       membershipId,
       organizationId: req.membership.organizationId,
       actorRole: req.membership.role,
@@ -99,11 +84,10 @@ export const removeMembership = catchAsync(
     });
 
     successResponse(res, 200, null, "Member removed successfully");
-  },
-);
+  });
 
-export const changeMemberRole = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const changeMemberRole = (feature: OrgFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const {
       body: { role },
@@ -112,7 +96,7 @@ export const changeMemberRole = catchAsync(
 
     assertHasOrgRole(req, "owner");
 
-    await getFeature().changeMemberRole.execute({
+    await feature.changeMemberRole.execute({
       membershipId,
       organizationId: req.membership.organizationId,
       newRole: role,
@@ -120,11 +104,10 @@ export const changeMemberRole = catchAsync(
     });
 
     successResponse(res, 200, null, "Member role updated successfully");
-  },
-);
+  });
 
-export const listMembers = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const listMembers = (feature: OrgFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const {
       params: { id: organizationId },
@@ -135,22 +118,30 @@ export const listMembers = catchAsync(
     }
 
     const members =
-      await getFeature().listOrganizationMembers.execute(organizationId);
+      await feature.listOrganizationMembers.execute(organizationId);
 
     successResponse(res, 200, { members });
-  },
-);
+  });
 
-export const listMyOrganizations = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const listMyOrganizations = (feature: OrgFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
 
     // Scoped by the verified token only; the route takes no parameters.
-    const organizations = await getFeature().listUserOrganizations.execute({
+    const organizations = await feature.listUserOrganizations.execute({
       userId: req.user.id,
       currentOrganizationId: req.membership.organizationId,
     });
 
     successResponse(res, 200, { organizations });
-  },
-);
+  });
+
+/** Every handler, closed over the feature the router hands it (ADR-0072). */
+export const createOrganizationController = (feature: OrgFeature) => ({
+  createInvite: createInvite(feature),
+  acceptInvite: acceptInvite(feature),
+  removeMembership: removeMembership(feature),
+  changeMemberRole: changeMemberRole(feature),
+  listMembers: listMembers(feature),
+  listMyOrganizations: listMyOrganizations(feature),
+});

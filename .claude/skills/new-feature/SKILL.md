@@ -36,14 +36,16 @@ Create a complete feature module at `src/features/<audience>/$0/` following this
 
 5. **Create the wiring files**:
    - `feature.ts` — `export const buildXFeature = () => { ... }` instantiating repos, providers, use cases
-   - `index.ts` — export `buildXFeature` and `createXRouter` only (no router instance); imported only by `src/server.ts`, which calls `createXRouter()` when mounting it
-   - in the controller, build the feature lazily — `let feature: F | undefined; const getFeature = () => (feature ??= buildXFeature());` — never at module scope (ADR-0045)
+   - `feature.ts` also exports `type XFeature = ReturnType<typeof buildXFeature>`
+   - `index.ts` — export `buildXFeature` and `createXRouter` only (no router instance); imported only by `src/app.ts`, which calls `createXRouter(features.x)` when mounting it
+   - the controller exports `createXController(feature: XFeature)`, returning its handlers; `createXRouter(feature)` builds it. No module-level feature slot, no `override*ForTest` hook (ADR-0072)
+   - add the feature to `AppFeatures` and `buildWiredFeatures` in `src/composition/features.ts`
    - `public.ts` — the cross-feature surface other features may import (ADR-0044). It must not import routers or `feature.ts`
    - add the `@/features/$0` path alias to `tsconfig.json` alongside the existing ones
 
 6. **Register the feature**:
    - Register Sequelize model in `src/infrastructure/db/models.ts`
-   - Mount router in `src/server.ts` under the appropriate API path
+   - Mount router in `src/app.ts` (`createApp`) under the appropriate API path
 
 7. **Add Zod base rules** if new field types are needed:
    - Add reusable validators to `src/constants/zod/zod-rules.ts` (prefix with `z`)

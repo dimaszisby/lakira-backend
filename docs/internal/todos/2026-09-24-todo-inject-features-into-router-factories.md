@@ -1,6 +1,7 @@
 # Todo — inject built features into router factories
 
-- **Status:** Open — a follow-up, not a defect
+- **Status:** Closed on `refactor/inject-features-into-routers` (ADR-0072, kit
+  [`inject-features-into-routers`](../initiatives/inject-features-into-routers/README.md))
 - **Created:** 2026-09-24
 - **Owner:** unassigned
 - **Origin:** the option deferred in

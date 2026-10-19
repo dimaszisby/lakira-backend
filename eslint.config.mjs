@@ -299,19 +299,6 @@ export default [
     },
   },
   {
-    // D-04 (routers-at-module-scope): the one known sibling composition-root import.
-    // GET /metrics/:metricId/trends builds the analytics feature. Exempt by name only;
-    // moving the endpoint or exposing a trends port is tracked in
-    // docs/internal/todos/2026-09-24-todo-metric-trends-uses-analytics-composition-root.md.
-    files: ["src/features/public/metric/infrastructure/http/controller.ts"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        { patterns: [...LEGACY_IMPORT_PATTERNS, FEATURE_DEEP_IMPORTS] },
-      ],
-    },
-  },
-  {
     files: ["src/features/*/*/domain/**/*.ts"],
     rules: {
       "no-restricted-imports": [

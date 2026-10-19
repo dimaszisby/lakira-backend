@@ -1,13 +1,6 @@
 import { Router } from "express";
-import {
-  createMetricSettings,
-  getMetricSettingsById,
-  updateMetricSettings,
-  deleteMetricSettings,
-  updateGoalAchievement,
-  updateDisplayOptions,
-  getAllMetricSettingsViaCursor,
-} from "./controller.js";
+import { createMetricSettingsController } from "./controller.js";
+import type { MetricSettingsFeature } from "../../feature.js";
 import { authMiddleware } from "@/features/auth/public.js";
 import { cacheMiddleware } from "@/shared/middleware/cache.js";
 import { userRateLimiter } from "@/shared/middleware/rate-limiter.js";
@@ -32,7 +25,8 @@ import { metricSettingsCursorCacheKey } from "./cache-keys.js";
 const metricSettingCacheKey = (req: AuthRequest) =>
   `metricSetting:${req.user?.organizationId}:${req.user?.id}:${req.params.id}`;
 
-export const createMetricSettingsRouter = () => {
+export const createMetricSettingsRouter = (feature: MetricSettingsFeature) => {
+  const controller = createMetricSettingsController(feature);
   const router = Router();
   router.use(authMiddleware);
 
@@ -40,14 +34,14 @@ export const createMetricSettingsRouter = () => {
     "/",
     validate(listMetricSettingsViaCursorSchema),
     cacheMiddleware(metricSettingsCursorCacheKey, 300),
-    getAllMetricSettingsViaCursor,
+    controller.getAllMetricSettingsViaCursor,
   );
 
   router.get(
     "/:id",
     validate(getMetricSettingsSchema),
     cacheMiddleware(metricSettingCacheKey, 300),
-    getMetricSettingsById,
+    controller.getMetricSettingsById,
   );
 
   router.post(
@@ -55,7 +49,7 @@ export const createMetricSettingsRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(createMetricSettingsSchema),
-    createMetricSettings,
+    controller.createMetricSettings,
   );
 
   router.put(
@@ -63,21 +57,21 @@ export const createMetricSettingsRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(updateMetricSettingsSchema),
-    updateMetricSettings,
+    controller.updateMetricSettings,
   );
 
   router.delete(
     "/:id",
     userRateLimiter,
     validate(deleteMetricSettingsSchema),
-    deleteMetricSettings,
+    controller.deleteMetricSettings,
   );
 
   router.patch(
     "/:id/achieve",
     userRateLimiter,
     validate(goalAchievementSchema),
-    updateGoalAchievement,
+    controller.updateGoalAchievement,
   );
 
   router.patch(
@@ -85,7 +79,7 @@ export const createMetricSettingsRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(updateDisplayOptionsSchema),
-    updateDisplayOptions,
+    controller.updateDisplayOptions,
   );
 
   router.all("/", methodNotAllowed(["GET", "POST"]));

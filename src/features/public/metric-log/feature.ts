@@ -57,3 +57,6 @@ export const buildMetricLogFeature = (deps: MetricLogFeatureOverrides = {}) => {
     ),
   };
 };
+
+/** What `buildMetricLogFeature` builds: the type a router and its controller are handed (ADR-0072). */
+export type MetricLogFeature = ReturnType<typeof buildMetricLogFeature>;

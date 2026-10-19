@@ -2,7 +2,7 @@
 
 ## D-01 — `@sentry/node` 11.8.0
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #191, `cb25531`)
 - **Date:** 2026-10-20
 
 **Context.** The backend was on `^10.51.0` (10.69.0 installed). 11.0.0 shipped 2026-09-23 and

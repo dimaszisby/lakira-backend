@@ -1,13 +1,7 @@
 import { Router } from "express";
 import { env } from "@/config/envManager.js";
-import {
-  createCategory,
-  listCategories,
-  getCategory,
-  updateCategory,
-  deleteCategory,
-  generateDummyCategories,
-} from "./controller.js";
+import { createMetricCategoryController } from "./controller.js";
+import type { MetricCategoryFeature } from "../../feature.js";
 import { authMiddleware } from "@/features/auth/public.js";
 import { cacheMiddleware } from "@/shared/middleware/cache.js";
 import { userRateLimiter } from "@/shared/middleware/rate-limiter.js";
@@ -27,7 +21,8 @@ import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.j
 const categoryCacheKey = (req: AuthRequest) =>
   `category:${req.user?.organizationId}:${req.user?.id}:${req.params.id}`;
 
-export const createMetricCategoryRouter = () => {
+export const createMetricCategoryRouter = (feature: MetricCategoryFeature) => {
+  const controller = createMetricCategoryController(feature);
   const router = Router();
   router.use(authMiddleware);
 
@@ -36,7 +31,7 @@ export const createMetricCategoryRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(createMetricCategorySchema),
-    createCategory,
+    controller.createCategory,
   );
 
   router.get(
@@ -45,14 +40,14 @@ export const createMetricCategoryRouter = () => {
     // No cacheMiddleware: ListCategories caches this page itself under a key
     // built from the normalized filter. A second, router-level layer keyed on
     // raw req.query ignored the filter (kit list-cache-key-filters, D-02).
-    listCategories,
+    controller.listCategories,
   );
 
   router.get(
     "/:id",
     validate(getMetricCategorySchema),
     cacheMiddleware(categoryCacheKey, 600),
-    getCategory,
+    controller.getCategory,
   );
 
   router.put(
@@ -60,14 +55,14 @@ export const createMetricCategoryRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(updateMetricCategorySchema),
-    updateCategory,
+    controller.updateCategory,
   );
 
   router.delete(
     "/:id",
     userRateLimiter,
     validate(deleteMetricCategorySchema),
-    deleteCategory,
+    controller.deleteCategory,
   );
 
   if (env.ENABLE_DUMMY_ENDPOINTS) {
@@ -76,7 +71,7 @@ export const createMetricCategoryRouter = () => {
       userRateLimiter,
       requireJsonObjectBody(),
       validate(generateDummyMetricCategoriesSchema),
-      generateDummyCategories,
+      controller.generateDummyCategories,
     );
     router.all("/dummy", methodNotAllowed(["POST"]));
   }

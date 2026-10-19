@@ -1,13 +1,6 @@
 import { Router } from "express";
-import {
-  createMetricLog,
-  getLogById,
-  updateLog,
-  deleteLog,
-  getAggregatedStats,
-  generateDummyMetricLogs,
-  getUserLogLibrariesViaCursor,
-} from "./controller.js";
+import { createMetricLogController } from "./controller.js";
+import type { MetricLogFeature } from "../../feature.js";
 import { authMiddleware } from "@/features/auth/public.js";
 import { cacheMiddleware } from "@/shared/middleware/cache.js";
 import { userRateLimiter } from "@/shared/middleware/rate-limiter.js";
@@ -104,7 +97,8 @@ const logStatsCacheKey = (req: AuthRequest) => {
   return `logStats:${req.user?.organizationId}:${req.user?.id}:${metricId || "all"}`;
 };
 
-export const createMetricLogRouter = () => {
+export const createMetricLogRouter = (feature: MetricLogFeature) => {
+  const controller = createMetricLogController(feature);
   const router = Router();
   router.use(authMiddleware);
 
@@ -112,7 +106,7 @@ export const createMetricLogRouter = () => {
     "/",
     validate(listMetricLogsViaCursorSchema),
     cacheMiddleware(logsCursorCacheKey, 300),
-    getUserLogLibrariesViaCursor,
+    controller.getUserLogLibrariesViaCursor,
   );
 
   router
@@ -120,7 +114,7 @@ export const createMetricLogRouter = () => {
     .get(
       validate(getAggregatedStatsSchema),
       cacheMiddleware(logStatsCacheKey, 300),
-      getAggregatedStats,
+      controller.getAggregatedStats,
     )
     .all(methodNotAllowed(["GET"]));
 
@@ -128,7 +122,7 @@ export const createMetricLogRouter = () => {
     "/:id",
     validate(getMetricLogByIdSchema),
     cacheMiddleware(logCacheKey, 300),
-    getLogById,
+    controller.getLogById,
   );
 
   router.post(
@@ -136,7 +130,7 @@ export const createMetricLogRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(createMetricLogSchema),
-    createMetricLog,
+    controller.createMetricLog,
   );
 
   router.put(
@@ -144,14 +138,14 @@ export const createMetricLogRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(updateMetricLogSchema),
-    updateLog,
+    controller.updateLog,
   );
 
   router.delete(
     "/:id",
     userRateLimiter,
     validate(deleteMetricLogSchema),
-    deleteLog,
+    controller.deleteLog,
   );
 
   if (env.ENABLE_DUMMY_ENDPOINTS) {
@@ -160,7 +154,7 @@ export const createMetricLogRouter = () => {
       userRateLimiter,
       requireJsonObjectBody(),
       validate(generateDummyMetricLogsSchema),
-      generateDummyMetricLogs,
+      controller.generateDummyMetricLogs,
     );
     router.all("/:metricId/dummy", methodNotAllowed(["POST"]));
   }

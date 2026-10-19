@@ -1,6 +1,5 @@
 import { jest } from "@jest/globals";
 import { createMetricRouter } from "@/features/metric/infrastructure/http/router.js";
-import * as controllerModule from "@/features/metric/infrastructure/http/controller.js";
 import { metricsCursorCacheKey } from "@/features/metric/infrastructure/http/cache-keys.js";
 
 type RouterDouble = {
@@ -62,15 +61,19 @@ jest.mock("@/shared/cache/keys.js", () => ({
   buildCursorCacheKey: jest.fn(() => "metrics-cursor-key"),
 }));
 
-jest.mock("@/features/metric/infrastructure/http/controller.js", () => ({
-  createMetric: jest.fn(),
-  getUserMetricLibrariesViaCursor: jest.fn(),
-  getUserDetailMetricById: jest.fn(),
-  updateMetric: jest.fn(),
-  deleteMetric: jest.fn(),
-  generateDummyMetrics: jest.fn(),
-  handleMetricTrend: jest.fn(),
-}));
+jest.mock("@/features/metric/infrastructure/http/controller.js", () => {
+  // One set of handler mocks, returned by every call of the factory (ADR-0072).
+  const handlers = {
+    createMetric: jest.fn(),
+    getUserMetricLibrariesViaCursor: jest.fn(),
+    getUserDetailMetricById: jest.fn(),
+    updateMetric: jest.fn(),
+    deleteMetric: jest.fn(),
+    generateDummyMetrics: jest.fn(),
+    handleMetricTrend: jest.fn(),
+  };
+  return { createMetricController: jest.fn(() => handlers), handlers };
+});
 
 jest.mock("@/features/metric/infrastructure/http/schema.zod.js", () => ({
   createMetricSchema: "createMetricSchema",
@@ -81,9 +84,11 @@ jest.mock("@/features/metric/infrastructure/http/schema.zod.js", () => ({
   getAllMetricsViaCursorSchema: "getAllMetricsViaCursorSchema",
 }));
 
-const controllerMocks = controllerModule as jest.Mocked<
-  typeof controllerModule
->;
+const controllerMocks = (
+  jest.requireMock("@/features/metric/infrastructure/http/controller.js") as {
+    handlers: Record<string, jest.Mock>;
+  }
+).handlers;
 
 const {
   createMetric: createMetricMock,
@@ -145,7 +150,7 @@ describe("metric router", () => {
   });
 
   const buildRouter = () => {
-    createMetricRouter();
+    createMetricRouter({} as any);
     return getLastRouterInstance();
   };
 

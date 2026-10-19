@@ -1,20 +1,23 @@
 import {
-  api,
   buildUserPayload,
   createTestUser,
   authHeader,
 } from "../helpers/test-utils.js";
+import { appWith } from "../helpers/app-with.js";
 import { models } from "@/infrastructure/db/models.js";
 import {
   buildAuthFeature,
   type AuthFeatureOverrides,
 } from "@/features/auth/feature.js";
-import { overrideAuthFeatureForTest } from "@/features/auth/infrastructure/http/controller.js";
 import {
   EmailMessage,
   EmailSender,
 } from "@/features/auth/application/ports/EmailSender.js";
 import { drainBackgroundTasks } from "@/utils/background-tasks.js";
+
+// An app of this file's own, rebuilt with a replaced auth feature where a test
+// needs one (inject-features-into-routers D-05).
+let api = appWith({});
 
 class CapturingEmailSender implements EmailSender {
   public messages: EmailMessage[] = [];
@@ -40,7 +43,7 @@ class GatedEmailSender extends CapturingEmailSender {
 
 const installGatedSender = () => {
   const sender = new GatedEmailSender();
-  overrideAuthFeatureForTest(buildAuthFeature({ emailSender: sender }));
+  api = appWith({ auth: buildAuthFeature({ emailSender: sender }) });
   return sender;
 };
 
@@ -62,14 +65,14 @@ const expectDrainWaitsFor = async (sender: GatedEmailSender) => {
 
 const installCapturingSender = (overrides?: AuthFeatureOverrides) => {
   const sender = new CapturingEmailSender();
-  overrideAuthFeatureForTest(
-    buildAuthFeature({ emailSender: sender, ...overrides }),
-  );
+  api = appWith({
+    auth: buildAuthFeature({ emailSender: sender, ...overrides }),
+  });
   return sender;
 };
 
 const restoreFeature = () => {
-  overrideAuthFeatureForTest(buildAuthFeature());
+  api = appWith({});
 };
 
 const extractTokenFromLink = (link: string): string => {
@@ -241,7 +244,7 @@ describe("Email verification API", () => {
 
     it("drain waits for the verification email started by resend", async () => {
       const capturing = installCapturingSender();
-      const { token } = await createTestUser();
+      const { token } = await createTestUser({}, api);
       await waitForEmail(capturing);
 
       const sender = installGatedSender();
@@ -262,7 +265,7 @@ describe("Email verification API", () => {
 
     it("returns 200 and sends a fresh token for unverified user", async () => {
       const sender = installCapturingSender();
-      const { token } = await createTestUser();
+      const { token } = await createTestUser({}, api);
       await waitForEmail(sender);
       sender.messages = [];
 
@@ -280,7 +283,7 @@ describe("Email verification API", () => {
 
     it("returns 200 silently for already-verified user", async () => {
       const sender = installCapturingSender();
-      const { token, payload } = await createTestUser();
+      const { token, payload } = await createTestUser({}, api);
       await waitForEmail(sender);
       const rawToken = extractTokenFromLink(sender.messages[0].text);
       await api.post("/api/v1/auth/verify-email").send({ token: rawToken });
@@ -296,7 +299,7 @@ describe("Email verification API", () => {
 
     it("revokes prior token when resending", async () => {
       const sender = installCapturingSender();
-      const { token } = await createTestUser();
+      const { token } = await createTestUser({}, api);
       await waitForEmail(sender);
 
       sender.messages = [];

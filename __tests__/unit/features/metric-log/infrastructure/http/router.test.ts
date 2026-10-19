@@ -1,6 +1,5 @@
 import { jest } from "@jest/globals";
 import { createMetricLogRouter } from "@/features/metric-log/infrastructure/http/router.js";
-import * as controllerModule from "@/features/metric-log/infrastructure/http/controller.js";
 
 type RouterDouble = {
   use: jest.Mock;
@@ -79,15 +78,19 @@ jest.mock("@/utils/logger.js", () => ({
   debug: jest.fn(),
 }));
 
-jest.mock("@/features/metric-log/infrastructure/http/controller.js", () => ({
-  createMetricLog: jest.fn(),
-  getLogById: jest.fn(),
-  updateLog: jest.fn(),
-  deleteLog: jest.fn(),
-  getAggregatedStats: jest.fn(),
-  generateDummyMetricLogs: jest.fn(),
-  getUserLogLibrariesViaCursor: jest.fn(),
-}));
+jest.mock("@/features/metric-log/infrastructure/http/controller.js", () => {
+  // One set of handler mocks, returned by every call of the factory (ADR-0072).
+  const handlers = {
+    createMetricLog: jest.fn(),
+    getLogById: jest.fn(),
+    updateLog: jest.fn(),
+    deleteLog: jest.fn(),
+    getAggregatedStats: jest.fn(),
+    generateDummyMetricLogs: jest.fn(),
+    getUserLogLibrariesViaCursor: jest.fn(),
+  };
+  return { createMetricLogController: jest.fn(() => handlers), handlers };
+});
 
 jest.mock("@/features/metric-log/infrastructure/http/schema.zod.js", () => ({
   createMetricLogSchema: "createMetricLogSchema",
@@ -99,9 +102,13 @@ jest.mock("@/features/metric-log/infrastructure/http/schema.zod.js", () => ({
   listMetricLogsViaCursorSchema: "listMetricLogsViaCursorSchema",
 }));
 
-const controllerMocks = controllerModule as jest.Mocked<
-  typeof controllerModule
->;
+const controllerMocks = (
+  jest.requireMock(
+    "@/features/metric-log/infrastructure/http/controller.js",
+  ) as {
+    handlers: Record<string, jest.Mock>;
+  }
+).handlers;
 
 const {
   createMetricLog: createMetricLogMock,
@@ -167,7 +174,7 @@ describe("metric log router", () => {
   });
 
   const buildRouter = () => {
-    createMetricLogRouter();
+    createMetricLogRouter({} as any);
     return getLastRouterInstance();
   };
 

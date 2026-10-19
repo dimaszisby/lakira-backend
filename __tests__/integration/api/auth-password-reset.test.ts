@@ -1,18 +1,18 @@
-import {
-  api,
-  buildUserPayload,
-  createTestUser,
-} from "../helpers/test-utils.js";
+import { buildUserPayload, createTestUser } from "../helpers/test-utils.js";
+import { appWith } from "../helpers/app-with.js";
 import { models } from "@/infrastructure/db/models.js";
 import {
   buildAuthFeature,
   type AuthFeatureOverrides,
 } from "@/features/auth/feature.js";
-import { overrideAuthFeatureForTest } from "@/features/auth/infrastructure/http/controller.js";
 import {
   EmailMessage,
   EmailSender,
 } from "@/features/auth/application/ports/EmailSender.js";
+
+// An app of this file's own, rebuilt with a replaced auth feature where a test
+// needs one (inject-features-into-routers D-05).
+let api = appWith({});
 
 class CapturingEmailSender implements EmailSender {
   public messages: EmailMessage[] = [];
@@ -24,14 +24,14 @@ class CapturingEmailSender implements EmailSender {
 
 const installCapturingSender = (overrides?: AuthFeatureOverrides) => {
   const sender = new CapturingEmailSender();
-  overrideAuthFeatureForTest(
-    buildAuthFeature({ emailSender: sender, ...overrides }),
-  );
+  api = appWith({
+    auth: buildAuthFeature({ emailSender: sender, ...overrides }),
+  });
   return sender;
 };
 
 const restoreFeature = () => {
-  overrideAuthFeatureForTest(buildAuthFeature());
+  api = appWith({});
 };
 
 const extractTokenFromLink = (link: string): string => {
@@ -55,7 +55,7 @@ describe("Password reset API", () => {
   describe("POST /auth/forgot-password", () => {
     it("returns 200 and creates a token row when the email is registered", async () => {
       const sender = installCapturingSender();
-      const { payload } = await createTestUser();
+      const { payload } = await createTestUser({}, api);
 
       const res = await api
         .post("/api/v1/auth/forgot-password")
@@ -95,7 +95,7 @@ describe("Password reset API", () => {
 
     it("invalidates prior unused tokens on subsequent requests", async () => {
       installCapturingSender();
-      const { payload } = await createTestUser();
+      const { payload } = await createTestUser({}, api);
 
       await api
         .post("/api/v1/auth/forgot-password")
@@ -129,7 +129,7 @@ describe("Password reset API", () => {
   describe("POST /auth/reset-password", () => {
     it("resets the password with a valid token, then login succeeds with the new password", async () => {
       const sender = installCapturingSender();
-      const { payload } = await createTestUser();
+      const { payload } = await createTestUser({}, api);
 
       const forgotRes = await api
         .post("/api/v1/auth/forgot-password")
@@ -162,7 +162,7 @@ describe("Password reset API", () => {
 
     it("rejects token reuse with a generic 400", async () => {
       const sender = installCapturingSender();
-      const { payload } = await createTestUser();
+      const { payload } = await createTestUser({}, api);
 
       await api
         .post("/api/v1/auth/forgot-password")
@@ -188,7 +188,7 @@ describe("Password reset API", () => {
 
     it("rejects an expired token with the same generic 400", async () => {
       const sender = installCapturingSender();
-      const { payload } = await createTestUser();
+      const { payload } = await createTestUser({}, api);
 
       await api
         .post("/api/v1/auth/forgot-password")

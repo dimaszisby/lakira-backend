@@ -7,7 +7,7 @@ import {
   getMetricSchema,
   updateMetricSchema,
 } from "./schema.zod.js";
-import { buildMetricFeature } from "../../feature.js";
+import type { MetricFeature } from "../../feature.js";
 import { AuthRequest } from "@/types/request.context.js";
 import logger from "@/utils/logger.js";
 import {
@@ -19,33 +19,11 @@ import AppError from "@/utils/AppError.js";
 import { successResponse } from "@/utils/response-formatter.js";
 import catchAsync from "@/utils/catch-async.js";
 import { assertAuthenticated } from "@/utils/auth-guards.js";
-import { buildAnalyticsFeature } from "@/features/analytics/feature.js";
+import type { GetMetricTrend } from "@/features/analytics/public.js";
 import { pickValidated } from "@/shared/middleware/validated.js";
 
-type MetricFeature = ReturnType<typeof buildMetricFeature>;
-// Built on first use, never at import (ADR-0045).
-let metricFeature: MetricFeature | undefined;
-const getMetricFeature = (): MetricFeature =>
-  (metricFeature ??= buildMetricFeature());
-
-export const overrideMetricFeatureForTest = (feature: MetricFeature) => {
-  metricFeature = feature;
-};
-
-type AnalyticsFeature = ReturnType<typeof buildAnalyticsFeature>;
-// Built on first use, never at import (ADR-0045).
-let analyticsFeature: AnalyticsFeature | undefined;
-const getAnalyticsFeature = (): AnalyticsFeature =>
-  (analyticsFeature ??= buildAnalyticsFeature());
-
-export const overrideMetricTrendFeatureForTest = (
-  feature: AnalyticsFeature,
-) => {
-  analyticsFeature = feature;
-};
-
-export const createMetric = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const createMetric = (feature: MetricFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
 
     const { body } = pickValidated(createMetricSchema)(req);
@@ -58,7 +36,7 @@ export const createMetric = catchAsync(
       isPublic,
     } = body;
 
-    const metricDomain = await getMetricFeature().createMetric.execute({
+    const metricDomain = await feature.createMetric.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       categoryId,
@@ -71,17 +49,16 @@ export const createMetric = catchAsync(
 
     const dto = toMetricResponseDTO(metricDomain);
     successResponse(res, 201, dto, "Metric created successfully");
-  },
-);
+  });
 
-export const getUserMetricLibrariesViaCursor = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const getUserMetricLibrariesViaCursor = (feature: MetricFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
 
     const { query } = pickValidated(getAllMetricsViaCursorSchema)(req);
     const { limit, sort, q, after, includeTotal, filter } = query;
 
-    const page = await getMetricFeature().listMetrics.execute({
+    const page = await feature.listMetrics.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       limit,
@@ -103,11 +80,10 @@ export const getUserMetricLibrariesViaCursor = catchAsync(
     };
 
     successResponse(res, 200, dto, "Metrics cursor fetched successfully");
-  },
-);
+  });
 
-export const getUserDetailMetricById = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const getUserDetailMetricById = (feature: MetricFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
 
     const { params, query } = pickValidated(getMetricSchema)(req);
@@ -126,7 +102,7 @@ export const getUserDetailMetricById = catchAsync(
 
     const logsLimit = query.logsLimit ?? 20;
 
-    const metric = await getMetricFeature().getMetricDetail.execute({
+    const metric = await feature.getMetricDetail.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId: params.id,
@@ -153,15 +129,14 @@ export const getUserDetailMetricById = catchAsync(
       dto,
       "Metric extended detail retrieved successfully",
     );
-  },
-);
+  });
 
-export const updateMetric = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const updateMetric = (feature: MetricFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
 
     const { body, params } = pickValidated(updateMetricSchema)(req);
-    const updatedMetricDomain = await getMetricFeature().updateMetric.execute({
+    const updatedMetricDomain = await feature.updateMetric.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId: params.id,
@@ -170,15 +145,14 @@ export const updateMetric = catchAsync(
     const dto = toMetricResponseDTO(updatedMetricDomain);
 
     successResponse(res, 200, dto, "Metric updated successfully");
-  },
-);
+  });
 
-export const deleteMetric = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const deleteMetric = (feature: MetricFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
 
     const { params } = pickValidated(deleteMetricSchema)(req);
-    const metricDomain = await getMetricFeature().deleteMetric.execute({
+    const metricDomain = await feature.deleteMetric.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId: params.id,
@@ -186,16 +160,15 @@ export const deleteMetric = catchAsync(
     const dto = toMetricResponseDTO(metricDomain);
 
     successResponse(res, 200, dto, "Metric deleted successfully");
-  },
-);
+  });
 
-export const generateDummyMetrics = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const generateDummyMetrics = (feature: MetricFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { body } = pickValidated(generateDummyMetricsSchema)(req);
     const { count } = body;
 
-    const dummyMetrics = await getMetricFeature().generateDummyMetrics.execute({
+    const dummyMetrics = await feature.generateDummyMetrics.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       count,
@@ -208,11 +181,10 @@ export const generateDummyMetrics = catchAsync(
       dto,
       `${count} dummy metrics generated successfully`,
     );
-  },
-);
+  });
 
-export const handleMetricTrend = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const handleMetricTrend = (metricTrend: GetMetricTrend) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
 
     const rawMetricId = req.params.metricId ?? req.params.id;
@@ -221,12 +193,31 @@ export const handleMetricTrend = catchAsync(
       throw new AppError("Metric id is required", 400);
     }
 
-    const data = await getAnalyticsFeature().getMetricTrend.execute({
+    const data = await metricTrend.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId,
     });
 
     successResponse(res, 200, data);
-  },
-);
+  });
+
+/**
+ * Every handler, closed over what the router hands it (ADR-0072). The trends
+ * endpoint gets analytics' query, not its feature (D-04).
+ */
+export const createMetricController = ({
+  metric,
+  metricTrend,
+}: {
+  metric: MetricFeature;
+  metricTrend: GetMetricTrend;
+}) => ({
+  createMetric: createMetric(metric),
+  getUserMetricLibrariesViaCursor: getUserMetricLibrariesViaCursor(metric),
+  getUserDetailMetricById: getUserDetailMetricById(metric),
+  updateMetric: updateMetric(metric),
+  deleteMetric: deleteMetric(metric),
+  generateDummyMetrics: generateDummyMetrics(metric),
+  handleMetricTrend: handleMetricTrend(metricTrend),
+});

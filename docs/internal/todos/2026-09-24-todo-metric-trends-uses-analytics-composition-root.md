@@ -1,6 +1,7 @@
 # Todo — the metric controller builds the analytics feature for the trends endpoint
 
-- **Status:** Open
+- **Status:** Closed on `refactor/inject-features-into-routers` (ADR-0072, kit
+  [`inject-features-into-routers`](../initiatives/inject-features-into-routers/README.md))
 - **Created:** 2026-09-24
 - **Owner:** unassigned
 - **Origin:** `routers-at-module-scope` kit, [D-04](../initiatives/routers-at-module-scope/decisions.md)

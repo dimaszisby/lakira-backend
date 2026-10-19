@@ -1,14 +1,17 @@
 import {
-  api,
   buildUserPayload,
   createTestUser,
   authHeader,
 } from "../helpers/test-utils.js";
-import { overrideOrgFeatureForTest } from "@/features/shared/auth/infrastructure/http/organization.controller.js";
+import { appWith } from "../helpers/app-with.js";
 import { buildAuthFeature } from "@/features/shared/auth/feature.js";
 import type { EmailMessage } from "@/features/shared/auth/application/ports/EmailSender.js";
 import { OrganizationInviteRepositorySequelize } from "@/features/shared/auth/infrastructure/persistence/OrganizationInviteRepositorySequelize.js";
 import { models } from "@/infrastructure/db/models.js";
+
+// An app of this file's own, rebuilt with a replaced auth feature where a test
+// needs one (inject-features-into-routers D-05).
+let api = appWith({});
 
 // ---------- helpers ----------
 
@@ -40,7 +43,7 @@ const decodeOrgId = (token: string): string => {
 // ---------- setup ----------
 
 beforeEach(() => {
-  overrideOrgFeatureForTest(buildAuthFeature({ emailSender: emailCapture }));
+  api = appWith({ auth: buildAuthFeature({ emailSender: emailCapture }) });
   emailCapture.clear();
 });
 
@@ -88,8 +91,8 @@ describe("Organization Membership API", () => {
       const orgId = decodeOrgId(token);
       const email = buildUserPayload().email;
       let calls = 0;
-      overrideOrgFeatureForTest(
-        buildAuthFeature({
+      api = appWith({
+        auth: buildAuthFeature({
           emailSender: {
             send: async (message) => {
               calls++;
@@ -98,7 +101,7 @@ describe("Organization Membership API", () => {
             },
           },
         }),
-      );
+      });
       const send = () =>
         api
           .post(`/api/v1/organizations/${orgId}/invites`)

@@ -401,7 +401,8 @@ describe("Architecture enforcement", () => {
       expect(noopReferences(files)).toEqual([]);
     });
 
-    it.each(["server.ts", "worker.ts"])(
+    // The server's features are built in composition/features.ts (ADR-0072).
+    it.each(["composition/features.ts", "worker.ts"])(
       "%s takes the metric-log feature from the shared wiring",
       (entry) => {
         const content = read(entry);
@@ -412,7 +413,7 @@ describe("Architecture enforcement", () => {
 
     // The server queues the verification email and the worker sends it
     // (ADR-0067); one wiring keeps the two sides of the queue the same.
-    it.each(["server.ts", "worker.ts"])(
+    it.each(["composition/features.ts", "worker.ts"])(
       "%s takes the auth feature from the shared wiring",
       (entry) => {
         const content = read(entry);
@@ -474,6 +475,62 @@ describe("Architecture enforcement", () => {
       expect(read("server.ts")).not.toMatch(/ForTest\b/);
     });
 
+    // ADR-0072 (register rows B-32, B-34): a feature is handed to its router. A
+    // controller that kept a module-level slot, filled on first use and swapped by a
+    // hook, let an entry point that skipped the hook run an unwired feature.
+    describe("features are handed to their routers", () => {
+      const httpFiles = () =>
+        getAllTsFiles(path.join(SRC, "features")).filter((file) =>
+          file.includes(`${path.sep}infrastructure${path.sep}http${path.sep}`),
+        );
+
+      it("no file in src/ exports a test hook or an install hook", () => {
+        const offenders = getAllTsFiles(SRC).filter((file) =>
+          /export\s+(const|function)\s+(\w+ForTest|install\w*Feature)\b/.test(
+            fs.readFileSync(file, "utf-8"),
+          ),
+        );
+        expect(offenders).toEqual([]);
+      });
+
+      it("no controller keeps a feature in a module-level slot", () => {
+        const offenders = httpFiles().filter((file) =>
+          /^let\s+\w*[fF]eature\b|[fF]eature\s*\?\?=/m.test(
+            fs.readFileSync(file, "utf-8"),
+          ),
+        );
+        expect(offenders).toEqual([]);
+      });
+
+      it("no controller builds a feature", () => {
+        const offenders = httpFiles().filter((file) =>
+          /\bbuild\w*Feature\(/.test(fs.readFileSync(file, "utf-8")),
+        );
+        expect(offenders).toEqual([]);
+      });
+
+      it("server.ts builds the features once and hands them to createApp", () => {
+        const server = read("server.ts");
+        expect(server).toMatch(
+          /const features = buildWiredFeatures\(\{ messageQueue \}\);/,
+        );
+        expect(server).toContain("createApp(features)");
+        expect(server.match(/buildWiredFeatures\(/g)).toHaveLength(1);
+      });
+
+      it("one auth feature serves the auth, organization, invite and membership routers", () => {
+        const app = read("app.ts");
+        for (const router of [
+          "createAuthRouter",
+          "createOrganizationRouter",
+          "createInviteRouter",
+          "createMembershipRouter",
+        ]) {
+          expect(app).toContain(`${router}(features.auth)`);
+        }
+      });
+    });
+
     // ADR-0061: the order of the global middleware lives in mountHttpPipeline.
     describe("the global middleware is mounted in one place", () => {
       const PIPELINE = "shared/middleware/http-pipeline.ts";
@@ -495,8 +552,9 @@ describe("Architecture enforcement", () => {
         return out;
       };
 
-      it("src/server.ts hands the real limiter to mountHttpPipeline and mounts nothing ahead of it", () => {
-        const server = read("server.ts");
+      // createApp assembles the app, server.ts and every test app alike (ADR-0072).
+      it("src/app.ts hands the real limiter to mountHttpPipeline and mounts nothing ahead of it", () => {
+        const server = read("app.ts");
         const call = server.indexOf("mountHttpPipeline(app,");
 
         expect(call).toBeGreaterThan(-1);

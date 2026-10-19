@@ -2,16 +2,15 @@ import { randomUUID } from "crypto";
 import type { ChannelWrapper } from "amqp-connection-manager";
 import type { Channel } from "amqplib";
 import {
-  api,
   authHeader,
   createMetric,
   createTestUser,
 } from "../../helpers/test-utils.js";
+import { appWith } from "../../helpers/app-with.js";
 import { env } from "@/config/envManager.js";
 import { models } from "@/infrastructure/db/models.js";
 import { buildMetricLogFeature } from "@/features/metric-log/feature.js";
 import { buildWiredMetricLogFeature } from "@/composition/metric-log.js";
-import { overrideMetricLogFeatureForTest } from "@/features/metric-log/infrastructure/http/controller.js";
 import { MetricAccessSequelize } from "@/features/metric/infrastructure/providers/MetricAccessSequelize.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import {
@@ -39,6 +38,10 @@ import {
  * Delivery is asynchronous, so every wait polls for an outcome with a bounded timeout.
  * Nothing sleeps a fixed interval.
  */
+
+// An app of this file's own, rebuilt with a replaced feature where a test needs
+// one (inject-features-into-routers D-05).
+let api = appWith({});
 
 const POLL_TIMEOUT_MS = 10_000;
 const POLL_INTERVAL_MS = 50;
@@ -180,9 +183,9 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
         publisher.publish(exchange, payload, options),
       close: () => publisher.close(),
     };
-    overrideMetricLogFeatureForTest(
-      buildMetricLogFeature({ messageQueue: queue }),
-    );
+    api = appWith({
+      metricLog: buildMetricLogFeature({ messageQueue: queue }),
+    });
   });
 
   beforeEach(async () => {
@@ -207,7 +210,7 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
   });
 
   afterAll(async () => {
-    overrideMetricLogFeatureForTest(buildMetricLogFeature());
+    api = appWith({});
     await stopConsumer();
     await publisher?.close();
     await inspector?.close();

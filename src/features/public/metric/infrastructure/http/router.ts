@@ -1,14 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import {
-  createMetric,
-  getUserMetricLibrariesViaCursor,
-  getUserDetailMetricById,
-  updateMetric,
-  deleteMetric,
-  generateDummyMetrics,
-  handleMetricTrend,
-} from "./controller.js";
+import { createMetricController } from "./controller.js";
 import { authMiddleware } from "@/features/auth/public.js";
 import { cacheMiddleware } from "@/shared/middleware/cache.js";
 import { userRateLimiter } from "@/shared/middleware/rate-limiter.js";
@@ -54,7 +46,10 @@ const metricCacheKey = (req: AuthRequest) => {
   return `metric:${req.user?.organizationId}:${req.user?.id}:${req.params.id}:inc:${includeNormalized}:ll:${logsLimit}`;
 };
 
-export const createMetricRouter = () => {
+export const createMetricRouter = (
+  deps: Parameters<typeof createMetricController>[0],
+) => {
+  const controller = createMetricController(deps);
   const router = Router();
   router.use(authMiddleware);
 
@@ -63,21 +58,21 @@ export const createMetricRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(createMetricSchema),
-    createMetric,
+    controller.createMetric,
   );
 
   router.get(
     "/",
     validate(getAllMetricsViaCursorSchema),
     cacheMiddleware(metricsCursorCacheKey, 60),
-    getUserMetricLibrariesViaCursor,
+    controller.getUserMetricLibrariesViaCursor,
   );
 
   router.get(
     "/:id",
     validate(getMetricSchema),
     cacheMiddleware(metricCacheKey, 60),
-    getUserDetailMetricById,
+    controller.getUserDetailMetricById,
   );
 
   router.put(
@@ -85,18 +80,22 @@ export const createMetricRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(updateMetricSchema),
-    updateMetric,
+    controller.updateMetric,
   );
 
   router.delete(
     "/:id",
     userRateLimiter,
     validate(deleteMetricSchema),
-    deleteMetric,
+    controller.deleteMetric,
   );
 
   const trendParams = { params: z.object({ metricId: z.string().uuid() }) };
-  router.get("/:metricId/trends", validate(trendParams), handleMetricTrend);
+  router.get(
+    "/:metricId/trends",
+    validate(trendParams),
+    controller.handleMetricTrend,
+  );
 
   if (env.ENABLE_DUMMY_ENDPOINTS) {
     router.post(
@@ -104,7 +103,7 @@ export const createMetricRouter = () => {
       userRateLimiter,
       requireJsonObjectBody(),
       validate(generateDummyMetricsSchema),
-      generateDummyMetrics,
+      controller.generateDummyMetrics,
     );
     router.all("/dummy", methodNotAllowed(["POST"]));
   }

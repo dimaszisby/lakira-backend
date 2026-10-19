@@ -1,6 +1,6 @@
 # Sentry 11 data collection — Plan
 
-- **Status:** In progress
+- **Status:** Done
 - **Appetite:** 2 days — past that, ship with `traceLifecycle: "static"` and file the span rewrite
 - **Date:** 2026-10-20
 

@@ -5,15 +5,16 @@ import type { buildAuthFeature } from "@/features/auth/feature.js";
 
 type ControllerModule =
   typeof import("@/features/auth/infrastructure/http/controller.js");
-let register: ControllerModule["register"];
-let login: ControllerModule["login"];
-let getProfile: ControllerModule["getProfile"];
-let updateProfile: ControllerModule["updateProfile"];
-let logout: ControllerModule["logout"];
-let verifyEmail: ControllerModule["verifyEmail"];
-let resendVerification: ControllerModule["resendVerification"];
-let switchOrg: ControllerModule["switchOrg"];
-let overrideAuthFeatureForTest: ControllerModule["overrideAuthFeatureForTest"];
+type Handlers = ReturnType<ControllerModule["createAuthController"]>;
+let register: Handlers["register"];
+let login: Handlers["login"];
+let getProfile: Handlers["getProfile"];
+let updateProfile: Handlers["updateProfile"];
+let logout: Handlers["logout"];
+let verifyEmail: Handlers["verifyEmail"];
+let resendVerification: Handlers["resendVerification"];
+let switchOrg: Handlers["switchOrg"];
+let createAuthController: ControllerModule["createAuthController"];
 
 type AuthFeature = ReturnType<typeof buildAuthFeature>;
 type AsyncMock = jest.MockedFunction<(...args: any[]) => Promise<any>>;
@@ -41,15 +42,7 @@ jest.mock("@/utils/auth-guards.js", () => ({
 const loadController = async () => {
   const controller =
     await import("@/features/auth/infrastructure/http/controller.js");
-  register = controller.register;
-  login = controller.login;
-  getProfile = controller.getProfile;
-  updateProfile = controller.updateProfile;
-  logout = controller.logout;
-  verifyEmail = controller.verifyEmail;
-  resendVerification = controller.resendVerification;
-  switchOrg = controller.switchOrg;
-  overrideAuthFeatureForTest = controller.overrideAuthFeatureForTest;
+  createAuthController = controller.createAuthController;
 };
 
 const buildFeatureMocks = (): AuthFeature =>
@@ -87,7 +80,16 @@ beforeAll(async () => {
 describe("Auth HTTP controller", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    overrideAuthFeatureForTest(buildFeatureMocks());
+    ({
+      register,
+      login,
+      getProfile,
+      updateProfile,
+      logout,
+      verifyEmail,
+      resendVerification,
+      switchOrg,
+    } = createAuthController(buildFeatureMocks()));
   });
 
   it("registers new users via use case", async () => {

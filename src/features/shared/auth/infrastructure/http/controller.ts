@@ -7,7 +7,7 @@ import AppError from "@/utils/AppError.js";
 import logger from "@/utils/logger.js";
 import { LOCKOUT_TTL_SECONDS } from "./loginLockout.js";
 import { toUserResponseDTO } from "../../infrastructure/mappers/UserMapper.js";
-import { buildAuthFeature } from "../../feature.js";
+import type { AuthFeature } from "../../feature.js";
 import { AuthRequest } from "@/types/request.context.js";
 import { assertAuthenticated } from "@/utils/auth-guards.js";
 import { pickValidated } from "@/shared/middleware/validated.js";
@@ -21,18 +21,6 @@ import {
   switchOrgBody,
 } from "./schema.zod.js";
 import { z } from "zod";
-
-type AuthFeature = ReturnType<typeof buildAuthFeature>;
-// Built on first use, never at import (ADR-0045).
-let feature: AuthFeature | undefined;
-const getFeature = (): AuthFeature => (feature ??= buildAuthFeature());
-
-/** How src/server.ts supplies the wired feature (ADR-0056). */
-export const installAuthFeature = (custom: AuthFeature) => {
-  feature = custom;
-};
-
-export const overrideAuthFeatureForTest = installAuthFeature;
 
 const REFRESH_COOKIE_NAME = `${APP_SHORT_NAME}_refresh`;
 const REFRESH_COOKIE_PATH = "/api/v1/auth/refresh";
@@ -71,81 +59,88 @@ const FORGOT_PASSWORD_RESPONSE =
 const RESEND_VERIFICATION_RESPONSE =
   "If your email is unverified, we sent a fresh verification link.";
 
-export const register = catchAsync(async (req: Request, res: Response) => {
-  const {
-    body: { email, username, password, passwordConfirmation, isPublicProfile },
-  } = pickCreateUser(req);
-  const result = await getFeature().registerUser.execute({
-    email,
-    username,
-    password,
-    passwordConfirmation,
-    isPublicProfile,
-    userAgent: req.headers["user-agent"] ?? null,
-    ip: req.ip ?? null,
+const register = (feature: AuthFeature) =>
+  catchAsync(async (req: Request, res: Response) => {
+    const {
+      body: {
+        email,
+        username,
+        password,
+        passwordConfirmation,
+        isPublicProfile,
+      },
+    } = pickCreateUser(req);
+    const result = await feature.registerUser.execute({
+      email,
+      username,
+      password,
+      passwordConfirmation,
+      isPublicProfile,
+      userAgent: req.headers["user-agent"] ?? null,
+      ip: req.ip ?? null,
+    });
+
+    // Queued for the worker, or sent in process after the response (ADR-0067).
+    await feature.scheduleEmailVerification.execute({
+      userId: result.user.id,
+      reason: "register",
+    });
+
+    setRefreshCookie(res, result.rawRefreshToken);
+
+    successResponse(
+      res,
+      201,
+      { token: result.token, user: toUserResponseDTO(result.user) },
+      "User created successfully",
+    );
   });
 
-  // Queued for the worker, or sent in process after the response (ADR-0067).
-  await getFeature().scheduleEmailVerification.execute({
-    userId: result.user.id,
-    reason: "register",
-  });
+const login = (feature: AuthFeature) =>
+  catchAsync(async (req: Request, res: Response) => {
+    const {
+      body: { email, password },
+    } = pickLoginUser(req);
 
-  setRefreshCookie(res, result.rawRefreshToken);
-
-  successResponse(
-    res,
-    201,
-    { token: result.token, user: toUserResponseDTO(result.user) },
-    "User created successfully",
-  );
-});
-
-export const login = catchAsync(async (req: Request, res: Response) => {
-  const {
-    body: { email, password },
-  } = pickLoginUser(req);
-
-  try {
-    await getFeature().loginLockout.check(email);
-  } catch (err) {
-    if (err instanceof AppError && err.statusCode === 429) {
-      res.setHeader("Retry-After", String(LOCKOUT_TTL_SECONDS));
+    try {
+      await feature.loginLockout.check(email);
+    } catch (err) {
+      if (err instanceof AppError && err.statusCode === 429) {
+        res.setHeader("Retry-After", String(LOCKOUT_TTL_SECONDS));
+      }
+      throw err;
     }
-    throw err;
-  }
 
-  // A failure is counted, and a success resets, inside the use case.
-  const result = await getFeature().loginUser.execute({
-    email,
-    password,
-    userAgent: req.headers["user-agent"] ?? null,
-    ip: req.ip ?? null,
+    // A failure is counted, and a success resets, inside the use case.
+    const result = await feature.loginUser.execute({
+      email,
+      password,
+      userAgent: req.headers["user-agent"] ?? null,
+      ip: req.ip ?? null,
+    });
+
+    setRefreshCookie(res, result.rawRefreshToken);
+
+    successResponse(res, 200, {
+      token: result.token,
+      user: toUserResponseDTO(result.user),
+    });
   });
 
-  setRefreshCookie(res, result.rawRefreshToken);
-
-  successResponse(res, 200, {
-    token: result.token,
-    user: toUserResponseDTO(result.user),
-  });
-});
-
-export const getProfile = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const getProfile = (feature: AuthFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
-    const user = await getFeature().getProfile.execute(req.user.id);
+    const user = await feature.getProfile.execute(req.user.id);
     successResponse(res, 200, toUserResponseDTO(user));
-  },
-);
+  });
 
-export const updateProfile = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const updateProfile = (feature: AuthFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const {
       body: { email, username, password, isPublicProfile },
     } = pickUpdateUser(req);
-    const updated = await getFeature().updateProfile.execute({
+    const updated = await feature.updateProfile.execute({
       userId: req.user.id,
       email,
       username,
@@ -158,97 +153,114 @@ export const updateProfile = catchAsync(
       { user: toUserResponseDTO(updated) },
       "Profile updated successfully",
     );
-  },
-);
-
-export const refresh = catchAsync(async (req: Request, res: Response) => {
-  const rawToken = req.cookies?.[REFRESH_COOKIE_NAME];
-
-  if (!rawToken) {
-    throw new AppError("Unauthorized: No refresh token provided", 401);
-  }
-
-  const result = await getFeature().rotateRefreshToken.execute({
-    rawToken,
-    userAgent: req.headers["user-agent"] ?? null,
-    ip: req.ip ?? null,
   });
 
-  setRefreshCookie(res, result.rawRefreshToken);
+const refresh = (feature: AuthFeature) =>
+  catchAsync(async (req: Request, res: Response) => {
+    const rawToken = req.cookies?.[REFRESH_COOKIE_NAME];
 
-  successResponse(res, 200, { token: result.accessToken });
-});
-
-export const logout = catchAsync(async (req: Request, res: Response) => {
-  const rawToken = req.cookies?.[REFRESH_COOKIE_NAME];
-
-  if (rawToken) {
-    try {
-      await getFeature().revokeRefreshTokenFamily.execute(rawToken);
-    } catch (err) {
-      logger.warn("auth.logout.revoke_failed", { err });
+    if (!rawToken) {
+      throw new AppError("Unauthorized: No refresh token provided", 401);
     }
-  }
 
-  clearRefreshCookie(res);
-  successResponse(res, 200, null, "Logged out successfully");
-});
+    const result = await feature.rotateRefreshToken.execute({
+      rawToken,
+      userAgent: req.headers["user-agent"] ?? null,
+      ip: req.ip ?? null,
+    });
 
-export const forgotPassword = catchAsync(
-  async (req: Request, res: Response) => {
+    setRefreshCookie(res, result.rawRefreshToken);
+
+    successResponse(res, 200, { token: result.accessToken });
+  });
+
+const logout = (feature: AuthFeature) =>
+  catchAsync(async (req: Request, res: Response) => {
+    const rawToken = req.cookies?.[REFRESH_COOKIE_NAME];
+
+    if (rawToken) {
+      try {
+        await feature.revokeRefreshTokenFamily.execute(rawToken);
+      } catch (err) {
+        logger.warn("auth.logout.revoke_failed", { err });
+      }
+    }
+
+    clearRefreshCookie(res);
+    successResponse(res, 200, null, "Logged out successfully");
+  });
+
+const forgotPassword = (feature: AuthFeature) =>
+  catchAsync(async (req: Request, res: Response) => {
     const {
       body: { email },
     } = pickForgotPassword(req);
-    await getFeature().requestPasswordReset.execute({ email });
+    await feature.requestPasswordReset.execute({ email });
     successResponse(res, 200, null, FORGOT_PASSWORD_RESPONSE);
-  },
-);
-
-export const resetPassword = catchAsync(async (req: Request, res: Response) => {
-  const {
-    body: { token, password, passwordConfirmation },
-  } = pickResetPassword(req);
-  await getFeature().resetPassword.execute({
-    token,
-    password,
-    passwordConfirmation,
   });
-  successResponse(res, 200, null, "Password has been reset. Please log in.");
-});
 
-export const verifyEmail = catchAsync(async (req: Request, res: Response) => {
-  const {
-    body: { token },
-  } = pickVerifyEmail(req);
-  await getFeature().verifyEmail.execute({ token });
-  successResponse(res, 200, null, "Email verified successfully.");
-});
+const resetPassword = (feature: AuthFeature) =>
+  catchAsync(async (req: Request, res: Response) => {
+    const {
+      body: { token, password, passwordConfirmation },
+    } = pickResetPassword(req);
+    await feature.resetPassword.execute({
+      token,
+      password,
+      passwordConfirmation,
+    });
+    successResponse(res, 200, null, "Password has been reset. Please log in.");
+  });
 
-export const resendVerification = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const verifyEmail = (feature: AuthFeature) =>
+  catchAsync(async (req: Request, res: Response) => {
+    const {
+      body: { token },
+    } = pickVerifyEmail(req);
+    await feature.verifyEmail.execute({ token });
+    successResponse(res, 200, null, "Email verified successfully.");
+  });
+
+const resendVerification = (feature: AuthFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
-    await getFeature().scheduleEmailVerification.execute({
+    await feature.scheduleEmailVerification.execute({
       userId: req.user.id,
       reason: "resend",
     });
     successResponse(res, 200, null, RESEND_VERIFICATION_RESPONSE);
-  },
-);
-
-export const switchOrg = catchAsync(async (req: AuthRequest, res: Response) => {
-  assertAuthenticated(req);
-  const {
-    body: { organizationId },
-  } = pickSwitchOrg(req);
-
-  const result = await getFeature().switchOrganization.execute({
-    userId: req.user.id,
-    organizationId,
-    userAgent: req.headers["user-agent"] ?? null,
-    ip: req.ip ?? null,
   });
 
-  setRefreshCookie(res, result.rawRefreshToken);
+const switchOrg = (feature: AuthFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
+    assertAuthenticated(req);
+    const {
+      body: { organizationId },
+    } = pickSwitchOrg(req);
 
-  successResponse(res, 200, { token: result.accessToken });
+    const result = await feature.switchOrganization.execute({
+      userId: req.user.id,
+      organizationId,
+      userAgent: req.headers["user-agent"] ?? null,
+      ip: req.ip ?? null,
+    });
+
+    setRefreshCookie(res, result.rawRefreshToken);
+
+    successResponse(res, 200, { token: result.accessToken });
+  });
+
+/** Every handler, closed over the feature the router hands it (ADR-0072). */
+export const createAuthController = (feature: AuthFeature) => ({
+  register: register(feature),
+  login: login(feature),
+  getProfile: getProfile(feature),
+  updateProfile: updateProfile(feature),
+  refresh: refresh(feature),
+  logout: logout(feature),
+  forgotPassword: forgotPassword(feature),
+  resetPassword: resetPassword(feature),
+  verifyEmail: verifyEmail(feature),
+  resendVerification: resendVerification(feature),
+  switchOrg: switchOrg(feature),
 });
