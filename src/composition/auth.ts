@@ -6,9 +6,10 @@ import {
 /**
  * The auth feature as every process runs it (ADR-0056).
  *
- * The HTTP server publishes the verification email and the worker sends it
- * (ADR-0067), so both build auth here and run one wiring: the same email sender,
- * repositories and use case on each side of the queue.
+ * The HTTP server publishes the verification, password-reset and invite emails
+ * and the worker sends them (ADR-0067, ADR-0069, ADR-0070), so both build auth
+ * here and run one wiring: the same email sender, repositories and use cases on
+ * each side of the queue.
  *
  * Import a feature here through its `feature.ts` or `public.ts` only. `index.ts`
  * exports the router, which loads the HTTP stack into whatever imports this.

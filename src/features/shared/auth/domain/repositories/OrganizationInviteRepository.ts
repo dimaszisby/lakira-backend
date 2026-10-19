@@ -1,3 +1,4 @@
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import {
   OrganizationInvite,
   InviteRole,
@@ -12,7 +13,14 @@ export type CreateOrganizationInviteDTO = {
 };
 
 export interface OrganizationInviteRepository {
-  save(data: CreateOrganizationInviteDTO): Promise<OrganizationInvite>;
+  save(
+    data: CreateOrganizationInviteDTO,
+    tx?: PersistenceTransaction,
+  ): Promise<OrganizationInvite>;
+  findById(
+    id: string,
+    tx?: PersistenceTransaction,
+  ): Promise<OrganizationInvite | null>;
   findByTokenHash(hash: string): Promise<OrganizationInvite | null>;
   findPendingByEmailAndOrg(
     email: string,
@@ -24,5 +32,12 @@ export interface OrganizationInviteRepository {
     organizationId: string,
     now: Date,
   ): Promise<void>;
+  /** The token is minted when the email is sent (durable-invite-email D-02). */
+  replaceTokenHash(
+    id: string,
+    tokenHash: string,
+    tx?: PersistenceTransaction,
+  ): Promise<void>;
+  deleteById(id: string): Promise<void>;
   markAccepted(id: string, now: Date): Promise<void>;
 }

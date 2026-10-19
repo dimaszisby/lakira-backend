@@ -1,6 +1,14 @@
-import { Op, UniqueConstraintError, col, fn, where } from "sequelize";
+import {
+  Op,
+  Transaction,
+  UniqueConstraintError,
+  col,
+  fn,
+  where,
+} from "sequelize";
 import AppError from "@/utils/AppError.js";
 import { models } from "@/infrastructure/db/models.js";
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import { OrganizationInvite } from "../../domain/entities/OrganizationInvite.js";
 import {
   CreateOrganizationInviteDTO,
@@ -30,16 +38,23 @@ const toDomain = (row: InviteModel): OrganizationInvite =>
   });
 
 export class OrganizationInviteRepositorySequelize implements OrganizationInviteRepository {
-  async save(data: CreateOrganizationInviteDTO): Promise<OrganizationInvite> {
+  async save(
+    data: CreateOrganizationInviteDTO,
+    tx?: PersistenceTransaction,
+  ): Promise<OrganizationInvite> {
+    const transaction = tx as Transaction | undefined;
     try {
-      const created = await models.OrganizationInvite.create({
-        organizationId: data.organizationId,
-        email: data.email,
-        role: data.role,
-        tokenHash: data.tokenHash,
-        expiresAt: data.expiresAt,
-      });
-      await created.reload();
+      const created = await models.OrganizationInvite.create(
+        {
+          organizationId: data.organizationId,
+          email: data.email,
+          role: data.role,
+          tokenHash: data.tokenHash,
+          expiresAt: data.expiresAt,
+        },
+        { transaction },
+      );
+      await created.reload({ transaction });
       return toDomain(created);
     } catch (err) {
       // A concurrent invite passed the same pending check first.
@@ -48,6 +63,16 @@ export class OrganizationInviteRepositorySequelize implements OrganizationInvite
       }
       throw err;
     }
+  }
+
+  async findById(
+    id: string,
+    tx?: PersistenceTransaction,
+  ): Promise<OrganizationInvite | null> {
+    const row = await models.OrganizationInvite.findByPk(id, {
+      transaction: tx as Transaction | undefined,
+    });
+    return row ? toDomain(row) : null;
   }
 
   async findByTokenHash(hash: string): Promise<OrganizationInvite | null> {
@@ -88,6 +113,21 @@ export class OrganizationInviteRepositorySequelize implements OrganizationInvite
         ],
       },
     });
+  }
+
+  async replaceTokenHash(
+    id: string,
+    tokenHash: string,
+    tx?: PersistenceTransaction,
+  ): Promise<void> {
+    await models.OrganizationInvite.update(
+      { tokenHash },
+      { where: { id }, transaction: tx as Transaction | undefined },
+    );
+  }
+
+  async deleteById(id: string): Promise<void> {
+    await models.OrganizationInvite.destroy({ where: { id } });
   }
 
   async markAccepted(id: string, now: Date): Promise<void> {

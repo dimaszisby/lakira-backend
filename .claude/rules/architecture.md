@@ -155,4 +155,5 @@ the integration setup both call `drainBackgroundTasks()`.
   fails. A new job follows it: the message carries ids, never an address or a token; the handler
   does its writes and its side effect inside `MessageIdempotencyPort.runOnce`; and its queue is
   declared through `assertWorkQueue` in `topology.ts`. The password-reset email does the same,
-  with its fallback in the request (ADR-0069).
+  with its fallback in the request (ADR-0069), and so does the invite email, whose fallback saves
+  the invite and sends inside one transaction (ADR-0070).

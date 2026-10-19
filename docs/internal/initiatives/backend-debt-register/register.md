@@ -1,6 +1,6 @@
 # Backend debt register
 
-**As of:** 2026-10-19, backend `dev` at `98f17f6`. Ranked by [D-01](decisions.md).
+**As of:** 2026-10-19, backend `dev` at `631108f`. Ranked by [D-01](decisions.md).
 
 **"What's next" is the first row below whose state is `ready`.** A row above it that is waiting on
 someone is reported with it, as a gap. How rows are added and closed:
@@ -47,7 +47,7 @@ B-08, B-09 and B-10 are fixed (see Closed).
 
 ## Tier 5 — P3 and ungraded
 
-B-12, B-13, B-14 and B-15 are fixed (see Closed). B-18 is fixed (see Closed); recording each environment's hop count moved to B-05. B-19, B-20, B-21 and B-22 are fixed (see Closed). B-23 is fixed (see Closed), with B-68, found while fixing it. B-24 is fixed (see Closed). B-39 is fixed (see Closed); the reset and invite emails it left moved to B-70. B-30 is fixed (see Closed). No analysed row is open in this tier.
+B-12, B-13, B-14 and B-15 are fixed (see Closed). B-18 is fixed (see Closed); recording each environment's hop count moved to B-05. B-19, B-20, B-21 and B-22 are fixed (see Closed). B-23 is fixed (see Closed), with B-68, found while fixing it. B-24 is fixed (see Closed). B-39 is fixed (see Closed); the reset and invite emails it left moved to B-70. B-30 is fixed (see Closed). B-70 is fixed (see Closed); an invite whose email parks moved to B-71. No analysed row is open in this tier.
 
 Listed, not analysed ([D-03](decisions.md)). Security and privacy:
 
@@ -76,7 +76,6 @@ Architecture and code:
 | B-41 | No cleanup of `processed_messages`                                                                                                                            | —   | deliberately not built | `2026-09-15-todo-processed-messages-cleanup.md`                      |
 | B-42 | A migration's `down` re-adds foreign keys without `NOT VALID` (R9)                                                                                            | P3  | ready                  | A0929 § 6 R9                                                         |
 | B-64 | `src/utils/token-generator.ts` is a second signing path with a fixed seven-day expiry and no pinned algorithm; only `scripts/seed-contract-tests.ts` calls it | —   | ready                  | [B-07's analysis](analysis-w2-jwt-secret.md) § 7                     |
-| B-70 | The invite email is sent in the request with no retry; its password-reset half is fixed (see Closed)                                                          | —   | ready                  | `2026-10-18-todo-reset-and-invite-email-not-durable.md`              |
 
 API and data:
 
@@ -89,6 +88,7 @@ API and data:
 | B-47 | Contract polish: probes not in the spec, `status` not an enum, 413 and 415 undocumented (S14)                                                                                                           | P3  | ready | A03 § 6 S14                                                                                                            |
 | B-48 | The four Schemathesis gate warnings                                                                                                                                                                     | —   | owner | `2026-09-01-todo-schemathesis-gate-warnings.md`                                                                        |
 | B-65 | Analytics leftovers: the dashboard item's lifecycle and range fields are not in the spec; a fallback reports a coarser bucket than it queries with; bucket labels are read in the server process's zone | —   | ready | [`analytics-relative-range` checklist](../analytics-relative-range/analytics-relative-range-checklist.md) § Discovered |
+| B-71 | With the queue on, an invite whose email parks, or whose job was never published, blocks re-inviting that address with 409 until it expires                                                             | —   | FE    | `2026-10-19-todo-parked-invite-email-blocks-reinvite.md`; `durable-invite-email` D-04                                  |
 
 Forkability, tests, docs and repo:
 
@@ -159,4 +159,5 @@ Rows move here when their fix is written, with the branch; the PR number is adde
 | B-25 | The `uuid` finding under `jest-junit` 16 (its `jest-junit` half)                                                                                                                   | #183 (`cbb7b87`); [ADR-0066](../../../explanation/decisions/adr-0066-junit-reports-from-jest-junit-17.md); 26 findings to 25; the XML is unchanged in shape                                                                                        | Not graded by an audit                                           |
 | B-39 | The verification email was sent in memory after the response: a crash lost it, and a failed send was never retried                                                                 | #184 (`975de82`); [ADR-0067](../../../explanation/decisions/adr-0067-the-verification-email-is-a-queued-job.md); a queued job with retries and parking, in-process fallback; reset and invites moved to B-70                                       | Not graded by an audit                                           |
 | B-30 | The application layer spoke HTTP: `AppError` in 37 `application/` files, queue terminality from status codes, the lockout policy in the controller (R7)                            | #185 (`98f17f6`); [ADR-0068](../../../explanation/decisions/adr-0068-the-application-layer-raises-domain-errors.md); 85 throws to `DomainError` subclasses, messages and statuses unchanged; lint refuses `AppError` in both application layers    | Not yet; a run is owed                                           |
-| B-70 | The password-reset email was sent in the request; a failed send was logged and the user told it was sent (first half)                                                              | `fix/durable-password-reset-email`; [ADR-0069](../../../explanation/decisions/adr-0069-the-password-reset-email-is-a-queued-job.md); a queued job with retries and parking; sent in the request when the queue is off                              | Not graded by an audit                                           |
+| B-70 | The password-reset email was sent in the request; a failed send was logged and the user told it was sent (first half)                                                              | #186 (`631108f`); [ADR-0069](../../../explanation/decisions/adr-0069-the-password-reset-email-is-a-queued-job.md); a queued job with retries and parking; sent in the request when the queue is off                                                | Not graded by an audit                                           |
+| B-70 | The invite email was sent in the request; a failed send left the invite saved, so the retry answered 409 for seven days (second half)                                              | `fix/durable-invite-email`; [ADR-0070](../../../explanation/decisions/adr-0070-the-invite-email-is-a-queued-job.md); a queued job with retries and parking; with the queue off, the invite and the send share one transaction                      | Not graded by an audit                                           |

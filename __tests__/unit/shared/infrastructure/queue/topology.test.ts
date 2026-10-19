@@ -33,6 +33,7 @@ const WORK_QUEUES = [
     QUEUES.AUTH_SEND_PASSWORD_RESET_EMAIL,
     ROUTING_KEYS.AUTH_SEND_PASSWORD_RESET_EMAIL,
   ],
+  [QUEUES.AUTH_SEND_INVITE_EMAIL, ROUTING_KEYS.AUTH_SEND_INVITE_EMAIL],
 ] as const;
 
 // durable-verification-email: every work queue goes through one helper, so a

@@ -9,7 +9,7 @@
   [ADR-0040](./adr-0040-worker-process-deployment-topology.md) (the worker has no deployment),
   [ADR-0056](./adr-0056-one-wiring-per-feature-for-every-entry-point.md) (one wiring);
   [ADR-0069](./adr-0069-the-password-reset-email-is-a-queued-job.md) (the password-reset email,
-  the same way)
+  the same way); [ADR-0070](./adr-0070-the-invite-email-is-a-queued-job.md) (the invite email)
 - **Origin:** `D-01` to `D-04` in the durable-verification-email kit —
   [`durable-verification-email`](../../internal/initiatives/durable-verification-email/decisions.md);
   register row B-39 ([todo](../../internal/todos/2026-10-02-todo-durable-email-delivery.md))

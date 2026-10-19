@@ -46,6 +46,7 @@ import { buildOrganizationInviteEmail } from "./infrastructure/email/templates/o
 import { ScheduleEmailVerification } from "./application/use-cases/ScheduleEmailVerification.js";
 import { SendVerificationEmailHandler } from "./application/use-cases/SendVerificationEmailHandler.js";
 import { SendPasswordResetEmailHandler } from "./application/use-cases/SendPasswordResetEmailHandler.js";
+import { SendInviteEmailHandler } from "./application/use-cases/SendInviteEmailHandler.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import { NoopMessageQueue } from "@/shared/infrastructure/queue/NoopMessageQueue.js";
@@ -71,8 +72,8 @@ export type AuthFeatureOverrides = {
   emailSender?: EmailSender;
   lockoutRedis?: LockoutRedisClient;
   /**
-   * Where the verification and password-reset emails are queued; the server
-   * passes its publisher.
+   * Where the verification, password-reset and invite emails are queued; the
+   * server passes its publisher.
    */
   messageQueue?: MessageQueuePort;
   idempotency?: MessageIdempotencyPort;
@@ -164,6 +165,21 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
     },
   );
 
+  // Queued when the server passes a queue; otherwise the invite and the send
+  // share one transaction (ADR-0070).
+  const inviteUserToOrganization = new InviteUserToOrganization(
+    inviteRepo,
+    orgRepo,
+    emailSender,
+    messageQueue,
+    tx,
+    {
+      frontendInviteUrl: env.FRONTEND_INVITE_URL,
+      buildEmail: buildOrganizationInviteEmail,
+      ttlDays: env.INVITE_TOKEN_TTL_DAYS,
+    },
+  );
+
   return {
     registerUser: new RegisterUser(
       repo,
@@ -206,15 +222,10 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
     ),
     rotateRefreshToken,
     revokeRefreshTokenFamily,
-    inviteUserToOrganization: new InviteUserToOrganization(
-      inviteRepo,
-      orgRepo,
-      emailSender,
-      {
-        frontendInviteUrl: env.FRONTEND_INVITE_URL,
-        buildEmail: buildOrganizationInviteEmail,
-        ttlDays: env.INVITE_TOKEN_TTL_DAYS,
-      },
+    inviteUserToOrganization,
+    sendInviteEmailHandler: new SendInviteEmailHandler(
+      inviteUserToOrganization,
+      idempotency,
     ),
     acceptInvite: new AcceptInvite(inviteRepo, membershipRepo, repo),
     removeMembership: new RemoveMembership(membershipRepo),

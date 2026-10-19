@@ -1,4 +1,5 @@
 import { jest } from "@jest/globals";
+import { createHash } from "node:crypto";
 import { InviteUserToOrganization } from "@/features/auth/application/use-cases/InviteUserToOrganization.js";
 import { OrganizationInviteRepository } from "@/features/auth/domain/repositories/OrganizationInviteRepository.js";
 import { OrganizationRepository } from "@/features/auth/domain/repositories/OrganizationRepository.js";
@@ -6,6 +7,13 @@ import { EmailSender } from "@/features/auth/application/ports/EmailSender.js";
 import { Organization } from "@/features/auth/domain/entities/Organization.js";
 import { OrganizationInvite } from "@/features/auth/domain/entities/OrganizationInvite.js";
 import type { InviteUserToOrganizationDeps } from "@/features/auth/application/use-cases/InviteUserToOrganization.js";
+import type { TransactionPort } from "@/features/auth/application/ports/TransactionPort.js";
+import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
+import {
+  EXCHANGES,
+  ROUTING_KEYS,
+} from "@/shared/application/messaging/job-routes.js";
 import AppError from "@/utils/AppError.js";
 
 const NOW = new Date("2025-06-01T00:00:00Z");
@@ -20,9 +28,13 @@ const makeOrg = () =>
     deletedAt: null,
   });
 
-const makePendingInvite = () =>
+const INVITE_ID = "6f1c2a4e-8b3d-4e5f-9a7b-1c2d3e4f5a6b";
+
+const makePendingInvite = (
+  overrides: { expiresAt?: Date; acceptedAt?: Date | null } = {},
+) =>
   OrganizationInvite.fromPersistence({
-    id: "invite-1",
+    id: INVITE_ID,
     organizationId: "org-1",
     email: "invited@example.com",
     role: "member",
@@ -30,7 +42,18 @@ const makePendingInvite = () =>
     expiresAt: new Date(NOW.getTime() + 7 * 24 * 60 * 60 * 1000),
     acceptedAt: null,
     createdAt: NOW,
+    ...overrides,
   });
+
+const TX = { id: "tx" } as unknown as PersistenceTransaction;
+
+const sha256 = (value: string) =>
+  createHash("sha256").update(value).digest("hex");
+
+/** The raw token in the link the email was built with. */
+const tokenInLink = (
+  buildEmailMock: jest.Mock<InviteUserToOrganizationDeps["buildEmail"]>,
+) => new URL(buildEmailMock.mock.calls[0][0]).searchParams.get("token") ?? "";
 
 const buildEmail = () => ({
   subject: "You've been invited",
@@ -38,12 +61,15 @@ const buildEmail = () => ({
   html: "<p>Join us</p>",
 });
 
-const build = () => {
+const build = ({ queueEnabled = false } = {}) => {
   const inviteRepo: jest.Mocked<OrganizationInviteRepository> = {
     save: jest.fn(),
+    findById: jest.fn(),
     findByTokenHash: jest.fn(),
     findPendingByEmailAndOrg: jest.fn(),
     deleteExpiredPendingByEmailAndOrg: jest.fn(),
+    replaceTokenHash: jest.fn(),
+    deleteById: jest.fn(),
     markAccepted: jest.fn(),
   };
   const orgRepo: jest.Mocked<OrganizationRepository> = {
@@ -57,15 +83,41 @@ const build = () => {
   const emailSender: jest.Mocked<EmailSender> = {
     send: jest.fn(),
   };
-  const sut = new InviteUserToOrganization(inviteRepo, orgRepo, emailSender, {
-    frontendInviteUrl: "https://app.example.com/invites/accept",
-    buildEmail: jest
-      .fn<InviteUserToOrganizationDeps["buildEmail"]>()
-      .mockReturnValue(buildEmail()),
-    ttlDays: 7,
-    now: () => NOW,
-  });
-  return { sut, inviteRepo, orgRepo, emailSender };
+  const queue: jest.Mocked<MessageQueuePort> = {
+    isEnabled: jest.fn(() => queueEnabled),
+    publish: jest.fn(async () => undefined),
+    close: jest.fn(async () => undefined),
+  };
+  const tx: TransactionPort = {
+    runInTransaction: jest.fn(
+      async <T>(fn: (t: PersistenceTransaction) => Promise<T>) => fn(TX),
+    ) as TransactionPort["runInTransaction"],
+  };
+  const buildEmailMock = jest
+    .fn<InviteUserToOrganizationDeps["buildEmail"]>()
+    .mockReturnValue(buildEmail());
+  const sut = new InviteUserToOrganization(
+    inviteRepo,
+    orgRepo,
+    emailSender,
+    queue,
+    tx,
+    {
+      frontendInviteUrl: "https://app.example.com/invites/accept",
+      buildEmail: buildEmailMock,
+      ttlDays: 7,
+      now: () => NOW,
+    },
+  );
+  return { sut, inviteRepo, orgRepo, emailSender, queue, buildEmailMock };
+};
+
+const input = {
+  organizationId: "org-1",
+  email: "invited@example.com",
+  role: "member" as const,
+  inviterUserId: "user-1",
+  inviterRole: "owner",
 };
 
 describe("InviteUserToOrganization", () => {
@@ -91,12 +143,14 @@ describe("InviteUserToOrganization", () => {
       "invited@example.com",
       "org-1",
     );
+    // With the queue off, the invite is saved inside the send's transaction.
     expect(inviteRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         organizationId: "org-1",
         email: "invited@example.com",
         role: "member",
       }),
+      TX,
     );
     expect(emailSender.send).toHaveBeenCalledWith(
       expect.objectContaining({ to: "invited@example.com" }),
@@ -250,5 +304,127 @@ describe("InviteUserToOrganization", () => {
         inviterRole: "owner",
       }),
     ).rejects.toThrow("SMTP down");
+  });
+
+  // durable-invite-email D-03: the row rolls back with the failed send.
+  it("saves and sends inside one transaction with the queue off", async () => {
+    const { sut, inviteRepo, orgRepo, emailSender, buildEmailMock } = build();
+    orgRepo.findById.mockResolvedValue(makeOrg());
+    inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
+    inviteRepo.save.mockResolvedValue(makePendingInvite());
+
+    await sut.execute(input);
+
+    expect(inviteRepo.save.mock.calls[0][1]).toBe(TX);
+    expect(emailSender.send).toHaveBeenCalledTimes(1);
+    // The saved hash is the emailed token's.
+    expect(inviteRepo.save.mock.calls[0][0].tokenHash).toBe(
+      sha256(tokenInLink(buildEmailMock)),
+    );
+    expect(inviteRepo.replaceTokenHash).not.toHaveBeenCalled();
+  });
+
+  describe("with the queue on (ADR-0070)", () => {
+    it("publishes the invite id, and nothing else, and sends nothing in the request", async () => {
+      const { sut, inviteRepo, orgRepo, emailSender, queue } = build({
+        queueEnabled: true,
+      });
+      orgRepo.findById.mockResolvedValue(makeOrg());
+      inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
+      inviteRepo.save.mockResolvedValue(makePendingInvite());
+
+      await sut.execute(input);
+
+      expect(inviteRepo.save.mock.calls[0][1]).toBeUndefined();
+      expect(queue.publish).toHaveBeenCalledTimes(1);
+      const [exchange, payload, options] = queue.publish.mock.calls[0];
+      expect(exchange).toBe(EXCHANGES.JOBS);
+      // durable-invite-email D-01: no address, no token in the broker.
+      expect(payload).toEqual({ inviteId: INVITE_ID });
+      expect(options.routingKey).toBe(ROUTING_KEYS.AUTH_SEND_INVITE_EMAIL);
+      expect(options.messageId).toMatch(/^[0-9a-f-]{36}$/);
+      expect(emailSender.send).not.toHaveBeenCalled();
+    });
+
+    it("sends in the request with a fresh token when the publish fails", async () => {
+      const { sut, inviteRepo, orgRepo, emailSender, queue, buildEmailMock } =
+        build({ queueEnabled: true });
+      orgRepo.findById.mockResolvedValue(makeOrg());
+      inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
+      inviteRepo.save.mockResolvedValue(makePendingInvite());
+      queue.publish.mockRejectedValueOnce(new Error("Timeout"));
+
+      await expect(sut.execute(input)).resolves.toBeUndefined();
+
+      expect(inviteRepo.replaceTokenHash).toHaveBeenCalledWith(
+        INVITE_ID,
+        sha256(tokenInLink(buildEmailMock)),
+        TX,
+      );
+      expect(emailSender.send).toHaveBeenCalledTimes(1);
+      expect(inviteRepo.deleteById).not.toHaveBeenCalled();
+    });
+
+    // D-03: an invite nobody received must not answer 409 on the retry.
+    it("deletes the invite and throws when the publish and the send both fail", async () => {
+      const { sut, inviteRepo, orgRepo, emailSender, queue } = build({
+        queueEnabled: true,
+      });
+      orgRepo.findById.mockResolvedValue(makeOrg());
+      inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
+      inviteRepo.save.mockResolvedValue(makePendingInvite());
+      queue.publish.mockRejectedValueOnce(new Error("Timeout"));
+      emailSender.send.mockRejectedValue(new Error("SMTP down"));
+
+      await expect(sut.execute(input)).rejects.toThrow("SMTP down");
+
+      expect(inviteRepo.deleteById).toHaveBeenCalledWith(INVITE_ID);
+    });
+  });
+
+  describe("executeInTransaction (the worker's side)", () => {
+    it("replaces the token hash through the transaction and sends its link", async () => {
+      const { sut, inviteRepo, orgRepo, emailSender, buildEmailMock } = build();
+      inviteRepo.findById.mockResolvedValue(makePendingInvite());
+      orgRepo.findById.mockResolvedValue(makeOrg());
+
+      await sut.executeInTransaction(INVITE_ID, TX);
+
+      expect(inviteRepo.findById).toHaveBeenCalledWith(INVITE_ID, TX);
+      expect(inviteRepo.replaceTokenHash).toHaveBeenCalledWith(
+        INVITE_ID,
+        sha256(tokenInLink(buildEmailMock)),
+        TX,
+      );
+      expect(buildEmailMock.mock.calls[0][1]).toBe("Acme Corp");
+      expect(emailSender.send.mock.calls[0][0].to).toBe("invited@example.com");
+    });
+
+    // D-02: the throw is what rolls the hash back and retries the job.
+    it("throws when the send fails", async () => {
+      const { sut, inviteRepo, orgRepo, emailSender } = build();
+      inviteRepo.findById.mockResolvedValue(makePendingInvite());
+      orgRepo.findById.mockResolvedValue(makeOrg());
+      emailSender.send.mockRejectedValue(new Error("SMTP down"));
+
+      await expect(sut.executeInTransaction(INVITE_ID, TX)).rejects.toThrow(
+        "SMTP down",
+      );
+    });
+
+    it.each([
+      ["gone", null],
+      ["accepted", makePendingInvite({ acceptedAt: NOW })],
+      ["expired", makePendingInvite({ expiresAt: NOW })],
+    ])("sends nothing when the invite is %s", async (_label, invite) => {
+      const { sut, inviteRepo, orgRepo, emailSender } = build();
+      inviteRepo.findById.mockResolvedValue(invite);
+      orgRepo.findById.mockResolvedValue(makeOrg());
+
+      await sut.executeInTransaction(INVITE_ID, TX);
+
+      expect(inviteRepo.replaceTokenHash).not.toHaveBeenCalled();
+      expect(emailSender.send).not.toHaveBeenCalled();
+    });
   });
 });

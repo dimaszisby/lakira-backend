@@ -54,9 +54,12 @@ const makeMembership = () =>
 const build = () => {
   const inviteRepo: jest.Mocked<OrganizationInviteRepository> = {
     save: jest.fn(),
+    findById: jest.fn(),
     findByTokenHash: jest.fn(),
     findPendingByEmailAndOrg: jest.fn(),
     deleteExpiredPendingByEmailAndOrg: jest.fn(),
+    replaceTokenHash: jest.fn(),
+    deleteById: jest.fn(),
     markAccepted: jest.fn(),
   };
   const membershipRepo: jest.Mocked<MembershipRepository> = {

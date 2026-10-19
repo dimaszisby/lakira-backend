@@ -36,7 +36,7 @@ graph TB
     mq -->|"consume, prefetch 10"| worker
     worker -->|"write results"| pg
     worker -->|"invalidate cache"| redis
-    worker -->|"verification · reset, when queued"| mail
+    worker -->|"verification · reset · invite, when queued"| mail
 
     classDef proc fill:#1f6feb,stroke:#1a4f8a,color:#fff
     classDef undeployed fill:#1f6feb,stroke:#f0883e,stroke-width:2px,stroke-dasharray:5 3,color:#fff
@@ -60,15 +60,17 @@ graph TB
 
 They share the same `src/`, the same models, and the same database. The worker exists so that
 slow or fire-and-forget work does not occupy a request thread, and so that work which must not be
-lost survives a crash. Today it consumes three queues:
+lost survives a crash. Today it consumes four queues:
 
 - `QUEUES.METRIC_LOG_GENERATE_DUMMY`: dummy metric-log generation;
 - `QUEUES.AUTH_SEND_VERIFICATION_EMAIL`: the verification email, retried and parked on failure
   ([ADR-0067](../decisions/adr-0067-the-verification-email-is-a-queued-job.md));
 - `QUEUES.AUTH_SEND_PASSWORD_RESET_EMAIL`: the password-reset email, the same way
-  ([ADR-0069](../decisions/adr-0069-the-password-reset-email-is-a-queued-job.md)).
+  ([ADR-0069](../decisions/adr-0069-the-password-reset-email-is-a-queued-job.md));
+- `QUEUES.AUTH_SEND_INVITE_EMAIL`: the invite email, the same way
+  ([ADR-0070](../decisions/adr-0070-the-invite-email-is-a-queued-job.md)).
 
-With the queue on and no worker running, nobody receives either email.
+With the queue on and no worker running, nobody receives any of the three emails.
 
 ## Request path through the API server
 
