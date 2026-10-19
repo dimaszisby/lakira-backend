@@ -14,6 +14,7 @@ export { EXCHANGES, ROUTING_KEYS };
 export const QUEUES = {
   METRIC_LOG_GENERATE_DUMMY: `${APP_SHORT_NAME}.metric-log.generate-dummy`,
   AUTH_SEND_VERIFICATION_EMAIL: `${APP_SHORT_NAME}.auth.send-verification-email`,
+  AUTH_SEND_PASSWORD_RESET_EMAIL: `${APP_SHORT_NAME}.auth.send-password-reset-email`,
   PARKING: `${APP_SHORT_NAME}.jobs.parking.queue`,
 } as const;
 
@@ -64,6 +65,11 @@ export const assertTopology = async (channel: Channel): Promise<void> => {
     channel,
     QUEUES.AUTH_SEND_VERIFICATION_EMAIL,
     ROUTING_KEYS.AUTH_SEND_VERIFICATION_EMAIL,
+  );
+  await assertWorkQueue(
+    channel,
+    QUEUES.AUTH_SEND_PASSWORD_RESET_EMAIL,
+    ROUTING_KEYS.AUTH_SEND_PASSWORD_RESET_EMAIL,
   );
 
   // Parking lot — no consumer, monitored for depth > 0

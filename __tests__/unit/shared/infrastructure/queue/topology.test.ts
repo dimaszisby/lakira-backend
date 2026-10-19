@@ -29,9 +29,13 @@ const WORK_QUEUES = [
     QUEUES.AUTH_SEND_VERIFICATION_EMAIL,
     ROUTING_KEYS.AUTH_SEND_VERIFICATION_EMAIL,
   ],
+  [
+    QUEUES.AUTH_SEND_PASSWORD_RESET_EMAIL,
+    ROUTING_KEYS.AUTH_SEND_PASSWORD_RESET_EMAIL,
+  ],
 ] as const;
 
-// durable-verification-email: both work queues go through one helper, so a
+// durable-verification-email: every work queue goes through one helper, so a
 // queue added later retries and parks exactly as the first one does.
 describe("assertTopology", () => {
   it.each(WORK_QUEUES)(

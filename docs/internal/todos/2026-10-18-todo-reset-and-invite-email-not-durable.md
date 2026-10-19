@@ -1,6 +1,8 @@
 # Todo — the password-reset and invite emails are not retried
 
-- **Status:** Open. Register row B-70
+- **Status:** Partly fixed. The password-reset half is done on `fix/durable-password-reset-email`
+  ([ADR-0069](../../explanation/decisions/adr-0069-the-password-reset-email-is-a-queued-job.md));
+  the invite half is open. Register row B-70
 - **Created:** 2026-10-18
 - **Owner:** unassigned
 - **Origin:** left out of B-39 by the owner's choice

@@ -1,6 +1,6 @@
 # Application errors — Plan
 
-- **Status:** Done
+- **Status:** Done (merged in #185, `98f17f6`)
 - **Appetite:** 1 day — past that, cut the docs polish, never the guarantees
 - **Date:** 2026-10-19
 

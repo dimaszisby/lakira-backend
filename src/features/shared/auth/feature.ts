@@ -45,6 +45,7 @@ import { buildEmailVerificationEmail } from "./infrastructure/email/templates/em
 import { buildOrganizationInviteEmail } from "./infrastructure/email/templates/organization-invite.js";
 import { ScheduleEmailVerification } from "./application/use-cases/ScheduleEmailVerification.js";
 import { SendVerificationEmailHandler } from "./application/use-cases/SendVerificationEmailHandler.js";
+import { SendPasswordResetEmailHandler } from "./application/use-cases/SendPasswordResetEmailHandler.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import { NoopMessageQueue } from "@/shared/infrastructure/queue/NoopMessageQueue.js";
@@ -69,7 +70,10 @@ const buildEmailSender = (): EmailSender => {
 export type AuthFeatureOverrides = {
   emailSender?: EmailSender;
   lockoutRedis?: LockoutRedisClient;
-  /** Where the verification email is queued; the server passes its publisher. */
+  /**
+   * Where the verification and password-reset emails are queued; the server
+   * passes its publisher.
+   */
   messageQueue?: MessageQueuePort;
   idempotency?: MessageIdempotencyPort;
 };
@@ -130,10 +134,13 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
       ttlSec: env.EMAIL_VERIFICATION_TTL_SEC,
     },
   );
+  const messageQueue = overrides.messageQueue ?? new NoopMessageQueue();
+  const idempotency =
+    overrides.idempotency ?? new SequelizeMessageIdempotency();
   // Queued when the server passes a queue; otherwise, and when a publish fails,
   // sent in this process after the response, as before (ADR-0067).
   const scheduleEmailVerification = new ScheduleEmailVerification(
-    overrides.messageQueue ?? new NoopMessageQueue(),
+    messageQueue,
     {
       sendInProcess: ({ userId, reason }) =>
         runInBackground(
@@ -141,6 +148,19 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
           () => requestEmailVerification.execute({ userId }),
           { userId },
         ),
+    },
+  );
+
+  // Queued when the server passes a queue; otherwise, and when a publish fails,
+  // sent in the request, as before (ADR-0069).
+  const requestPasswordReset = new RequestPasswordReset(
+    repo,
+    resetTokenRepo,
+    emailSender,
+    messageQueue,
+    {
+      frontendResetUrl: env.FRONTEND_RESET_URL,
+      buildEmail: buildPasswordResetEmail,
     },
   );
 
@@ -164,21 +184,17 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
     ),
     getProfile: new GetProfile(repo),
     updateProfile: new UpdateProfile(repo, hasher),
-    requestPasswordReset: new RequestPasswordReset(
-      repo,
-      resetTokenRepo,
-      emailSender,
-      {
-        frontendResetUrl: env.FRONTEND_RESET_URL,
-        buildEmail: buildPasswordResetEmail,
-      },
+    requestPasswordReset,
+    sendPasswordResetEmailHandler: new SendPasswordResetEmailHandler(
+      requestPasswordReset,
+      idempotency,
     ),
     resetPassword: new ResetPassword(repo, resetTokenRepo, hasher),
     requestEmailVerification,
     scheduleEmailVerification,
     sendVerificationEmailHandler: new SendVerificationEmailHandler(
       requestEmailVerification,
-      overrides.idempotency ?? new SequelizeMessageIdempotency(),
+      idempotency,
     ),
     verifyEmail: new VerifyEmail(repo, emailVerificationTokenRepo),
     switchOrganization: new SwitchOrganization(
