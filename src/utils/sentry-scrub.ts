@@ -1,4 +1,5 @@
 import { isIP } from "node:net";
+import type { NodeOptions } from "@sentry/node";
 import { SENSITIVE_KEY_PATTERN } from "../config/sensitive-keys.js";
 import { redactObject } from "./logger.js";
 import { maskQuotedValues } from "./mask-quoted-values.js";
@@ -31,15 +32,15 @@ export type ScrubbableBreadcrumb = {
   data?: Record<string, unknown>;
 };
 
-/** The parts of a span, in Sentry's `SpanJSON` shape, that can carry request or query text. */
+/**
+ * The parts of a span that can carry request or query text, in the `StreamedSpanJSON`
+ * shape `beforeSendSpan` receives from Sentry 11: the op is the `sentry.op` attribute,
+ * and what 10 called the description and the data are the name and the attributes
+ * (sentry-11-data-collection D-03).
+ */
 export type ScrubbableSpan = {
-  op?: string;
-  description?: string;
-  data?: Record<string, unknown>;
-};
-
-export type ScrubbableTransaction = ScrubbableEvent & {
-  spans?: ScrubbableSpan[];
+  name?: string;
+  attributes?: Record<string, unknown>;
 };
 
 /**
@@ -217,10 +218,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 /**
  * Strips credentials and request text from a Sentry event before egress.
  *
- * With `sendDefaultPii` off the SDK still attaches the request URL with its query
- * string and the request headers, and an error's message goes out as the exception
- * value. All of that is cleaned here, along with what the application passes
- * explicitly.
+ * `SENTRY_DATA_COLLECTION` turns off every category the SDK collects on its own, but
+ * an error's message still goes out as the exception value, and the application
+ * passes tags, extra and context explicitly. All of that is cleaned here, and so is
+ * the request, in case a category is ever turned back on.
  *
  * See `docs/internal/initiatives/log-redaction-coverage/decisions.md` D-02 and D-12.
  */
@@ -301,47 +302,47 @@ export const scrubSentryEvent = <T extends ScrubbableEvent>(event: T): T => {
   return event;
 };
 
-const isDatabaseSpan = (span: ScrubbableSpan): boolean =>
-  span.op === "db" ||
-  span.op?.startsWith("db.") === true ||
-  Object.keys(span.data ?? {}).some((key) => key.startsWith("db.system"));
+const isDatabaseSpan = (span: ScrubbableSpan): boolean => {
+  const op = span.attributes?.["sentry.op"];
+  return (
+    op === "db" ||
+    (typeof op === "string" && op.startsWith("db.")) ||
+    Object.keys(span.attributes ?? {}).some((key) =>
+      key.startsWith("db.system"),
+    )
+  );
+};
 
 /** The operation a database span ran, without the statement that carried its values. */
 const databaseOperation = (span: ScrubbableSpan): string => {
-  const named = span.data?.["db.operation.name"] ?? span.data?.["db.operation"];
+  const named =
+    span.attributes?.["db.operation.name"] ?? span.attributes?.["db.operation"];
   if (typeof named === "string" && named) return named;
-  const verb = /^\s*([A-Za-z]+)/.exec(span.description ?? "")?.[1];
+  const verb = /^\s*([A-Za-z]+)/.exec(span.name ?? "")?.[1];
   return verb ? verb.toUpperCase() : "DB";
 };
 
 /**
- * One span, for `beforeSendSpan` and for every span of a transaction. A database
- * span's description is the SQL statement, which Sequelize writes with its values
- * inlined; there is no reliable way to clean it, so it is replaced by the operation.
+ * One span, for `beforeSendSpan`. Spans are streamed (Sentry 11's default, pinned in
+ * `Sentry.init`), so there is no transaction event to clean. A database span's name
+ * can be the SQL statement, which Sequelize writes with its values inlined; there is
+ * no reliable way to clean it, so it is replaced by the operation.
  */
 export const scrubSentrySpan = <T extends ScrubbableSpan>(span: T): T => {
   if (isDatabaseSpan(span)) {
-    span.description = databaseOperation(span);
-  } else if (typeof span.description === "string") {
-    span.description = scrubText(span.description);
+    span.name = databaseOperation(span);
+  } else if (typeof span.name === "string") {
+    span.name = scrubText(span.name);
   }
-  if (isRecord(span.data)) span.data = scrubData(span.data);
+  if (isRecord(span.attributes)) span.attributes = scrubData(span.attributes);
   return span;
 };
 
-/** Transactions do not pass through `beforeSend`; this is `beforeSendTransaction`. */
-export const scrubSentryTransaction = <T extends ScrubbableTransaction>(
-  event: T,
-): T => {
-  scrubSentryEvent(event);
-  for (const span of event.spans ?? []) scrubSentrySpan(span);
-  return event;
-};
-
 /**
- * `beforeSendLog`. Sentry logs are off (`enableLogs` is not set); the hook is wired
- * so that turning them on cannot skip the scrubber (D-14). A parameterized message
- * becomes a plain string: its template values are the raw arguments.
+ * `beforeSendLog`. Sentry 11 sends a log only when `Sentry.logger` or a logging
+ * integration is used, and the app uses neither; the hook is wired so that starting
+ * to cannot skip the scrubber (D-14). A parameterized message becomes a plain
+ * string: its template values are the raw arguments.
  */
 export const scrubSentryLog = <T extends ScrubbableLog>(log: T): T => {
   log.message = scrubText(String(log.message));
@@ -352,7 +353,31 @@ export const scrubSentryLog = <T extends ScrubbableLog>(log: T): T => {
 /** Every hook `Sentry.init` takes, as one object, so none is left out of it. */
 export const SENTRY_SCRUB_HOOKS = {
   beforeSend: scrubSentryEvent,
-  beforeSendTransaction: scrubSentryTransaction,
   beforeSendSpan: scrubSentrySpan,
   beforeSendLog: scrubSentryLog,
+};
+
+/**
+ * What the SDK may collect on its own: nothing. Sentry 11 replaced `sendDefaultPii`
+ * with this option, and every category it leaves unset is on, bound query
+ * parameters and queue arguments included. Each is named, so the choice is written
+ * down rather than inherited from a default (sentry-11-data-collection D-02,
+ * ADR-0071). The scrubber above still runs on what the app passes itself.
+ */
+export const SENTRY_DATA_COLLECTION: NonNullable<
+  NodeOptions["dataCollection"]
+> = {
+  userInfo: false,
+  cookies: false,
+  httpHeaders: false,
+  httpBodies: [],
+  urlQueryParams: false,
+  graphQL: { document: false, variables: false },
+  genAI: { inputs: false, outputs: false },
+  databaseQueryData: false,
+  queues: false,
+  stackFrameVariables: false,
+  // Lines of our own source around each stack frame, not request data; 5 is 11's
+  // default (10 sent 7).
+  frameContextLines: 5,
 };

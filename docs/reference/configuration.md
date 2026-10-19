@@ -242,7 +242,7 @@ logs carry (ADR-0039). An empty value counts as unset. The Compose `app` and `wo
 it in at build time, so a local image reports the commit it was built from:
 `APP_RELEASE=$(git rev-parse HEAD) docker compose up -d --build app`. It names the checkout's
 `HEAD`, so uncommitted changes are not reflected. Leave it out of `.env`: inside Compose a line
-there, even an empty one, overrides the image's (`release-and-retry-after` D-03).
+there, even an empty one, overrides the image's (`release-and-retry-after` D-03, #190).
 
 ## Branding
 

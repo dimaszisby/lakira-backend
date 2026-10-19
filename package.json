@@ -82,7 +82,7 @@
   "description": "",
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.4",
-    "@sentry/node": "^10.51.0",
+    "@sentry/node": "^11.8.0",
     "amqp-connection-manager": "^5.0.0",
     "amqplib": "^1.0.3",
     "bcrypt": "^6.0.0",
