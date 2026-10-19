@@ -21,9 +21,15 @@ type OrgFeature = ReturnType<typeof buildAuthFeature>;
 let feature: OrgFeature | undefined;
 const getFeature = (): OrgFeature => (feature ??= buildAuthFeature());
 
-export const overrideOrgFeatureForTest = (custom: OrgFeature) => {
+/**
+ * How src/server.ts supplies the wired feature, so the invite email is queued
+ * with the server's publisher (ADR-0056, ADR-0070).
+ */
+export const installOrgFeature = (custom: OrgFeature) => {
   feature = custom;
 };
+
+export const overrideOrgFeatureForTest = installOrgFeature;
 
 const pickCreateInvite = pickValidated(
   z.object({ body: createInviteBody, params: orgIdParam }),

@@ -81,6 +81,41 @@ describe("Organization Membership API", () => {
       expect(res.status).toBe(409);
     });
 
+    // durable-invite-email D-03, AC-5: with the queue off, the invite and the
+    // send share one transaction, so a failed send leaves nothing to answer 409.
+    it("leaves no invite when the send fails, so a retry succeeds", async () => {
+      const { token } = await createTestUser();
+      const orgId = decodeOrgId(token);
+      const email = buildUserPayload().email;
+      let calls = 0;
+      overrideOrgFeatureForTest(
+        buildAuthFeature({
+          emailSender: {
+            send: async (message) => {
+              calls++;
+              if (calls === 1) throw new Error("injected send failure");
+              await emailCapture.send(message);
+            },
+          },
+        }),
+      );
+      const send = () =>
+        api
+          .post(`/api/v1/organizations/${orgId}/invites`)
+          .set("Authorization", authHeader(token))
+          .send({ email, role: "member" });
+
+      expect((await send()).status).toBe(500);
+      expect(
+        await models.OrganizationInvite.count({
+          where: { organizationId: orgId },
+        }),
+      ).toBe(0);
+
+      expect((await send()).status).toBe(201);
+      expect(emailCapture.sent).toHaveLength(1);
+    });
+
     it("returns 401 without auth", async () => {
       const res = await api
         .post(

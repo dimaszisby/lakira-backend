@@ -138,12 +138,13 @@ own `environment:`, so the `app` service keeps the synchronous fallback. Only th
 the queue.
 
 **Do not set `RABBITMQ_ENABLED=true` on the server where no worker runs.** The server then queues
-the verification and password-reset emails for the worker to send (ADR-0067, ADR-0069), and
-without a consumer nobody receives them. The worker sends them with the email settings above, so it
-needs the same `EMAIL_PROVIDER`, its key, `EMAIL_FROM`, `FRONTEND_VERIFY_URL`,
-`FRONTEND_RESET_URL` and `EMAIL_VERIFICATION_TTL_SEC` as the server. Every publish gives up after 3
-seconds; register and resend then send the email in process, and forgot-password sends it in the
-request, as with the queue off.
+the verification, password-reset and invite emails for the worker to send (ADR-0067, ADR-0069,
+ADR-0070), and without a consumer nobody receives them. The worker sends them with the email
+settings above, so it needs the same `EMAIL_PROVIDER`, its key, `EMAIL_FROM`, `FRONTEND_VERIFY_URL`,
+`FRONTEND_RESET_URL`, `FRONTEND_INVITE_URL`, `EMAIL_VERIFICATION_TTL_SEC` and
+`INVITE_TOKEN_TTL_DAYS` as the server. Every publish gives up after 3 seconds; register and resend
+then send the email in process, and forgot-password and the invite send it in the request, as with
+the queue off.
 
 The integration suite needs a reachable broker at the default address even though
 `RABBITMQ_ENABLED` stays `false`. The queued-path test runs the consumer in-process and turns

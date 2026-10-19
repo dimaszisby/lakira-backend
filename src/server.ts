@@ -22,6 +22,7 @@ import { createVisualizationRouter } from "./features/public/analytics/index.js"
 import { installMetricLogFeature } from "./features/public/metric-log/infrastructure/http/controller.js";
 import { buildWiredMetricLogFeature } from "./composition/metric-log.js";
 import { installAuthFeature } from "./features/shared/auth/infrastructure/http/controller.js";
+import { installOrgFeature } from "./features/shared/auth/infrastructure/http/organization.controller.js";
 import { buildWiredAuthFeature } from "./composition/auth.js";
 
 // Other Setup
@@ -53,7 +54,9 @@ import {
 // One publisher for every feature that queues work.
 const messageQueue = env.RABBITMQ_ENABLED ? new RabbitMQPublisher() : undefined;
 installMetricLogFeature(buildWiredMetricLogFeature({ messageQueue }));
-installAuthFeature(buildWiredAuthFeature({ messageQueue }));
+const authFeature = buildWiredAuthFeature({ messageQueue });
+installAuthFeature(authFeature);
+installOrgFeature(authFeature);
 
 if (env.SENTRY_DSN) {
   Sentry.init({

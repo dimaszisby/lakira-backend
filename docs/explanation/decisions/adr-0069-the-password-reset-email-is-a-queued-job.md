@@ -1,12 +1,13 @@
 # ADR-0069 — The password-reset email is a queued job
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #186, `631108f`)
 - **Date:** 2026-10-19
 - **Related:** [ADR-0067](./adr-0067-the-verification-email-is-a-queued-job.md) (the same pattern,
   for the verification email); [ADR-0005](./adr-0005-topic-exchange-with-parking-lot-dlx.md)
   (retries and parking); [ADR-0007](./adr-0007-processed-messages-table-for-idempotency.md)
   (idempotency); [ADR-0040](./adr-0040-worker-process-deployment-topology.md) (the worker has no
-  deployment); [ADR-0056](./adr-0056-one-wiring-per-feature-for-every-entry-point.md) (one wiring)
+  deployment); [ADR-0056](./adr-0056-one-wiring-per-feature-for-every-entry-point.md) (one wiring);
+  [ADR-0070](./adr-0070-the-invite-email-is-a-queued-job.md) (the invite email)
 - **Origin:** `D-01` to `D-04` in the durable-password-reset-email kit —
   [`durable-password-reset-email`](../../internal/initiatives/durable-password-reset-email/decisions.md);
   register row B-70 ([todo](../../internal/todos/2026-10-18-todo-reset-and-invite-email-not-durable.md))
