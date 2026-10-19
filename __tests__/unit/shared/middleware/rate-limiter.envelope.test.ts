@@ -134,6 +134,8 @@ describe("rate limiters answer through the error envelope", () => {
     expect(blocked.headers["ratelimit-limit"]).toBe("1");
     expect(blocked.headers["ratelimit-remaining"]).toBe("0");
     expect(blocked.headers["ratelimit-reset"]).toBeDefined();
+    // The spec declares it on every 429 (release-and-retry-after D-02).
+    expect(blocked.headers["retry-after"]).toMatch(/^\d+$/);
     expect(loggerMock.warn).toHaveBeenCalledTimes(1);
     expect(loggerMock.warn).toHaveBeenCalledWith(
       expect.stringContaining(logLine),

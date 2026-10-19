@@ -2,7 +2,7 @@
 
 ## D-01 — The root config picks one project's thresholds by `JEST_COVERAGE_PROJECT`
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #189, `d3b254e`)
 - **Date:** 2026-10-19
 
 **Context.** `jest.config.mjs` set `coverageThreshold` inside the `unit` and `integration`

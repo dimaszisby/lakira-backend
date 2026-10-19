@@ -1,6 +1,6 @@
 # Todo — the coverage thresholds are not enforced
 
-- **Status:** Closed on `fix/coverage-thresholds-enforced` (kit
+- **Status:** Closed in #189 (`d3b254e`) (kit
   [`coverage-thresholds-enforced`](../initiatives/coverage-thresholds-enforced/README.md), D-01: option 2,
   with a new variable). Register row B-69
 - **Created:** 2026-10-18

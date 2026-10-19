@@ -108,6 +108,12 @@ services:
     build: # Define build context and Dockerfile
       context: .
       dockerfile: Dockerfile.dev
+      # The commit /health reports as `release`, baked into the image so it always names
+      # what the image was built from: `APP_RELEASE=$(git rev-parse HEAD) docker compose
+      # up -d --build app`. Unset, it is "unknown". Not under `environment:`, where an `up`
+      # without --build would label an old image with a new commit (D-03).
+      args:
+        APP_RELEASE: ${APP_RELEASE:-unknown}
     container_name: node_app
     restart: always # Restart the container automatically if it fails
     # `.env` and not `.env.development`: Compose's ${VAR} interpolation (used for the db
@@ -162,6 +168,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
+      # As the app service: the commit is baked in at build time.
+      args:
+        APP_RELEASE: ${APP_RELEASE:-unknown}
     container_name: node_worker
     restart: always
     command: ["npm", "run", "worker:dev"]

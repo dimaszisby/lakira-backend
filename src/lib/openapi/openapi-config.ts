@@ -94,6 +94,13 @@ export const openApiDocument = {
         schema: { type: "string" },
         example: '"mJ3k0sVw2xQ9uYtR1aBcDeFgHiJ"',
       },
+      RetryAfter: {
+        description:
+          "How many seconds to wait before retrying. Every 429 carries it: each rate limiter sets it to the seconds left in its window, and a locked-out login to the lockout's length.",
+        required: true,
+        schema: { type: "integer", minimum: 0 },
+        example: 900,
+      },
       VisualizationCacheControl: {
         description:
           "Always `private, no-cache`: a client may store the response and must revalidate it with `If-None-Match` before each reuse.",
@@ -244,6 +251,9 @@ export const openApiDocument = {
       TooManyRequestsError: {
         description:
           "Rate limit exceeded. Any operation can return this: an app-wide limit applies to every request, and some operations have a stricter limit of their own.",
+        headers: {
+          "Retry-After": { $ref: "#/components/headers/RetryAfter" },
+        },
         content: {
           "application/json": {
             schema: {

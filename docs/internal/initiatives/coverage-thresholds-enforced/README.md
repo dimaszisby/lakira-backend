@@ -1,6 +1,6 @@
 # Coverage thresholds enforced
 
-**Status:** Implemented on `fix/coverage-thresholds-enforced`; PR open. Register row B-69, from
+**Status:** Done, merged in #189 (`d3b254e`). Register row B-69, from
 `docs/internal/todos/2026-10-18-todo-coverage-thresholds-not-enforced.md`.
 **Slug:** `coverage-thresholds-enforced` · **Branch:** `fix/coverage-thresholds-enforced`
 
