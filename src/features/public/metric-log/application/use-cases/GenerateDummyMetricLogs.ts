@@ -21,6 +21,13 @@ type Output = {
 
 const TYPES: Array<"manual" | "automatic"> = ["manual", "automatic"];
 
+/**
+ * The most dummy logs one request or one queued job may write. The HTTP schema caps the
+ * request with it and the queue handler the job, so the two cannot drift
+ * (queue-design-hardening D-03).
+ */
+export const MAX_DUMMY_METRIC_LOGS = 1000;
+
 export class GenerateDummyMetricLogs {
   constructor(
     private access: MetricAccessPort,

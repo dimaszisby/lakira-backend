@@ -4,6 +4,10 @@
 - **Date:** 2026-04-20
 - **Origin:** `ADR-004` in the RabbitMQ kit — [`rabbitmq`](../../internal/initiatives/rabbitmq/decisions.md)
 
+> **Status note (2026-10-20).** The key is `(message_id, queue)` since
+> [ADR-0073](./adr-0073-dedup-per-queue-and-retry-tiers.md): keyed on `message_id` alone, a second
+> queue bound to the same routing key skipped its copy as a duplicate. `processed_at` is indexed.
+
 ---
 
 ## Context

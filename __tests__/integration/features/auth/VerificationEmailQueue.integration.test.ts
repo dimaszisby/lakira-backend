@@ -18,9 +18,12 @@ import {
   EXCHANGES,
   QUEUES,
   ROUTING_KEYS,
+  assertRetryTier,
   assertTopology,
   retryQueueFor,
 } from "@/shared/infrastructure/queue/topology.js";
+import { retryDelaysMs } from "@/shared/infrastructure/queue/retryPolicy.js";
+import { env } from "@/config/envManager.js";
 import { drainBackgroundTasks } from "@/utils/background-tasks.js";
 import { models } from "@/infrastructure/db/models.js";
 
@@ -41,10 +44,16 @@ import { models } from "@/infrastructure/db/models.js";
 let api = appWith({});
 
 const QUEUE = QUEUES.AUTH_SEND_VERIFICATION_EMAIL;
-const RETRY_QUEUE = retryQueueFor(QUEUE);
 const POLL_TIMEOUT_MS = 10_000;
 const POLL_INTERVAL_MS = 50;
 const RETRY_BASE_DELAY_MS = 50;
+// One retry queue per delay (queue-design-hardening D-02): every one this file's
+// consumer can use. The inspector declares them, so a purge or a depth check finds each.
+const RETRY_DELAYS_MS = retryDelaysMs(
+  env.RABBITMQ_MAX_RETRIES,
+  RETRY_BASE_DELAY_MS,
+);
+const RETRY_QUEUES = RETRY_DELAYS_MS.map((ms) => retryQueueFor(QUEUE, ms));
 
 const pollUntil = async <T>(
   what: string,
@@ -162,7 +171,10 @@ describe("The verification email via RabbitMQ", () => {
     publisher = new RabbitMQPublisher();
     inspector = connectRabbitMQ().createChannel({
       name: "test-inspector",
-      setup: (ch: Channel) => assertTopology(ch),
+      setup: async (ch: Channel) => {
+        await assertTopology(ch);
+        for (const ms of RETRY_DELAYS_MS) await assertRetryTier(ch, QUEUE, ms);
+      },
     });
     await inspector.waitForConnect();
   });
@@ -170,7 +182,7 @@ describe("The verification email via RabbitMQ", () => {
   beforeEach(async () => {
     // A message left behind by an aborted earlier run must not leak into this one.
     await inspector.purgeQueue(QUEUE);
-    await inspector.purgeQueue(RETRY_QUEUE);
+    for (const queue of RETRY_QUEUES) await inspector.purgeQueue(queue);
     await inspector.purgeQueue(QUEUES.PARKING);
     invocations = 0;
     sender = new CapturingEmailSender();

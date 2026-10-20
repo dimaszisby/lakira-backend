@@ -8,6 +8,7 @@ import {
 } from "@/constants/zod/zod-rules.js";
 import { z } from "zod";
 import { ZodMessages } from "@/constants/zod/zod-messages.js";
+import { MAX_DUMMY_METRIC_LOGS } from "../../application/use-cases/GenerateDummyMetricLogs.js";
 
 extendZodWithOpenApi(z);
 
@@ -173,7 +174,7 @@ export const getAggregatedStatsSchema = z.object({
 });
 
 export const generateDummyMetricLogsBody = z.object({
-  count: z.coerce.number().int().min(1).max(1000).default(50),
+  count: z.coerce.number().int().min(1).max(MAX_DUMMY_METRIC_LOGS).default(50),
 });
 
 export const generateDummyMetricLogsSchema = z.object({

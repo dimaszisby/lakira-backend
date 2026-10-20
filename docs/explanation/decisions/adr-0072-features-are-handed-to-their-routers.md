@@ -1,6 +1,6 @@
 # ADR-0072 — Features are handed to their routers
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #192, `394f949`)
 - **Date:** 2026-10-20
 - **Related:** Takes up the option [ADR-0045](./adr-0045-feature-modules-construct-nothing-on-import.md)
   deferred, and keeps its rule (importing a feature module constructs nothing);

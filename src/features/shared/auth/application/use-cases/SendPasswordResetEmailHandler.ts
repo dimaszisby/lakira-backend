@@ -1,5 +1,9 @@
 import logger from "@/utils/logger.js";
 import { TerminalMessageError } from "@/shared/application/errors/TerminalMessageError.js";
+import {
+  isUuid,
+  readJobBody,
+} from "@/shared/application/messaging/job-body.js";
 import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import type {
   IncomingMessage,
@@ -9,8 +13,6 @@ import type {
   PasswordResetEmailJob,
   RequestPasswordReset,
 } from "./RequestPasswordReset.js";
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** What `src/worker.ts` runs for each password-reset email job (ADR-0069). */
 export class SendPasswordResetEmailHandler {
@@ -40,17 +42,8 @@ export class SendPasswordResetEmailHandler {
 
 /** A message no retry can fix parks at once. */
 const parseJob = (content: Buffer): PasswordResetEmailJob => {
-  let body: unknown;
-  try {
-    body = JSON.parse(content.toString());
-  } catch (error) {
-    throw new TerminalMessageError("Refusing message with malformed JSON.", {
-      cause: error,
-    });
-  }
-
-  const userId = (body as { userId?: unknown } | null)?.userId;
-  if (typeof userId !== "string" || !UUID.test(userId)) {
+  const { userId } = readJobBody(content);
+  if (!isUuid(userId)) {
     throw new TerminalMessageError(
       "Refusing password-reset email job without a user id.",
     );

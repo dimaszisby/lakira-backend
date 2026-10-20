@@ -160,7 +160,9 @@ the integration setup both call `drainBackgroundTasks()`.
 - The verification email is on the queue (ADR-0067): `ScheduleEmailVerification` publishes a job
   the worker sends, and falls back to `runInBackground` only when the queue is off or a publish
   fails. A new job follows it: the message carries ids, never an address or a token; the handler
-  does its writes and its side effect inside `MessageIdempotencyPort.runOnce`; and its queue is
-  declared through `assertWorkQueue` in `topology.ts`. The password-reset email does the same,
+  reads its body with `readJobBody` and checks every field before acting, so a bad one parks
+  (`src/shared/application/messaging/job-body.ts`); it does its writes and its side effect inside
+  `MessageIdempotencyPort.runOnce`, which records it per queue; and its queue is declared through
+  `assertWorkQueue` in `topology.ts`, its retries waiting in a queue per delay (ADR-0073). The password-reset email does the same,
   with its fallback in the request (ADR-0069), and so does the invite email, whose fallback saves
   the invite and sends inside one transaction (ADR-0070).

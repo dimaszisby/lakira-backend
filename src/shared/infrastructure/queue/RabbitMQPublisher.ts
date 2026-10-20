@@ -56,10 +56,6 @@ export class RabbitMQPublisher implements MessageQueuePort {
       contentType: "application/json",
       messageId,
       headers: options.headers,
-      expiration:
-        options.expirationMs === undefined
-          ? undefined
-          : String(options.expirationMs),
     });
 
     logger.info("[RABBITMQ] Published message.", {

@@ -188,9 +188,10 @@ and display configuration:
 
 ### `processed_messages`
 
-RabbitMQ idempotency ledger. `message_id` varchar(36) **PK**, `queue` varchar(255),
-`processed_at` timestamptz, `organization_id` uuid nullable (→ `organizations` SET NULL, so a
-deleted organization cannot break message replay).
+RabbitMQ idempotency ledger. **PK** (`message_id` varchar(36), `queue` varchar(255)): a message
+is processed once per queue it reaches (ADR-0073). `processed_at` timestamptz, indexed
+(`processed_messages_processed_at_idx`), `organization_id` uuid nullable (→ `organizations` SET
+NULL, so a deleted organization cannot break message replay).
 
 ### `SequelizeMeta`
 

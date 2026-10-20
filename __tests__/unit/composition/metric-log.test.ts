@@ -34,15 +34,17 @@ jest.mock("@/utils/redis-client.js", () => ({
   invalidateCacheByPattern: jest.fn(async () => undefined),
 }));
 
-const USER = "user-1";
-const ORG = "org-1";
-const METRIC = "metric-1";
+// UUIDs, as GenerateDummyMetricLogs publishes them: the handler refuses anything else
+// (queue-design-hardening D-03).
+const USER = "00000000-0000-4000-8000-000000000002";
+const ORG = "00000000-0000-4000-8000-000000000003";
+const METRIC = "00000000-0000-4000-8000-000000000004";
 
 const jobMessage = () =>
   ({
     content: Buffer.from(
       JSON.stringify({
-        jobId: "job-1",
+        jobId: "00000000-0000-4000-8000-000000000001",
         userId: USER,
         organizationId: ORG,
         metricId: METRIC,

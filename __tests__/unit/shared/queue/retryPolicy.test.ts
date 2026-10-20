@@ -5,6 +5,8 @@ import {
   MAX_RETRY_DELAY_MS,
   decideOnFailure,
   readRetryCount,
+  retryDelayMs,
+  retryDelaysMs,
 } from "@/shared/infrastructure/queue/retryPolicy.js";
 
 const decide = (error: unknown, retryCount: number, maxRetries = 5) =>
@@ -68,5 +70,40 @@ describe("readRetryCount", () => {
     expect(readRetryCount({})).toBe(0);
     expect(readRetryCount({ "x-retry-count": "abc" })).toBe(0);
     expect(readRetryCount({ "x-retry-count": -1 })).toBe(0);
+  });
+});
+
+// queue-design-hardening D-02: each delay has a retry queue of its own, so the
+// consumer and whoever inspects the broker must agree on the ladder.
+describe("retryDelaysMs", () => {
+  it("is the delay of every retry the budget allows, doubling from the base", () => {
+    expect(retryDelaysMs(4, 50)).toEqual([50, 100, 200, 400]);
+  });
+
+  it("stops at the cap and lists a capped delay once", () => {
+    expect(retryDelaysMs(12, 100_000)).toEqual([
+      100_000,
+      200_000,
+      MAX_RETRY_DELAY_MS,
+    ]);
+  });
+
+  it("is empty when no retry is allowed", () => {
+    expect(retryDelaysMs(0, 50)).toEqual([]);
+  });
+
+  it("matches the delay decideOnFailure schedules", () => {
+    for (let retryCount = 0; retryCount < 6; retryCount++) {
+      const decision = decideOnFailure({
+        error: new Error("x"),
+        retryCount,
+        maxRetries: 6,
+        baseDelayMs: 50,
+      });
+      expect(decision).toEqual(
+        expect.objectContaining({ delayMs: retryDelayMs(retryCount, 50) }),
+      );
+      expect(retryDelaysMs(6, 50)).toContain(retryDelayMs(retryCount, 50));
+    }
   });
 });

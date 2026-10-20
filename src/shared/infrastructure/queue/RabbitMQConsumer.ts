@@ -1,7 +1,7 @@
 import type { Channel, ConsumeMessage } from "amqplib";
 import type { ChannelWrapper } from "amqp-connection-manager";
 import { connectRabbitMQ } from "./RabbitMQConnection.js";
-import { assertTopology, retryQueueFor } from "./topology.js";
+import { assertRetryTier, assertTopology, retryQueueFor } from "./topology.js";
 import {
   RETRY_COUNT_HEADER,
   decideOnFailure,
@@ -149,18 +149,20 @@ export class RabbitMQConsumer {
 
     // Publish, then ack. A crash between the two leaves a duplicate, which the idempotency
     // guard absorbs (ADR-0007); ack-then-publish would lose the message instead.
+    // The message waits in the queue of its delay, declared first: the publisher marks
+    // it mandatory, so a missing queue would return it (ADR-0073).
     try {
+      await assertRetryTier(ch, this.options.queue, decision.delayMs);
       await this.options.publisher.publish(
         "",
         JSON.parse(msg.content.toString()) as MessagePayload,
         {
-          routingKey: retryQueueFor(this.options.queue),
+          routingKey: retryQueueFor(this.options.queue, decision.delayMs),
           messageId: msg.properties.messageId,
           headers: {
             ...msg.properties.headers,
             [RETRY_COUNT_HEADER]: decision.nextRetryCount,
           },
-          expirationMs: decision.delayMs,
         },
       );
     } catch (publishError) {
