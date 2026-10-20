@@ -33,8 +33,13 @@ export class UserRepositorySequelize implements UserRepository {
     return count > 0;
   }
 
-  async findById(id: string): Promise<AuthUser | null> {
-    const user = await models.User.findByPk(id);
+  async findById(
+    id: string,
+    tx?: PersistenceTransaction,
+  ): Promise<AuthUser | null> {
+    const user = await models.User.findByPk(id, {
+      transaction: tx as Transaction | undefined,
+    });
     return user ? toDomain(user) : null;
   }
 

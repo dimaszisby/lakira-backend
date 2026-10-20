@@ -9,7 +9,7 @@ ADR-012) refer to `docs/internal/audits/saas-readiness/decisions.md`, not the gl
 
 ## D-01 — Method: the last run's, with four graders and nothing left unread
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #197, `b3054cb`)
 - **Date:** 2026-10-20
 
 **Context.** Since the last run at `5bb4e3a` (its own PR #158, `bf72b58`), 38 PRs have merged,
@@ -66,7 +66,7 @@ what the checklist's Discovered section records.
 
 ## D-02 — The verdict rule, fixed before the evidence
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #197, `b3054cb`)
 - **Date:** 2026-10-20
 
 **Context.** ADR-008 restates GOLD only when C1 to C6 are closed; the run of 2026-10-05 added S1
@@ -96,7 +96,7 @@ end without GOLD on one grader's grade the main thread cannot refute by reproduc
 
 ## D-03 — Two P1 findings from the queue grader, and whether GOLD is honest with them open
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #197, `b3054cb`)
 - **Date:** 2026-10-20
 
 **Context.** Written when the queue grader's report arrived, before either ground was reproduced
@@ -131,7 +131,7 @@ Both are reproduced against a throwaway broker and database before the verdict i
 
 ## D-04 — C5, C4, C6 and C3 close on their named routes; X60 and X62 hold
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #197, `b3054cb`)
 - **Date:** 2026-10-20
 
 **Context.** All four graders reported. The grades that decide the verdict:
@@ -181,7 +181,7 @@ beside T7's id. The grader graded T7 from that run's own row, so no grade rests 
 
 ## D-05 — Four scorecard items move, each on a grader's grade
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #197, `b3054cb`)
 - **Date:** 2026-10-20
 
 **Context.** The 65-item scorecard read 50 / 11 / 4 for four runs in a row. An item moves only on

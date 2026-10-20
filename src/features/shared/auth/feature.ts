@@ -15,6 +15,7 @@ import { JwtTokenProvider } from "./infrastructure/providers/JwtTokenProvider.js
 import { ConsoleEmailSender } from "./infrastructure/providers/ConsoleEmailSender.js";
 import { ResendEmailSender } from "./infrastructure/providers/ResendEmailSender.js";
 import { MailpitEmailSender } from "./infrastructure/providers/MailpitEmailSender.js";
+import { TimeoutEmailSender } from "./infrastructure/providers/TimeoutEmailSender.js";
 import { EmailSender } from "./application/ports/EmailSender.js";
 import type { LoginAttemptsPort } from "./application/ports/LoginAttemptsPort.js";
 import { OrganizationRepositorySequelize } from "./infrastructure/persistence/OrganizationRepositorySequelize.js";
@@ -101,7 +102,9 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
     new EmailVerificationTokenRepositorySequelize();
   const hasher = new BcryptPasswordHasher();
   const token = new JwtTokenProvider();
-  const emailSender = overrides.emailSender ?? buildEmailSender();
+  // Bounded: a queued email is sent inside its job's transaction (ADR-0077).
+  const emailSender =
+    overrides.emailSender ?? new TimeoutEmailSender(buildEmailSender());
 
   const tx = new SequelizeTransactionPort();
 

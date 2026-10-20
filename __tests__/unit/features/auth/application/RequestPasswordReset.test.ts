@@ -224,7 +224,9 @@ describe("RequestPasswordReset use case", () => {
 
       await sut.executeInTransaction(user.id, tx);
 
-      expect(userRepo.findById).toHaveBeenCalledWith(user.id);
+      // One connection per job: the read goes through the job's transaction
+      // (worker-cancel-and-one-connection-per-job D-02).
+      expect(userRepo.findById).toHaveBeenCalledWith(user.id, tx);
       expect(tokenRepo.invalidateAllForUser).toHaveBeenCalledWith(
         user.id,
         FROZEN_NOW,

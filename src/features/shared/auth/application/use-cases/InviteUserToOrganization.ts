@@ -153,7 +153,7 @@ export class InviteUserToOrganization {
     const invite = await this.inviteRepo.findById(inviteId, tx);
     if (!invite || invite.isAccepted() || invite.isExpired(this.now())) return;
 
-    const org = await this.orgRepo.findById(invite.organizationId);
+    const org = await this.orgRepo.findById(invite.organizationId, tx);
     if (!org) return;
 
     await this.sendFor(invite, org.name, tx);

@@ -391,6 +391,8 @@ describe("InviteUserToOrganization", () => {
       await sut.executeInTransaction(INVITE_ID, TX);
 
       expect(inviteRepo.findById).toHaveBeenCalledWith(INVITE_ID, TX);
+      // One connection per job (worker-cancel-and-one-connection-per-job D-02).
+      expect(orgRepo.findById).toHaveBeenCalledWith("org-1", TX);
       expect(inviteRepo.replaceTokenHash).toHaveBeenCalledWith(
         INVITE_ID,
         sha256(tokenInLink(buildEmailMock)),

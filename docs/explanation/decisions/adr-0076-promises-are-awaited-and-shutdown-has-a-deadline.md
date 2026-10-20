@@ -9,6 +9,11 @@
   [`floating-promises-and-bounded-shutdown`](../../internal/initiatives/floating-promises-and-bounded-shutdown/decisions.md);
   register rows B-37, B-38
 
+> **Status note (2026-10-21).** Decision 3's bound on the worker's drain held only in part until
+> `worker-cancel-and-one-connection-per-job` D-01: `RabbitMQConsumer.cancel()` did not cancel, so
+> the drain kept taking deliveries (audit 2026-10-20, X60). It now cancels on the channel that
+> registered the consumer, and a reconnect during the drain does not consume again.
+
 ---
 
 ## Context

@@ -131,11 +131,25 @@ describe("UserRepositorySequelize", () => {
     const byId = await repo.findById("user-1");
     const byEmail = await repo.findByEmail("user@example.com");
 
-    expect(findByPkSpy).toHaveBeenCalledWith("user-1");
+    expect(findByPkSpy).toHaveBeenCalledWith("user-1", {
+      transaction: undefined,
+    });
     expect(findOneSpy).toHaveBeenCalledWith({
       where: { email: "user@example.com" },
     });
     expect(byId?.id).toBe("user-1");
     expect(byEmail?.email).toBe("user@example.com");
+  });
+
+  // worker-cancel-and-one-connection-per-job D-02: inside a job's transaction the
+  // read uses that transaction's connection, not a second one from the pool.
+  it("reads by id through a transaction it is given", async () => {
+    const findByPkSpy = jest.spyOn(models.User, "findByPk") as any;
+    findByPkSpy.mockResolvedValue(makeRow());
+    const tx = { id: "tx-1" };
+
+    await new UserRepositorySequelize().findById("user-1", tx);
+
+    expect(findByPkSpy).toHaveBeenCalledWith("user-1", { transaction: tx });
   });
 });
