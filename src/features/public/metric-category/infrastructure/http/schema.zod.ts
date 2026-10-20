@@ -4,6 +4,7 @@ import {
   zMetricCategoryName,
   zMetricCategoryColor,
   zMetricCategoryIcon,
+  zStrictBooleanQuery,
 } from "@/constants/zod/zod-rules.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 
@@ -19,17 +20,6 @@ const normalizedSearchParam = z
     (value) => value === undefined || value.length > 0,
     ZodMessages.common.searchQueryMin,
   );
-
-const strictBooleanQuery = z
-  .union([z.boolean(), z.string()])
-  .transform((value) => {
-    if (typeof value === "boolean") return value;
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true") return true;
-    if (normalized === "false") return false;
-    return value;
-  })
-  .pipe(z.boolean());
 
 // * Base
 export const metricCategoryBody = z.object({
@@ -72,7 +62,7 @@ export const listCategoriesQuery = z
       .transform((value) =>
         typeof value === "string" && value.trim().length ? value : undefined,
       ),
-    includeTotal: strictBooleanQuery.optional().default(false),
+    includeTotal: zStrictBooleanQuery.optional().default(false),
   })
   .strict()
   .transform((raw) => {

@@ -11,7 +11,8 @@ paths:
 Each feature owns its Express router via a factory function:
 
 ```typescript
-function createMyRouter(): Router {
+function createMyRouter(feature: MyFeature): Router {
+  const controller = createMyController(feature);
   const router = Router();
   router.use(authMiddleware);
   router.post(
@@ -26,8 +27,8 @@ function createMyRouter(): Router {
 }
 ```
 
-Export the factory, not an instance: `src/server.ts` calls `createMyRouter()` at mount time, and
-importing a feature must construct nothing (ADR-0045).
+Export the factory, not an instance: `src/app.ts` calls `createMyRouter(feature)` at mount time,
+and importing a feature must construct nothing (ADR-0045, ADR-0072).
 
 ## Middleware Pipeline Order
 
@@ -96,7 +97,13 @@ wired in (C3, `docs/internal/todos/2026-09-01-todo-error-envelope.md`).
   `…/metric-settings/infrastructure/http/cache-keys.ts`
 - Keys are tenant-scoped through `buildCursorCacheKey` (ADR-0035). Bump the feature's
   `*_CURSOR_VERSION` when a key's meaning changes, so entries written under the old key are never
-  read
+  read. It encodes every string segment, so free text cannot stand for another segment, a
+  search for `_` is not the empty sentinel, and `*` never reaches a key; an id or a number comes
+  out unchanged, so an invalidation pattern naming one still matches (ADR-0075). The metric-log
+  keys are in `…/metric-log/infrastructure/http/cache-keys.ts`; a single resource's key names
+  every value the handler checks it against, as the single-log key names its metric
+- A list's `includeTotal` is `zStrictBooleanQuery` from `src/constants/zod/zod-rules.ts`: only
+  `true` or `false`. `z.coerce.boolean()` reads `"false"` as true; never use it for a query value
 - `cacheMiddleware` stores a response only when its status is 200, because a hit is always
   replayed as a 200. Errors are never cached (audit S1: a 404 was stored and came back as a 200).
   Do not put it on a route whose success status is anything else

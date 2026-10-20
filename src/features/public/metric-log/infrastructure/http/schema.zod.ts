@@ -5,6 +5,7 @@ import {
   zPositiveFloat,
   zUUID,
   zISODateTime,
+  zStrictBooleanQuery,
 } from "@/constants/zod/zod-rules.js";
 import { z } from "zod";
 import { ZodMessages } from "@/constants/zod/zod-messages.js";
@@ -22,17 +23,6 @@ const normalizedSearchParam = z
     (value) => value === undefined || value.length > 0,
     ZodMessages.common.searchQueryMin,
   );
-
-const strictBooleanQuery = z
-  .union([z.boolean(), z.string()])
-  .transform((value) => {
-    if (typeof value === "boolean") return value;
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true") return true;
-    if (normalized === "false") return false;
-    return value;
-  })
-  .pipe(z.boolean());
 
 const coerceNonNegativeNumber = z.preprocess((value) => {
   if (typeof value === "number") return value;
@@ -119,7 +109,7 @@ const listMetricCursorBase = z
       .transform((value) =>
         typeof value === "string" && value.trim().length ? value : undefined,
       ),
-    includeTotal: strictBooleanQuery.optional().default(false),
+    includeTotal: zStrictBooleanQuery.optional().default(false),
   })
   .strict();
 

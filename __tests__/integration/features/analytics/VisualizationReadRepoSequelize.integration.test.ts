@@ -478,4 +478,65 @@ describe("VisualizationReadRepoSequelize (integration)", () => {
     });
     expect(single.stats).toEqual(expected);
   });
+
+  // Kit query-values-mean-what-they-say, D-01 (register row B-43). A log of 0 is valid,
+  // and the dashboard decided a bucket by the truth of its average: a bucket averaging 0
+  // came back null, the same as one with no logs, while the single-metric path kept it.
+  it.each([
+    ["none", 0, null],
+    ["zero", 0, 0],
+  ] as const)(
+    "with fill=%s, keeps a zero average as %p and gives an empty bucket %p",
+    async (fill, zeroBucket, emptyBucket) => {
+      const {
+        user,
+        metrics: [seed],
+      } = await seedDashboardWithMetrics({
+        metrics: [
+          {
+            metricOverrides: { name: "Rest days" },
+            settingsOverrides: {
+              displayOptions: {
+                showOnDashboard: true,
+                priority: 1,
+                chartType: "line",
+                color: "#222222",
+              },
+            },
+            logs: [
+              { logValue: 0, loggedAt: new Date("2025-04-10T08:00:00Z") },
+              { logValue: 0, loggedAt: new Date("2025-04-10T12:00:00Z") },
+              { logValue: 5, loggedAt: new Date("2025-04-12T08:00:00Z") },
+            ],
+          },
+        ],
+      });
+      const range = {
+        userId: user.id,
+        organizationId: TEST_ORG_ID,
+        startISO: "2025-04-10T00:00:00Z",
+        endISO: "2025-04-13T00:00:00Z",
+        bucket: "1d" as const,
+        bucketSpec,
+        tz: "UTC",
+        fill,
+      };
+      const dashboard = await repo.fetchDashboardVisualization({
+        ...range,
+        limit: 5,
+      });
+      const single = await repo.fetchVisualization({
+        ...range,
+        metricId: seed.metric.id,
+      });
+
+      // By position: bucket labels are read in the server process's zone (register row
+      // B-65), so a date string would not match on every machine.
+      const values = (series: { value: number | null }[]) =>
+        series.map((p) => p.value);
+      for (const series of [dashboard.items[0].series, single.series]) {
+        expect(values(series)).toEqual([zeroBucket, emptyBucket, 5]);
+      }
+    },
+  );
 });

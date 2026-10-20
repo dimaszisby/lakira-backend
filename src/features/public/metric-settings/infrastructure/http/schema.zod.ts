@@ -9,6 +9,7 @@ import {
   zAlertThresholds,
   zAlertThresholdsOptional,
   zDisplayOptions,
+  zStrictBooleanQuery,
 } from "@/constants/zod/zod-rules.js";
 import { ZodMessages } from "@/constants/zod/zod-messages.js";
 import {
@@ -245,7 +246,7 @@ const metricSettingsCursorBase = z
       z.string().min(1).optional(),
     ),
     after: z.string().optional(),
-    includeTotal: z.coerce.boolean().default(false),
+    includeTotal: zStrictBooleanQuery.optional().default(false),
   })
   .strict();
 

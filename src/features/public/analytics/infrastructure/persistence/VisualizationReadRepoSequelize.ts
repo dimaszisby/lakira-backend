@@ -25,7 +25,7 @@ import type {
   SingleVizCacheKey,
   DashboardVizCacheKey,
 } from "../../application/ports/VisualizationCachePort.js";
-import type { VizResponse } from "../../domain/types.js";
+import type { FillMode, VizResponse } from "../../domain/types.js";
 import { createHash } from "node:crypto";
 
 type VizRow = {
@@ -67,6 +67,22 @@ type DashboardMetricRow = {
   metric_updated_at: string | null;
   metric_settings_updated_at: string | null;
   category_updated_at: string | null;
+};
+
+/**
+ * A bucket's point on a chart, decided by whether it has logs, not by the truth of its
+ * average: a log of 0 is valid, and the dashboard returned a bucket averaging 0 as null,
+ * the same as an empty one (kit query-values-mean-what-they-say, D-01). Both endpoints
+ * use this, so they cannot disagree on a bucket again.
+ */
+const bucketValue = (
+  row: { avg_value: number | string | null; cnt: number | string | null },
+  fill: FillMode,
+): number | null => {
+  if (Number(row.cnt ?? 0) > 0 && row.avg_value !== null) {
+    return Number(row.avg_value);
+  }
+  return fill === "zero" ? 0 : null;
 };
 
 export class VisualizationReadRepoSequelize implements VisualizationReadRepository {
@@ -111,7 +127,7 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
 
     const series = rows.map((r: VizRow) => ({
       bucketStartISO: new Date(r.bucket_start).toISOString(),
-      value: fill === "zero" ? (r.avg_value ?? 0) : (r.avg_value ?? null),
+      value: bucketValue(r, fill),
     }));
 
     const stats = summarizeBuckets(rows);
@@ -344,10 +360,7 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
 
     const series: DashboardVizItem["series"] = effectiveSeries.map((row) => ({
       bucketStartISO: new Date(row.bucket_start).toISOString(),
-      value:
-        input.fill === "zero"
-          ? Number(row.avg_value ?? 0)
-          : Number(row.avg_value ?? 0) || null,
+      value: bucketValue(row, input.fill),
     }));
 
     const stats = summarizeBuckets(effectiveSeries);

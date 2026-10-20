@@ -1,6 +1,6 @@
 # Todo — the feature-boundary rule stops at `src/features/`
 
-- **Status:** Closed on `fix/boundary-rules-everywhere`
+- **Status:** Closed in #194 (`fa7c497`)
   ([`boundary-rules-everywhere`](../initiatives/boundary-rules-everywhere/README.md) D-04,
   ADR-0074). Every file under `src` is checked; outside `src/features` a feature is entered by one
   door per purpose. Question 1 is answered with doors, not a blanket exemption; question 2 by the

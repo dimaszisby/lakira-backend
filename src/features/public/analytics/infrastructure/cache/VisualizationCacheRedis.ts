@@ -67,8 +67,12 @@ function vizKey(input: SingleVizCacheKey) {
   return `viz:${input.organizationId}:${input.userId}:${input.metricId}:${input.bucketIso}:${hash}`;
 }
 
+// Bumped when a dashboard response's values change meaning, so an entry written before is
+// never read. 2: a bucket averaging 0 is 0, not null (query-values-mean-what-they-say D-01).
+const DASHBOARD_RESPONSE_VERSION = 2;
+
 function vizDashKey(input: DashboardVizCacheKey) {
-  const raw = `${input.organizationId}|${input.userId}|${input.metricIds.join(",")}|${input.bucketIso}|${input.startISO}|${input.endISO}|${input.tz}|${input.fill}|${input.versionCursor ?? ""}`;
+  const raw = `v${DASHBOARD_RESPONSE_VERSION}|${input.organizationId}|${input.userId}|${input.metricIds.join(",")}|${input.bucketIso}|${input.startISO}|${input.endISO}|${input.tz}|${input.fill}|${input.versionCursor ?? ""}`;
   const hash = crypto
     .createHash("sha1")
     .update(raw)

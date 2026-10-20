@@ -36,10 +36,10 @@ describe("metricsCursorCacheKey", () => {
     );
   });
 
-  it("is org-scoped and on cache version 3", () => {
+  it("is org-scoped and on cache version 4", () => {
     const key = keyFor({ filter: { name: "run" } });
 
-    expect(key).toContain("cursor:metrics:v3:");
+    expect(key).toContain("cursor:metrics:v4:");
     expect(key).toContain(":org:org-1:");
     expect(key).toContain(":fn:run:");
   });

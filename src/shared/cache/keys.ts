@@ -14,8 +14,22 @@ const normalizeSegmentValue = (value: CursorCacheSegmentValue): string => {
     return String(value);
   }
   const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : "_";
+  return trimmed.length > 0 ? encodeSegmentText(trimmed) : "_";
 };
+
+/**
+ * A string segment, encoded so it can stand only for itself (kit
+ * query-values-mean-what-they-say, D-03; audit S12). Trimmed alone, a search holding `:`
+ * could shift into the next segment, `_` matched the empty sentinel, and `*` made a key
+ * read as a Redis pattern. `encodeURIComponent` takes `:`; `_` and `*`, which it leaves
+ * alone, are encoded by hand. An id, a number or a plain word comes out unchanged, so the
+ * invalidation patterns that name one still match.
+ */
+const encodeSegmentText = (text: string): string =>
+  encodeURIComponent(text).replace(
+    /[_*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 
 export const cursorCacheNamespace = (
   feature: string,
@@ -49,8 +63,9 @@ export const buildCursorCacheKey = ({
   organizationId: string | null | undefined;
   segments?: CursorCacheSegment[];
 }): string => {
-  const safeUser = normalizeSegmentValue(userId ?? "_");
-  const safeOrg = normalizeSegmentValue(organizationId ?? "_");
+  // A missing value is the "_" sentinel itself, not the text "_", which is encoded.
+  const safeUser = normalizeSegmentValue(userId);
+  const safeOrg = normalizeSegmentValue(organizationId);
   const parts = [
     cursorCacheNamespace(feature, version),
     safeUser,
