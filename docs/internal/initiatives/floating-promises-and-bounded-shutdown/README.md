@@ -1,9 +1,9 @@
 # Floating promises and bounded shutdown
 
-**Status:** Implemented on `fix/floating-promises-and-bounded-shutdown`; PR open. Register rows
-B-37 and B-38. D-01 to D-03 promoted to
+**Status:** Done. Merged as #196 (`4a0b21c`). Register rows B-37 and B-38. D-01 to D-03
+promoted to
 [ADR-0076](../../../explanation/decisions/adr-0076-promises-are-awaited-and-shutdown-has-a-deadline.md)
-(Proposed).
+(Accepted).
 **Slug:** `floating-promises-and-bounded-shutdown` · **Branch:**
 `fix/floating-promises-and-bounded-shutdown`
 

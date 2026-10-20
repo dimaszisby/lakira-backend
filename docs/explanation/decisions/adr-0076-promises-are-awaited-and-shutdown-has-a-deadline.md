@@ -1,6 +1,6 @@
 # ADR-0076 — A promise is awaited or handed off, and shutdown has one deadline
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-20
 - **Related:** [ADR-0054](./adr-0054-post-response-work-is-tracked-and-drained.md) (post-response
   work is tracked and drained; its § Consequences recorded the shutdown gap this closes);

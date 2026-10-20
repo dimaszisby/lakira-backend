@@ -1,6 +1,6 @@
 # Todo — what the S10 review left in the fork bootstrap
 
-- **Status:** Partly. Items 2, 3 and 11 and two parts of item 10 are fixed on `fix/fork-bootstrap-user-and-name` ([`fork-test-credentials` D-05](../initiatives/fork-test-credentials/decisions.md), register rows B-08 and B-09), not yet confirmed by a dated audit run. The rest are open, P3 (register row B-50)
+- **Status:** Partly. Items 2, 3 and 11 and two parts of item 10 are fixed on `fix/fork-bootstrap-user-and-name` ([`fork-test-credentials` D-05](../initiatives/fork-test-credentials/decisions.md), register rows B-08 and B-09), confirmed by the dated run of 2026-10-20 ([`audit-2026-10-20.md`](../audits/saas-readiness/audit-2026-10-20.md) § 4.2, W3 and T3, reproduced). The rest are open, P3 (register row B-50)
 - **Created:** 2026-10-12
 - **Owner:** unassigned
 - **Origin:** the security review of `fix/fork-db-password-loopback-ports`

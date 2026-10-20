@@ -51,7 +51,7 @@ Frequently needed:
 - `docs/explanation/decisions/` — 76 ADRs, one per file; check **Status** before trusting one
 - `docs/reference/api/lakira-backend-openapi.json` — generated, CI-drift-gated, never hand-edited
 
-`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` is the live risk status (as of 2026-10-12: GOLD WITH CAVEATS; no open P0 or P1; C6, C4 and C3 are confirmed closed on the routes ADR-012 names, and so is S9; one caveat is open: C5 at P2, a Sentry transaction carries the request's peer address when tracing is on; three P2 findings are open: that one, `JWT_SECRET` has no minimum length, and the fork bootstrap leaves `.env.test` on a different login when `DB_USER` in a hand-made `.env` is not the template's).
+`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` is the live risk status (as of 2026-10-20: GOLD WITH CAVEATS; no open P0; every caveat, C1 to C6, is confirmed closed on the routes ADR-012 names; two P1 findings block a clean GOLD, both in the queue worker: concurrent email jobs stall on the database connection pool (X62, B-75) and the consumer cancel does nothing, so a stopping worker keeps taking messages (X60, B-74); six P2 findings are open: X1, X20, X40, X41, X61, X63).
 
 ## Task Defaults
 
