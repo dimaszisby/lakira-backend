@@ -5,6 +5,26 @@ export const RETRY_COUNT_HEADER = "x-retry-count";
 /** Caps exponential backoff so a large RABBITMQ_MAX_RETRIES cannot schedule a retry days out. */
 export const MAX_RETRY_DELAY_MS = 300_000;
 
+/** The wait before retry number `retryCount + 1`: doubling from the base, up to the cap. */
+export const retryDelayMs = (retryCount: number, baseDelayMs: number): number =>
+  Math.min(baseDelayMs * 2 ** retryCount, MAX_RETRY_DELAY_MS);
+
+/**
+ * Every delay a message can wait, in order, each once. A retry waits in the queue of
+ * its delay (`retryQueueFor`), so this is also the set of retry queues a work queue
+ * can use (queue-design-hardening D-02).
+ */
+export const retryDelaysMs = (
+  maxRetries: number,
+  baseDelayMs: number,
+): number[] => [
+  ...new Set(
+    Array.from({ length: maxRetries }, (_, retryCount) =>
+      retryDelayMs(retryCount, baseDelayMs),
+    ),
+  ),
+];
+
 export type FailureDecision =
   | { action: "park"; reason: "terminal" | "exhausted" }
   | { action: "retry"; nextRetryCount: number; delayMs: number };
@@ -41,6 +61,6 @@ export const decideOnFailure = ({
   return {
     action: "retry",
     nextRetryCount: retryCount + 1,
-    delayMs: Math.min(baseDelayMs * 2 ** retryCount, MAX_RETRY_DELAY_MS),
+    delayMs: retryDelayMs(retryCount, baseDelayMs),
   };
 };

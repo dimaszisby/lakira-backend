@@ -4,6 +4,13 @@
 - **Date:** 2026-04-20
 - **Origin:** `ADR-002` in the RabbitMQ kit — [`rabbitmq`](../../internal/initiatives/rabbitmq/decisions.md)
 
+> **Status note (2026-10-20).** § Retry is amended by
+> [ADR-0073](./adr-0073-dedup-per-queue-and-retry-tiers.md): a retry waits in a queue of its own
+> delay, `<queue>.retry.<delayMs>`, with a queue TTL, instead of in `<queue>.retry` with a
+> per-message expiration. The head-of-line trade-off accepted below is removed. The objection to
+> `x-message-ttl` does not apply to a tier: its delay is in its name, so it is never redeclared
+> with another.
+
 ---
 
 ## Context

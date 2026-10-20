@@ -101,13 +101,14 @@ carries the same correlation id. It uses `AsyncLocalStorage` rather than a libra
 ## Queue topology
 
 A topic exchange with a parking-lot dead-letter exchange: a failed message waits out an
-exponential backoff in a per-queue retry queue, and one that fails past `RABBITMQ_MAX_RETRIES` —
-or fails terminally — is parked rather than dropped or infinitely redelivered.
+exponential backoff in a retry queue for its delay, one per delay so a short wait never queues
+behind a long one (ADR-0073), and one that fails past `RABBITMQ_MAX_RETRIES` — or fails
+terminally — is parked rather than dropped or infinitely redelivered.
 Publisher and consumer hold separate connections, so a blocked consumer cannot stall publishing
 ([ADR-0006](../decisions/adr-0006-separate-publisher-and-consumer-connections.md)).
 
 Redelivery makes at-least-once the default, so handlers must be idempotent. The
-`processed_messages` table records what has already been handled
+`processed_messages` table records what each queue has already handled
 ([ADR-0007](../decisions/adr-0007-processed-messages-table-for-idempotency.md)).
 
 ## What Redis holds

@@ -4,6 +4,7 @@ import {
   EXCHANGES,
   QUEUES,
   ROUTING_KEYS,
+  assertRetryTier,
   assertTopology,
   retryQueueFor,
 } from "@/shared/infrastructure/queue/topology.js";
@@ -40,7 +41,7 @@ const WORK_QUEUES = [
 // queue added later retries and parks exactly as the first one does.
 describe("assertTopology", () => {
   it.each(WORK_QUEUES)(
-    "declares %s with a retry queue and parking",
+    "declares %s with parking, and no single retry queue",
     async (queue, routingKey) => {
       const ch = fakeChannel();
       await assertTopology(ch as unknown as Channel);
@@ -50,13 +51,8 @@ describe("assertTopology", () => {
         durable: true,
         arguments: { "x-dead-letter-exchange": EXCHANGES.PARKING },
       });
-      expect(queues[retryQueueFor(queue)]).toEqual({
-        durable: true,
-        arguments: {
-          "x-dead-letter-exchange": "",
-          "x-dead-letter-routing-key": queue,
-        },
-      });
+      // One queue for every delay held a short wait behind a long one (D-02).
+      expect(queues[`${queue}.retry`]).toBeUndefined();
       expect(ch.bindQueue).toHaveBeenCalledWith(
         queue,
         EXCHANGES.JOBS,
@@ -75,5 +71,29 @@ describe("assertTopology", () => {
       EXCHANGES.PARKING,
       "#",
     );
+  });
+});
+
+// queue-design-hardening D-02 (audit 2026-09-29, R8): RabbitMQ expires only the
+// message at the head of a queue, so one retry queue with an expiry per message held
+// a 1 s wait behind a 300 s one. Each delay now waits in a queue of its own.
+describe("assertRetryTier", () => {
+  it("declares one queue per delay, every message in it waiting the same time", async () => {
+    const ch = fakeChannel();
+    const queue = QUEUES.AUTH_SEND_INVITE_EMAIL;
+    await assertRetryTier(ch as unknown as Channel, queue, 400);
+
+    expect(retryQueueFor(queue, 400)).toBe(`${queue}.retry.400`);
+    expect(declared(ch)).toEqual({
+      [`${queue}.retry.400`]: {
+        durable: true,
+        arguments: {
+          "x-message-ttl": 400,
+          "x-dead-letter-exchange": "",
+          "x-dead-letter-routing-key": queue,
+        },
+      },
+    });
+    expect(ch.bindQueue).not.toHaveBeenCalled();
   });
 });

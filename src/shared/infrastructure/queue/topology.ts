@@ -19,12 +19,41 @@ export const QUEUES = {
   PARKING: `${APP_SHORT_NAME}.jobs.parking.queue`,
 } as const;
 
-/** Where a failed message waits out its backoff before returning to `queue` (ADR-0005). */
-export const retryQueueFor = (queue: string): string => `${queue}.retry`;
+/**
+ * Where a failed message waits out a backoff of `delayMs` before returning to `queue`
+ * (ADR-0005, ADR-0073). One queue per delay: RabbitMQ expires only the message at the
+ * head of a queue, so a single retry queue with an expiry on each message held a short
+ * wait behind a long one.
+ */
+export const retryQueueFor = (queue: string, delayMs: number): string =>
+  `${queue}.retry.${delayMs}`;
 
 /**
- * A queue a consumer reads, bound to the jobs exchange, with its retry queue. Every
- * work queue is declared here, so no two can differ in how they retry or park.
+ * The retry queue for one delay. Every message in it waits the same time, the queue's
+ * own TTL, so it stays in order. On expiry it dead-letters through the default exchange
+ * straight back to the queue that failed it, not through the jobs exchange to every
+ * queue bound to its routing key. No consumer reads it. The consumer declares the tier
+ * before it republishes (idempotent), so a new delay needs no topology change.
+ */
+export const assertRetryTier = async (
+  channel: Pick<Channel, "assertQueue">,
+  queue: string,
+  delayMs: number,
+): Promise<void> => {
+  await channel.assertQueue(retryQueueFor(queue, delayMs), {
+    durable: true,
+    arguments: {
+      "x-message-ttl": delayMs,
+      "x-dead-letter-exchange": "",
+      "x-dead-letter-routing-key": queue,
+    },
+  });
+};
+
+/**
+ * A queue a consumer reads, bound to the jobs exchange and dead-lettering to parking.
+ * Every work queue is declared here, so no two can differ in how they park. Its retry
+ * queues are declared as they are needed (`assertRetryTier`).
  */
 export const assertWorkQueue = async (
   channel: Channel,
@@ -38,18 +67,6 @@ export const assertWorkQueue = async (
     },
   });
   await channel.bindQueue(queue, EXCHANGES.JOBS, routingKey);
-
-  // Retry queue — no consumer. Each message carries its own expiration (the backoff delay).
-  // On expiry it dead-letters through the default exchange straight back to the queue that
-  // failed it, not through the jobs exchange to every queue bound to its routing key.
-  // No x-message-ttl: a queue argument cannot change without redeclaring the queue.
-  await channel.assertQueue(retryQueueFor(queue), {
-    durable: true,
-    arguments: {
-      "x-dead-letter-exchange": "",
-      "x-dead-letter-routing-key": queue,
-    },
-  });
 };
 
 export const assertTopology = async (channel: Channel): Promise<void> => {

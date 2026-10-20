@@ -23,9 +23,11 @@ import {
   EXCHANGES,
   QUEUES,
   ROUTING_KEYS,
+  assertRetryTier,
   assertTopology,
   retryQueueFor,
 } from "@/shared/infrastructure/queue/topology.js";
+import { retryDelaysMs } from "@/shared/infrastructure/queue/retryPolicy.js";
 
 /**
  * The queued path of POST /metric-logs/:metricId/dummy: publisher → jobs exchange →
@@ -48,7 +50,15 @@ const POLL_INTERVAL_MS = 50;
 // Short, so a full retry cycle fits inside POLL_TIMEOUT_MS. The backoff arithmetic is
 // unit-tested; these tests prove the loop against the broker.
 const RETRY_BASE_DELAY_MS = 50;
-const RETRY_QUEUE = retryQueueFor(QUEUES.METRIC_LOG_GENERATE_DUMMY);
+// One retry queue per delay (queue-design-hardening D-02): every one this file's
+// consumer can use. The inspector declares them, so a purge or a depth check finds each.
+const RETRY_DELAYS_MS = retryDelaysMs(
+  env.RABBITMQ_MAX_RETRIES,
+  RETRY_BASE_DELAY_MS,
+);
+const RETRY_QUEUES = RETRY_DELAYS_MS.map((ms) =>
+  retryQueueFor(QUEUES.METRIC_LOG_GENERATE_DUMMY, ms),
+);
 
 const pollUntil = async <T>(
   what: string,
@@ -103,6 +113,14 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
   const depth = async (queue: string) => {
     const { messageCount, consumerCount } = await inspector.checkQueue(queue);
     return { messageCount, consumerCount };
+  };
+
+  /** Messages waiting in any of the retry queues. */
+  const retryDepth = async () => {
+    let waiting = 0;
+    for (const queue of RETRY_QUEUES)
+      waiting += (await depth(queue)).messageCount;
+    return waiting;
   };
 
   const rowCount = (metricId: string) =>
@@ -170,7 +188,11 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
     publisher = new RabbitMQPublisher();
     inspector = connectRabbitMQ().createChannel({
       name: "test-inspector",
-      setup: (ch: Channel) => assertTopology(ch),
+      setup: async (ch: Channel) => {
+        await assertTopology(ch);
+        for (const ms of RETRY_DELAYS_MS)
+          await assertRetryTier(ch, QUEUES.METRIC_LOG_GENERATE_DUMMY, ms);
+      },
     });
     await inspector.waitForConnect();
 
@@ -192,7 +214,7 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
     // A message left behind by an aborted earlier run must not leak into this one.
     await inspector.purgeQueue(QUEUES.METRIC_LOG_GENERATE_DUMMY);
     await inspector.purgeQueue(QUEUES.PARKING);
-    await inspector.purgeQueue(RETRY_QUEUE);
+    for (const queue of RETRY_QUEUES) await inspector.purgeQueue(queue);
     invocations = 0;
 
     const { consumerCount } = await depth(QUEUES.METRIC_LOG_GENERATE_DUMMY);
@@ -420,6 +442,32 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
   });
 
   describe("retry policy (ADR-0005)", () => {
+    // queue-design-hardening D-03 (audit 2026-09-29, R8): count drives the write loop,
+    // and the job was cast, not checked. Over the HTTP route's limit, it parks unread.
+    it.each([
+      ["over the HTTP route's limit", 1001],
+      ["not a whole number", 2.5],
+    ])(
+      "parks a job whose count is %s at once, writing nothing",
+      async (_case, count) => {
+        const { metricId, messageId, payload } = await ownedJob(count);
+
+        await publishJob(payload, messageId);
+        startConsumer();
+        await pollUntil(
+          "the invalid job to reach the parking lot",
+          () => depth(QUEUES.PARKING),
+          (d) => d.messageCount === 1,
+        );
+        await stopConsumer();
+
+        expect(invocations).toBe(1);
+        expect(await retryDepth()).toBe(0);
+        expect(await rowCount(metricId)).toBe(0);
+        expect(await models.ProcessedMessage.count()).toBe(0);
+      },
+    );
+
     it("retries a failure that clears and writes exactly one set of rows", async () => {
       const { metricId, messageId, payload } = await ownedJob(4);
 
@@ -447,7 +495,7 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
       expect((await depth(QUEUES.METRIC_LOG_GENERATE_DUMMY)).messageCount).toBe(
         0,
       );
-      expect((await depth(RETRY_QUEUE)).messageCount).toBe(0);
+      expect(await retryDepth()).toBe(0);
       expect((await depth(QUEUES.PARKING)).messageCount).toBe(0);
     });
 
@@ -479,7 +527,7 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
       expect((await depth(QUEUES.METRIC_LOG_GENERATE_DUMMY)).messageCount).toBe(
         0,
       );
-      expect((await depth(RETRY_QUEUE)).messageCount).toBe(0);
+      expect(await retryDepth()).toBe(0);
       expect(await rowCount(metricId)).toBe(0);
       expect(
         await models.ProcessedMessage.count({ where: { messageId } }),
@@ -515,7 +563,7 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
       expect(invocations).toBe(1);
       const parked = await takeParked();
       expect(parked.properties.headers?.["x-retry-count"] ?? 0).toBe(0);
-      expect((await depth(RETRY_QUEUE)).messageCount).toBe(0);
+      expect(await retryDepth()).toBe(0);
       expect(await rowCount(metric.id)).toBe(0);
     });
 
@@ -546,7 +594,7 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
       }
 
       expect(invocations).toBe(1);
-      expect((await depth(RETRY_QUEUE)).messageCount).toBe(0);
+      expect(await retryDepth()).toBe(0);
       expect(await rowCount(metricId)).toBe(0);
       expect(await models.ProcessedMessage.count()).toBe(0);
     });
@@ -571,7 +619,7 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
       expect(invocations).toBe(1);
       const parked = await takeParked();
       expect(parked.properties.headers?.["x-retry-count"]).toBeUndefined();
-      expect((await depth(RETRY_QUEUE)).messageCount).toBe(0);
+      expect(await retryDepth()).toBe(0);
       expect((await depth(QUEUES.METRIC_LOG_GENERATE_DUMMY)).messageCount).toBe(
         0,
       );

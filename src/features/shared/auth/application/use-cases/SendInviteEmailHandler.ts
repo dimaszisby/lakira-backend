@@ -1,5 +1,9 @@
 import logger from "@/utils/logger.js";
 import { TerminalMessageError } from "@/shared/application/errors/TerminalMessageError.js";
+import {
+  isUuid,
+  readJobBody,
+} from "@/shared/application/messaging/job-body.js";
 import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import type {
   IncomingMessage,
@@ -9,8 +13,6 @@ import type {
   InviteEmailJob,
   InviteUserToOrganization,
 } from "./InviteUserToOrganization.js";
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** What `src/worker.ts` runs for each invite email job (ADR-0070). */
 export class SendInviteEmailHandler {
@@ -41,17 +43,8 @@ export class SendInviteEmailHandler {
 
 /** A message no retry can fix parks at once. */
 const parseJob = (content: Buffer): InviteEmailJob => {
-  let body: unknown;
-  try {
-    body = JSON.parse(content.toString());
-  } catch (error) {
-    throw new TerminalMessageError("Refusing message with malformed JSON.", {
-      cause: error,
-    });
-  }
-
-  const inviteId = (body as { inviteId?: unknown } | null)?.inviteId;
-  if (typeof inviteId !== "string" || !UUID.test(inviteId)) {
+  const { inviteId } = readJobBody(content);
+  if (!isUuid(inviteId)) {
     throw new TerminalMessageError(
       "Refusing invite email job without an invite id.",
     );

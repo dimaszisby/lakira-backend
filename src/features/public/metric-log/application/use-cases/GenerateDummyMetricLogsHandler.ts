@@ -1,6 +1,11 @@
 import logger from "@/utils/logger.js";
 import { TerminalMessageError } from "@/shared/application/errors/TerminalMessageError.js";
 import {
+  isUuid,
+  readJobBody,
+} from "@/shared/application/messaging/job-body.js";
+import { MAX_DUMMY_METRIC_LOGS } from "./GenerateDummyMetricLogs.js";
+import {
   DomainError,
   type DomainErrorKind,
 } from "@/shared/domain/errors/DomainError.js";
@@ -23,6 +28,37 @@ type JobPayload = {
 
 const TYPES: Array<"manual" | "automatic"> = ["manual", "automatic"];
 
+/**
+ * The job as GenerateDummyMetricLogs publishes it, or a terminal error. `count` drives a
+ * loop that writes a row each time, so it is held to the HTTP route's own limit
+ * (queue-design-hardening D-03; audit 2026-09-29, R8).
+ */
+const parseJob = (content: Buffer): JobPayload => {
+  const body = readJobBody(content);
+  const { jobId, userId, organizationId, metricId, count } = body;
+  if (
+    !isUuid(jobId) ||
+    !isUuid(userId) ||
+    !isUuid(organizationId) ||
+    !isUuid(metricId)
+  ) {
+    throw new TerminalMessageError(
+      "Refusing dummy-logs job without its ids as UUIDs.",
+    );
+  }
+  if (
+    typeof count !== "number" ||
+    !Number.isInteger(count) ||
+    count < 1 ||
+    count > MAX_DUMMY_METRIC_LOGS
+  ) {
+    throw new TerminalMessageError(
+      `Refusing dummy-logs job whose count is not a whole number from 1 to ${MAX_DUMMY_METRIC_LOGS}.`,
+    );
+  }
+  return { jobId, userId, organizationId, metricId, count };
+};
+
 /** Access rejections that will not change on retry; any other failure may be transient. */
 const TERMINAL_ACCESS_KINDS: ReadonlySet<DomainErrorKind> = new Set([
   "unauthorized",
@@ -39,15 +75,7 @@ export class GenerateDummyMetricLogsHandler {
   ) {}
 
   async handle(msg: IncomingMessage, { queue }: MessageContext): Promise<void> {
-    let payload: JobPayload;
-    try {
-      payload = JSON.parse(msg.content.toString()) as JobPayload;
-    } catch (error) {
-      throw new TerminalMessageError("Refusing message with malformed JSON.", {
-        cause: error,
-      });
-    }
-    const { userId, organizationId, metricId, count } = payload;
+    const { userId, organizationId, metricId, count } = parseJob(msg.content);
     const messageId = msg.properties.messageId as unknown;
 
     try {

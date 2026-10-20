@@ -4,8 +4,9 @@ import { Model, DataTypes, Sequelize, Optional } from "sequelize";
  * ADR-0007 dedup record. Shared queue infrastructure, owned by no feature.
  *
  * Mirrors 20260420000000-create-processed-messages plus the nullable organization_id
- * added by 20260510000005. The table has no created_at/updated_at, so timestamps must
- * stay off despite the global default in db.ts.
+ * added by 20260510000005, keyed on (message_id, queue) since 20261020000001: a message
+ * is processed once per queue it reaches (ADR-0073). The table has no
+ * created_at/updated_at, so timestamps must stay off despite the global default in db.ts.
  */
 export interface ProcessedMessageAttributes {
   messageId: string;
@@ -38,6 +39,7 @@ export class ProcessedMessage
         },
         queue: {
           type: DataTypes.STRING(255),
+          primaryKey: true,
           allowNull: false,
         },
         organizationId: {

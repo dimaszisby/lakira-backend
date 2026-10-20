@@ -109,11 +109,12 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0069](./adr-0069-the-password-reset-email-is-a-queued-job.md)                 | The password-reset email is a queued job                                                                         | Accepted                                            | 2026-10-19 | durable-password-reset-email D-01..04   |
 | [ADR-0070](./adr-0070-the-invite-email-is-a-queued-job.md)                         | The invite email is a queued job                                                                                 | Accepted                                            | 2026-10-19 | durable-invite-email D-01..04           |
 | [ADR-0071](./adr-0071-sentry-11-collects-nothing-on-its-own.md)                    | Sentry 11 collects nothing on its own                                                                            | Accepted                                            | 2026-10-20 | sentry-11-data-collection D-01..05      |
-| [ADR-0072](./adr-0072-features-are-handed-to-their-routers.md)                     | Features are handed to their routers                                                                             | Proposed                                            | 2026-10-20 | inject-features-into-routers D-01..05   |
+| [ADR-0072](./adr-0072-features-are-handed-to-their-routers.md)                     | Features are handed to their routers                                                                             | Accepted                                            | 2026-10-20 | inject-features-into-routers D-01..05   |
+| [ADR-0073](./adr-0073-dedup-per-queue-and-retry-tiers.md)                          | A message is deduplicated per queue, and a retry waits in the queue of its delay                                 | Proposed                                            | 2026-10-20 | queue-design-hardening D-01..03         |
 
 ## Adding one
 
-Take the next free number — **ADR-0073** as of 2026-10-20 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0074** as of 2026-10-20 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 
