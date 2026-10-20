@@ -8,6 +8,12 @@
 - **Origin:** `D-01` to `D-05` in the drainable-background-work kit —
   [`drainable-background-work`](../../internal/initiatives/drainable-background-work/decisions.md)
 
+> **Status note (2026-10-20).** The shutdown gap in § Consequences is closed by
+> [ADR-0076](./adr-0076-promises-are-awaited-and-shutdown-has-a-deadline.md): `server.close()`
+> is bounded at 5 s, the whole shutdown at 25 s, and a second call joins the first. The drain
+> and its 10 s are unchanged. The rule that work nobody awaits goes through `runInBackground` is
+> now enforced by lint.
+
 > **Status note (2026-10-18).** Partly superseded by
 > [ADR-0067](./adr-0067-the-verification-email-is-a-queued-job.md): with `RABBITMQ_ENABLED=true`
 > the verification email is a job the worker sends, retried and parked by the consumer. The

@@ -176,8 +176,9 @@ const invalidateCacheByPattern = async (pattern: string) => {
   }
 };
 
-// Auto-connect on import
-connectRedis();
+// Auto-connect on import. Nothing awaits it: it catches its own failure, and
+// the client's error handler decides whether the process exits.
+void connectRedis();
 
 export {
   redisClient,

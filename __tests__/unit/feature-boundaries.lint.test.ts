@@ -41,6 +41,12 @@ const reportedLines = (
         // type information.
         "--parser-options",
         "project:false",
+        // The rules that do need it would stop ESLint before it reports anything
+        // (ADR-0076); promise-rules.lint.test.ts covers them.
+        "--rule",
+        "@typescript-eslint/no-floating-promises: off",
+        "--rule",
+        "@typescript-eslint/no-misused-promises: off",
         "--format",
         "json",
       ],

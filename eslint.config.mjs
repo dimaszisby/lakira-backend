@@ -336,6 +336,10 @@ export default [
       indent: "off", // Delegate indentation entirely to Prettier
       "prettier/prettier": "error", // Ensure Prettier formatting
       "no-restricted-imports": ["error", { patterns: LEGACY_IMPORT_PATTERNS }],
+      // A promise is awaited, handed to runInBackground, caught, or marked void
+      // with a comment saying why (ADR-0076).
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": "error",
     },
   },
   // Boundary rules (ADR-0044, ADR-0058, ADR-0074). Most general first: a later block that
