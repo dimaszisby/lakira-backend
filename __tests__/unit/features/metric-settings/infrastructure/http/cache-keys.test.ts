@@ -32,10 +32,10 @@ describe("metricSettingsCursorCacheKey", () => {
     );
   });
 
-  it("is org-scoped and on cache version 3", () => {
+  it("is org-scoped and on cache version 4", () => {
     const key = keyFor({ filter: { metricId: METRIC } });
 
-    expect(key).toContain("cursor:metric-settings:v3:");
+    expect(key).toContain("cursor:metric-settings:v4:");
     expect(key).toContain(":org:org-1:");
     expect(key).toContain(`:fm:${METRIC}:`);
   });

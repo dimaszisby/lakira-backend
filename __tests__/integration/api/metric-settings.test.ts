@@ -74,6 +74,26 @@ describe("Metric Settings API", () => {
     expect(res.body.data).toHaveProperty("totalCount");
   });
 
+  // query-values-mean-what-they-say D-02 (register row B-44): "false" meant true.
+  it.each([
+    ["false", 200, false],
+    ["true", 200, true],
+    ["yes", 400, false],
+  ])(
+    "lists with includeTotal=%s: answers %i, with a total %p",
+    async (includeTotal, status, hasTotal) => {
+      const res = await api
+        .get("/api/v1/metric-settings")
+        .set("Authorization", authHeader(token))
+        .query({ "filter[metricId]": metricId, includeTotal });
+
+      expect(res.status).toBe(status);
+      if (status === 200) {
+        expect("totalCount" in res.body.data).toBe(hasTotal);
+      }
+    },
+  );
+
   it("retrieves settings by id", async () => {
     const res = await api
       .get(`/api/v1/metric-settings/${baseSettingsId}`)

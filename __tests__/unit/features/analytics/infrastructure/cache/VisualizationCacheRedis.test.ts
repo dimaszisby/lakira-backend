@@ -64,7 +64,9 @@ const dashKey: DashboardVizCacheKey = {
 // that actually pins the key shape.
 const EXPECTED_SINGLE_KEY =
   "viz:org-test-id:user-1:metric-2:1d:pXpViiRLk2z5YFNX";
-const EXPECTED_DASH_KEY = "vizdash:org-test-id:user-1:1w:IKL0H2G-8jiA2oxa";
+// The hash moved when the dashboard key gained its response version
+// (query-values-mean-what-they-say D-01): an entry written before is never read.
+const EXPECTED_DASH_KEY = "vizdash:org-test-id:user-1:1w:xP4vVE9eYFmtq1Ra";
 
 const computeSingleCacheKey = () => EXPECTED_SINGLE_KEY;
 const computeDashCacheKey = () => EXPECTED_DASH_KEY;

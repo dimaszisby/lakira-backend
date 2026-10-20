@@ -73,7 +73,11 @@ describe("MetricLogCacheRedis", () => {
       "logStats:org-1:user-1:metric-2",
     );
     expect(invalidateCache).toHaveBeenCalledWith("logStats:org-1:user-1:all");
-    expect(invalidateCache).toHaveBeenCalledWith("log:org-1:user-1:log-3");
+    // The single-log key names the metric it was read under, so every metric's
+    // entry for the log goes (query-values-mean-what-they-say D-05).
+    expect(invalidateCacheByPattern).toHaveBeenCalledWith(
+      "log:org-1:user-1:log-3:*",
+    );
     expect(vizInvalidator.invalidateByMetric).toHaveBeenCalledWith(
       "user-1",
       "org-1",
@@ -96,6 +100,9 @@ describe("MetricLogCacheRedis", () => {
     expect(invalidateCache).toHaveBeenCalledWith("logStats:org-9:user-9:all");
     expect(invalidateCache).not.toHaveBeenCalledWith(
       "log:org-9:user-9:metric-7",
+    );
+    expect(invalidateCacheByPattern).not.toHaveBeenCalledWith(
+      expect.stringMatching(/^log:/),
     );
     expect(logCacheInvalidation).toHaveBeenCalledWith("metric-log-cache", {
       userId: "user-9",

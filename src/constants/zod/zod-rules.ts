@@ -253,3 +253,20 @@ export const zPositiveFloat = z
 export const zLogType = z.enum(["manual", "automatic"], {
   required_error: ZodMessages.metricLog.logTypeInvalid,
 });
+
+/**
+ * A query-string boolean: `true` or `false`, in any case, around any spaces. Anything else
+ * is refused, never read as true. `z.coerce.boolean()` is `Boolean(value)`, so `"false"`
+ * and `"0"` meant true on the metric-settings list (kit query-values-mean-what-they-say,
+ * D-02). Every list's `includeTotal` uses this one.
+ */
+export const zStrictBooleanQuery = z
+  .union([z.boolean(), z.string()])
+  .transform((value) => {
+    if (typeof value === "boolean") return value;
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+    return value;
+  })
+  .pipe(z.boolean());

@@ -8,6 +8,7 @@ import {
   zMetricDefaultUnit,
   zMetricIsPublic,
   zMetricOriginalId,
+  zStrictBooleanQuery,
 } from "@/constants/zod/zod-rules.js";
 import { ZodMessages } from "@/constants/zod/zod-messages.js";
 
@@ -23,17 +24,6 @@ const normalizedSearchParam = z
     (value) => value === undefined || value.length > 0,
     ZodMessages.common.searchQueryMin,
   );
-
-const strictBooleanQuery = z
-  .union([z.boolean(), z.string()])
-  .transform((value) => {
-    if (typeof value === "boolean") return value;
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true") return true;
-    if (normalized === "false") return false;
-    return value;
-  })
-  .pipe(z.boolean());
 
 const filterObject = z
   .object({
@@ -121,7 +111,7 @@ const listMetricQueryRaw = z
       const trimmed = value.trim();
       return trimmed.length ? trimmed : undefined;
     }),
-    includeTotal: strictBooleanQuery.optional().default(false),
+    includeTotal: zStrictBooleanQuery.optional().default(false),
   })
   .merge(FilterSchema)
   .strict();

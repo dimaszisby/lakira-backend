@@ -1,8 +1,8 @@
 # Boundary rules everywhere
 
-**Status:** Implemented on `fix/boundary-rules-everywhere`; PR open. Register rows B-28 (audit
+**Status:** Done, merged in #194 (`fa7c497`). Register rows B-28 (audit
 2026-10-12, W6) and B-29. D-01 to D-07 promoted to
-[ADR-0074](../../../explanation/decisions/adr-0074-boundary-rules-cover-all-of-src.md) (Proposed).
+[ADR-0074](../../../explanation/decisions/adr-0074-boundary-rules-cover-all-of-src.md) (Accepted).
 **Slug:** `boundary-rules-everywhere` · **Branch:** `fix/boundary-rules-everywhere`
 
 - [Plan](boundary-rules-everywhere-plan.md) — goals, acceptance criteria, phases

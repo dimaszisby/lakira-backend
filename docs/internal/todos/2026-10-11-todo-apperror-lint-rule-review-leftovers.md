@@ -1,6 +1,6 @@
 # Todo — what the review of the `AppError` lint rule left open
 
-- **Status:** Closed. Items 2, 5 and 6 fixed on `fix/boundary-rules-everywhere`
+- **Status:** Closed. Items 2, 5 and 6 fixed in #194 (`fa7c497`)
   ([`boundary-rules-everywhere`](../initiatives/boundary-rules-everywhere/README.md), ADR-0074);
   item 3 moved to `2026-10-20-todo-alias-paths-survive-the-build.md` (register row B-73). Items 1
   and 4 were fixed earlier

@@ -1,6 +1,6 @@
 # ADR-0074 — The boundary rules cover all of `src`, and the inner layers import from an allowlist
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #194, `fa7c497`)
 - **Date:** 2026-10-20
 - **Related:** Extends [ADR-0044](./adr-0044-feature-boundaries-and-their-frozen-exceptions.md)
   (feature boundaries) and [ADR-0058](./adr-0058-inner-layers-and-shared-code-import-rules.md)

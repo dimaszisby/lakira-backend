@@ -135,4 +135,35 @@ describe("metric-settings schemas", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  // Kit query-values-mean-what-they-say, D-02 (register row B-44). z.coerce.boolean is
+  // Boolean(value), so "false" and "0" meant true and a client that asked for no total
+  // paid for the count. Now as strict as the other three lists.
+  describe("includeTotal", () => {
+    const includeTotal = (value?: string) =>
+      listMetricSettingsViaCursorSchema.shape.query.safeParse(
+        value === undefined ? {} : { includeTotal: value },
+      );
+
+    it.each([
+      ["false", false],
+      ["FALSE", false],
+      [" false ", false],
+      ["true", true],
+      ["True", true],
+    ])("reads %p as %p", (value, expected) => {
+      const parsed = includeTotal(value);
+      expect(parsed.success).toBe(true);
+      expect(parsed.success && parsed.data.includeTotal).toBe(expected);
+    });
+
+    it("is false when it is not sent", () => {
+      const parsed = includeTotal();
+      expect(parsed.success && parsed.data.includeTotal).toBe(false);
+    });
+
+    it.each(["0", "1", "yes", ""])("refuses %p", (value) => {
+      expect(includeTotal(value).success).toBe(false);
+    });
+  });
 });

@@ -51,7 +51,11 @@ export class MetricLogCacheRedis implements CachePort {
       );
 
       if (logId) {
-        await invalidateCache(`log:${organizationId}:${userId}:${logId}`);
+        // Every metric's entry for the log: the key names the metric it was read
+        // under (query-values-mean-what-they-say D-05).
+        await invalidateCacheByPattern(
+          `log:${organizationId}:${userId}:${logId}:*`,
+        );
       }
 
       logCacheInvalidation("metric-log-cache", {

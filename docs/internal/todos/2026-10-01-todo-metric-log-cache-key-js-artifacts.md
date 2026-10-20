@@ -1,6 +1,8 @@
 # Todo — metric-log cache keys use literal `.js` placeholders
 
-- **Status:** Open (P3)
+- **Status:** Closed on `fix/query-values-mean-what-they-say`
+  ([`query-values-mean-what-they-say`](../initiatives/query-values-mean-what-they-say/README.md),
+  ADR-0075). Reproduced by a test first
 - **Created:** 2026-10-01
 - **Owner:** unassigned
 - **Origin:** kit `list-cache-key-filters` (checklist § Discovered)
