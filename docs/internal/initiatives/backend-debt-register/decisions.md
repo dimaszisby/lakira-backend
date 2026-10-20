@@ -106,3 +106,26 @@ which rows it skips.
 remains" alone: rejected, the register is to list every open item. Mark it `kept on purpose`, as
 B-26 is: rejected, B-26 is a choice this repository made and these are not.
 **Consequences.** B-25 is no longer the top ready row; B-27 is.
+
+---
+
+## D-05 — A P1 that blocks a clean GOLD ranks in tier 1
+
+- **Status:** Proposed
+- **Date:** 2026-10-20
+
+**Context.** The dated run of 2026-10-20 (`saas-reaudit-2026-10-20` D-03 and D-04) closed every
+caveat and found two P1 findings in the queue worker, X60 and X62, which block a clean GOLD by
+that kit's D-03. D-01 has no tier for them. Tier 1 is "a route that keeps an audit caveat open,
+because it blocks a clean GOLD", and they keep no caveat open. Tier 2 is for a P1 owed to the
+frontend, and they are not. Read literally, they fall to no tier. Read by severity alone, they
+would rank under the frontend's P2 rows and above nothing else.
+**Decision.** Tier 1 holds any row that blocks a clean GOLD under the verdict rule of the latest
+dated run: a route that keeps a caveat open, or a P1 finding that run held to block a restated
+GOLD. The other tiers are unchanged.
+**Options considered.** Putting them in tier 2 beside the frontend's rows: rejected, nobody is
+waiting on them, and tier 2 means someone is. A new tier between 1 and 2: rejected, D-01's tier 1
+already names the reason, blocking GOLD, and the fix is to let the reason decide rather than the
+example.
+**Consequences.** X60 and X62 head the register as B-74 and B-75, the smaller first. The next
+dated run that restates GOLD empties tier 1 again.

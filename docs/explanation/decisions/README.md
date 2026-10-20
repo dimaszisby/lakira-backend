@@ -113,7 +113,7 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0073](./adr-0073-dedup-per-queue-and-retry-tiers.md)                          | A message is deduplicated per queue, and a retry waits in the queue of its delay                                 | Accepted                                            | 2026-10-20 | queue-design-hardening D-01..03                 |
 | [ADR-0074](./adr-0074-boundary-rules-cover-all-of-src.md)                          | The boundary rules cover all of `src`, and the inner layers import from an allowlist                             | Accepted                                            | 2026-10-20 | boundary-rules-everywhere D-01..07              |
 | [ADR-0075](./adr-0075-cache-keys-encode-and-include-total-is-strict.md)            | A cache key encodes what it is given, and a list's `includeTotal` is strict                                      | Accepted                                            | 2026-10-20 | query-values-mean-what-they-say D-01..05        |
-| [ADR-0076](./adr-0076-promises-are-awaited-and-shutdown-has-a-deadline.md)         | A promise is awaited or handed off, and shutdown has one deadline                                                | **Proposed**                                        | 2026-10-20 | floating-promises-and-bounded-shutdown D-01..03 |
+| [ADR-0076](./adr-0076-promises-are-awaited-and-shutdown-has-a-deadline.md)         | A promise is awaited or handed off, and shutdown has one deadline                                                | Accepted                                            | 2026-10-20 | floating-promises-and-bounded-shutdown D-01..03 |
 
 ## Adding one
 

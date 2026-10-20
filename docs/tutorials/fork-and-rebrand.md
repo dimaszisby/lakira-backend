@@ -111,22 +111,19 @@ docs/explanation/product-requirements.md
 The script removed `docs/internal/`, which held the upstream SaaS-readiness audit — the honest
 assessment of this template. To read it, re-run step 2 with `--keep-internal` on a fresh copy, or
 read it in the upstream repository; its live status is
-`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of 2026-10-12 it lists
-**no open P0 or P1 findings**. One of its six caveats is open, kept open by an independent
-grader. C5 (P2): with tracing on, a Sentry transaction carries the request's peer address; the
-scrubber cleans the URL, the user, breadcrumbs and exception values. C6, C4 and C3 closed in that
-run: a rejected connection URL is no longer printed, `DB_LOGGING` is refused in production, the
-lint rule that guards the domain layer rejects every import spelling, and the spec documents a 429
-on every operation. Two more P2 findings were open at that run. `JWT_SECRET` was accepted at any
-length; since then startup refuses one under 32 characters, and the template's placeholder, in
-staging and production, which no dated run has confirmed yet. Set a long random one in every
-deployment. And the bootstrap script mishandled two inputs: a hand-made
-`.env` whose `DB_USER` is not the template's left `.env.test` on a different login, and a name
-that contains `lakira` was renamed twice. Since then `.env.test` takes the user as well as the
-password, and such a name is refused, which no dated run has confirmed yet. The script generates `JWT_SECRET` and the database
-password, not the Redis or RabbitMQ credentials (step 3). Other open findings are P2/P3 hardening
-(for example request-id propagation across RabbitMQ, and an unbounded
-date range on `/metric-logs/stats`).
+`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of 2026-10-20 it lists
+**no open P0 finding**, and all six of its caveats are closed, each confirmed by an independent
+grader and a reproduction. Two **P1** findings are open, both in the queue worker, and matter only
+if you run it (`RABBITMQ_ENABLED=true`). Concurrent email jobs can stall for a minute on the
+database connection pool, which has Sequelize's default of five connections. And a stopping worker
+keeps taking messages until its channel closes. Six P2 findings are open. A production database
+connection may run with TLS verification off, and `.env.example` sets
+`DB_SSL_REJECT_UNAUTHORIZED=false`, so set it to `true` wherever the database has a certificate. A
+database failure inside the auth middleware answers 401 rather than 5xx. A broker whose queue
+declarations differ from the code's takes the API process down. `/metric-logs/stats` fails past
+about 150,000 logs. And two lint rules that guard the domain layer can be stepped around. The
+script generates `JWT_SECRET` and the database password, not the Redis or RabbitMQ credentials
+(step 3). Other open findings are P3 hardening.
 
 The two findings that used to sit here are **closed**:
 

@@ -70,6 +70,18 @@ a transaction still carries the request's peer address (W1). Reproduced. S9 is c
 S10's Compose half is, and its script half stays open on a new finding (W3). Three P2 findings are
 open and none is a P0 or a P1. Next step: W1, then another dated run, which can restate GOLD.
 
+**2026-10-20 re-audit: GOLD WITH CAVEATS reconfirmed a seventh time; every caveat is closed, and
+two new P1 findings block a clean GOLD.** [`audit-2026-10-20.md`](./audit-2026-10-20.md) passes the
+ADR-001 gate on Node 24 and grades a window of 38 PRs with four independent graders. **C5 is
+confirmed closed** (V3, W1): with tracing at 1.0, the built server sent a local Sentry listener six
+span envelopes and an error event holding no address, token, cookie, email address or query string.
+C1 to C4, C6, S1 and S2 are confirmed closed again, each graded and reproduced. The queue grader
+found two P1 findings, both reproduced: concurrent email jobs stall to the 60 s pool acquire
+timeout (X62), and the worker's consumer cancel does nothing, so a stopping worker keeps taking
+messages (X60). Under the run's verdict rule (kit D-03), a P1 that cannot be refuted blocks a
+restated GOLD. Six P2 findings are open beside them (X1, X20, X40, X41, X61, X63). Next step: X60
+and X62, then another dated run, which can restate GOLD.
+
 The **Status** paragraph at the top records the closures as they stood on 2026-09-24, when all six
 were believed closed.
 
@@ -532,6 +544,12 @@ password is generated and not printed, but a hand-made `.env` whose `DB_USER` is
 template's leaves `.env.test` on a different login (W3). The fixes made after the review of #157
 were graded in this run.
 
+**C5 — confirmed closed; C1 to C4, C6 confirmed again (2026-10-20).** The dated run
+[`audit-2026-10-20.md`](./audit-2026-10-20.md) § 4.1. Every caveat closes on the routes ADR-012
+names for it, graded by its grader and reproduced. The whole-purpose passes found routes outside
+the lists, filed as new findings that reopen nothing: X3, X4, X5 and X13 beside C5 and C6, and X40
+and X41 (P2) beside C4. Clean GOLD is held by X60 and X62, two P1 findings that are not caveats.
+
 ---
 
 ## 5. Possible issues — needs human judgment (not blockers)
@@ -557,18 +575,19 @@ defects to fix blindly:
 
 ## 6. Audit lineage
 
-| Date           | File                                                                   | Verdict                                                                   | Scorecard                                                                                                                                              |
-| -------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2026-05-01     | [`audit-2026-05-01.md`](./audit-2026-05-01.md)                         | NOT fork-ready                                                            | 26 pass / 21 partial / 18 fail — 7 P0, 17 P1, 11 P2                                                                                                    |
-| 2026-05-20     | [`audit-2026-05-20.md`](./audit-2026-05-20.md)                         | Shippable; not strictly fork-ready (self-audit)                           | 52 pass / 9 partial / 4 fail — 0 P0, 4 P1, 9 P2                                                                                                        |
-| 2026-05-24     | [`audit-2026-05-24-independent.md`](./audit-2026-05-24-independent.md) | **GOLD WITH CAVEATS** (independent)                                       | ADR-001 gate **PASS**; 6 caveats + 8 judgment items                                                                                                    |
-| 2026-06-05     | [`audit-2026-06-05.md`](./audit-2026-06-05.md)                         | **GOLD WITH CAVEATS — DOWNGRADED PENDING N1+N2+F1**                       | All six gates re-run green; 2 new P0, 1 new HIGH, 6 P1, 6 P2, 4 P3 found                                                                               |
-| 2026-09-29     | [`audit-2026-09-29.md`](./audit-2026-09-29.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C1)             | ADR-001 gate **PASS** on Node 24; 47 pass / 14 partial / 4 fail; C1 reopened P1, C3 + C4 reopened P2; 0 P0, 6 new P2, 7 P3                             |
-| 2026-10-03     | [`audit-2026-10-03.md`](./audit-2026-10-03.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C4, S1, S2)     | ADR-001 gate **PASS** on Node 24; 49 pass / 12 partial / 4 fail; C1 + C3 closed, C4 open P2; 0 P0, 2 new P1, 8 new P2                                  |
-| 2026-10-05     | [`audit-2026-10-05.md`](./audit-2026-10-05.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C6)             | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; C4, S1, S2 closed; C6 reopened P2; 0 P0, 0 P1, 2 new P2                               |
-| 2026-10-05 (b) | [`audit-2026-10-05-b.md`](./audit-2026-10-05-b.md)                     | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C6 and C2)      | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; T1, T2 closed; C6 open P3, C2 graded open P2; 0 P0, 0 P1, 1 new P2                    |
-| 2026-10-10     | [`audit-2026-10-10.md`](./audit-2026-10-10.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C6, C5, C4, C3) | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; U1, U2 and C2 closed; C6 and C5 open P2, C4 and C3 open P3; 0 P0, 0 P1, 3 P2 findings |
-| 2026-10-12     | [`audit-2026-10-12.md`](./audit-2026-10-12.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C5)             | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; C6, C4, C3 and S9 closed; C5 open P2; 0 P0, 0 P1, 3 P2 findings (W1 to W3)            |
+| Date           | File                                                                   | Verdict                                                                                     | Scorecard                                                                                                                                              |
+| -------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-05-01     | [`audit-2026-05-01.md`](./audit-2026-05-01.md)                         | NOT fork-ready                                                                              | 26 pass / 21 partial / 18 fail — 7 P0, 17 P1, 11 P2                                                                                                    |
+| 2026-05-20     | [`audit-2026-05-20.md`](./audit-2026-05-20.md)                         | Shippable; not strictly fork-ready (self-audit)                                             | 52 pass / 9 partial / 4 fail — 0 P0, 4 P1, 9 P2                                                                                                        |
+| 2026-05-24     | [`audit-2026-05-24-independent.md`](./audit-2026-05-24-independent.md) | **GOLD WITH CAVEATS** (independent)                                                         | ADR-001 gate **PASS**; 6 caveats + 8 judgment items                                                                                                    |
+| 2026-06-05     | [`audit-2026-06-05.md`](./audit-2026-06-05.md)                         | **GOLD WITH CAVEATS — DOWNGRADED PENDING N1+N2+F1**                                         | All six gates re-run green; 2 new P0, 1 new HIGH, 6 P1, 6 P2, 4 P3 found                                                                               |
+| 2026-09-29     | [`audit-2026-09-29.md`](./audit-2026-09-29.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C1)                               | ADR-001 gate **PASS** on Node 24; 47 pass / 14 partial / 4 fail; C1 reopened P1, C3 + C4 reopened P2; 0 P0, 6 new P2, 7 P3                             |
+| 2026-10-03     | [`audit-2026-10-03.md`](./audit-2026-10-03.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C4, S1, S2)                       | ADR-001 gate **PASS** on Node 24; 49 pass / 12 partial / 4 fail; C1 + C3 closed, C4 open P2; 0 P0, 2 new P1, 8 new P2                                  |
+| 2026-10-05     | [`audit-2026-10-05.md`](./audit-2026-10-05.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C6)                               | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; C4, S1, S2 closed; C6 reopened P2; 0 P0, 0 P1, 2 new P2                               |
+| 2026-10-05 (b) | [`audit-2026-10-05-b.md`](./audit-2026-10-05-b.md)                     | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C6 and C2)                        | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; T1, T2 closed; C6 open P3, C2 graded open P2; 0 P0, 0 P1, 1 new P2                    |
+| 2026-10-10     | [`audit-2026-10-10.md`](./audit-2026-10-10.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C6, C5, C4, C3)                   | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; U1, U2 and C2 closed; C6 and C5 open P2, C4 and C3 open P3; 0 P0, 0 P1, 3 P2 findings |
+| 2026-10-12     | [`audit-2026-10-12.md`](./audit-2026-10-12.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C5)                               | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; C6, C4, C3 and S9 closed; C5 open P2; 0 P0, 0 P1, 3 P2 findings (W1 to W3)            |
+| 2026-10-20     | [`audit-2026-10-20.md`](./audit-2026-10-20.md)                         | **GOLD WITH CAVEATS** (reconfirmed; every caveat closed; clean GOLD blocked by X62 and X60) | ADR-001 gate **PASS** on Node 24; 53 pass / 8 partial / 4 fail; C5 closed, C1 to C4 and C6 confirmed; 0 P0, 2 P1 (X60, X62), 6 P2 findings             |
 
 **Key disagreements the independent run raised with the 05-20 self-audit** (full evidence in
 the dated file): security findings 1→8 medium; `svix` present transitively via `resend`;
@@ -717,12 +736,19 @@ the list still reads as the history it is.
     dated run, which can restate GOLD if C5 closes. After that W2 (`JWT_SECRET` has no minimum
     length), W3 with T3 (the fork bootstrap and a name or database user it did not expect), W4
     and R11. The run's other findings are in its § 6.
+13. **Dated run of 2026-10-20** — [`audit-2026-10-20.md`](./audit-2026-10-20.md). C5 is confirmed
+    closed, and with it every caveat ADR-008 named. It did **not** restate GOLD: two P1 findings
+    in the queue worker block it, X62 (email jobs stall on the connection pool) and X60 (the
+    consumer cancel does nothing). **Next, in this order:** X60, X62, **then** another dated run,
+    which can restate GOLD. After that X1, X61, X63, X20, and X40 with X41. The run's other
+    findings are in its § 6; each has a row in the backend debt register.
 
 ---
 
 ## 9. Related documents
 
-- [`audit-2026-10-12.md`](./audit-2026-10-12.md) — **current authoritative audit** (a grade for every caveat, fork dry-run, live reproductions, full re-grade on Node 24)
+- [`audit-2026-10-20.md`](./audit-2026-10-20.md) — **current authoritative audit** (four graders, every caveat closed, fork dry-run, live reproductions, full re-grade on Node 24)
+- [`audit-2026-10-12.md`](./audit-2026-10-12.md) — prior authoritative audit
 - [`audit-2026-10-10.md`](./audit-2026-10-10.md) — prior authoritative audit
 - [`audit-2026-10-05-b.md`](./audit-2026-10-05-b.md) — prior authoritative audit
 - [`audit-2026-10-05.md`](./audit-2026-10-05.md) — prior authoritative audit

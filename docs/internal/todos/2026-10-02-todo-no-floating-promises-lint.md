@@ -1,6 +1,6 @@
 # Todo — lint for floating promises
 
-- **Status:** Closed on `fix/floating-promises-and-bounded-shutdown`
+- **Status:** Closed by #196 (`4a0b21c`), branch `fix/floating-promises-and-bounded-shutdown`
   ([`floating-promises-and-bounded-shutdown`](../initiatives/floating-promises-and-bounded-shutdown/README.md),
   ADR-0076). Reproduced by a test first
 - **Created:** 2026-10-02
