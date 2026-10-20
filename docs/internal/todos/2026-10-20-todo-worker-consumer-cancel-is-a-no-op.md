@@ -1,6 +1,8 @@
 # Todo — the worker's consumer cancel does nothing
 
-- **Status:** Open (P1)
+- **Status:** Closed on `fix/worker-cancel-and-one-connection-per-job`
+  ([`worker-cancel-and-one-connection-per-job`](../initiatives/worker-cancel-and-one-connection-per-job/README.md)).
+  Reproduced by a test first; a dated run is owed to confirm it
 - **Created:** 2026-10-20
 - **Owner:** unassigned
 - **Origin:** dated SaaS-readiness run of 2026-10-20, finding X60

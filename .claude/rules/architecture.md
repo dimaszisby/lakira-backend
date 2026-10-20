@@ -176,6 +176,8 @@ failure, or marked `void` with a comment saying why nothing awaits it. Shutdown 
   reads its body with `readJobBody` and checks every field before acting, so a bad one parks
   (`src/shared/application/messaging/job-body.ts`); it does its writes and its side effect inside
   `MessageIdempotencyPort.runOnce`, which records it per queue; and its queue is declared through
-  `assertWorkQueue` in `topology.ts`, its retries waiting in a queue per delay (ADR-0073). The password-reset email does the same,
+  `assertWorkQueue` in `topology.ts`, its retries waiting in a queue per delay (ADR-0073). Inside
+  `runOnce`, every repository call passes the `tx` the work receives, so a job holds one connection;
+  a read through the pool there deadlocks once the pool is full of jobs (ADR-0077). The password-reset email does the same,
   with its fallback in the request (ADR-0069), and so does the invite email, whose fallback saves
   the invite and sends inside one transaction (ADR-0070).

@@ -84,7 +84,7 @@ export class RequestPasswordReset {
     userId: string,
     tx: PersistenceTransaction,
   ): Promise<void> {
-    const user = await this.userRepo.findById(userId);
+    const user = await this.userRepo.findById(userId, tx);
     if (!user) return;
     await this.emailSender.send(await this.issue(user, tx));
   }

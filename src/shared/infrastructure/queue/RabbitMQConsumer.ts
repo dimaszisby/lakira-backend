@@ -34,7 +34,11 @@ export interface ConsumerOptions {
 
 export class RabbitMQConsumer {
   private channel: ChannelWrapper;
+  // The consumer is registered on the raw channel, which the wrapper does not
+  // track, so only that channel can cancel it (worker-cancel-and-one-connection-per-job D-01).
+  private consumerChannel: Channel | null = null;
   private consumerTag: string | null = null;
+  private stopping = false;
   private inFlight = 0;
   private drainResolvers: Array<() => void> = [];
   private readonly maxRetries: number;
@@ -51,6 +55,8 @@ export class RabbitMQConsumer {
       name: `consumer:${options.queue}`,
       setup: async (ch: Channel) => {
         await assertTopology(ch);
+        // A reconnect during the drain re-runs setup: it must not consume again.
+        if (this.stopping) return;
         await ch.prefetch(prefetch);
 
         const { consumerTag } = await ch.consume(
@@ -62,6 +68,12 @@ export class RabbitMQConsumer {
           { noAck: false },
         );
 
+        // cancel() ran while consume was pending: it had no tag to cancel.
+        if (this.stopping) {
+          await ch.cancel(consumerTag);
+          return;
+        }
+        this.consumerChannel = ch;
         this.consumerTag = consumerTag;
         logger.info("[RABBITMQ] Consumer registered.", {
           queue: options.queue,
@@ -187,9 +199,14 @@ export class RabbitMQConsumer {
   }
 
   async cancel(): Promise<void> {
-    if (!this.consumerTag) return;
+    this.stopping = true;
+    const ch = this.consumerChannel;
+    const tag = this.consumerTag;
+    this.consumerChannel = null;
+    this.consumerTag = null;
+    if (!ch || !tag) return;
     try {
-      await this.channel.cancel(this.consumerTag);
+      await ch.cancel(tag);
       logger.info("[RABBITMQ] Consumer cancelled.", {
         queue: this.options.queue,
       });

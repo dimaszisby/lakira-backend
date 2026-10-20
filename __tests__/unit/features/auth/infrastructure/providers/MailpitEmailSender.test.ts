@@ -37,6 +37,19 @@ describe("MailpitEmailSender", () => {
     });
   });
 
+  // worker-cancel-and-one-connection-per-job D-03: the request is abandoned at
+  // the bound, not only the wait for it.
+  it("gives the request an abort signal", async () => {
+    const fetchImpl = jest
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+
+    await build(fetchImpl).send(MESSAGE);
+
+    const [, init] = fetchImpl.mock.calls[0];
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+  });
+
   it("throws when Mailpit answers with a non-2xx status", async () => {
     const fetchImpl = jest
       .fn<typeof fetch>()

@@ -74,8 +74,8 @@ describe("RequestEmailVerification use case", () => {
 
     await sut.execute({ userId: "user-1" });
 
-    expect(userRepo.findById).toHaveBeenCalledWith("user-1");
     // In process, no transaction is passed.
+    expect(userRepo.findById).toHaveBeenCalledWith("user-1", undefined);
     expect(tokenRepo.revokeAllForUser).toHaveBeenCalledWith(
       user.id,
       FROZEN_NOW,
@@ -162,6 +162,8 @@ describe("RequestEmailVerification use case", () => {
 
       await sut.executeInTransaction("user-1", TX);
 
+      // One connection per job (worker-cancel-and-one-connection-per-job D-02).
+      expect(userRepo.findById).toHaveBeenCalledWith("user-1", TX);
       expect(tokenRepo.revokeAllForUser).toHaveBeenCalledWith(
         "user-1",
         FROZEN_NOW,

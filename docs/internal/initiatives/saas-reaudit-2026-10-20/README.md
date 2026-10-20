@@ -1,6 +1,6 @@
 # SaaS re-audit, dated run of 2026-10-20
 
-**Status:** Complete on `docs/saas-reaudit-2026-10-20`; PR open. Result: GOLD WITH CAVEATS
+**Status:** Done. Merged as #197 (`b3054cb`). Result: GOLD WITH CAVEATS
 reconfirmed; every caveat confirmed closed, C5 among them; clean GOLD blocked by two P1 findings in
 the queue worker (X60, X62), both reproduced. Six P2 findings filed.
 **Slug:** `saas-reaudit-2026-10-20` · **Branch:** `docs/saas-reaudit-2026-10-20`

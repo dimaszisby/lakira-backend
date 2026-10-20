@@ -67,7 +67,7 @@ export class RequestEmailVerification {
     userId: string,
     tx?: PersistenceTransaction,
   ): Promise<EmailMessage | null> {
-    const user = await this.userRepo.findById(userId);
+    const user = await this.userRepo.findById(userId, tx);
     if (!user) return null;
 
     if (user.emailVerifiedAt !== null) return null;

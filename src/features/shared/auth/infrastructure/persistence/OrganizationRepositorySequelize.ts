@@ -20,8 +20,13 @@ const toDomain = (row: OrganizationModel): Organization =>
   });
 
 export class OrganizationRepositorySequelize implements OrganizationRepository {
-  async findById(id: string): Promise<Organization | null> {
-    const row = await models.Organization.findByPk(id);
+  async findById(
+    id: string,
+    tx?: PersistenceTransaction,
+  ): Promise<Organization | null> {
+    const row = await models.Organization.findByPk(id, {
+      transaction: tx as Transaction | undefined,
+    });
     return row ? toDomain(row) : null;
   }
 

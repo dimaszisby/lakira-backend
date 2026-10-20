@@ -4,6 +4,7 @@ import {
   EmailMessage,
   EmailSender,
 } from "../../application/ports/EmailSender.js";
+import { EMAIL_SEND_TIMEOUT_MS } from "./TimeoutEmailSender.js";
 
 /**
  * Delivers mail to a Mailpit catcher through its HTTP send API, so local and
@@ -24,6 +25,8 @@ export class MailpitEmailSender implements EmailSender {
       response = await this.fetchImpl(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // Abandons the request itself, not only the wait for it (ADR-0077).
+        signal: AbortSignal.timeout(EMAIL_SEND_TIMEOUT_MS),
         body: JSON.stringify({
           From: { Email: this.from },
           To: [{ Email: message.to }],

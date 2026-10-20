@@ -1,6 +1,6 @@
 # Backend debt register
 
-**As of:** 2026-10-20, backend `dev` at `4a0b21c`. Ranked by [D-01](decisions.md).
+**As of:** 2026-10-20, backend `dev` at `b3054cb`. Ranked by [D-01](decisions.md).
 
 **"What's next" is the first row below whose state is `ready`.** A row above it that is waiting on
 someone is reported with it, as a gap. How rows are added and closed:
@@ -13,7 +13,7 @@ verdict), `FE` (lakira-frontend), `fork` (someone forking the template), `us`. *
 dependency's release, [D-04](decisions.md)) or `unexplained`.
 
 Sources are abbreviated: `A1020 § 6` is `docs/internal/audits/saas-readiness/audit-2026-10-20.md`
-§ 6; `A12 § 6` is `docs/internal/audits/saas-readiness/audit-2026-10-12.md`
+§ 6, the run merged in #197 (`b3054cb`); `A12 § 6` is `docs/internal/audits/saas-readiness/audit-2026-10-12.md`
 § 6; `A10`, `A05b`, `A05`, `A03`, `A0929` are the runs of those dates in the same folder; `N1` and
 `N2` are Part 1 and Part 2 of the Notion page "FE and BE messages"; a bare filename is under
 `docs/internal/todos/`. An `F-NN` after an item is the same item's row in lakira-frontend's
@@ -21,16 +21,9 @@ register (`docs/internal/initiatives/frontend-debt-register/register.md`, read 2
 
 ## Tier 1 — keeps an audit caveat open
 
-Every caveat is closed-confirmed on its named routes (A1020). Under [D-05](decisions.md), tier 1
-holds the two P1 findings that run held to block a clean GOLD; **a dated run is owed once both are
-fixed**, and it can restate GOLD.
-
-| ID   | Item                                                                                                                           | Sev | Owed to | State | Size | Source                                                                                  | Analysis |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------ | --- | ------- | ----- | ---- | --------------------------------------------------------------------------------------- | -------- |
-| B-74 | The worker's `RabbitMQConsumer.cancel()` cancels nothing: on SIGTERM it keeps taking deliveries until the channel closes (X60) | P1  | GOLD    | ready | ≤1h  | A1020 § 6 X60; [todo](../../todos/2026-10-20-todo-worker-consumer-cancel-is-a-no-op.md) |          |
-| B-75 | Email handlers read through the pool while holding a transaction: five concurrent jobs stall to the 60 s acquire timeout (X62) | P1  | GOLD    | ready | ≤½d  | A1020 § 6 X62; [todo](../../todos/2026-10-20-todo-email-handlers-wait-on-the-pool.md)   |          |
-
-B-01 is fixed and confirmed (see Closed).
+No open row. Every caveat is closed-confirmed (A1020), and B-74 and B-75, the two P1 findings that
+run held to block a clean GOLD, are fixed (see Closed). **A dated audit run is owed**: only a run
+can confirm them and restate GOLD (ADR-002, [D-05](decisions.md)).
 
 ## Tier 2 — P1 or P2 owed to the frontend
 
@@ -184,3 +177,5 @@ Rows move here when their fix is written, with the branch; the PR number is adde
 | B-46 | Cache keys: free text was not encoded; metric-log keys used literal `.js` placeholders (S12, R13)                                                                                  | #195 (`505a851`); [ADR-0075](../../../explanation/decisions/adr-0075-cache-keys-encode-and-include-total-is-strict.md); string segments encoded, cursor versions 4; the metric-log keys built from the validated query                                                               | Yes, A1020                                                                               |
 | B-37 | No lint rule for floating promises                                                                                                                                                 | #196 (`4a0b21c`); [ADR-0076](../../../explanation/decisions/adr-0076-promises-are-awaited-and-shutdown-has-a-deadline.md); `no-floating-promises` and `no-misused-promises` at `error` over every linted file; six sites awaited, caught or `void` with a reason                     | Yes, A1020                                                                               |
 | B-38 | Shutdown had no overall bound and no re-entry guard                                                                                                                                | #196 (`4a0b21c`); [ADR-0076](../../../explanation/decisions/adr-0076-promises-are-awaited-and-shutdown-has-a-deadline.md); one 25 s deadline; open connections closed after 5 s; a second call joins the first; the worker drains for at most 20 s                                   | Partly, A1020: the server half confirmed; the worker's drain does not stop intake (B-74) |
+| B-74 | The worker's `RabbitMQConsumer.cancel()` cancelled nothing, so a stopping worker kept taking deliveries until the channel closed (X60)                                             | `fix/worker-cancel-and-one-connection-per-job`; `worker-cancel-and-one-connection-per-job` D-01; the consumer is cancelled on the channel that registered it, and a reconnect during the drain does not consume again                                                                | Not yet; a run is owed                                                                   |
+| B-75 | Email jobs read through the pool while holding a transaction, so five concurrent jobs stalled to the 60 s acquire timeout (X62)                                                    | `fix/worker-cancel-and-one-connection-per-job`; [ADR-0077](../../../explanation/decisions/adr-0077-a-queued-job-holds-one-connection.md); every read inside `runOnce` passes `tx`; an email send is bounded at 10 s                                                                  | Not yet; a run is owed                                                                   |

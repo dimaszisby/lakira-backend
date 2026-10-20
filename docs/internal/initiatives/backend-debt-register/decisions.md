@@ -111,7 +111,7 @@ B-26 is: rejected, B-26 is a choice this repository made and these are not.
 
 ## D-05 — A P1 that blocks a clean GOLD ranks in tier 1
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #197, `b3054cb`)
 - **Date:** 2026-10-20
 
 **Context.** The dated run of 2026-10-20 (`saas-reaudit-2026-10-20` D-03 and D-04) closed every
@@ -129,3 +129,19 @@ already names the reason, blocking GOLD, and the fix is to let the reason decide
 example.
 **Consequences.** X60 and X62 head the register as B-74 and B-75, the smaller first. The next
 dated run that restates GOLD empties tier 1 again.
+
+---
+
+## D-06 — B-74 with B-75 in one fix PR
+
+- **Status:** Proposed
+- **Date:** 2026-10-21
+
+**Context.** D-02 gives each row its own fix PR, with named exceptions. B-74 and B-75 are the two
+P1 findings in the queue worker that block a clean GOLD (D-05), and only one dated run after both
+can restate it. The owner chose to fix them together on 2026-10-21.
+**Decision.** Add to D-02's exceptions: **B-74 with B-75**, both the worker's P1 findings, confirmed
+by one dated run. Kit `worker-cancel-and-one-connection-per-job`.
+**Options considered.** Two PRs, as D-02 says: rejected by the owner; the dated run waits for both
+either way.
+**Consequences.** One PR moves both rows to Closed. D-01's order is unchanged.
