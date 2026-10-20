@@ -217,9 +217,9 @@ export class RabbitMQConsumer {
     });
   }
 
-  async close(): Promise<void> {
+  async close(drainTimeoutMs?: number): Promise<void> {
     await this.cancel();
-    await this.drain();
+    await this.drain(drainTimeoutMs);
     await this.channel.close();
   }
 }

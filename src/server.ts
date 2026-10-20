@@ -1,6 +1,6 @@
 import { env } from "./config/envManager.js";
 import http from "http";
-import logger, { flushLogs } from "@/utils/logger.js";
+import logger from "@/utils/logger.js";
 import { APP_NAME } from "@/config/app-name.js";
 
 // The app and its features: every feature built once, here, and handed to its
@@ -28,6 +28,7 @@ import {
   drainBackgroundTasks,
   pendingBackgroundTaskCount,
 } from "./utils/background-tasks.js";
+import { closeHttpServer, createShutdown } from "./utils/shutdown.js";
 
 // One publisher for every feature that queues work.
 const messageQueue = env.RABBITMQ_ENABLED ? new RabbitMQPublisher() : undefined;
@@ -128,18 +129,17 @@ const startServer = async () => {
 /**
  * Graceful Shutdown Handling
  * - Capture SIGINT & SIGTERM (Docker, PM2, Kubernetes)
+ * - Close the HTTP server, cutting connections still open at the bound
  * - Drain background tasks (ADR-0054)
- * - Close DB connection
- * - Close Express server
- * - Log shutdown
+ * - Close DB, Redis and RabbitMQ connections
+ * Runs once, within one deadline, logs flushed before exit (ADR-0076).
  */
-const shutdown = async (signal: string, exitCode = 0) => {
-  logger.info(`\n[SERVER] Received ${signal}, initiating shutdown...`);
-
-  try {
+const shutdown = createShutdown({
+  label: "SERVER",
+  steps: async (exitCode) => {
     if (server) {
       logger.info("[SERVER] Closing HTTP server...");
-      await new Promise((resolve) => server!.close(resolve));
+      await closeHttpServer(server);
     }
 
     // Let work started after a response finish while its connections are open
@@ -167,20 +167,15 @@ const shutdown = async (signal: string, exitCode = 0) => {
       logger.info("[SERVER] Closing RabbitMQ connection...");
       await disconnectRabbitMQ();
     }
+  },
+});
 
-    logger.info("[SERVER] Cleanup completed. Exiting.");
-  } catch (error) {
-    logger.error("[SERVER] during shutdown:", error);
-    exitCode = exitCode || 1;
-  }
-
-  await flushLogs();
-  process.exit(exitCode);
-};
-
-// Handle termination signals
+// Handle termination signals. Nothing awaits shutdown: it handles its own
+// failure and ends the process.
 ["SIGTERM", "SIGINT"].forEach((signal) =>
-  process.on(signal, () => shutdown(signal)),
+  process.on(signal, () => {
+    void shutdown(signal);
+  }),
 );
 
 // Handle uncaught exceptions and promise rejections
@@ -199,6 +194,7 @@ process.on("unhandledRejection", (reason, promise) => {
   void shutdown("Unhandled Rejection", 1);
 });
 
-startServer();
+// Nothing awaits it: it catches its own failure and exits.
+void startServer();
 
 export default app;

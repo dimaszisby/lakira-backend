@@ -1,6 +1,6 @@
 # Query values mean what they say — Plan
 
-- **Status:** In progress
+- **Status:** Done
 - **Appetite:** 2 days
 - **Date:** 2026-10-20
 

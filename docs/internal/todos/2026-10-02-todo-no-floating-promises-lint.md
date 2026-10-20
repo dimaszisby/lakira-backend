@@ -1,6 +1,8 @@
 # Todo — lint for floating promises
 
-- **Status:** Open (P3)
+- **Status:** Closed on `fix/floating-promises-and-bounded-shutdown`
+  ([`floating-promises-and-bounded-shutdown`](../initiatives/floating-promises-and-bounded-shutdown/README.md),
+  ADR-0076). Reproduced by a test first
 - **Created:** 2026-10-02
 - **Owner:** unassigned
 - **Origin:** kit `drainable-background-work`, out of scope

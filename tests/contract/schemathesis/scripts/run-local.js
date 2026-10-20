@@ -353,4 +353,8 @@ async function main() {
   }
 }
 
-main();
+// A failure outside main's own try still sets the exit code.
+main().catch((error) => {
+  logger.error("[schemathesis:local] Run failed", error);
+  process.exitCode = 1;
+});

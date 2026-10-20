@@ -115,6 +115,9 @@ services:
       args:
         APP_RELEASE: ${APP_RELEASE:-unknown}
     container_name: node_app
+    # Past the 25 s shutdown deadline (ADR-0076). Docker's 10 s default would kill
+    # the process before the deadline could end it.
+    stop_grace_period: 30s
     restart: always # Restart the container automatically if it fails
     # `.env` and not `.env.development`: Compose's ${VAR} interpolation (used for the db
     # service's credentials above) reads only `.env` or the shell — never a service's
@@ -172,6 +175,9 @@ services:
       args:
         APP_RELEASE: ${APP_RELEASE:-unknown}
     container_name: node_worker
+    # Past the 25 s shutdown deadline (ADR-0076). Docker's 10 s default would kill
+    # the process before the deadline could end it.
+    stop_grace_period: 30s
     restart: always
     command: ["npm", "run", "worker:dev"]
     # Same single-.env reasoning as the app service above.

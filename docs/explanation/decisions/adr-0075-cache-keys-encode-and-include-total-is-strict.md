@@ -1,6 +1,6 @@
 # ADR-0075 — A cache key encodes what it is given, and a list's `includeTotal` is strict
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-20
 - **Related:** [ADR-0035](./adr-0035-tenant-scoped-cache-keys.md) (cache keys are a tenant
   boundary); kit `list-cache-key-filters` (keys built from the validated query)

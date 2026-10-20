@@ -1,6 +1,8 @@
 # Todo — shutdown has no overall bound and no re-entry guard
 
-- **Status:** Open (P3)
+- **Status:** Closed on `fix/floating-promises-and-bounded-shutdown`
+  ([`floating-promises-and-bounded-shutdown`](../initiatives/floating-promises-and-bounded-shutdown/README.md),
+  ADR-0076). Reproduced by a test first
 - **Created:** 2026-10-02
 - **Owner:** unassigned
 - **Origin:** review of kit `drainable-background-work`; recorded in ADR-0054 § Consequences

@@ -11,6 +11,7 @@ import { loadModels } from "./infrastructure/db/models.js";
 import sequelize from "./config/db.js";
 import { buildWiredMetricLogFeature } from "./composition/metric-log.js";
 import { buildWiredAuthFeature } from "./composition/auth.js";
+import { WORKER_DRAIN_TIMEOUT_MS, createShutdown } from "./utils/shutdown.js";
 
 if (!env.RABBITMQ_ENABLED) {
   logger.error(
@@ -76,10 +77,12 @@ const startWorker = async (): Promise<void> => {
   logger.info("[WORKER] Ready. Waiting for messages.");
 };
 
-const shutdown = async (signal: string, exitCode = 0): Promise<void> => {
-  logger.info(`[WORKER] Received ${signal}, shutting down...`);
-  try {
-    await Promise.all(workers.map((w) => w.close()));
+// Runs once, within one deadline, logs flushed before exit (ADR-0076). The
+// drain is bounded so the closes after it still fit.
+const shutdown = createShutdown({
+  label: "WORKER",
+  steps: async () => {
+    await Promise.all(workers.map((w) => w.close(WORKER_DRAIN_TIMEOUT_MS)));
     logger.info("[WORKER] All consumers drained.");
 
     await retryPublisher?.close();
@@ -89,17 +92,14 @@ const shutdown = async (signal: string, exitCode = 0): Promise<void> => {
 
     await sequelize.close();
     logger.info("[WORKER] Database disconnected.");
-  } catch (error) {
-    logger.error("[WORKER] Error during shutdown:", error);
-    exitCode = exitCode || 1;
-  }
+  },
+});
 
-  await flushLogs();
-  process.exit(exitCode);
-};
-
+// Nothing awaits shutdown: it handles its own failure and ends the process.
 ["SIGTERM", "SIGINT"].forEach((signal) =>
-  process.on(signal, () => shutdown(signal)),
+  process.on(signal, () => {
+    void shutdown(signal);
+  }),
 );
 
 process.on("uncaughtException", (error) => {

@@ -162,6 +162,11 @@ Work a handler starts but does not await — the verification email, the cache w
 underneath it, and the next integration test truncates the tables it is writing to. Shutdown and
 the integration setup both call `drainBackgroundTasks()`.
 
+Lint enforces it (ADR-0076): `no-floating-promises` and `no-misused-promises` are errors in every
+linted file. A promise is awaited, handed to `runInBackground`, given a `.catch` that handles the
+failure, or marked `void` with a comment saying why nothing awaits it. Shutdown itself goes through
+`createShutdown` (`src/utils/shutdown.ts`): it runs once, within one deadline.
+
 - The label names the work in logs and in the drain-timeout warning; keep it stable.
 - `meta` is logged on failure. Ids only — never an email address or a token.
 - The work is not durable: a crash loses it. Anything that must not be lost belongs on the queue.
