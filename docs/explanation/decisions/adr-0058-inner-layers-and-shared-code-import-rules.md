@@ -10,6 +10,12 @@
 - **Origin:** `D-02` and `D-03` in the boundary-rule-residuals kit —
   [`boundary-rule-residuals`](../../internal/initiatives/boundary-rule-residuals/decisions.md)
 
+> **Status note (2026-10-20).** Extended by
+> [ADR-0074](./adr-0074-boundary-rules-cover-all-of-src.md): the inner layers import from an
+> allowlist instead of around a package denylist, which let `zod`, `winston` and
+> `@/shared/middleware/error.js` into a domain file; `src/types/domain` is a domain layer; and the
+> shared-code rule covers every file under `src` outside its named doors.
+
 ---
 
 ## Context

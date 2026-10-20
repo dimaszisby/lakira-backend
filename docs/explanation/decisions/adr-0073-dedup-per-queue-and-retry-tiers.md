@@ -1,6 +1,6 @@
 # ADR-0073 — A message is deduplicated per queue, and a retry waits in the queue of its delay
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #193, `0a86693`)
 - **Date:** 2026-10-20
 - **Related:** Amends [ADR-0005](./adr-0005-topic-exchange-with-parking-lot-dlx.md) § Retry (the
   head-of-line trade-off it accepted) and [ADR-0007](./adr-0007-processed-messages-table-for-idempotency.md)

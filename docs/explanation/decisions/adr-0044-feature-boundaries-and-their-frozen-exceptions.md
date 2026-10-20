@@ -19,6 +19,11 @@
 > feature internals, and application code importing infrastructure. ADR-0058 closes both, with one
 > more named exception beside the model files frozen here (`src/utils/db-helper.ts`).
 
+> **Status note (2026-10-20).** Extended by
+> [ADR-0074](./adr-0074-boundary-rules-cover-all-of-src.md): the rules cover every file under
+> `src`, whatever its extension; outside `src/features` a feature is entered by one door per
+> purpose; the frozen exception names its six files, not a glob over all eleven model files.
+
 ---
 
 ## Context

@@ -44,22 +44,30 @@ features/{name}/
   code. `src/shared/middleware/error.ts` maps the kind to a status. Lint refuses an `AppError`
   import in `domain/` and `application/`, in features and in `src/shared` (ADR-0068). Code that
   reacts to an error reads its kind, never a status
-- Both are lint-enforced (ADR-0058): in `domain/` and `application/`, an import with an
-  `infrastructure` path segment is rejected, and so are the driver packages (`express`,
-  `sequelize`, `amqplib`, `redis`, `jsonwebtoken`, `bcrypt` and the rest of that list in
-  `eslint.config.mjs`). What to use instead:
+- Both are lint-enforced (ADR-0058, ADR-0074), in every file under `src/` whatever its
+  extension. `domain/` and `application/` import **only from a list** in `eslint.config.mjs`
+  (`DOMAIN_IMPORTS`, `APPLICATION_IMPORTS`): relative paths, `node:crypto`, the shared kernel,
+  shared constants, `@/types/domain/`, another feature's `public.ts`, and for the application
+  the logger, `date-io`, cache keys, `envManager` and `app-name`. No third-party package. An
+  import with an `infrastructure` path segment is rejected too, relative ones included. A new
+  entry on a list needs a reason. `src/shared/{domain,application}` and `src/types/domain`
+  take the same lists. What to use instead:
   - a use case declares its own input type; it does not take a DTO type from `infrastructure/http/`
   - a queue handler takes `IncomingMessage` from `@/shared/application/ports/MessageHandlerPort.js`
   - exchange and routing-key names come from `@/shared/application/messaging/job-routes.js`
-- **Shared code imports no feature** (ADR-0058): nothing under `src/types/`, `src/shared/`,
-  `src/utils/` or `src/config/` may import from `src/features/`, `public.ts` included. A type that
-  needs a feature's type lives in a feature. Three named exceptions: `src/infrastructure/db/`,
-  `src/lib/openapi/`, and `src/utils/db-helper.ts` for model files
+- **Outside `src/features/`, a feature is entered by one door per purpose** (ADR-0058,
+  ADR-0074): `src/app.ts` through its `index.ts`; `src/composition/` through `feature.ts` or
+  `public.ts`; `src/infrastructure/db/` and `src/utils/db-helper.ts` through one model file;
+  `src/lib/openapi/` through one `http/schema.zod` file. Every other file under `src/` imports no
+  feature, `public.ts` included: a type that needs a feature's type lives in a feature. Within
+  features, the frozen model exception names its six files
+- **One spelling per module** (ADR-0074): an `@/` path with a `.` or `..` segment or a doubled
+  slash, or one starting `src/`, is rejected; it hid which feature it reached
 - **Static imports only under `src/`.** The rules above read `import … from` and `export … from`,
   so the forms they cannot read are refused outright: a dynamic `import()`, an `import("…")` type
-  (write `import type { X } from "…"`), and anything from node's `module` package
-  (`createRequire`). A file that truly needs a lazy import gets a named exemption in
-  `eslint.config.mjs`
+  (write `import type { X } from "…"`), anything from node's `module` package
+  (`createRequire`), `process.getBuiltinModule`, and the `Function` constructor (ADR-0074). A
+  file that truly needs a lazy import gets a named exemption in `eslint.config.mjs`
 - **Infrastructure layer** implements domain interfaces and wires to frameworks
 - **feature.ts** is the composition root — instantiates repos, providers, use cases
 
@@ -120,8 +128,8 @@ worker once built its handler by hand with the no-op, and queued jobs left chart
 
 Two surfaces per feature (ADR-0045):
 
-- **`index.ts` is for `src/server.ts` only.** It exports the router factories (`createXRouter`) and
-  `buildXFeature`. `server.ts` calls the factories at mount time. `feature.ts` may also be
+- **`index.ts` is for `src/app.ts` only.** It exports the router factories (`createXRouter`) and
+  `buildXFeature`. `createApp` calls the factories at mount time. `feature.ts` may also be
   imported by `src/composition/` (ADR-0056).
 - **`public.ts` is what other features import** — a deliberately narrow set (mappers, DTO
   helpers, `authMiddleware`). ESLint rejects a feature importing another feature's `index.ts`,

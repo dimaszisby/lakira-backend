@@ -68,7 +68,14 @@ const FEATURE_BOUNDARY_MESSAGE =
 // segment after `features/`, which checked the short spelling only; the full one was never
 // rejected (SaaS-readiness caveat C4, audit-2026-09-29). A new audience directory must be added
 // here; __tests__/unit/feature-boundaries.lint.test.ts proves each rule in both spellings.
-const FEATURE = "^@/features/(?:(?:public|shared)/)?[a-z-]+";
+// The name is any segment (boundary-rules-everywhere D-03): `[a-z-]+` left a name with a
+// digit or an underscore unparsed, so the deep-import rules never saw it.
+const FEATURE = "^@/features/(?:(?:public|shared)/)?[^/]+";
+
+// Every file under src, whatever its extension (boundary-rules-everywhere D-01). The
+// blocks matched *.ts only, so a .js or .tsx file in a domain folder got the legacy
+// patterns alone (audit-2026-10-12 W6). Migrations are ignored above.
+const EXT = "{ts,tsx,js,mjs,cjs}";
 
 // ADR-0045: a sibling may not import another feature's composition root — its index.ts
 // (the bare alias or /index.js) or its feature.ts. index.ts exists for src/server.ts;
@@ -87,8 +94,8 @@ const FEATURE_DEEP_IMPORTS = {
   message: FEATURE_BOUNDARY_MESSAGE,
 };
 
-// Same, minus Sequelize model files. Applied only to the files that declare
-// cross-model associations. Those are frozen as a recorded debt — cross-module foreign
+// Same, minus Sequelize model files. Applied only to the six files that import another
+// feature's models (MODEL_ASSOCIATION_FILES below). Those are frozen as a recorded debt — cross-module foreign
 // keys are the deepest coupling, ID-only references the destination (ADR-0044
 // decision 4). The count is frozen at 11 by __tests__/unit/architecture.test.ts — see
 // docs/internal/initiatives/feature-boundaries/decisions.md D-02 and D-03.
@@ -148,36 +155,98 @@ const DOMAIN_LAYER_APPLICATION = {
     "The domain layer must not import the application layer. Declare the type in the domain (the feature's, or src/shared/domain) and let the application import it. See .claude/rules/architecture.md § Dependency Rules (ADR-0058).",
 };
 
-// The same rule for packages that are infrastructure by nature: the broker, the web
-// framework and its middleware, the ORM and its driver, the cache client, the mail
-// provider, and the token and hashing libraries the ports wrap. A regex, not `paths`:
-// `paths` matches a name exactly, so `sequelize/types` or `@redis/client` would pass.
-// The inner layers import no third-party package today except node's own `crypto`.
-const INNER_LAYER_DRIVER_PACKAGES = {
-  regex:
-    "^(?:amqplib|amqp-connection-manager|express|express-rate-limit|cookie-parser|cors|helmet|hpp|xss-clean|swagger-ui-express|sequelize|pg|pg-hstore|redis|@redis/[^/]+|ioredis|rate-limit-redis|resend|jsonwebtoken|bcrypt|@sentry/node)(?:/.*)?$",
+// ADR-0074 (boundary-rules-everywhere D-02): the inner layers import from a list, not
+// around one. The rules were a package denylist and a name match, so zod, winston,
+// @/shared/middleware/error.js and @/utils/logger.js all passed in a domain file
+// (audit-2026-10-12 W6). Anything not listed is refused, every third-party package
+// included. The list is what the layers imported when it was drawn; a new entry needs a
+// reason in this comment. Relative paths stay allowed, and the infrastructure and
+// application rules above still read them.
+const DOMAIN_IMPORTS = [
+  "\\.{1,2}/", // within the layer, or the feature
+  "node:crypto$",
+  "crypto$",
+  "@/shared/domain/",
+  "@/shared/constants/",
+  "@/shared/utils/text-validation\\.js$", // pure string checks
+  "@/types/domain/", // held to these rules too
+  "@/constants/",
+  `${FEATURE.slice(1)}/public(?:\\.js)?$`, // another feature's public surface
+];
+// The application adds its own kernel, and four modules it reads for logging, time,
+// cache keys and configuration. The logger is the one that writes; it is allowed by
+// name, and moving it behind a port is not this rule's business.
+const APPLICATION_IMPORTS = [
+  ...DOMAIN_IMPORTS,
+  "@/shared/application/",
+  "@/utils/logger\\.js$",
+  "@/utils/date-io\\.js$",
+  "@/shared/cache/keys\\.js$",
+  "@/config/envManager\\.js$",
+  "@/config/app-name\\.js$",
+];
+const onlyFrom = (layer, allowed) => ({
+  regex: `^(?!(?:${allowed.join("|")}))`,
+  message: `The ${layer} layer imports only what its list in eslint.config.mjs allows (${layer.toUpperCase()}_IMPORTS): its own layer, the shared kernel, and a short named list. A package or module that is not on it belongs behind a port (ADR-0058, ADR-0074). Add to the list only with a reason.`,
+});
+const DOMAIN_LAYER_ALLOWLIST = onlyFrom("domain", DOMAIN_IMPORTS);
+const APPLICATION_LAYER_ALLOWLIST = onlyFrom(
+  "application",
+  APPLICATION_IMPORTS,
+);
+
+// ADR-0074 (D-03): one spelling per module. An aliased path with a `.` or `..` segment or
+// a doubled slash, or one written from the repository root, named a feature the patterns
+// above could not parse: `@/features/metric/../metric-log/domain/...` reached another
+// feature's domain unseen. Applies to every file under src.
+const CANONICAL_PATH = {
+  regex: "^src/|^@/(?:[^/]*/)*\\.{1,2}(?:/|$)|^@/.*//",
   message:
-    "This package is an infrastructure driver. The domain and application layers reach it through a port (ADR-0058).",
+    "Write the canonical path: `@/...` with no `.` or `..` segment and no doubled slash, or a relative path. A non-canonical spelling hides which feature or layer it reaches (ADR-0074).",
 };
 
-// ADR-0058: shared code depends on no feature. src/types once held two of the metric
-// feature's type files, which imported three other features' internals; the boundary
-// rules above apply to src/features only, so nothing rejected them (audit-2026-10-03 S5).
-// Any feature import is refused here, public.ts included: a shared module that needs a
-// feature belongs to that feature, or to src/composition. The pattern takes any path
-// with a `features/` segment, so a shared directory may not be named `features` either.
-const SHARED_CODE_FEATURE_IMPORT = {
-  regex: "(?:^@/|/)features/",
-  message:
-    "Shared code (src/types, src/shared, src/utils, src/config) must not import a feature. Move the code into the feature that owns it, or wire it in src/composition (ADR-0058).",
-};
+// ADR-0058, widened by ADR-0074 (D-04, register row B-29): outside src/features, a file
+// enters a feature by one door per purpose, or not at all. src/types once held two of the
+// metric feature's type files, which imported three other features' internals, and until
+// 2026-10-20 only src/{types,shared,utils,config} were checked (audit-2026-10-03 S5).
+// The doors:
+//   src/app.ts                                     a feature's index.ts (its routers)
+//   src/composition                                feature.ts and public.ts (ADR-0056)
+//   src/infrastructure/db, src/utils/db-helper.ts  one model file (ADR-0044 decision 4)
+//   src/lib/openapi                                one http/schema.zod file
+// Every other file under src imports no feature. A pattern takes any path with a
+// `features/` segment, aliased or relative, so no other directory may be named `features`.
+const FEATURE_DOOR_MESSAGE =
+  "Outside src/features, a feature is entered by one door per purpose: src/app.ts through its index.ts, src/composition through feature.ts or public.ts, the ORM registry and db-helper.ts through one model file, src/lib/openapi through one http/schema.zod file. Every other file imports no feature: move the code into the feature, or wire it in src/composition (ADR-0058, ADR-0074).";
+const featureDoor = (tail) => ({
+  regex: `(?:^@/|/)features/(?!(?:(?:public|shared)/)?[^/]+${tail}$)`,
+  message: FEATURE_DOOR_MESSAGE,
+});
+const NO_FEATURE_IMPORT = featureDoor("(?!)"); // no door: every feature path is refused
+const FEATURE_DOOR_INDEX = featureDoor("(?:/index(?:\\.js)?)?");
+const FEATURE_DOOR_COMPOSITION = featureDoor("/(?:feature|public)(?:\\.js)?");
+const FEATURE_DOOR_MODELS = featureDoor(
+  "/infrastructure/persistence/models/[^/]+",
+);
+const FEATURE_DOOR_SCHEMAS = featureDoor(
+  "/infrastructure/http/schema\\.zod(?:\\.js)?",
+);
 
-// src/utils/db-helper.ts types its helpers with Sequelize model classes. Model files are
-// the frozen cross-feature exception (ADR-0044 decision 4); nothing else is let through.
-const SHARED_CODE_FEATURE_IMPORT_EXCEPT_MODELS = {
-  regex: "(?:^@/|/)features/(?!.*/infrastructure/persistence/models/)",
-  message: SHARED_CODE_FEATURE_IMPORT.message,
-};
+// The six files that import another feature's models, and no other (ADR-0074 D-05). The
+// globs once covered all 11 model files and any feature's MetricReadMapper.ts or
+// TrendRepoSequelize.ts. architecture.test.ts freezes the imports at 11.
+const MODEL_ASSOCIATION_FILES = [
+  "src/features/public/metric/infrastructure/persistence/models/metric.sequelize.ts",
+  "src/features/public/metric-category/infrastructure/persistence/models/metric-category.sequelize.ts",
+  "src/features/public/metric-log/infrastructure/persistence/models/metric-log.sequelize.ts",
+  "src/features/public/metric-settings/infrastructure/persistence/models/metric-settings.sequelize.ts",
+  "src/features/public/metric/infrastructure/persistence/mappers/MetricReadMapper.ts",
+  "src/features/public/analytics/infrastructure/persistence/TrendRepoSequelize.ts",
+];
+
+// Every block below restates these: a later block that sets no-restricted-imports
+// replaces the rule for the files it matches.
+const BASE_IMPORT_PATTERNS = [...LEGACY_IMPORT_PATTERNS, CANONICAL_PATH];
 
 // Every rule above is a no-restricted-imports pattern, and that rule reads static
 // `import` and `export … from` only. A dynamic `import()` or a TypeScript import type
@@ -205,6 +274,14 @@ const NO_UNCHECKED_IMPORT_FORMS = [
       ":matches(ImportDeclaration, ExportNamedDeclaration, ExportAllDeclaration)[source.value=/^(node:)?module$/]",
     message:
       "No import from node's `module` package under src/: createRequire loads a file with no import statement, which the boundary rules cannot read. Use a static import.",
+  },
+  {
+    // ADR-0074 (D-06): the Function constructor evaluates a string, which can load a
+    // module unseen by any import rule (audit-2026-10-12 W6).
+    selector:
+      ":matches(NewExpression, CallExpression)[callee.type='Identifier'][callee.name='Function']",
+    message:
+      "No Function constructor under src/: it evaluates code no boundary rule can read. Write the function.",
   },
 ];
 
@@ -261,16 +338,66 @@ export default [
       "no-restricted-imports": ["error", { patterns: LEGACY_IMPORT_PATTERNS }],
     },
   },
-  // Feature-slice boundaries. Three blocks, most general first — a later block that
-  // matches a file replaces the rule for it, so each re-states the legacy patterns.
+  // Boundary rules (ADR-0044, ADR-0058, ADR-0074). Most general first: a later block that
+  // matches a file replaces no-restricted-imports for it, so each restates the base.
+  // Everything under src imports no feature unless a block below names its door.
   {
-    files: ["src/features/**/*.ts"],
+    files: [`src/**/*.${EXT}`],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: [...BASE_IMPORT_PATTERNS, NO_FEATURE_IMPORT] },
+      ],
+    },
+  },
+  // The doors (D-04). src/app.ts mounts each feature's routers.
+  {
+    files: [`src/app.${EXT}`],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: [...BASE_IMPORT_PATTERNS, FEATURE_DOOR_INDEX] },
+      ],
+    },
+  },
+  {
+    files: [`src/composition/**/*.${EXT}`],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: [...BASE_IMPORT_PATTERNS, FEATURE_DOOR_COMPOSITION] },
+      ],
+    },
+  },
+  {
+    // The ORM registry, where every model meets, and the helpers typed with them.
+    files: [`src/infrastructure/db/**/*.${EXT}`, `src/utils/db-helper.${EXT}`],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: [...BASE_IMPORT_PATTERNS, FEATURE_DOOR_MODELS] },
+      ],
+    },
+  },
+  {
+    // The spec is assembled from every feature's request schemas.
+    files: [`src/lib/openapi/**/*.${EXT}`],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: [...BASE_IMPORT_PATTERNS, FEATURE_DOOR_SCHEMAS] },
+      ],
+    },
+  },
+  // Feature-slice boundaries.
+  {
+    files: [`src/features/**/*.${EXT}`],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
-            ...LEGACY_IMPORT_PATTERNS,
+            ...BASE_IMPORT_PATTERNS,
             FEATURE_DEEP_IMPORTS,
             SIBLING_COMPOSITION_ROOT,
           ],
@@ -279,18 +406,14 @@ export default [
     },
   },
   {
-    // The frozen exception: files declaring Sequelize cross-model associations.
-    files: [
-      "src/features/**/infrastructure/persistence/models/*.sequelize.ts",
-      "src/features/**/infrastructure/persistence/mappers/MetricReadMapper.ts",
-      "src/features/**/infrastructure/persistence/TrendRepoSequelize.ts",
-    ],
+    // The frozen exception: the files that import another feature's models.
+    files: MODEL_ASSOCIATION_FILES,
     rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
-            ...LEGACY_IMPORT_PATTERNS,
+            ...BASE_IMPORT_PATTERNS,
             FEATURE_DEEP_IMPORTS_EXCEPT_MODELS,
             SIBLING_COMPOSITION_ROOT,
           ],
@@ -299,72 +422,38 @@ export default [
     },
   },
   {
-    files: ["src/features/*/*/domain/**/*.ts"],
+    files: [`src/features/*/*/domain/**/*.${EXT}`],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
-            ...LEGACY_IMPORT_PATTERNS,
+            ...BASE_IMPORT_PATTERNS,
             FEATURE_DEEP_IMPORTS,
             SIBLING_COMPOSITION_ROOT,
             INNER_LAYER_HTTP_ERROR,
             DOMAIN_LAYER_APPLICATION,
             INNER_LAYER_INFRASTRUCTURE,
-            INNER_LAYER_DRIVER_PACKAGES,
+            DOMAIN_LAYER_ALLOWLIST,
           ],
         },
       ],
     },
   },
   {
-    files: ["src/features/*/*/application/**/*.ts"],
+    files: [`src/features/*/*/application/**/*.${EXT}`],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
-            ...LEGACY_IMPORT_PATTERNS,
+            ...BASE_IMPORT_PATTERNS,
             FEATURE_DEEP_IMPORTS,
             SIBLING_COMPOSITION_ROOT,
             APPLICATION_LAYER_ORM,
             INNER_LAYER_HTTP_ERROR,
             INNER_LAYER_INFRASTRUCTURE,
-            INNER_LAYER_DRIVER_PACKAGES,
-          ],
-        },
-      ],
-    },
-  },
-  // Shared code (ADR-0058). Two places outside src/features import feature files by
-  // design and are left out of this block: src/infrastructure/db, the ORM registry where
-  // every model meets (ADR-0044's frozen exception), and src/lib/openapi, which assembles
-  // the spec from every feature's schemas. The entry points and src/composition wire
-  // features and are not shared code.
-  {
-    files: [
-      "src/types/**/*.ts",
-      "src/shared/**/*.ts",
-      "src/utils/**/*.ts",
-      "src/config/**/*.ts",
-    ],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        { patterns: [...LEGACY_IMPORT_PATTERNS, SHARED_CODE_FEATURE_IMPORT] },
-      ],
-    },
-  },
-  {
-    // The third named exception: model types only.
-    files: ["src/utils/db-helper.ts"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            ...LEGACY_IMPORT_PATTERNS,
-            SHARED_CODE_FEATURE_IMPORT_EXCEPT_MODELS,
+            APPLICATION_LAYER_ALLOWLIST,
           ],
         },
       ],
@@ -372,36 +461,37 @@ export default [
   },
   {
     // The shared kernel has layers too.
-    files: ["src/shared/application/**/*.ts"],
+    files: [`src/shared/application/**/*.${EXT}`],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
-            ...LEGACY_IMPORT_PATTERNS,
-            SHARED_CODE_FEATURE_IMPORT,
+            ...BASE_IMPORT_PATTERNS,
+            NO_FEATURE_IMPORT,
             INNER_LAYER_HTTP_ERROR,
             INNER_LAYER_INFRASTRUCTURE,
-            INNER_LAYER_DRIVER_PACKAGES,
+            APPLICATION_LAYER_ALLOWLIST,
           ],
         },
       ],
     },
   },
   {
-    // Its domain takes the inner layers' AppError rule as well.
-    files: ["src/shared/domain/**/*.ts"],
+    // Its domain, and src/types/domain: feature domains import those types, so they are
+    // held to the domain's rules (ADR-0074 D-02).
+    files: [`src/shared/domain/**/*.${EXT}`, `src/types/domain/**/*.${EXT}`],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
-            ...LEGACY_IMPORT_PATTERNS,
-            SHARED_CODE_FEATURE_IMPORT,
+            ...BASE_IMPORT_PATTERNS,
+            NO_FEATURE_IMPORT,
             INNER_LAYER_HTTP_ERROR,
             DOMAIN_LAYER_APPLICATION,
             INNER_LAYER_INFRASTRUCTURE,
-            INNER_LAYER_DRIVER_PACKAGES,
+            DOMAIN_LAYER_ALLOWLIST,
           ],
         },
       ],
@@ -409,9 +499,19 @@ export default [
   },
   // The boundary rules cannot be bypassed by a form they do not read.
   {
-    files: ["src/**/*.ts"],
+    files: [`src/**/*.${EXT}`],
     rules: {
       "no-restricted-syntax": ["error", ...NO_UNCHECKED_IMPORT_FORMS],
+      // ADR-0074 (D-06): node's own way to reach `module` with no import at all.
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "process",
+          property: "getBuiltinModule",
+          message:
+            "No process.getBuiltinModule under src/: it loads a module with no import statement, which the boundary rules cannot read. Use a static import.",
+        },
+      ],
     },
   },
   // Override for Jest-driven test files living under __tests__

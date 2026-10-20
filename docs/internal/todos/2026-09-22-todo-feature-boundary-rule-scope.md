@@ -1,8 +1,11 @@
 # Todo — the feature-boundary rule stops at `src/features/`
 
-- **Status:** Open — scope-widening only; the audience-path gap closed on 2026-09-29 (see the last
-  section) and was confirmed by the dated run of 2026-10-03. That run keeps C4 open on two other
-  routes, tracked in `2026-10-03-todo-boundary-rule-types-and-application-infra.md`
+- **Status:** Closed on `fix/boundary-rules-everywhere`
+  ([`boundary-rules-everywhere`](../initiatives/boundary-rules-everywhere/README.md) D-04,
+  ADR-0074). Every file under `src` is checked; outside `src/features` a feature is entered by one
+  door per purpose. Question 1 is answered with doors, not a blanket exemption; question 2 by the
+  rule (a type that needs a feature's type lives in the feature); question 3 by #192, which left
+  `worker.ts` importing no feature
 - **Created:** 2026-09-22
 - **Owner:** unassigned
 - **Origin:** discovered implementing the `feature-boundaries` kit (PR 1); see its checklist
