@@ -7,10 +7,12 @@ import type { AppFeatures } from "./composition/features.js";
 // Routes
 // Routers are built here, at mount time — importing a feature constructs nothing (ADR-0045).
 import {
+  authMiddleware,
   createAuthRouter,
   createOrganizationRouter,
   createInviteRouter,
   createMembershipRouter,
+  requireOrgRole,
 } from "./features/shared/auth/index.js";
 import { createMetricRouter } from "./features/public/metric/index.js";
 import { createMetricLogRouter } from "./features/public/metric-log/index.js";
@@ -26,8 +28,6 @@ import { createReadinessProbe } from "@/shared/utils/readiness-probe.js";
 import { errorHandler } from "@/shared/middleware/error.js";
 import { redisClient } from "./utils/redis-client.js";
 import sequelize from "./config/db.js";
-import { authMiddleware } from "./features/shared/auth/infrastructure/http/authMiddleware.js";
-import { requireOrgRole } from "./features/shared/auth/infrastructure/http/assertHasOrgRole.js";
 import { sendError } from "@/shared/utils/error-envelope.js";
 
 // Built on the first app, and shared: the spec is the same for every app.
