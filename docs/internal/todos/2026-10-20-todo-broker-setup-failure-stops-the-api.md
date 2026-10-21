@@ -1,6 +1,8 @@
 # Todo — a broker declaration mismatch stops the API
 
-- **Status:** Open (P2)
+- **Status:** Closed on `fix/queue-failure-paths`
+  ([`queue-failure-paths`](../initiatives/queue-failure-paths/README.md), ADR-0080).
+  Reproduced by tests first; a dated run is owed to confirm it
 - **Created:** 2026-10-20
 - **Owner:** unassigned
 - **Origin:** dated SaaS-readiness run of 2026-10-20, finding X63

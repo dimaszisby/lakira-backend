@@ -27,6 +27,7 @@ import { retryDelaysMs } from "@/shared/infrastructure/queue/retryPolicy.js";
 import { env } from "@/config/envManager.js";
 import { drainBackgroundTasks } from "@/utils/background-tasks.js";
 import { models } from "@/infrastructure/db/models.js";
+import { awaitBroker } from "../../helpers/broker.js";
 
 /**
  * The queued password-reset email (ADR-0069): POST /auth/forgot-password → jobs
@@ -181,7 +182,7 @@ describe("The password-reset email via RabbitMQ", () => {
     try {
       // Fail fast when no broker is reachable. connect() alone would leave
       // amqp-connection-manager retrying in the background and hang Jest.
-      await connectRabbitMQ().connect({ timeout: POLL_TIMEOUT_MS });
+      await awaitBroker(POLL_TIMEOUT_MS);
     } catch (error) {
       await disconnectRabbitMQ();
       throw new Error(

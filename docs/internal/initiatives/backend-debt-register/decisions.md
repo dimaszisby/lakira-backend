@@ -186,7 +186,7 @@ ADR-0074 would be amended three times.
 
 ## D-09 — B-79 with the stats key of B-82's X11/X21 in one fix PR
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #202, `5a3addb`)
 - **Date:** 2026-10-21
 
 **Context.** B-79 (X20) puts `startDate` and `endDate` into `GET /metric-logs/stats`, so its cache
@@ -197,3 +197,20 @@ key must change to name them. That key is one of the three X11/X21 (B-82) found 
 **Options considered.** Building the new key from raw `req.query` and fixing it under B-82 later:
 the same line written twice.
 **Consequences.** B-79 moves to Closed; B-82 names the branch for the stats key.
+
+---
+
+## D-10 — B-78 with B-84 in one fix PR
+
+- **Status:** Proposed
+- **Date:** 2026-10-21
+
+**Context.** B-78 (X63, P2) leaves a channel setup failure unhandled. B-84 lists the queue and
+lifecycle P3s of the same run: X64 (unroutable publishes), X65 (unflushed exits), X66 (Redis left
+open), X67 (a crashed worker drains), X68 (a timed-out publish sent twice), N4 (no request id over
+the queue). All are in the publisher, the consumer, the email use cases and the two entry points,
+and all need the same broker tests. The owner chose to fix them together on 2026-10-21.
+**Decision.** Add to D-02's exceptions: **B-78 with B-84.** Kit `queue-failure-paths`.
+**Options considered.** Seven PRs, or B-78 alone: each would reopen the publisher and the broker
+test harness.
+**Consequences.** B-78 and B-84 move to Closed. A dated run follows the merge.

@@ -4,20 +4,13 @@ import logger from "@/utils/logger.js";
 
 import {
   EXCHANGES,
+  QUEUES,
   ROUTING_KEYS,
 } from "@/shared/application/messaging/job-routes.js";
 
 // The names a publisher uses are declared beside the queue port; this module owns
 // what is declared on the broker.
-export { EXCHANGES, ROUTING_KEYS };
-
-export const QUEUES = {
-  METRIC_LOG_GENERATE_DUMMY: `${APP_SHORT_NAME}.metric-log.generate-dummy`,
-  AUTH_SEND_VERIFICATION_EMAIL: `${APP_SHORT_NAME}.auth.send-verification-email`,
-  AUTH_SEND_PASSWORD_RESET_EMAIL: `${APP_SHORT_NAME}.auth.send-password-reset-email`,
-  AUTH_SEND_INVITE_EMAIL: `${APP_SHORT_NAME}.auth.send-invite-email`,
-  PARKING: `${APP_SHORT_NAME}.jobs.parking.queue`,
-} as const;
+export { EXCHANGES, QUEUES, ROUTING_KEYS };
 
 /**
  * Where a failed message waits out a backoff of `delayMs` before returning to `queue`

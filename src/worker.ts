@@ -11,12 +11,16 @@ import { loadModels } from "./infrastructure/db/models.js";
 import sequelize from "./config/db.js";
 import { buildWiredMetricLogFeature } from "./composition/metric-log.js";
 import { buildWiredAuthFeature } from "./composition/auth.js";
-import { WORKER_DRAIN_TIMEOUT_MS, createShutdown } from "./utils/shutdown.js";
+import { createShutdown } from "./utils/shutdown.js";
+import { disconnectRedis } from "./utils/redis-client.js";
+import { buildWorkerShutdownSteps } from "./worker-shutdown.js";
 
 if (!env.RABBITMQ_ENABLED) {
   logger.error(
     "[WORKER] RABBITMQ_ENABLED is false. Set it to true to run the worker.",
   );
+  // The line above is why it exits; flushed first, or it can be lost (audit X65).
+  await flushLogs();
   process.exit(1);
 }
 
@@ -78,21 +82,16 @@ const startWorker = async (): Promise<void> => {
 };
 
 // Runs once, within one deadline, logs flushed before exit (ADR-0076). The
-// drain is bounded so the closes after it still fit.
+// drain is bounded so the closes after it still fit, and skipped after a crash.
 const shutdown = createShutdown({
   label: "WORKER",
-  steps: async () => {
-    await Promise.all(workers.map((w) => w.close(WORKER_DRAIN_TIMEOUT_MS)));
-    logger.info("[WORKER] All consumers drained.");
-
-    await retryPublisher?.close();
-
-    await disconnectRabbitMQ();
-    logger.info("[WORKER] RabbitMQ disconnected.");
-
-    await sequelize.close();
-    logger.info("[WORKER] Database disconnected.");
-  },
+  steps: buildWorkerShutdownSteps(() => ({
+    consumers: workers,
+    retryPublisher,
+    disconnectRabbitMQ,
+    disconnectRedis,
+    closeDatabase: () => sequelize.close(),
+  })),
 });
 
 // Nothing awaits shutdown: it handles its own failure and ends the process.

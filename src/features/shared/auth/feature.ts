@@ -1,5 +1,7 @@
 import { env } from "@/config/envManager.js";
 import { redisClient } from "@/utils/redis-client.js";
+import logger from "@/utils/logger.js";
+import { QUEUES } from "@/shared/application/messaging/job-routes.js";
 import {
   checkLockout,
   recordFailedAttempt,
@@ -152,6 +154,23 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
           () => requestEmailVerification.execute({ userId }),
           { userId },
         ),
+      sendJobInProcess: ({ userId, reason, messageId }) =>
+        runInBackground(
+          `verification-email:${reason}`,
+          async () => {
+            const outcome = await idempotency.runOnce(
+              { messageId, queue: QUEUES.AUTH_SEND_VERIFICATION_EMAIL },
+              (tx) => requestEmailVerification.executeInTransaction(userId, tx),
+            );
+            if (outcome === "duplicate") {
+              logger.info(
+                "[RABBITMQ] Verification email already sent by the worker.",
+                { userId, messageId },
+              );
+            }
+          },
+          { userId },
+        ),
     },
   );
 
@@ -162,6 +181,7 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
     resetTokenRepo,
     emailSender,
     messageQueue,
+    idempotency,
     {
       frontendResetUrl: env.FRONTEND_RESET_URL,
       buildEmail: buildPasswordResetEmail,
@@ -175,6 +195,7 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
     orgRepo,
     emailSender,
     messageQueue,
+    idempotency,
     tx,
     {
       frontendInviteUrl: env.FRONTEND_INVITE_URL,

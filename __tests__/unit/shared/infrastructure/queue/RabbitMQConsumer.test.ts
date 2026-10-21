@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
+import { getRequestId } from "@/shared/middleware/request-id.js";
 
 type Setup = (ch: unknown) => Promise<void>;
 let setup: Setup | undefined;
@@ -6,9 +7,11 @@ let setup: Setup | undefined;
 const channel = {
   cancel: jest.fn(async () => undefined),
   close: jest.fn(async () => undefined),
+  on: jest.fn(),
 };
 
 jest.mock("@/shared/infrastructure/queue/RabbitMQConnection.js", () => ({
+  absorbChannelErrors: jest.fn(),
   connectRabbitMQ: () => ({
     createChannel: (options: { setup: Setup }) => {
       setup = options.setup;
@@ -30,6 +33,7 @@ const topologyMock = jest.requireMock(
 
 /** The amqplib channel `setup` is handed, as the library hands it. */
 const rawChannel = (consumerTag: string) => ({
+  on: jest.fn(),
   prefetch: jest.fn(async () => undefined),
   consume: jest.fn(async () => ({ consumerTag })),
   cancel: jest.fn(async (tag: string) => {
@@ -136,5 +140,63 @@ describe("RabbitMQConsumer", () => {
     await setup!(raw);
 
     await expect(consumer.cancel()).resolves.toBeUndefined();
+  });
+
+  // queue-failure-paths D-01 (audit 2026-10-20 X63): a failed setup emitted `error` to no
+  // listener and took the process down.
+  it("listens for its channel's errors", async () => {
+    await build();
+    expect(channel.on).toHaveBeenCalledWith("error", expect.any(Function));
+    const onError = channel.on.mock.calls.find((c) => c[0] === "error")![1] as (
+      error: Error,
+    ) => void;
+    expect(() => onError(new Error("PRECONDITION_FAILED"))).not.toThrow();
+  });
+
+  // N4: the worker logs a job under the id of the request that published it.
+  it("runs the handler under the message's request id, and mints one for a bad id", async () => {
+    const seen: (string | undefined)[] = [];
+    const { RabbitMQConsumer } =
+      await import("@/shared/infrastructure/queue/RabbitMQConsumer.js");
+    new RabbitMQConsumer({
+      queue: "test.queue",
+      handler: async () => {
+        seen.push(getRequestId());
+      },
+      publisher: {
+        isEnabled: () => true,
+        publish: async () => undefined,
+        close: async () => undefined,
+      },
+    });
+    let deliver: ((msg: unknown) => void) | undefined;
+    const raw = {
+      ...rawChannel("tag-1"),
+      consume: jest.fn(
+        async (_queue: string, onMessage: (m: unknown) => void) => {
+          deliver = onMessage;
+          return { consumerTag: "tag-1" };
+        },
+      ),
+      ack: jest.fn(),
+    };
+    await setup!(raw);
+
+    const message = (requestId?: unknown) => ({
+      content: Buffer.from("{}"),
+      properties: {
+        messageId: "m-1",
+        headers: requestId === undefined ? {} : { "x-request-id": requestId },
+      },
+    });
+    deliver!(message("req-7"));
+    deliver!(message("not a valid id\n"));
+    deliver!(message());
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(seen[0]).toBe("req-7");
+    expect(seen[1]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(seen[2]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(raw.ack).toHaveBeenCalledTimes(3);
   });
 });

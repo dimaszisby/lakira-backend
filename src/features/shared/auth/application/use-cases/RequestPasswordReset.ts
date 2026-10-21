@@ -2,8 +2,10 @@ import crypto, { randomUUID } from "node:crypto";
 import logger from "@/utils/logger.js";
 import {
   EXCHANGES,
+  QUEUES,
   ROUTING_KEYS,
 } from "@/shared/application/messaging/job-routes.js";
+import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import type { AuthUser } from "../../domain/entities/AuthUser.js";
@@ -40,6 +42,7 @@ export class RequestPasswordReset {
     private tokenRepo: PasswordResetTokenRepository,
     private emailSender: EmailSender,
     private queue: MessageQueuePort,
+    private idempotency: MessageIdempotencyPort,
     private deps: RequestPasswordResetDeps,
   ) {}
 
@@ -55,10 +58,11 @@ export class RequestPasswordReset {
 
     if (this.queue.isEnabled()) {
       const job: PasswordResetEmailJob = { userId: user.id };
+      const messageId = randomUUID();
       try {
         await this.queue.publish(EXCHANGES.JOBS, job, {
           routingKey: ROUTING_KEYS.AUTH_SEND_PASSWORD_RESET_EMAIL,
-          messageId: randomUUID(),
+          messageId,
         });
         return;
       } catch (error) {
@@ -70,9 +74,39 @@ export class RequestPasswordReset {
           },
         );
       }
+      await this.sendJobInRequest(user.id, messageId);
+      return;
     }
 
     await this.sendInRequest(user);
+  }
+
+  /**
+   * A publish that failed may still have reached the broker, so the fallback is the job
+   * itself, recorded under the id it was published with: whichever of this and the worker runs
+   * second sends nothing (queue-failure-paths D-03, ADR-0080; audit 2026-10-20 X68).
+   */
+  private async sendJobInRequest(
+    userId: string,
+    messageId: string,
+  ): Promise<void> {
+    try {
+      const outcome = await this.idempotency.runOnce(
+        { messageId, queue: QUEUES.AUTH_SEND_PASSWORD_RESET_EMAIL },
+        (tx) => this.executeInTransaction(userId, tx),
+      );
+      if (outcome === "duplicate") {
+        logger.info(
+          "[RABBITMQ] Password reset email already sent by the worker.",
+          { userId, messageId },
+        );
+      }
+    } catch (error) {
+      logger.error("Failed to send password reset email", {
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   /**

@@ -18,6 +18,7 @@ import {
   assertWorkQueue,
   retryQueueFor,
 } from "@/shared/infrastructure/queue/topology.js";
+import { awaitBroker } from "../helpers/broker.js";
 
 /**
  * Kit queue-design-hardening, D-02 (audit 2026-09-29, R8). RabbitMQ expires only the
@@ -44,7 +45,7 @@ describe("retries wait in a queue per delay", () => {
   );
 
   beforeAll(async () => {
-    await connectRabbitMQ().connect({ timeout: TIMEOUT_MS });
+    await awaitBroker(TIMEOUT_MS);
     publisher = new RabbitMQPublisher();
     inspector = connectRabbitMQ().createChannel({
       name: "test-retry-tiers",
