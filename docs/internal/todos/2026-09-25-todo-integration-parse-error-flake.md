@@ -217,3 +217,11 @@ On `fix/metric-log-stats-in-sql`, one `npm run test:integration:coverage` failed
 (`analytics-caching.test.ts`), a route the branch does not touch. The suite alone passed three
 times in a row, and the next full run passed (290 passed, 6 skipped). Not a `Parse Error`, but
 the same shape: one request of a supertest agent failing at the socket, once, then not again.
+
+## 2026-10-21 — two more `socket hang up`s, under memory pressure
+
+On `ci/tests-in-parallel`, one full `test:integration:coverage` run failed two tests with `socket
+hang up`: `JSON body guard › rejects scalar payloads` and `GET /metric-logs/stats › counts logs
+from startDate…`. The Docker VM was short of memory at the time (a throwaway RabbitMQ exited on
+start, and the next one logged `system_memory_high_watermark`), and both suites passed on the
+rerun. Memory pressure is a new condition to check next time it appears.

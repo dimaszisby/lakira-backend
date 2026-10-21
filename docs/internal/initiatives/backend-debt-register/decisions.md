@@ -202,7 +202,7 @@ the same line written twice.
 
 ## D-10 — B-78 with B-84 in one fix PR
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #203, `2c1c098`)
 - **Date:** 2026-10-21
 
 **Context.** B-78 (X63, P2) leaves a channel setup failure unhandled. B-84 lists the queue and

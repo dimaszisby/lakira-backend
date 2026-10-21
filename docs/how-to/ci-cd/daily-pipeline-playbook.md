@@ -15,20 +15,24 @@ This guide explains how Lakira Backend’s automation works and what a junior de
    - `npm run security:gate:evaluate`
    - Uploads artifacts from `tmp/security/*` as CI artifact `backend-security-delta`.
    - Soft gate rule: CI fails on unresolved **High/Critical** findings only.
-3. **Unit and Integration Tests (job: `tests`, needs `checks` and `security_delta`)**
-   - `npm run build`, `npm run db:migrate:test`
-   - `npm run test:unit`, then `npm run test:integration` (sequential, `NODE_ENV=test`)
-   - `npm run test:unit:coverage` and `npm run test:integration:coverage` — these are the runs that
-     enforce the coverage thresholds in `jest.config.mjs` (unit ≥ 60 % statements / ≥ 40 % branches /
-     ≥ 55 % functions / ≥ 60 % lines; integration ≥ 70 / 45 / 70 / 70), each selected by the
-     `JEST_COVERAGE_PROJECT` its script sets. Plain `test:unit` collects no coverage and enforces
-     nothing.
-     Artifacts land in `coverage/jest-unit` and `coverage/jest-integration`, both uploaded
-4. **Contract Tests (job: `contract_local`, needs `tests`)**
-   - Seeds fixtures, boots the built server, runs Schemathesis against the spec.
-5. **Deploy (`deploy_staging` → `smoke_staging` on `staging`; `deploy_production` on `main`)**
+3. **Unit and Integration Tests (jobs: `unit` and `integration`, side by side, each needs
+   `security_delta`)**
+   - `unit`: `npm run test:unit:coverage`, no service containers
+   - `integration`: `npm run db:migrate:test`, then `npm run test:integration:coverage`
+   - These are the runs that enforce the coverage thresholds in `jest.config.mjs` (unit ≥ 60 %
+     statements / ≥ 40 % branches / ≥ 55 % functions / ≥ 60 % lines; integration ≥ 70 / 45 / 70 /
+     70), each selected by the `JEST_COVERAGE_PROJECT` its script sets. Each suite runs once.
+   - Artifacts: `backend-coverage-unit` and `backend-coverage-integration`
+   - The job `Unit & Integration Tests` (`tests`) is the required check: it passes only when both
+     passed, and fails, not skips, when either fails (ADR-0081). Read the failing suite's own job
+4. **Contract Tests (job: `contract_local`, needs `security_delta`)**
+   - Seeds fixtures, boots the built server, runs Schemathesis against the spec. It runs alongside
+     the test suites.
+5. **Deploy (`deploy_staging` → `smoke_staging` on `staging`; `deploy_production` on `main`)**, each
+   needing `tests` and `contract_local`
 
-`checks` and `security_delta` run in parallel; everything after waits on both. A failure in any
+`checks` and `security_delta` run in parallel; the test jobs and `contract_local` wait for
+`security_delta` only. Lint and typecheck still gate merging through the rulesets. A failure in any
 job blocks the jobs that need it.
 
 ## 1.1 Security Gate Quick Reference
