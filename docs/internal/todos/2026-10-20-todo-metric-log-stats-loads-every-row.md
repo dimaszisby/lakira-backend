@@ -1,6 +1,8 @@
 # Todo — `GET /metric-logs/stats` loads every log
 
-- **Status:** Open (P2)
+- **Status:** Closed on `fix/metric-log-stats-in-sql`
+  ([`metric-log-stats-in-sql`](../initiatives/metric-log-stats-in-sql/README.md), ADR-0079).
+  Reproduced by a test first; a dated run is owed to confirm it
 - **Created:** 2026-10-20
 - **Owner:** unassigned
 - **Origin:** dated SaaS-readiness run of 2026-10-20, finding X20

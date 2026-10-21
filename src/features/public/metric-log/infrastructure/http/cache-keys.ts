@@ -2,6 +2,7 @@ import { AuthRequest } from "@/types/request.context.js";
 import { buildCursorCacheKey } from "@/shared/cache/keys.js";
 import { pickValidated } from "@/shared/middleware/validated.js";
 import {
+  getAggregatedStatsSchema,
   getMetricLogByIdSchema,
   listMetricLogsViaCursorSchema,
 } from "./schema.zod.js";
@@ -47,4 +48,17 @@ export const metricLogsCursorCacheKey = (req: AuthRequest) => {
 export const metricLogCacheKey = (req: AuthRequest) => {
   const { params, query } = pickValidated(getMetricLogByIdSchema)(req);
   return `log:${req.user?.organizationId}:${req.user?.id}:${params.id}:m:${query.metricId}`;
+};
+
+/**
+ * Cache key for `GET /metric-logs/stats`, from the validated query. The key it replaces was
+ * built from raw `req.query` and left the range out, so a ranged request was answered from the
+ * all-time entry (kit metric-log-stats-in-sql D-03; audit X11, X20). Each bound is written in
+ * epoch milliseconds: no `:` to encode, and two spellings of one instant share an entry.
+ * `MetricLogCacheRedis` deletes `logStats:<org>:<user>:m:<metricId>:*` and `...:m:all:*`.
+ */
+export const metricLogStatsCacheKey = (req: AuthRequest) => {
+  const { query } = pickValidated(getAggregatedStatsSchema)(req);
+  const ms = (value?: string) => (value ? Date.parse(value) : "_");
+  return `logStats:${req.user?.organizationId}:${req.user?.id}:m:${query.metricId ?? "all"}:s:${ms(query.startDate)}:e:${ms(query.endDate)}`;
 };

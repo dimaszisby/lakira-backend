@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { createMetricLogController } from "./controller.js";
-import { metricLogCacheKey, metricLogsCursorCacheKey } from "./cache-keys.js";
+import {
+  metricLogCacheKey,
+  metricLogStatsCacheKey,
+  metricLogsCursorCacheKey,
+} from "./cache-keys.js";
 import type { MetricLogFeature } from "../../feature.js";
 import { authMiddleware } from "@/features/auth/public.js";
 import { cacheMiddleware } from "@/shared/middleware/cache.js";
@@ -15,15 +19,9 @@ import {
   generateDummyMetricLogsSchema,
   listMetricLogsViaCursorSchema,
 } from "./schema.zod.js";
-import { AuthRequest } from "@/types/request.context.js";
 import { env } from "@/config/envManager.js";
 import { methodNotAllowed } from "@/shared/middleware/method-guard.js";
 import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.js";
-
-const logStatsCacheKey = (req: AuthRequest) => {
-  const metricId = req.params.metricId || req.query.metricId;
-  return `logStats:${req.user?.organizationId}:${req.user?.id}:${metricId || "all"}`;
-};
 
 export const createMetricLogRouter = (feature: MetricLogFeature) => {
   const controller = createMetricLogController(feature);
@@ -41,7 +39,7 @@ export const createMetricLogRouter = (feature: MetricLogFeature) => {
     .route("/stats")
     .get(
       validate(getAggregatedStatsSchema),
-      cacheMiddleware(logStatsCacheKey, 300),
+      cacheMiddleware(metricLogStatsCacheKey, 300),
       controller.getAggregatedStats,
     )
     .all(methodNotAllowed(["GET"]));

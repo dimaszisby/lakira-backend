@@ -169,6 +169,30 @@ export const MetricIdQuerySchema = z.object({
   ),
 });
 
+// GET /metric-logs/stats (ADR-0079): the range is half-open, by when a value was logged.
+const statsBoundSchema = (name: string, description: string) =>
+  z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .openapi({
+      ...queryParamMetadata(name, description),
+      format: "date-time",
+      example:
+        name === "startDate" ? "2025-01-01T00:00:00Z" : "2025-02-01T00:00:00Z",
+    });
+
+export const MetricLogStatsQuerySchema = MetricIdQuerySchema.extend({
+  startDate: statsBoundSchema(
+    "startDate",
+    "Count logs whose loggedAt is at or after this instant. An ISO 8601 datetime with an offset.",
+  ),
+  endDate: statsBoundSchema(
+    "endDate",
+    "Count logs whose loggedAt is before this instant (exclusive). An ISO 8601 datetime with an offset; must be after startDate when both are given.",
+  ),
+});
+
 export const MetricIdRequiredQuerySchema = z.object({
   metricId: UuidSchema.openapi(
     queryParamMetadata(

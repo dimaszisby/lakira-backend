@@ -116,10 +116,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0076](./adr-0076-promises-are-awaited-and-shutdown-has-a-deadline.md)         | A promise is awaited or handed off, and shutdown has one deadline                                                | Accepted                                            | 2026-10-20 | floating-promises-and-bounded-shutdown D-01..03   |
 | [ADR-0077](./adr-0077-a-queued-job-holds-one-connection.md)                        | A queued job holds one connection, for a bounded time                                                            | Accepted                                            | 2026-10-21 | worker-cancel-and-one-connection-per-job D-02..03 |
 | [ADR-0078](./adr-0078-relative-paths-and-contracts-in-the-inner-layers.md)         | A relative path is judged by where it lands, and inner layers take a feature's `contract.ts`                     | Accepted                                            | 2026-10-21 | inner-layers-reach-infrastructure D-01..03        |
+| [ADR-0079](./adr-0079-metric-log-stats-are-one-ranged-aggregate.md)                | Metric-log stats are one aggregate, over a half-open range of `loggedAt`                                         | Accepted                                            | 2026-10-21 | metric-log-stats-in-sql D-01..03                  |
 
 ## Adding one
 
-Take the next free number — **ADR-0079** as of 2026-10-21 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0080** as of 2026-10-21 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 

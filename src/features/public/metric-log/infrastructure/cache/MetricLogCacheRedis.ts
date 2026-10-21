@@ -1,8 +1,4 @@
-import {
-  invalidateCache,
-  invalidateCacheByPattern,
-  redisClient,
-} from "@/utils/redis-client.js";
+import { invalidateCacheByPattern, redisClient } from "@/utils/redis-client.js";
 import { CachePort } from "../../application/ports/CachePort.js";
 import type { VisualizationInvalidationPort } from "@/shared/application/ports/VisualizationInvalidationPort.js";
 import { cursorCacheNamespace } from "@/shared/cache/keys.js";
@@ -41,8 +37,13 @@ export class MetricLogCacheRedis implements CachePort {
         `${METRIC_LOG_CURSOR_NAMESPACE_ALL}:${userId}:org:${organizationId}:*`,
       );
 
-      await invalidateCache(`logStats:${organizationId}:${userId}:${metricId}`);
-      await invalidateCache(`logStats:${organizationId}:${userId}:all`);
+      // Every cached range of the metric and of "all" (metric-log-stats-in-sql D-03).
+      await invalidateCacheByPattern(
+        `logStats:${organizationId}:${userId}:m:${metricId}:*`,
+      );
+      await invalidateCacheByPattern(
+        `logStats:${organizationId}:${userId}:m:all:*`,
+      );
 
       await this.visualizationInvalidation.invalidateByMetric(
         userId,

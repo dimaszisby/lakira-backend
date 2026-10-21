@@ -209,3 +209,11 @@ longer a condition for the failure.
 The dated run of 2026-10-05 ran `npm test` as the first run after `npm ci` and it passed, as did
 the fork's `npm test`. The sighting above, earlier the same day, stands: three sightings in three
 different tests, one of them not after an install. Still unexplained (audit R4).
+
+## 2026-10-21 — a `socket hang up`, possibly the same family
+
+On `fix/metric-log-stats-in-sql`, one `npm run test:integration:coverage` failed one test with
+`socket hang up`: `Analytics HTTP caching › rejects an unsupported bucket`
+(`analytics-caching.test.ts`), a route the branch does not touch. The suite alone passed three
+times in a row, and the next full run passed (290 passed, 6 skipped). Not a `Parse Error`, but
+the same shape: one request of a supertest agent failing at the socket, once, then not again.

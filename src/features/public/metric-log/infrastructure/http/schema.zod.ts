@@ -1,6 +1,5 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
-  zDateOptional,
   zLogType,
   zPositiveFloat,
   zUUID,
@@ -133,11 +132,23 @@ export const listMetricQueryViaCursor = listMetricCursorBase
     };
   });
 
-export const aggregatedStatsQuery = z.object({
-  metricId: zUUID.optional(),
-  startDate: zDateOptional,
-  endDate: zDateOptional,
-});
+// Logs with `startDate <= loggedAt < endDate`, as the analytics range is bounded; either bound
+// may be left open. An ISO datetime with an offset, so each names one instant (ADR-0079).
+export const aggregatedStatsQuery = z
+  .object({
+    metricId: zUUID.optional(),
+    startDate: zISODateTime.optional(),
+    endDate: zISODateTime.optional(),
+  })
+  .superRefine(({ startDate, endDate }, ctx) => {
+    if (startDate && endDate && Date.parse(endDate) <= Date.parse(startDate)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["endDate"],
+        message: "endDate must be after startDate",
+      });
+    }
+  });
 
 export const createMetricLogSchema = z.object({ body: metricLogBody });
 export const updateMetricLogSchema = z.object({

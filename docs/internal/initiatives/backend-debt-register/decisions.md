@@ -167,7 +167,7 @@ amended.
 
 ## D-08 — B-80 with X42 to X45 of B-83 and B-73 in one fix PR
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #201, `66eaf20`)
 - **Date:** 2026-10-21
 
 **Context.** B-80 (X40, X41) holds the inner layers' relative paths and `public.ts` imports to
@@ -181,3 +181,19 @@ read: X42, X43 and X44 in B-83, X45 in B-73. All change `eslint.config.mjs` and
 **Options considered.** Separate PRs: each would reopen the same blocks and the same test, and
 ADR-0074 would be amended three times.
 **Consequences.** B-80 moves to Closed; B-83 and B-73 drop the folded items and name the branch.
+
+---
+
+## D-09 — B-79 with the stats key of B-82's X11/X21 in one fix PR
+
+- **Status:** Proposed
+- **Date:** 2026-10-21
+
+**Context.** B-79 (X20) puts `startDate` and `endDate` into `GET /metric-logs/stats`, so its cache
+key must change to name them. That key is one of the three X11/X21 (B-82) found built from raw
+`req.query`.
+**Decision.** Add to D-02's exceptions: **B-79 with the stats key of B-82's X11/X21.** Kit
+`metric-log-stats-in-sql`. B-82 keeps the other two keys and its other items.
+**Options considered.** Building the new key from raw `req.query` and fixing it under B-82 later:
+the same line written twice.
+**Consequences.** B-79 moves to Closed; B-82 names the branch for the stats key.
