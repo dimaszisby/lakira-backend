@@ -2,7 +2,7 @@
 
 ## D-01 — Cancel on the channel that owns the consumer
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #198, `4bfaf4e`)
 - **Date:** 2026-10-21
 
 **Context.** `RabbitMQConsumer` calls `ch.consume` on the raw `amqplib` channel inside the wrapper's
@@ -39,7 +39,7 @@ That file is authoritative; this entry is a pointer.
 
 ## D-04 — The pool size is not changed here
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #198, `4bfaf4e`)
 - **Date:** 2026-10-21
 
 **Context.** X62's todo suggested a pool larger than the consumers' combined prefetch. `db.ts` sets

@@ -134,7 +134,7 @@ dated run that restates GOLD empties tier 1 again.
 
 ## D-06 — B-74 with B-75 in one fix PR
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #198, `4bfaf4e`)
 - **Date:** 2026-10-21
 
 **Context.** D-02 gives each row its own fix PR, with named exceptions. B-74 and B-75 are the two
@@ -145,3 +145,20 @@ by one dated run. Kit `worker-cancel-and-one-connection-per-job`.
 **Options considered.** Two PRs, as D-02 says: rejected by the owner; the dated run waits for both
 either way.
 **Consequences.** One PR moves both rows to Closed. D-01's order is unchanged.
+
+---
+
+## D-07 — B-76 with X2 of B-81 in one fix PR
+
+- **Status:** Proposed
+- **Date:** 2026-10-21
+
+**Context.** B-76 (X1) refuses an unsafe database TLS setting in production. X2, one item of the
+P3 row B-81, asks for ADR-0036's production refusals to cover staging. Both change the same
+refusal block in `src/config/zodEnv.ts` and the same record, ADR-0036. D-02 already pairs rows that
+add to the production refusals ("B-07 with B-17, and B-12").
+**Decision.** Add to D-02's exceptions: **B-76 with B-81's X2**. Kit
+`database-tls-and-staging-refusals`. B-81 keeps its other items.
+**Options considered.** Two PRs: the second would reopen the block and the ADR the first just
+amended.
+**Consequences.** B-76 moves to Closed; B-81 drops X2 from its list and names the branch.

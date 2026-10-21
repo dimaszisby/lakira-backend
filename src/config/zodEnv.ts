@@ -4,6 +4,10 @@ import { z } from "zod";
 // Tokens are HS256, so the secret's strength is the signature's. Both are checked in
 // the superRefine below, in production and staging (ADR-0036; kit
 // jwt-secret-minimum-length, D-01).
+/** A PEM certificate frame; the TLS handshake judges what is inside it. */
+const PEM_CERTIFICATE =
+  /-----BEGIN CERTIFICATE-----[\s\S]+-----END CERTIFICATE-----/;
+
 const JWT_SECRET_MIN_LENGTH = 32;
 // The value .env.example ships. It is longer than the minimum, so it needs a rule of
 // its own. scripts/bootstrap-fork.sh matches on the same string.
@@ -113,10 +117,23 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
       LOG_LEVEL: z
         .enum(["error", "warn", "info", "http", "verbose", "debug", "silly"])
         .default(nodeEnv === "production" ? "http" : "debug"),
+      // Verifies the database's TLS certificate. Production refuses false; staging
+      // defaults to true and may opt out, with a warning (database-tls-and-staging-refusals D-01).
       DB_SSL_REJECT_UNAUTHORIZED: z
         .string()
         .transform((val) => val.toLowerCase() !== "false")
-        .default(nodeEnv === "production" ? "true" : "false"),
+        .default(
+          nodeEnv === "production" || nodeEnv === "staging" ? "true" : "false",
+        ),
+      // The CA certificate (PEM) the database connection trusts, beside Node's
+      // default bundle, in staging and production. A literal \n is read as a
+      // newline, for a platform that stores a variable on one line (D-04).
+      DB_SSL_CA: z
+        .string()
+        .optional()
+        .transform((val) =>
+          val && val.trim() ? val.replace(/\\n/g, "\n") : undefined,
+        ),
 
       // Redis
       REDIS_URL: z.string().optional(),
@@ -471,6 +488,17 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
       const refuse = (path: string, message: string) =>
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
 
+      // Never quoted: the message names the variable only.
+      if (
+        data.DB_SSL_CA !== undefined &&
+        !PEM_CERTIFICATE.test(data.DB_SSL_CA)
+      ) {
+        refuse(
+          "DB_SSL_CA",
+          "DB_SSL_CA must hold a PEM certificate, from -----BEGIN CERTIFICATE----- to -----END CERTIFICATE-----.",
+        );
+      }
+
       // ADR-0049: the console adapter logs every email body, reset and invite tokens
       // included, so it may only run where logs stay on a developer's machine. This one
       // also covers staging, so it sits above the production-only return below.
@@ -503,26 +531,36 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
         }
       }
 
-      if (data.NODE_ENV !== "production") return;
+      // Staging is reachable from the internet, so it takes these refusals too
+      // (database-tls-and-staging-refusals D-02). Only mailpit stays allowed there.
+      if (data.NODE_ENV !== "production" && data.NODE_ENV !== "staging") return;
+      const where = `NODE_ENV=${data.NODE_ENV}`;
+
+      if (data.NODE_ENV === "production" && !data.DB_SSL_REJECT_UNAUTHORIZED) {
+        refuse(
+          "DB_SSL_REJECT_UNAUTHORIZED",
+          "DB_SSL_REJECT_UNAUTHORIZED cannot be false when NODE_ENV=production — the database connection would accept any certificate.",
+        );
+      }
 
       if (data.DISABLE_RATE_LIMITING) {
         refuse(
           "DISABLE_RATE_LIMITING",
-          "DISABLE_RATE_LIMITING cannot be true when NODE_ENV=production — it disables every rate limiter, including auth brute-force protection.",
+          `DISABLE_RATE_LIMITING cannot be true when ${where} — it disables every rate limiter, including auth brute-force protection.`,
         );
       }
 
       if (data.ALLOW_TEST_HTTP_SERVER) {
         refuse(
           "ALLOW_TEST_HTTP_SERVER",
-          "ALLOW_TEST_HTTP_SERVER cannot be true when NODE_ENV=production.",
+          `ALLOW_TEST_HTTP_SERVER cannot be true when ${where}.`,
         );
       }
 
       if (!data.SWAGGER_REQUIRE_AUTH) {
         refuse(
           "SWAGGER_REQUIRE_AUTH",
-          "SWAGGER_REQUIRE_AUTH cannot be false when NODE_ENV=production — it would expose the API docs unauthenticated.",
+          `SWAGGER_REQUIRE_AUTH cannot be false when ${where} — it would expose the API docs unauthenticated.`,
         );
       }
 
@@ -532,25 +570,25 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
       if (data.DB_LOGGING === "true") {
         refuse(
           "DB_LOGGING",
-          "DB_LOGGING cannot be true when NODE_ENV=production — it writes SQL statements to the log with their values, email addresses included.",
+          `DB_LOGGING cannot be true when ${where} — it writes SQL statements to the log with their values, email addresses included.`,
         );
       }
 
       if (data.SKIP_DB_LIFECYCLE) {
         refuse(
           "SKIP_DB_LIFECYCLE",
-          "SKIP_DB_LIFECYCLE cannot be true when NODE_ENV=production — the app would start without its database bootstrap.",
+          `SKIP_DB_LIFECYCLE cannot be true when ${where} — the app would start without its database bootstrap.`,
         );
       }
 
       if (data.LOG_LEVEL === "silly") {
         refuse(
           "LOG_LEVEL",
-          'LOG_LEVEL cannot be "silly" when NODE_ENV=production — it is a firehose and would bury real signal in the log stream.',
+          `LOG_LEVEL cannot be "silly" when ${where} — it is a firehose and would bury real signal in the log stream.`,
         );
       }
 
-      if (data.EMAIL_PROVIDER === "mailpit") {
+      if (data.NODE_ENV === "production" && data.EMAIL_PROVIDER === "mailpit") {
         refuse(
           "EMAIL_PROVIDER",
           'EMAIL_PROVIDER cannot be "mailpit" when NODE_ENV=production — every email, tokens included, would go to a local catcher instead of its recipient (ADR-0048).',
@@ -572,26 +610,26 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           if (login.user === "guest") {
             refuse(
               "RABBITMQ_URL",
-              'RABBITMQ_URL cannot log in as the default "guest" user when NODE_ENV=production and RABBITMQ_ENABLED=true. A URL that names no user and password logs in as guest too.',
+              `RABBITMQ_URL cannot log in as the default "guest" user when ${where} and RABBITMQ_ENABLED=true. A URL that names no user and password logs in as guest too.`,
             );
           }
           if (login.password === "guest") {
             refuse(
               "RABBITMQ_URL",
-              'RABBITMQ_URL cannot log in with the default "guest" password when NODE_ENV=production and RABBITMQ_ENABLED=true.',
+              `RABBITMQ_URL cannot log in with the default "guest" password when ${where} and RABBITMQ_ENABLED=true.`,
             );
           }
         } else if (login) {
           if (login.user === "guest") {
             refuse(
               "RABBITMQ_USER",
-              'RABBITMQ_USER cannot be the default "guest" when NODE_ENV=production and RABBITMQ_ENABLED=true.',
+              `RABBITMQ_USER cannot be the default "guest" when ${where} and RABBITMQ_ENABLED=true.`,
             );
           }
           if (login.password === "guest") {
             refuse(
               "RABBITMQ_PASSWORD",
-              'RABBITMQ_PASSWORD cannot be the default "guest" when NODE_ENV=production and RABBITMQ_ENABLED=true.',
+              `RABBITMQ_PASSWORD cannot be the default "guest" when ${where} and RABBITMQ_ENABLED=true.`,
             );
           }
         }

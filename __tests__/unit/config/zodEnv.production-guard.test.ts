@@ -1,5 +1,6 @@
 import { describe, it, expect, jest } from "@jest/globals";
 import { withTestEnv } from "@/tests/env-test-utils.js";
+import { loadEnvOrExit } from "@/config/envManager.js";
 
 /**
  * ADR-0036 — environment switches whose value would weaken a production security
@@ -33,6 +34,9 @@ const PRODUCTION_BASE: Record<string, string> = {
   // loadEnv falls back to .env for anything .env.test leaves unset, and a developer's
   // .env commonly says EMAIL_PROVIDER=console, which production refuses (ADR-0049).
   EMAIL_PROVIDER: "resend",
+  // A developer's .env commonly sets this false for a local database, and production
+  // refuses it (database-tls-and-staging-refusals D-01).
+  DB_SSL_REJECT_UNAUTHORIZED: "true",
 };
 
 const inProduction = (overrides: Record<string, string>) =>
@@ -214,9 +218,9 @@ describe("zodEnv production-unsafe switch refusal (ADR-0036)", () => {
     await expect(
       withTestEnv(noop, {
         overrides: {
+          ...PRODUCTION_BASE,
           NODE_ENV: "staging",
           EMAIL_PROVIDER: "mailpit",
-          JWT_SECRET: LONG_SECRET,
         },
       }),
     ).resolves.toBeUndefined();
@@ -338,5 +342,118 @@ describe("zodEnv production-unsafe switch refusal (ADR-0036)", () => {
         overrides: { NODE_ENV: "development", DB_LOGGING: "true" },
       }),
     ).resolves.toBeUndefined();
+  });
+});
+
+// Kit database-tls-and-staging-refusals, D-02 (audit 2026-10-20, X2). Staging is
+// reachable from the internet, so it takes the production refusals; only
+// EMAIL_PROVIDER="mailpit" stays allowed there (ADR-0048).
+describe("zodEnv refusals in staging (ADR-0036)", () => {
+  const inStaging = (overrides: Record<string, string>) =>
+    withTestEnv(noop, {
+      overrides: { ...PRODUCTION_BASE, NODE_ENV: "staging", ...overrides },
+    });
+
+  it("starts with a clean staging env", async () => {
+    await expect(inStaging({})).resolves.toBeUndefined();
+  });
+
+  it.each([
+    ["DISABLE_RATE_LIMITING", { DISABLE_RATE_LIMITING: "true" }],
+    ["ALLOW_TEST_HTTP_SERVER", { ALLOW_TEST_HTTP_SERVER: "true" }],
+    ["SWAGGER_REQUIRE_AUTH", { SWAGGER_REQUIRE_AUTH: "false" }],
+    ["DB_LOGGING", { DB_LOGGING: "true" }],
+    ["SKIP_DB_LIFECYCLE", { SKIP_DB_LIFECYCLE: "true" }],
+    ["LOG_LEVEL", { LOG_LEVEL: "silly" }],
+    [
+      "RABBITMQ_USER",
+      {
+        RABBITMQ_ENABLED: "true",
+        RABBITMQ_USER: "guest",
+        RABBITMQ_PASSWORD: "Str0ngPw",
+      },
+    ],
+    [
+      "RABBITMQ_URL",
+      {
+        RABBITMQ_ENABLED: "true",
+        RABBITMQ_URL: "amqp://guest:guest@broker.internal.example:5672",
+      },
+    ],
+  ])("refuses %s, naming staging", async (name, overrides) => {
+    await expect(inStaging(overrides)).rejects.toMatchObject({
+      issues: expect.arrayContaining([
+        expect.objectContaining({
+          path: [name],
+          message: expect.stringContaining("NODE_ENV=staging"),
+        }),
+      ]),
+    });
+  });
+
+  it('still allows EMAIL_PROVIDER="mailpit"', async () => {
+    await expect(
+      inStaging({ EMAIL_PROVIDER: "mailpit" }),
+    ).resolves.toBeUndefined();
+  });
+});
+
+// Kit database-tls-and-staging-refusals, D-01 (audit 2026-10-20, X1).
+describe("DB_SSL_REJECT_UNAUTHORIZED", () => {
+  it("is refused as false in production", async () => {
+    await expect(
+      inProduction({ DB_SSL_REJECT_UNAUTHORIZED: "false" }),
+    ).rejects.toMatchObject(refusalFor("DB_SSL_REJECT_UNAUTHORIZED"));
+  });
+
+  it("is accepted as false in staging, as an explicit opt-out", async () => {
+    await expect(
+      withTestEnv(noop, {
+        overrides: {
+          ...PRODUCTION_BASE,
+          NODE_ENV: "staging",
+          DB_SSL_REJECT_UNAUTHORIZED: "false",
+        },
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("is accepted as true in production", async () => {
+    await expect(
+      inProduction({ DB_SSL_REJECT_UNAUTHORIZED: "true" }),
+    ).resolves.toBeUndefined();
+  });
+});
+
+// Kit database-tls-and-staging-refusals, D-04. Not a real certificate: the schema
+// checks the PEM frame only; the TLS handshake judges the rest.
+const PEM =
+  "-----BEGIN CERTIFICATE-----\nMIIBfakeFakeFake\n-----END CERTIFICATE-----";
+
+describe("DB_SSL_CA", () => {
+  const caOf = (value: string) =>
+    withTestEnv(() => loadEnvOrExit().DB_SSL_CA, {
+      overrides: { ...PRODUCTION_BASE, DB_SSL_CA: value },
+    });
+
+  it("accepts a PEM certificate", async () => {
+    await expect(caOf(PEM)).resolves.toBe(PEM);
+  });
+
+  it("reads a literal \\n as a newline, for a one-line variable", async () => {
+    await expect(caOf(PEM.replace(/\n/g, "\\n"))).resolves.toBe(PEM);
+  });
+
+  it("refuses a value that holds no certificate, without quoting it", async () => {
+    const failure = await caOf("not-a-certificate-value").catch(
+      (error: unknown) => error,
+    );
+
+    expect(failure).toMatchObject(refusalFor("DB_SSL_CA"));
+    expect(JSON.stringify(failure)).not.toContain("not-a-certificate-value");
+  });
+
+  it("is absent when unset", async () => {
+    await expect(caOf("")).resolves.toBeUndefined();
   });
 });

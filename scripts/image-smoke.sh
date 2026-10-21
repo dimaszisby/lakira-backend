@@ -53,7 +53,6 @@ APP_ENV=(
   -e "DB_USER=${DB_USER}"
   -e "DB_PASSWORD=${DB_PASSWORD}"
   -e "DB_NAME=${DB_NAME}"
-  -e "DB_SSL_REJECT_UNAUTHORIZED=false"
   -e "REDIS_URL=redis://${REDIS}:6379"
   -e "EMAIL_PROVIDER=resend"
   -e "RESEND_API_KEY=smoke-only-not-a-secret"
@@ -147,16 +146,31 @@ pass "4. defaults to NODE_ENV=production (unsafe switch refused)"
 # ---------------------------------------------------------------------------
 docker network create "$NETWORK" >/dev/null
 
-# The official image ships a self-signed certificate readable by the postgres
-# user; production mode connects over TLS (src/config/db.ts).
+# Production mode connects over TLS and verifies the certificate (src/config/db.ts),
+# and refuses DB_SSL_REJECT_UNAUTHORIZED=false. So the server mints a CA of its own
+# at start, and a certificate for its container name signed by it; the app is given
+# that CA as DB_SSL_CA (database-tls-and-staging-refusals D-04).
+PG_TLS_DIR=/var/lib/postgresql/smoke-tls
 docker run -d --name "$PG" --network "$NETWORK" \
   -e "POSTGRES_USER=${DB_USER}" \
   -e "POSTGRES_PASSWORD=${DB_PASSWORD}" \
   -e "POSTGRES_DB=${DB_NAME}" \
-  "$POSTGRES_IMAGE" \
-  -c ssl=on \
-  -c ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem \
-  -c ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key >/dev/null
+  -e "TLS_HOST=${PG}" \
+  -e "TLS_DIR=${PG_TLS_DIR}" \
+  --entrypoint sh "$POSTGRES_IMAGE" -c '
+    set -e
+    mkdir -p "$TLS_DIR" && cd "$TLS_DIR"
+    openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=image-smoke-ca" \
+      -keyout ca.key -out ca.pem 2>/dev/null
+    openssl req -newkey rsa:2048 -nodes -subj "/CN=$TLS_HOST" \
+      -keyout server.key -out server.csr 2>/dev/null
+    printf "subjectAltName=DNS:%s\n" "$TLS_HOST" > server.ext
+    openssl x509 -req -in server.csr -CA ca.pem -CAkey ca.key -CAcreateserial \
+      -days 1 -extfile server.ext -out server.pem 2>/dev/null
+    chown -R postgres:postgres "$TLS_DIR" && chmod 600 server.key ca.key
+    exec docker-entrypoint.sh postgres -c ssl=on \
+      -c ssl_cert_file="$TLS_DIR/server.pem" -c ssl_key_file="$TLS_DIR/server.key"
+  ' >/dev/null
 docker run -d --name "$REDIS" --network "$NETWORK" "$REDIS_IMAGE" >/dev/null
 
 # Over TCP on purpose: the init-time server listens on the socket only, so this
@@ -171,6 +185,17 @@ $(docker logs --tail 20 "$PG" 2>&1)"
 $(docker logs --tail 20 "$PG" 2>&1)"
   sleep 1
 done
+
+# Without that CA the certificate cannot be verified, and startup must fail on it:
+# proof that verification is on, not merely that TLS is.
+if unverified="$(docker run --rm --network "$NETWORK" "${APP_ENV[@]}" "$IMAGE" 2>&1)"; then
+  fail "5. serves in production mode" "started against an unverifiable certificate"
+fi
+grep -qiE "self.signed|certificate" <<<"$unverified" ||
+  fail "5. serves in production mode" "startup failed, but not on the certificate:
+$(tail -n 5 <<<"$unverified")"
+
+APP_ENV+=(-e "DB_SSL_CA=$(docker exec "$PG" cat "${PG_TLS_DIR}/ca.pem")")
 
 docker run -d --name "$APP" --network "$NETWORK" -p 127.0.0.1::5000 \
   "${APP_ENV[@]}" "$IMAGE" >/dev/null

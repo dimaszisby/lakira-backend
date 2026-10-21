@@ -1,9 +1,8 @@
 # Worker cancel and one connection per job
 
-**Status:** Implemented on `fix/worker-cancel-and-one-connection-per-job`; PR open. Register
-rows B-74 and B-75 (findings X60 and X62 of the dated run of 2026-10-20). D-02 and D-03 promoted
-to [ADR-0077](../../../explanation/decisions/adr-0077-a-queued-job-holds-one-connection.md)
-(Proposed). A dated run is owed to confirm both and restate GOLD.
+**Status:** Done. Merged as #198 (`4bfaf4e`). Register rows B-74 and B-75. D-02 and D-03
+promoted to [ADR-0077](../../../explanation/decisions/adr-0077-a-queued-job-holds-one-connection.md)
+(Accepted). A dated run is owed to confirm both and restate GOLD.
 **Slug:** `worker-cancel-and-one-connection-per-job` · **Branch:**
 `fix/worker-cancel-and-one-connection-per-job`
 

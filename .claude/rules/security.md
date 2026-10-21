@@ -66,7 +66,10 @@ used only when `REDIS_REQUIRED=false` **and** Redis is not connected — it then
 and limits stop being shared across instances (twelve-factor TF-12).
 
 - `DISABLE_RATE_LIMITING=true` disables all limiters (test/fuzzing only). Startup refuses it
-  when `NODE_ENV=production` — see ADR-0036 for the full refused set.
+  when `NODE_ENV` is `production` or `staging` — see ADR-0036 for the full refused set, which
+  covers staging too except `EMAIL_PROVIDER=mailpit` and `DB_SSL_REJECT_UNAUTHORIZED=false`.
+  Production refuses an unverified database certificate; staging may opt out, with a warning,
+  and `DB_SSL_CA` gives a private CA to trust
 
 ## Authentication Flow
 
@@ -127,7 +130,7 @@ and limits stop being shared across instances (twelve-factor TF-12).
   repeat the input, go to the client only. A parser or routing error is logged by its `type`
 - A startup error about a connection URL names the variable and the reason, never the URL: it is
   printed by `console.error` and again by Node, and neither is redacted. `DB_LOGGING=true` writes
-  SQL with the values of its `WHERE` clauses, so startup refuses it when `NODE_ENV=production`
+  SQL with the values of its `WHERE` clauses, so startup refuses it in production and staging
   (ADR-0036); it is for a developer's own machine
 - An error may be passed to the logger: it is reduced to an allowlist of its fields before anything
   is written (`name`, `code`, `statusCode` and the like, plus `db.code`, `db.constraint`,

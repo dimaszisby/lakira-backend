@@ -1,6 +1,6 @@
 # ADR-0077 — A queued job holds one connection, for a bounded time
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-21
 - **Related:** [ADR-0007](./adr-0007-processed-messages-table-for-idempotency.md) (the dedup row and
   the work share one transaction); [ADR-0067](./adr-0067-the-verification-email-is-a-queued-job.md),

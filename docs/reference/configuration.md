@@ -56,17 +56,25 @@ secrets to end in one of the suffix words, or add a term to that module.
 Give **either** a connection URL **or** the discrete parts. URLs win when both are present, and
 the per-environment URL is selected by `NODE_ENV`.
 
-| Variable                                                                                              | Type    | Default                                      |
-| ----------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------- |
-| `DATABASE_URL`                                                                                        | string  | optional                                     |
-| `DEVELOPMENT_DATABASE_URL` / `TEST_DATABASE_URL` / `STAGING_DATABASE_URL` / `PRODUCTION_DATABASE_URL` | string  | optional                                     |
-| `DB_HOST`                                                                                             | string  | `db` under `NODE_ENV=test`, else `127.0.0.1` |
-| `DB_PORT`                                                                                             | number  | `5432`                                       |
-| `DB_USER` / `DB_PASSWORD` / `DB_NAME`                                                                 | string  | optional                                     |
-| `DB_LOGGING`                                                                                          | boolean | `false`                                      |
-| `LOG_LEVEL`                                                                                           | enum    | `http` in production, else `debug`           |
-| `SKIP_DB_LIFECYCLE`                                                                                   | boolean | `false`                                      |
-| `DB_SSL_REJECT_UNAUTHORIZED`                                                                          | boolean | `true` in production, else `false`           |
+| Variable                                                                                              | Type    | Default                                        |
+| ----------------------------------------------------------------------------------------------------- | ------- | ---------------------------------------------- |
+| `DATABASE_URL`                                                                                        | string  | optional                                       |
+| `DEVELOPMENT_DATABASE_URL` / `TEST_DATABASE_URL` / `STAGING_DATABASE_URL` / `PRODUCTION_DATABASE_URL` | string  | optional                                       |
+| `DB_HOST`                                                                                             | string  | `db` under `NODE_ENV=test`, else `127.0.0.1`   |
+| `DB_PORT`                                                                                             | number  | `5432`                                         |
+| `DB_USER` / `DB_PASSWORD` / `DB_NAME`                                                                 | string  | optional                                       |
+| `DB_LOGGING`                                                                                          | boolean | `false`                                        |
+| `LOG_LEVEL`                                                                                           | enum    | `http` in production, else `debug`             |
+| `SKIP_DB_LIFECYCLE`                                                                                   | boolean | `false`                                        |
+| `DB_SSL_REJECT_UNAUTHORIZED`                                                                          | boolean | `true` in production and staging, else `false` |
+| `DB_SSL_CA`                                                                                           | string  | optional: a PEM CA certificate                 |
+
+> `DB_SSL_REJECT_UNAUTHORIZED=false` turns off verification of the database's certificate. Startup
+> refuses it when `NODE_ENV=production`, and so do the migrations (`config.cjs`). Staging defaults
+> to `true` and may set `false`, with a warning at every start. `DB_SSL_CA` is the CA a verified
+> connection trusts, beside Node's default bundle: the PEM text of the certificate, a literal `\n`
+> read as a newline. Set it when the database is signed by a private CA, as Render's Postgres is;
+> a value that holds no certificate is refused at startup (ADR-0036, 2026-10-21 note).
 
 > `LOG_LEVEL` is one of `error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`; each level
 > includes the ones above it. Production defaults to `http` rather than `info` so the HTTP
@@ -173,11 +181,11 @@ worker before `npm test`, because it would consume the test's messages.
 > value in use (`register-rate-limiter` D-05).
 
 > `DISABLE_RATE_LIMITING=true` turns off **every** limiter. It exists for test and fuzzing
-> runs. Startup **refuses** it when `NODE_ENV=production`, along with the other
+> runs. Startup **refuses** it when `NODE_ENV` is `production` or `staging`, along with the other
 > production-unsafe switches listed in
 > [ADR-0036](../explanation/decisions/adr-0036-refuse-production-unsafe-env-switches.md):
 > `ALLOW_TEST_HTTP_SERVER=true`, `SWAGGER_REQUIRE_AUTH=false`, `SKIP_DB_LIFECYCLE=true`,
-> `LOG_LEVEL=silly`, `EMAIL_PROVIDER=mailpit` (ADR-0048), `EMAIL_PROVIDER=console` (ADR-0049; refused in staging too), and default `guest` RabbitMQ credentials when `RABBITMQ_ENABLED=true`. The process exits before binding a
+> `LOG_LEVEL=silly`, `DB_LOGGING=true`, `DB_SSL_REJECT_UNAUTHORIZED=false` (production only), `EMAIL_PROVIDER=mailpit` (ADR-0048; production only), `EMAIL_PROVIDER=console` (ADR-0049), and default `guest` RabbitMQ credentials when `RABBITMQ_ENABLED=true`. Every one of them is refused in staging too, except the two marked production only. The process exits before binding a
 > listener and logs a structured `[ENV_ERROR]` line naming the offending variable.
 >
 > `JWT_SECRET` is on the same list for its strength: when `NODE_ENV` is `production` or `staging`,

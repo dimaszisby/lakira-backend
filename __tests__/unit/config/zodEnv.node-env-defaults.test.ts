@@ -39,6 +39,27 @@ const envWith = (nodeEnv: string) =>
   });
 
 describe("defaults that depend on NODE_ENV (log-redaction-coverage D-17)", () => {
+  // Kit database-tls-and-staging-refusals, D-01: staging verifies the database
+  // certificate unless it says otherwise.
+  it.each(["staging", "Staging"])(
+    "NODE_ENV=%s verifies the database certificate by default",
+    async (nodeEnv) => {
+      const env = await withTestEnv(() => loadEnvOrExit(), {
+        overrides: {
+          ...UNSET,
+          ...PRODUCTION_SAFE,
+          NODE_ENV: nodeEnv,
+          // Staging refuses the console sender (ADR-0049).
+          EMAIL_PROVIDER: "resend",
+        },
+        skipDbLifecycle: false,
+      });
+
+      expect(env.NODE_ENV).toBe("staging");
+      expect(env.DB_SSL_REJECT_UNAUTHORIZED).toBe(true);
+    },
+  );
+
   it.each(["production", "Production", "PRODUCTION"])(
     "NODE_ENV=%s gets the production defaults",
     async (nodeEnv) => {
