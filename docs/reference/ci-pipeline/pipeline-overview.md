@@ -60,17 +60,30 @@ The main backend workflow is triggered on:
 
 The workflow (`name: Lakira Backend CI`) has these jobs:
 
-1. **checks** – Lint, format check, OpenAPI consistency check, and typecheck
+1. **checks** (`Lint & Typecheck`) – Lint, format check, typecheck, build and the OpenAPI
+   consistency check
 2. **security_delta** – Security framework tests, dependency delta check and gate evaluation. Runs in
    parallel with `checks`; a tripped gate fails the pipeline
-3. **tests** (needs `checks` and `security_delta`) – Unit & Integration tests (with Postgres, Redis
-   and RabbitMQ services)
-   - Runs both fast test commands and coverage variants (`test:unit:coverage`, `test:integration:coverage`) and uploads `coverage/jest-unit` + `coverage/jest-integration` as artifacts.
-4. **contract_local** (needs `tests`) – Schemathesis against a locally started backend
-5. **deploy_staging** (needs `contract_local`) – Deploy backend to Render staging (`staging` branch only)
-6. **smoke_staging** (needs `deploy_staging`) – Smoke suite against live staging (`staging` branch only)
-7. **deploy_production** (needs `contract_local`) – Deploy to production (`main` branch only, behind
-   the `production` environment's approval gate; no production service is provisioned yet)
+3. **unit** (`Unit Tests`, needs `security_delta`) – `test:unit:coverage`, no service containers;
+   uploads `backend-coverage-unit`
+4. **integration** (`Integration Tests`, needs `security_delta`) – migrations, then
+   `test:integration:coverage` with Postgres, Redis and RabbitMQ services; uploads
+   `backend-coverage-integration`
+5. **tests** (`Unit & Integration Tests`, needs `unit` and `integration`) – the check the rulesets
+   require. It runs `if: always()` and fails unless both suites passed: without `if: always()` a
+   failed suite would leave it skipped, which GitHub counts as passed (ADR-0081)
+6. **contract_local** (needs `security_delta`) – Schemathesis against a locally started backend;
+   it starts its own server, so it does not wait for the tests
+7. **deploy_staging** (needs `tests` and `contract_local`) – Deploy backend to Render staging
+   (`staging` branch only)
+8. **smoke_staging** (needs `deploy_staging`) – Smoke suite against live staging (`staging` branch only)
+9. **deploy_production** (needs `tests` and `contract_local`) – Deploy to production (`main` branch
+   only, behind the `production` environment's approval gate; no production service is provisioned
+   yet)
+
+`checks`, `security_delta`, then `unit`, `integration` and `contract_local` together: about four
+minutes on a pull request, from 12m25s before the split (run 39613579195; ADR-0081). Each suite runs
+once, with coverage; the plain runs that repeated them are gone.
 
 Later, you may add:
 

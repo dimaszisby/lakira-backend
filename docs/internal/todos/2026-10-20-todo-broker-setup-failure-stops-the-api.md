@@ -1,6 +1,6 @@
 # Todo — a broker declaration mismatch stops the API
 
-- **Status:** Closed on `fix/queue-failure-paths`
+- **Status:** Closed by #203 (`2c1c098`), branch `fix/queue-failure-paths`
   ([`queue-failure-paths`](../initiatives/queue-failure-paths/README.md), ADR-0080).
   Reproduced by tests first; a dated run is owed to confirm it
 - **Created:** 2026-10-20

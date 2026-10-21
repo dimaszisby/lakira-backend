@@ -152,8 +152,9 @@ and limits stop being shared across instances (twelve-factor TF-12).
 - `npm run security:delta:check` — dependency vulnerability delta analysis
 - `npm run security:gate:evaluate` — evaluates the gate policy. "Soft" means only
   Critical/High findings trip it, **not** that it is non-blocking: the `Security Delta
-Checks` job re-raises a failed gate (`exit 1`), and `Unit & Integration Tests` +
-  `contract_local` both depend on that job, so a tripped gate stops the pipeline.
+Checks` job re-raises a failed gate (`exit 1`), and the `Unit Tests`, `Integration Tests` and
+  `contract_local` jobs each depend on that job, so a tripped gate stops the pipeline. The
+  `Unit & Integration Tests` gate needs both suites (ADR-0081).
 - Security framework + gate policy: `docs/reference/security/`
 - Dated audit runs: `docs/internal/audits/security/`
 - Release SOP: `docs/how-to/security/release-delta-sop.md`

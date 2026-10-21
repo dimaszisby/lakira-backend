@@ -1,6 +1,6 @@
 # Queue failure paths
 
-**Status:** Implemented on `fix/queue-failure-paths`; PR open. Register rows B-78 (finding X63 of the dated
+**Status:** Done; merged in #203 (`2c1c098`). Register rows B-78 (finding X63 of the dated
 run of 2026-10-20) and B-84 (X64 to X68, N4), bundled by register D-10.
 **Slug:** `queue-failure-paths` · **Branch:** `fix/queue-failure-paths`
 

@@ -46,7 +46,7 @@ All three are **Active** with an **empty bypass list** — the rules apply to th
 | Required approvals               | 0                                                          | Solo dev — [see rationale](#solo-developer-rationale)                                                                       |
 | Require conversation resolution  | ON                                                         | Unresolved review threads block the merge                                                                                   |
 | Extra approval, unattributed PRs | ON (inert)                                                 | No-op at 0 approvals — [see rationale](#solo-developer-rationale)                                                           |
-| Required CI checks               | Lint & Typecheck, Unit & Integration Tests, contract_local | [Two more are pending](#pending-changes)                                                                                    |
+| Required CI checks               | Lint & Typecheck, Unit & Integration Tests, contract_local | [Two more are pending](#pending-changes); `Unit & Integration Tests` is a gate over two jobs (ADR-0081)                     |
 | Require branches up to date      | OFF                                                        | Would serialise every merge; `dev` favours throughput                                                                       |
 | Restrict deletions               | ON                                                         | `dev` cannot be deleted                                                                                                     |
 | Block force pushes               | ON                                                         | Prevents accidental history rewrites                                                                                        |
@@ -147,7 +147,7 @@ It deliberately does **not** lint commit ranges on promotion PRs. Verified reaso
 
 Recommended, **not yet applied**. Delete each entry as it lands.
 
-1. **Add `Security Delta Checks` as a required check on all three branches.** It is not required anywhere, yet it hard-fails (`Enforce security gate result` → `exit 1`) and `Unit & Integration Tests` + `contract_local` both `needs:` it. If it fails, those two jobs are **skipped**, and GitHub counts skipped required checks as passing — so a PR can satisfy every required check with the test suite never having run.
+1. **Add `Security Delta Checks` as a required check on all three branches.** It is not required anywhere, yet it hard-fails (`Enforce security gate result` → `exit 1`) and the test jobs and `contract_local` all `needs:` it. If it fails, they are **skipped**, and GitHub counts skipped required checks as passing. Since ADR-0081, `Unit & Integration Tests` is a gate job that runs `if: always()` and fails when its suites did not succeed, skipped included, so that check can no longer pass this way; `contract_local` still can.
 2. **Add `Commit Lint` as a required check on all three branches**, once `.github/workflows/commit-lint.yml` has reported once on a PR. (A required check that has never reported leaves PRs pending forever.)
 3. **Reconnect `main`** — see below.
 4. **Delete the disabled `Protect main & develop (contract gate)` ruleset.**

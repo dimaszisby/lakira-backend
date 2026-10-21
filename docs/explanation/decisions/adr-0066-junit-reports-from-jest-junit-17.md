@@ -7,6 +7,11 @@
   [`npm-audit-findings`](../../internal/initiatives/npm-audit-findings/decisions.md); register row
   B-25 ([todo](../../internal/todos/2026-10-06-todo-npm-audit-findings-october.md))
 
+> **Status note (2026-10-21).** The `backend-coverage` artifact is now two,
+> `backend-coverage-unit` and `backend-coverage-integration`, one per test job, and the JUnit reports
+> ride in them. Each suite runs once, with coverage
+> ([ADR-0081](./adr-0081-ci-runs-the-suites-in-parallel-behind-a-gate.md)).
+
 ---
 
 ## Context

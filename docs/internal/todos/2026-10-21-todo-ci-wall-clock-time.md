@@ -1,6 +1,8 @@
 # Todo — CI takes 11 to 15 minutes before a PR can merge
 
-- **Status:** Open (ungraded)
+- **Status:** Closed on `ci/tests-in-parallel`
+  ([`tests-in-parallel`](../initiatives/tests-in-parallel/README.md), ADR-0081). Candidates 1 to 3
+  done; 4 not taken
 - **Created:** 2026-10-21
 - **Owner:** unassigned
 - **Origin:** the owner; a CI Q&A session's handoff on the Notion page "Handoff", section "BE CI
