@@ -138,7 +138,7 @@ export class RabbitMQConsumer {
         logger.error("[RABBITMQ] Could not settle message.", {
           messageId: msg.properties.messageId,
           queue: this.options.queue,
-          error: error instanceof Error ? error.message : String(error),
+          error,
         });
       })
       .finally(() => {
@@ -166,7 +166,7 @@ export class RabbitMQConsumer {
       messageId: msg.properties.messageId,
       queue: this.options.queue,
       retryCount,
-      error: error instanceof Error ? error.message : String(error),
+      error,
     };
 
     if (decision.action === "park") {
@@ -213,10 +213,7 @@ export class RabbitMQConsumer {
       // Never requeue: headers cannot change on redelivery, so that would loop forever.
       logger.error("[RABBITMQ] Retry publish failed — sending to parking.", {
         ...context,
-        publishError:
-          publishError instanceof Error
-            ? publishError.message
-            : String(publishError),
+        publishError,
       });
       ch.nack(msg, false, false);
       return;

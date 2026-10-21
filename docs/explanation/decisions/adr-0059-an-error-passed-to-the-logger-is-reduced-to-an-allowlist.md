@@ -15,6 +15,12 @@
   object five levels deep was passed through. Decision items 1, 4, 5 and 6 and two consequences
   are corrected below to say what the code does; item 8 is new. The rest is as written.
 
+> **Status note (2026-10-21).** Ten call sites handed the logger `error.message` as a string, which
+> the reduction and the database-message masking never see (finding X3 of the dated run of
+> 2026-10-20). They pass the error itself now, `runInBackground` writes its message text through
+> `loggableErrorMessage`, and `architecture.test.ts` refuses the string idiom under `src`
+> (`log-and-ci-leaks` D-01). The decision below is unchanged.
+
 ---
 
 ## Context

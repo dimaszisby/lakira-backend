@@ -21,7 +21,8 @@ const keyFor = (email: string): string => `auth:lockout:${hashEmail(email)}`;
 const logRedisUnavailable = (op: string, err: unknown) => {
   logger.warn("auth.lockout.redis_unavailable", {
     op,
-    err: err instanceof Error ? err.message : String(err),
+    // The error itself, reduced by the logger (log-and-ci-leaks D-01).
+    err,
   });
 };
 

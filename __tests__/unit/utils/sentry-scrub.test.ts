@@ -91,6 +91,33 @@ const TOKEN =
 const text = (value: unknown) => JSON.stringify(value);
 
 describe("scrubSentryEvent: the places an address can ride in", () => {
+  // log-and-ci-leaks D-02 (audit 2026-10-20 X5): an unmatched route's path kept its address.
+  it("masks an address in the URL's path, plain or percent-encoded", () => {
+    for (const segment of [EMAIL, encodeURIComponent(EMAIL)]) {
+      const event = scrubSentryEvent({
+        request: { url: `https://api.example/api/v1/users/${segment}/x?q=1` },
+      });
+      expect(event.request!.url).toBe(
+        "https://api.example/api/v1/users/[email]/x",
+      );
+    }
+  });
+
+  it("masks an address in a span's URL path", () => {
+    const span = scrubSentrySpan({
+      span_id: "s",
+      trace_id: "t",
+      start_timestamp: 0,
+      attributes: {
+        "url.full": `https://u:p@api.example/api/v1/${EMAIL}?x=1`,
+      },
+    }) as { attributes: Record<string, unknown> };
+    expect(text(span)).not.toContain(EMAIL);
+    expect(span.attributes["url.full"]).toBe(
+      "https://[credentials]@api.example/api/v1/[email]",
+    );
+  });
+
   it("cuts the query string from the URL and drops query_string", () => {
     const event = scrubSentryEvent({
       request: {

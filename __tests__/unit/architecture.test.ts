@@ -875,4 +875,34 @@ describe("Architecture enforcement", () => {
       });
     }
   });
+
+  // log-and-ci-leaks D-01 (audit 2026-10-20 X3): the logger masks a database error's quoted
+  // values only when it is handed the error. A message passed as a string skipped it.
+  describe("an error reaches the logger as the object", () => {
+    const SRC = path.resolve(__dirname, "../../src");
+    // Across line breaks: Prettier wraps a long one over three lines.
+    const STRING_MESSAGE =
+      /\b\w+:\s*(\w+)\s+instanceof Error\s*\?\s*\1\.message\b/;
+
+    it("passes no error's message as a string anywhere under src", () => {
+      const offenders = getAllSourceFiles(SRC)
+        .filter((file) => STRING_MESSAGE.test(fs.readFileSync(file, "utf-8")))
+        .map((file) => path.relative(SRC, file));
+      expect(offenders).toEqual([]);
+    });
+
+    it("recognises the idiom it refuses, wrapped or not", () => {
+      expect(
+        STRING_MESSAGE.test(
+          "error: error instanceof Error ? error.message : String(error),",
+        ),
+      ).toBe(true);
+      expect(
+        STRING_MESSAGE.test(
+          "publishError:\n  publishError instanceof Error\n    ? publishError.message",
+        ),
+      ).toBe(true);
+      expect(STRING_MESSAGE.test("error,")).toBe(false);
+    });
+  });
 });

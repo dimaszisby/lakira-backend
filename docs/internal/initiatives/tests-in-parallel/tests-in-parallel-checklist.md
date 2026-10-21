@@ -61,11 +61,13 @@ baseline run 39613579195 (12m25s).
 - [x] AC-2 — `unit` and `integration` both `needs: security_delta` only; `unit` has no
       `services:`
 - [x] AC-3 — the `tests` job: `needs: [unit, integration]`, `if: always()`, and a step that fails
-      unless both results are `success`. Its green path is read back with AC-5; the red path was
+      unless both results are `success`. Green on run 39624267200; the red path was
       not exercised (no failing commit pushed) and follows from the step
 - [x] AC-4 — `unit`, `integration`, `contract_local`: `needs: security_delta`; `deploy_staging`,
       `deploy_production`: `needs: [tests, contract_local]`
-- [ ] AC-5 — this PR's run, read back with `gh run view` after the push
+- [x] AC-5 — PR #204's run 39624267200: **2m45s** end to end, from 12m25s (run 39613579195).
+      Unit Tests 2m00s and Integration Tests 2m04s side by side, `contract_local` 1m23s alongside,
+      the gate 3s
 
 ## Gates
 

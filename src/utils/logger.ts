@@ -95,6 +95,25 @@ function maskDbText<T>(text: T, error: Error): T {
   return masked as T;
 }
 
+/**
+ * An error's message as it may be written into a log line's text: a database error's quoted
+ * values masked, as when the error itself is logged. Anything else thrown is written as
+ * `String(value)`. For the message text only: metadata takes the error itself, which the
+ * logger reduces (log-and-ci-leaks D-01; audit 2026-10-20 X3).
+ */
+export function loggableErrorMessage(error: unknown): string {
+  return error instanceof Error
+    ? maskDbText(error.message, error)
+    : String(error);
+}
+
+/** An error's stack, masked as its message is; it repeats the message on its first line. */
+export function loggableErrorStack(error: unknown): string | undefined {
+  return error instanceof Error && typeof error.stack === "string"
+    ? maskDbText(error.stack, error)
+    : undefined;
+}
+
 /** The allowlisted view of an error: its scalar identity fields, and `db`. */
 export function summarizeError(error: Error): Record<string, unknown> {
   const source = error as unknown as Record<string, unknown>;

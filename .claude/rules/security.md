@@ -139,7 +139,12 @@ and limits stop being shared across instances (twelve-factor TF-12).
   attach context to an error to get it logged; pass it by name in a metadata object. A database
   error's message can quote a submitted value, so what it quotes becomes `"[value]"` in the
   message, the stack and Sentry (`src/utils/mask-quoted-values.ts`); the SQLSTATE and the
-  constraint, table and column names stay in `db`
+  constraint, table and column names stay in `db`. That masking needs the error itself: pass
+  `{ error }`, never `error.message` as a string, which it never sees, and put an error's text into
+  a message only through `loggableErrorMessage` (log-and-ci-leaks D-01). `architecture.test.ts`
+  fails on the string idiom
+- An email address in a URL's path is `[email]` in Sentry and in the access log
+  (`src/utils/mask-emails.ts`): an unmatched route's path keeps what was sent
 - `EMAIL_PROVIDER=console` logs every email body, tokens included. Startup refuses it unless
   `NODE_ENV` is `development` or `test` (ADR-0049). Email adapters never log the recipient.
 - `EMAIL_PROVIDER=mailpit` sends every email, tokens included, to a local catcher. Startup

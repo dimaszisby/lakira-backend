@@ -1,6 +1,6 @@
 # Tests in parallel
 
-**Status:** Implemented on `ci/tests-in-parallel`; PR open. Register row B-85 (todo
+**Status:** Done; merged in #204 (`a311214`). The pipeline went from 12m25s to 2m45s. Register row B-85 (todo
 `2026-10-21-todo-ci-wall-clock-time.md`, from the Notion "BE CI Handoff").
 **Slug:** `tests-in-parallel` · **Branch:** `ci/tests-in-parallel`
 

@@ -27,6 +27,12 @@ on:
       - staging
   workflow_dispatch:
 
+# The GITHUB_TOKEN reads the repository and nothing more: no job writes to it or to a pull
+# request, and artifacts upload with the runner's own token (log-and-ci-leaks D-03; audit
+# 2026-10-20 X6). A job that needs more declares it for itself.
+permissions:
+  contents: read
+
 concurrency:
   group: backend-ci-${{ github.ref }}
   cancel-in-progress: true

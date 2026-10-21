@@ -70,7 +70,7 @@ export class RequestPasswordReset {
           "[RABBITMQ] Password reset email not queued; sending it in the request.",
           {
             userId: user.id,
-            error: error instanceof Error ? error.message : String(error),
+            error,
           },
         );
       }
@@ -104,7 +104,7 @@ export class RequestPasswordReset {
     } catch (error) {
       logger.error("Failed to send password reset email", {
         userId,
-        error: error instanceof Error ? error.message : String(error),
+        error,
       });
     }
   }
@@ -131,7 +131,7 @@ export class RequestPasswordReset {
     } catch (error) {
       logger.error("Failed to send password reset email", {
         userId: user.id,
-        error: error instanceof Error ? error.message : String(error),
+        error,
       });
     }
   }
