@@ -1,4 +1,5 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 
 const SRC_FEATURES = path.resolve(__dirname, "../../src/features");
@@ -20,7 +21,10 @@ function getFeatureDirs(): string[] {
   return dirs;
 }
 
-function getAllTsFiles(dir: string): string[] {
+// Every extension eslint.config.mjs lints under src (its EXT), not `.ts` alone (X44).
+const SOURCE_FILE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
+
+function getAllSourceFiles(dir: string): string[] {
   const results: string[] = [];
   if (!fs.existsSync(dir)) return results;
 
@@ -28,8 +32,8 @@ function getAllTsFiles(dir: string): string[] {
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      results.push(...getAllTsFiles(fullPath));
-    } else if (entry.name.endsWith(".ts") && !entry.name.endsWith(".d.ts")) {
+      results.push(...getAllSourceFiles(fullPath));
+    } else if (SOURCE_FILE.test(entry.name) && !entry.name.endsWith(".d.ts")) {
       results.push(fullPath);
     }
   }
@@ -47,8 +51,9 @@ const RELATIVE_SPECIFIER =
   /(?:from\s+|import\s*\(\s*|import\s+)"(\.{1,2}\/[^"]+)"/g;
 
 // ADR-0044 / feature-boundary-audience-paths D-04: a relative import that lands in another
-// feature must go through its public.ts. ESLint cannot see this without knowing which feature
-// the importing file is in.
+// feature must go through its public.ts, or its contract.ts (ADR-0078). ESLint's own rules
+// cannot see this without knowing which feature the importing file is in; the local rule in
+// eslint.config.mjs does so for the inner layers only.
 function crossFeatureRelativeImports(file: string, content: string): string[] {
   const owner = owningFeature(file);
   if (!owner) return [];
@@ -57,7 +62,7 @@ function crossFeatureRelativeImports(file: string, content: string): string[] {
     const target = path.resolve(path.dirname(file), specifier);
     const targetFeature = owningFeature(target);
     if (!targetFeature || targetFeature === owner) continue;
-    const intoPublic = /^public(?:\.[jt]s)?$/.test(
+    const intoPublic = /^(?:public|contract)(?:\.[jt]s)?$/.test(
       path.relative(targetFeature, target),
     );
     if (!intoPublic) offenders.push(specifier);
@@ -96,7 +101,7 @@ describe("Architecture enforcement", () => {
     for (const featureDir of featureDirs) {
       const featureName = path.basename(featureDir);
       const appDir = path.join(featureDir, "application");
-      const appFiles = getAllTsFiles(appDir);
+      const appFiles = getAllSourceFiles(appDir);
 
       for (const file of appFiles) {
         const relPath = path.relative(SRC_FEATURES, file);
@@ -145,7 +150,7 @@ describe("Architecture enforcement", () => {
       content.includes("cacheMiddleware") ||
       content.includes("buildCursorCacheKey");
 
-    const cacheFiles = getAllTsFiles(SRC_ROOT).filter((file) =>
+    const cacheFiles = getAllSourceFiles(SRC_ROOT).filter((file) =>
       isCacheKeyFile(file, fs.readFileSync(file, "utf-8")),
     );
 
@@ -195,7 +200,7 @@ describe("Architecture enforcement", () => {
     it("finds none in src/features", () => {
       const offenders: string[] = [];
       for (const featureDir of featureDirs) {
-        for (const file of getAllTsFiles(featureDir)) {
+        for (const file of getAllSourceFiles(featureDir)) {
           for (const specifier of crossFeatureRelativeImports(
             file,
             fs.readFileSync(file, "utf-8"),
@@ -239,7 +244,7 @@ describe("Architecture enforcement", () => {
     it(`holds at exactly ${FROZEN_MODEL_ASSOCIATION_IMPORTS} cross-feature model imports`, () => {
       const found: string[] = [];
       for (const featureDir of featureDirs) {
-        for (const file of getAllTsFiles(featureDir)) {
+        for (const file of getAllSourceFiles(featureDir)) {
           const owner = path.basename(featureDir);
           const content = fs.readFileSync(file, "utf-8");
           for (const match of content.match(MODEL_IMPORT) ?? []) {
@@ -279,7 +284,7 @@ describe("Architecture enforcement", () => {
 
     it("has no module-scope router, feature or middleware construction", () => {
       const offenders: string[] = [];
-      for (const file of getAllTsFiles(SRC_FEATURES)) {
+      for (const file of getAllSourceFiles(SRC_FEATURES)) {
         const content = fs.readFileSync(file, "utf-8");
         for (const match of content.match(TOP_LEVEL_CONSTRUCTION) ?? []) {
           offenders.push(
@@ -305,7 +310,7 @@ describe("Architecture enforcement", () => {
   describe("the transaction type is declared once", () => {
     it("only src/shared/domain/PersistenceTransaction.ts declares it", () => {
       const src = path.resolve(__dirname, "../../src");
-      const declaring = getAllTsFiles(src)
+      const declaring = getAllSourceFiles(src)
         .filter((file) =>
           /\b(?:type|interface)\s+PersistenceTransaction\b/.test(
             fs.readFileSync(file, "utf-8"),
@@ -393,7 +398,7 @@ describe("Architecture enforcement", () => {
 
     it("no file in src/ reaches for the no-op invalidator", () => {
       const files = Object.fromEntries(
-        getAllTsFiles(SRC).map((file) => [
+        getAllSourceFiles(SRC).map((file) => [
           path.relative(SRC, file).split(path.sep).join("/"),
           fs.readFileSync(file, "utf-8"),
         ]),
@@ -465,9 +470,9 @@ describe("Architecture enforcement", () => {
     });
 
     it("src/composition/ imports features through feature.ts or public.ts only", () => {
-      const offenders = getAllTsFiles(path.join(SRC, "composition")).flatMap(
-        (file) => viaIndex(fs.readFileSync(file, "utf-8")),
-      );
+      const offenders = getAllSourceFiles(
+        path.join(SRC, "composition"),
+      ).flatMap((file) => viaIndex(fs.readFileSync(file, "utf-8")));
       expect(offenders).toEqual([]);
     });
 
@@ -480,12 +485,12 @@ describe("Architecture enforcement", () => {
     // hook, let an entry point that skipped the hook run an unwired feature.
     describe("features are handed to their routers", () => {
       const httpFiles = () =>
-        getAllTsFiles(path.join(SRC, "features")).filter((file) =>
+        getAllSourceFiles(path.join(SRC, "features")).filter((file) =>
           file.includes(`${path.sep}infrastructure${path.sep}http${path.sep}`),
         );
 
       it("no file in src/ exports a test hook or an install hook", () => {
-        const offenders = getAllTsFiles(SRC).filter((file) =>
+        const offenders = getAllSourceFiles(SRC).filter((file) =>
           /export\s+(const|function)\s+(\w+ForTest|install\w*Feature)\b/.test(
             fs.readFileSync(file, "utf-8"),
           ),
@@ -651,7 +656,7 @@ describe("Architecture enforcement", () => {
     });
 
     it("every rateLimit() in src/ answers through limitExceeded", () => {
-      const offenders = getAllTsFiles(SRC)
+      const offenders = getAllSourceFiles(SRC)
         .map((file) => ({
           file: path.relative(SRC, file).split(path.sep).join("/"),
           missing: limitersWithoutSharedHandler(fs.readFileSync(file, "utf-8")),
@@ -665,7 +670,7 @@ describe("Architecture enforcement", () => {
     });
 
     it("only rate-limiter.ts imports express-rate-limit", () => {
-      const importers = getAllTsFiles(SRC)
+      const importers = getAllSourceFiles(SRC)
         .filter((file) =>
           /from\s+"express-rate-limit"/.test(fs.readFileSync(file, "utf-8")),
         )
@@ -766,7 +771,7 @@ describe("Architecture enforcement", () => {
 
     it("no file in src/ writes a numeric status into a body", () => {
       const files = Object.fromEntries(
-        getAllTsFiles(SRC).map((file) => [
+        getAllSourceFiles(SRC).map((file) => [
           path.relative(SRC, file).split(path.sep).join("/"),
           fs.readFileSync(file, "utf-8"),
         ]),
@@ -794,7 +799,7 @@ describe("Architecture enforcement", () => {
       });
 
     const routerFiles = (): string[] =>
-      getAllTsFiles(SRC_FEATURES).filter((file) =>
+      getAllSourceFiles(SRC_FEATURES).filter((file) =>
         /router\.ts$/.test(path.basename(file)),
       );
 
@@ -824,6 +829,26 @@ describe("Architecture enforcement", () => {
       expect(files.map((file) => path.basename(file))).toEqual(
         expect.arrayContaining(["organization.router.ts", "router.ts"]),
       );
+    });
+  });
+
+  // inner-layers-reach-infrastructure D-03 (X44): the reader took `.ts` only, so a `.mts`, `.js`
+  // or `.cjs` file under src escaped every check in this file.
+  describe("the source-file reader", () => {
+    it("reads every extension ESLint lints under src, and no declaration file", () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "arch-reader-"));
+      try {
+        const names = ["a.ts", "b.tsx", "c.mts", "d.cts", "e.js", "f.jsx"];
+        names.push("g.mjs", "h.cjs", "i.d.ts", "j.json", "k.md");
+        fs.mkdirSync(path.join(dir, "nested"));
+        for (const name of names) {
+          fs.writeFileSync(path.join(dir, "nested", name), "");
+        }
+        const read = getAllSourceFiles(dir).map((file) => path.basename(file));
+        expect(read.sort()).toEqual(names.slice(0, 8).sort());
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
     });
   });
 });

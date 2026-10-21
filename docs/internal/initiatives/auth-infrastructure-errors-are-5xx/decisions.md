@@ -2,7 +2,7 @@
 
 ## D-01 — Only an invalid token answers 401
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #200, `230aada`)
 - **Date:** 2026-10-21
 
 **Context.** `makeAuthMiddleware` (`src/features/shared/auth/infrastructure/http/authMiddleware.ts`)

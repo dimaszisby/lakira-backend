@@ -8,6 +8,8 @@ import js from "@eslint/js";
 import prettierConfigPackage from "eslint-config-prettier";
 import prettierPlugin from "eslint-plugin-prettier";
 import node from "eslint-plugin-n";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Destructure and remove the "extends" property from each imported config
 const { extends: omit1, ...jsConfig } = js.configs.recommended;
@@ -75,7 +77,9 @@ const FEATURE = "^@/features/(?:(?:public|shared)/)?[^/]+";
 // Every file under src, whatever its extension (boundary-rules-everywhere D-01). The
 // blocks matched *.ts only, so a .js or .tsx file in a domain folder got the legacy
 // patterns alone (audit-2026-10-12 W6). Migrations are ignored above.
-const EXT = "{ts,tsx,js,mjs,cjs}";
+// `mts`, `cts` and `jsx` were added by inner-layers-reach-infrastructure D-03 (X44): the first two
+// were not linted at all, and a `.jsx` file got no boundary rule.
+const EXT = "{ts,tsx,mts,cts,js,jsx,mjs,cjs}";
 
 // ADR-0045: a sibling may not import another feature's composition root — its index.ts
 // (the bare alias or /index.js) or its feature.ts. index.ts exists for src/server.ts;
@@ -160,18 +164,20 @@ const DOMAIN_LAYER_APPLICATION = {
 // @/shared/middleware/error.js and @/utils/logger.js all passed in a domain file
 // (audit-2026-10-12 W6). Anything not listed is refused, every third-party package
 // included. The list is what the layers imported when it was drawn; a new entry needs a
-// reason in this comment. Relative paths stay allowed, and the infrastructure and
-// application rules above still read them.
+// reason in this comment. A relative path is judged by where it lands, against the same
+// list, by the local rule below (ADR-0078).
 const DOMAIN_IMPORTS = [
-  "\\.{1,2}/", // within the layer, or the feature
   "node:crypto$",
   "crypto$",
   "@/shared/domain/",
   "@/shared/constants/",
   "@/shared/utils/text-validation\\.js$", // pure string checks
   "@/types/domain/", // held to these rules too
-  "@/constants/",
-  `${FEATURE.slice(1)}/public(?:\\.js)?$`, // another feature's public surface
+  // One file, not the directory: zod-rules.ts beside it imports zod (ADR-0078, X42).
+  "@/constants/zod/zod-messages\\.js$",
+  // Another feature's contract.ts, which re-exports its domain. Never its public.ts: every
+  // public.ts exports infrastructure (ADR-0078, X41).
+  `${FEATURE.slice(1)}/contract(?:\\.js)?$`,
 ];
 // The application adds its own kernel, and four modules it reads for logging, time,
 // cache keys and configuration. The logger is the one that writes; it is allowed by
@@ -185,8 +191,10 @@ const APPLICATION_IMPORTS = [
   "@/config/envManager\\.js$",
   "@/config/app-name\\.js$",
 ];
+// A relative specifier passes this pattern and is left to the local rule, which knows where it
+// lands.
 const onlyFrom = (layer, allowed) => ({
-  regex: `^(?!(?:${allowed.join("|")}))`,
+  regex: `^(?!(?:\\.{1,2}/|${allowed.join("|")}))`,
   message: `The ${layer} layer imports only what its list in eslint.config.mjs allows (${layer.toUpperCase()}_IMPORTS): its own layer, the shared kernel, and a short named list. A package or module that is not on it belongs behind a port (ADR-0058, ADR-0074). Add to the list only with a reason.`,
 });
 const DOMAIN_LAYER_ALLOWLIST = onlyFrom("domain", DOMAIN_IMPORTS);
@@ -199,10 +207,13 @@ const APPLICATION_LAYER_ALLOWLIST = onlyFrom(
 // a doubled slash, or one written from the repository root, named a feature the patterns
 // above could not parse: `@/features/metric/../metric-log/domain/...` reached another
 // feature's domain unseen. Applies to every file under src.
+// ADR-0078 (X45): the rule covers the other two aliases of tsconfig.json, `@utils/*` and
+// `@config/*`; `@utils/../features/...` reached another feature past every pattern here.
+const ALIAS = "@(?:utils|config)?/";
 const CANONICAL_PATH = {
-  regex: "^src/|^@/(?:[^/]*/)*\\.{1,2}(?:/|$)|^@/.*//",
+  regex: `^src/|^${ALIAS}(?:[^/]*/)*\\.{1,2}(?:/|$)|^${ALIAS}(?:.*/)?/`,
   message:
-    "Write the canonical path: `@/...` with no `.` or `..` segment and no doubled slash, or a relative path. A non-canonical spelling hides which feature or layer it reaches (ADR-0074).",
+    "Write the canonical path: `@/...`, `@utils/...` or `@config/...` with no `.` or `..` segment and no doubled slash, or a relative path. A non-canonical spelling hides which feature or layer it reaches (ADR-0074, ADR-0078).",
 };
 
 // ADR-0058, widened by ADR-0074 (D-04, register row B-29): outside src/features, a file
@@ -276,6 +287,13 @@ const NO_UNCHECKED_IMPORT_FORMS = [
       "No import from node's `module` package under src/: createRequire loads a file with no import statement, which the boundary rules cannot read. Use a static import.",
   },
   {
+    // ADR-0078 (X43): the same constructor reached as a property, `globalThis.Function`.
+    selector:
+      ":matches(MemberExpression[computed=false][property.name='Function'], MemberExpression[property.value='Function'])",
+    message:
+      "No Function constructor under src/: it evaluates code no boundary rule can read. Write the function.",
+  },
+  {
     // ADR-0074 (D-06): the Function constructor evaluates a string, which can load a
     // module unseen by any import rule (audit-2026-10-12 W6).
     selector:
@@ -283,6 +301,90 @@ const NO_UNCHECKED_IMPORT_FORMS = [
     message:
       "No Function constructor under src/: it evaluates code no boundary rule can read. Write the function.",
   },
+];
+
+// ADR-0078 (inner-layers-reach-infrastructure D-01): no-restricted-imports reads a specifier's
+// text, so a relative path was allowed wherever it landed, `src/config/db.js` included (X40).
+// This rule resolves it against the importing file and holds where it lands to the layer's
+// list. A target in the file's own feature passes only into `ownLayers`; any other target
+// passes only if its `@/` form is on `allowed`, the same DOMAIN_IMPORTS or APPLICATION_IMPORTS.
+// It reads static `import` and `export … from`; the forms it cannot read are refused below.
+const SRC = path.join(path.dirname(fileURLToPath(import.meta.url)), "src");
+const toPosix = (p) => p.split(path.sep).join("/");
+const RELATIVE_IMPORTS_ON_THE_LIST = {
+  meta: {
+    type: "problem",
+    schema: [
+      {
+        type: "object",
+        properties: {
+          layer: { type: "string" },
+          allowed: { type: "array", items: { type: "string" } },
+          ownLayers: { type: "array", items: { type: "string" } },
+        },
+        required: ["layer", "allowed", "ownLayers"],
+        additionalProperties: false,
+      },
+    ],
+    messages: {
+      outsideSrc:
+        "A relative import here must land under src/. Use the module's `@/` path, if its list allows it (ADR-0078).",
+      ownFeature:
+        "This relative path lands on {{target}}, outside the parts of this feature the {{layer}} layer may import ({{ownLayers}}). Declare a port or a domain type instead (ADR-0058, ADR-0078).",
+      notListed:
+        "This relative path lands on {{target}}, which is not on the {{layer}} layer's list in eslint.config.mjs ({{list}}_IMPORTS). A relative path is held to the same list as an aliased one (ADR-0074, ADR-0078).",
+    },
+  },
+  create(context) {
+    const [{ layer, allowed, ownLayers }] = context.options;
+    const onList = new RegExp(`^(?:${allowed.join("|")})`);
+    const file = toPosix(path.relative(SRC, context.filename)).split("/");
+    // src/features/<audience>/<name>, for a file inside a feature.
+    const ownFeature =
+      file[0] === "features" ? file.slice(0, 3).join("/") : null;
+    const check = (node) => {
+      const spec = node.source?.value;
+      if (typeof spec !== "string" || !spec.startsWith(".")) return;
+      const target = toPosix(
+        path.relative(SRC, path.resolve(path.dirname(context.filename), spec)),
+      );
+      const report = (messageId) =>
+        context.report({
+          node: node.source,
+          messageId,
+          data: {
+            target: `@/${target}`,
+            layer,
+            list: layer.toUpperCase(),
+            ownLayers: ownLayers.join(", "),
+          },
+        });
+      if (
+        target === ".." ||
+        target.startsWith("../") ||
+        path.isAbsolute(target)
+      ) {
+        report("outsideSrc");
+      } else if (ownFeature && `${target}/`.startsWith(`${ownFeature}/`)) {
+        const part = target.slice(ownFeature.length + 1).split("/")[0];
+        if (!ownLayers.includes(part)) report("ownFeature");
+      } else if (!onList.test(`@/${target}`)) {
+        report("notListed");
+      }
+    };
+    return {
+      ImportDeclaration: check,
+      ExportNamedDeclaration: check,
+      ExportAllDeclaration: check,
+    };
+  },
+};
+const BOUNDARIES_PLUGIN = {
+  rules: { "relative-imports-on-the-list": RELATIVE_IMPORTS_ON_THE_LIST },
+};
+const relativeImportsOnTheList = (layer, allowed, ownLayers) => [
+  "error",
+  { layer, allowed, ownLayers },
 ];
 
 export default [
@@ -308,11 +410,17 @@ export default [
       prettier: prettierPlugin,
     },
   },
+  // The repository's own boundary rule (ADR-0078)
+  {
+    plugins: {
+      boundaries: BOUNDARIES_PLUGIN,
+    },
+  },
   jsConfig, // Standard JS rules (flat version)
   tsConfig, // TypeScript rules (flat version)
   prettierConfig, // Prettier config without the extends key
   {
-    files: ["**/*.{js,mjs,cjs,ts,tsx,jsx}"],
+    files: ["**/*.{js,mjs,cjs,ts,tsx,mts,cts,jsx}"],
     languageOptions: {
       parser: tsParser, // Use the correct TypeScript parser
       parserOptions: {
@@ -442,6 +550,11 @@ export default [
           ],
         },
       ],
+      "boundaries/relative-imports-on-the-list": relativeImportsOnTheList(
+        "domain",
+        DOMAIN_IMPORTS,
+        ["domain"],
+      ),
     },
   },
   {
@@ -461,6 +574,38 @@ export default [
           ],
         },
       ],
+      "boundaries/relative-imports-on-the-list": relativeImportsOnTheList(
+        "application",
+        APPLICATION_IMPORTS,
+        ["domain", "application"],
+      ),
+    },
+  },
+  {
+    // ADR-0078 (D-02): what another feature's inner layers may take. A contract re-exports
+    // its own domain and nothing else, so it is held to the domain's rules with its own
+    // domain as the one part of the feature it may reach.
+    files: [`src/features/*/*/contract.${EXT}`],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            ...BASE_IMPORT_PATTERNS,
+            FEATURE_DEEP_IMPORTS,
+            SIBLING_COMPOSITION_ROOT,
+            INNER_LAYER_HTTP_ERROR,
+            DOMAIN_LAYER_APPLICATION,
+            INNER_LAYER_INFRASTRUCTURE,
+            DOMAIN_LAYER_ALLOWLIST,
+          ],
+        },
+      ],
+      "boundaries/relative-imports-on-the-list": relativeImportsOnTheList(
+        "domain",
+        DOMAIN_IMPORTS,
+        ["domain"],
+      ),
     },
   },
   {
@@ -479,6 +624,11 @@ export default [
           ],
         },
       ],
+      "boundaries/relative-imports-on-the-list": relativeImportsOnTheList(
+        "application",
+        APPLICATION_IMPORTS,
+        [],
+      ),
     },
   },
   {
@@ -499,6 +649,11 @@ export default [
           ],
         },
       ],
+      "boundaries/relative-imports-on-the-list": relativeImportsOnTheList(
+        "domain",
+        DOMAIN_IMPORTS,
+        [],
+      ),
     },
   },
   // The boundary rules cannot be bypassed by a form they do not read.
@@ -506,6 +661,9 @@ export default [
     files: [`src/**/*.${EXT}`],
     rules: {
       "no-restricted-syntax": ["error", ...NO_UNCHECKED_IMPORT_FORMS],
+      // ADR-0078 (X43): a string evaluated as code loads what no import rule reads.
+      "no-eval": "error",
+      "no-implied-eval": "error",
       // ADR-0074 (D-06): node's own way to reach `module` with no import at all.
       "no-restricted-properties": [
         "error",
@@ -514,6 +672,13 @@ export default [
           property: "getBuiltinModule",
           message:
             "No process.getBuiltinModule under src/: it loads a module with no import statement, which the boundary rules cannot read. Use a static import.",
+        },
+        {
+          // ADR-0078 (X43): a `.cjs` file's require by another name.
+          object: "module",
+          property: "require",
+          message:
+            "No module.require under src/: it loads a module with no import statement, which the boundary rules cannot read. Use a static import.",
         },
       ],
     },

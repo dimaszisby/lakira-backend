@@ -1,6 +1,8 @@
 # Todo — inner layers can still import infrastructure
 
-- **Status:** Open (P2)
+- **Status:** Closed on `fix/inner-layers-reach-infrastructure`
+  ([`inner-layers-reach-infrastructure`](../initiatives/inner-layers-reach-infrastructure/README.md),
+  ADR-0078). Reproduced by tests first; a dated run is owed to confirm it
 - **Created:** 2026-10-20
 - **Owner:** unassigned
 - **Origin:** dated SaaS-readiness run of 2026-10-20, finding X40, X41

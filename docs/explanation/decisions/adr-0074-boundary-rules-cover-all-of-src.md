@@ -10,6 +10,14 @@
   [`boundary-rules-everywhere`](../../internal/initiatives/boundary-rules-everywhere/decisions.md);
   register rows B-28 (audit 2026-10-12, W6) and B-29
 
+> **Status note (2026-10-21).** Decisions 2 and 7 were wider than the lint: a relative path passed
+> wherever it landed, and the list admitted another feature's `public.ts`, which exports
+> infrastructure (findings X40 and X41 of the dated run of 2026-10-20). Carried out by
+> [ADR-0078](./adr-0078-relative-paths-and-contracts-in-the-inner-layers.md): a relative path is
+> judged by where it lands, the inner layers take a feature's `contract.ts`, and `.mts`, `.cts`,
+> `.jsx`, `@utils/` and `@config/` are held to the same rules. The consequence below that a
+> relative path into `src/shared/middleware` is "the remaining gap" no longer holds.
+
 ---
 
 ## Context

@@ -162,3 +162,22 @@ add to the production refusals ("B-07 with B-17, and B-12").
 **Options considered.** Two PRs: the second would reopen the block and the ADR the first just
 amended.
 **Consequences.** B-76 moves to Closed; B-81 drops X2 from its list and names the branch.
+
+---
+
+## D-08 — B-80 with X42 to X45 of B-83 and B-73 in one fix PR
+
+- **Status:** Proposed
+- **Date:** 2026-10-21
+
+**Context.** B-80 (X40, X41) holds the inner layers' relative paths and `public.ts` imports to
+ADR-0074's lists. Four P3 findings of the same run name other forms the boundary lint does not
+read: X42, X43 and X44 in B-83, X45 in B-73. All change `eslint.config.mjs` and
+`feature-boundaries.lint.test.ts`, and all amend ADR-0074. The owner chose to fix them together on
+2026-10-21.
+**Decision.** Add to D-02's exceptions: **B-80 with B-83's X42, X43 and X44, and B-73's X45.** Kit
+`inner-layers-reach-infrastructure`. B-83 keeps its other items and X43's residual (an aliased
+`process`); B-73 keeps its build item.
+**Options considered.** Separate PRs: each would reopen the same blocks and the same test, and
+ADR-0074 would be amended three times.
+**Consequences.** B-80 moves to Closed; B-83 and B-73 drop the folded items and name the branch.

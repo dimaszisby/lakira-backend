@@ -115,10 +115,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0075](./adr-0075-cache-keys-encode-and-include-total-is-strict.md)            | A cache key encodes what it is given, and a list's `includeTotal` is strict                                      | Accepted                                            | 2026-10-20 | query-values-mean-what-they-say D-01..05          |
 | [ADR-0076](./adr-0076-promises-are-awaited-and-shutdown-has-a-deadline.md)         | A promise is awaited or handed off, and shutdown has one deadline                                                | Accepted                                            | 2026-10-20 | floating-promises-and-bounded-shutdown D-01..03   |
 | [ADR-0077](./adr-0077-a-queued-job-holds-one-connection.md)                        | A queued job holds one connection, for a bounded time                                                            | Accepted                                            | 2026-10-21 | worker-cancel-and-one-connection-per-job D-02..03 |
+| [ADR-0078](./adr-0078-relative-paths-and-contracts-in-the-inner-layers.md)         | A relative path is judged by where it lands, and inner layers take a feature's `contract.ts`                     | Accepted                                            | 2026-10-21 | inner-layers-reach-infrastructure D-01..03        |
 
 ## Adding one
 
-Take the next free number — **ADR-0078** as of 2026-10-21 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0079** as of 2026-10-21 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 

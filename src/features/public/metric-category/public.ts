@@ -13,4 +13,3 @@ export {
 } from "./infrastructure/mappers/MetricCategoryMapper.js";
 export type { MetricCategoryRow } from "./infrastructure/mappers/MetricCategoryMapper.js";
 export type { MetricCategoryResponseDTO } from "./infrastructure/http/dto.js";
-export type { MetricCategory } from "./domain/entities/MetricCategory.js";

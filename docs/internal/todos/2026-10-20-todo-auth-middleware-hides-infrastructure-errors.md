@@ -1,6 +1,6 @@
 # Todo — a database failure in `authMiddleware` answers 401
 
-- **Status:** Closed on `fix/auth-infrastructure-errors-are-5xx`
+- **Status:** Closed by #200 (`230aada`), branch `fix/auth-infrastructure-errors-are-5xx`
   ([`auth-infrastructure-errors-are-5xx`](../initiatives/auth-infrastructure-errors-are-5xx/README.md)).
   Reproduced by a test first; a dated run is owed to confirm it
 - **Created:** 2026-10-20
