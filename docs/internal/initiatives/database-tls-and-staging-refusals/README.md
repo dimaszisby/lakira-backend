@@ -1,7 +1,7 @@
 # Database TLS and staging refusals
 
-**Status:** Implemented on `fix/database-tls-and-staging-refusals`; PR open. Register row B-76
-(X1) with X2 of row B-81. D-01, D-02 and D-04 promoted as an amendment of
+**Status:** Done. Merged as #199 (`5818042`). Register row B-76 (X1) with X2 of row B-81.
+D-01, D-02 and D-04 promoted as an amendment of
 [ADR-0036](../../../explanation/decisions/adr-0036-refuse-production-unsafe-env-switches.md)
 (its note of 2026-10-21). Before the next staging deploy, see D-03.
 **Slug:** `database-tls-and-staging-refusals` · **Branch:** `fix/database-tls-and-staging-refusals`

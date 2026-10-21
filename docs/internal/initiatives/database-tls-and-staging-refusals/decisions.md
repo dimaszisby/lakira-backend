@@ -14,7 +14,7 @@ Promoted to the architecture decision registry as an amendment of
 
 ## D-03 — Staging's environment is the owner's to check before the deploy
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #199, `5818042`)
 - **Date:** 2026-10-21
 
 **Context.** The repository cannot read staging's Render environment, so it cannot show whether a

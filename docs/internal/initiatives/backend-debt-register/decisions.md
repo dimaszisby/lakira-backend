@@ -150,7 +150,7 @@ either way.
 
 ## D-07 — B-76 with X2 of B-81 in one fix PR
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #199, `5818042`)
 - **Date:** 2026-10-21
 
 **Context.** B-76 (X1) refuses an unsafe database TLS setting in production. X2, one item of the
