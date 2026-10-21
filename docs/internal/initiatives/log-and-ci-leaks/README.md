@@ -1,6 +1,6 @@
 # Log and CI leaks
 
-**Status:** Implemented on `fix/log-and-ci-leaks`; PR open. Register row B-81, its first slice: X3, X5 and
+**Status:** Done. Merged as #205 (`53f6bce`) on 2026-10-21. Register row B-81, its first slice: X3, X5 and
 X6 of the dated run of 2026-10-20. B-81 keeps its other seven items.
 **Slug:** `log-and-ci-leaks` · **Branch:** `fix/log-and-ci-leaks`
 

@@ -150,8 +150,9 @@ services:
         condition: service_healthy # The image ships its own healthcheck
     ports: # Expose the application port
       # Host 8001 -> container 5000. Host 5000 collides with AirPlay Receiver on macOS.
-      # The one port left on every interface, so a client on another device can reach the API.
-      - "8001:5000"
+      # Loopback, like every port above. APP_BIND_ADDRESS=0.0.0.0 opens it to the network,
+      # for testing from another device (proxy-trust-and-xss-clean D-03).
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:8001:5000"
     networks: # Connect to the backend network
       - backend
     logging: # Configure logging to stdout

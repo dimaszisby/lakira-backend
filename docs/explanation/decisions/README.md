@@ -119,10 +119,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0079](./adr-0079-metric-log-stats-are-one-ranged-aggregate.md)                | Metric-log stats are one aggregate, over a half-open range of `loggedAt`                                         | Accepted                                            | 2026-10-21 | metric-log-stats-in-sql D-01..03                  |
 | [ADR-0080](./adr-0080-the-queue-fails-over-to-the-process.md)                      | A broken queue fails over to the process, and a fallback runs its job once                                       | Accepted                                            | 2026-10-21 | queue-failure-paths D-01..04                      |
 | [ADR-0081](./adr-0081-ci-runs-the-suites-in-parallel-behind-a-gate.md)             | CI runs each test suite once, in parallel, behind a gate that keeps the required check                           | Accepted                                            | 2026-10-21 | tests-in-parallel D-01..02                        |
+| [ADR-0082](./adr-0082-text-is-stored-as-sent-and-encoded-where-rendered.md)        | Text is stored as sent, and encoded where it is rendered (`xss-clean` removed)                                   | Accepted                                            | 2026-10-22 | proxy-trust-and-xss-clean D-02                    |
 
 ## Adding one
 
-Take the next free number — **ADR-0082** as of 2026-10-21 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0083** as of 2026-10-22 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 

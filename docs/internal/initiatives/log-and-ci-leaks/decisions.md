@@ -2,7 +2,7 @@
 
 ## D-01 — An error reaches the logger as the object, never its message
 
-- **Status:** Proposed
+- **Status:** Accepted (#205, `53f6bce`)
 - **Date:** 2026-10-21
 
 **Context.** The logger masks a database error's quoted values (`maskDbText`, ADR-0059) when it is
@@ -26,7 +26,7 @@ fields), not a string.
 
 ## D-02 — One email pattern, applied to a URL's path as well
 
-- **Status:** Proposed
+- **Status:** Accepted (#205, `53f6bce`)
 - **Date:** 2026-10-21
 
 **Context.** `cleanUrl` strips a URL's query and userinfo and masks network addresses, but keeps
@@ -45,7 +45,7 @@ template instead of the path:_ an unmatched route has none, which is the case at
 
 ## D-03 — The CI token is read-only
 
-- **Status:** Proposed
+- **Status:** Accepted (#205, `53f6bce`)
 - **Date:** 2026-10-21
 
 **Context.** `backend-ci.yml` declared no `permissions:`, so its `GITHUB_TOKEN` got the

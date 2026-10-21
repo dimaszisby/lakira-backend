@@ -34,7 +34,7 @@ Read every modified file top to bottom. Map which features, layers, and APIs wer
 - Auth routes use `authMiddleware` + `assertAuthenticated(req)` correctly
 - Sensitive fields (password, token, secret) never logged or returned in responses
 - Rate limiting applied to sensitive endpoints (auth, analytics)
-- `xss-clean` and `hpp` middleware in place on the global stack
+- `hpp` middleware in place on the global stack, and no middleware rewriting input (ADR-0082)
 
 ## Step 4: Code quality
 

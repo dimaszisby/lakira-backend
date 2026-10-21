@@ -74,23 +74,24 @@ With the queue on and no worker running, nobody receives any of the three emails
 
 ## Request path through the API server
 
-Middleware order in `src/server.ts` is deliberate — each layer assumes the previous one ran:
+Middleware order in `mountHttpPipeline` (`src/shared/middleware/http-pipeline.ts`, ADR-0061) is
+deliberate — each layer assumes the previous one ran:
 
 ```mermaid
 graph LR
-    r["request"] --> json["express.json"] --> cookie["cookie-parser"]
-    cookie --> rid["request-id<br/><small>AsyncLocalStorage</small>"]
+    r["request"] --> rid["request-id<br/><small>AsyncLocalStorage</small>"]
     rid --> alog["access log"] --> helm["helmet"]
-    helm --> https["HTTPS required<br/><small>production only; 403</small>"] --> xss["xss-clean"] --> hpp["hpp"]
-    hpp --> trace["disallow TRACE"] --> cors["cors"]
-    cors --> rl["global rate limiter<br/><small>after /health, /ready</small>"]
-    rl --> route["feature router"] --> auth["authMiddleware<br/><small>per route</small>"]
+    helm --> trace["disallow TRACE"] --> cors["cors"]
+    cors --> https["HTTPS required<br/><small>production only; 403; after /health, /ready</small>"]
+    https --> rl["global rate limiter"]
+    rl --> json["express.json"] --> cookie["cookie-parser"] --> hpp["hpp"]
+    hpp --> route["feature router"] --> auth["authMiddleware<br/><small>per route</small>"]
     auth --> zod["Zod validation"] --> ctrl["controller"] --> uc["use case"]
     uc --> err["error handler"] --> resp["response"]
 
     classDef sec fill:#8250df,stroke:#6639ac,color:#fff
     classDef app fill:#1f6feb,stroke:#1a4f8a,color:#fff
-    class helm,https,xss,hpp,trace,cors,rl,auth sec
+    class helm,https,hpp,trace,cors,rl,auth sec
     class route,zod,ctrl,uc app
 ```
 

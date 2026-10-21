@@ -11,6 +11,13 @@
   register row B-06
   ([analysis](../../internal/initiatives/backend-debt-register/analysis-probes-after-body-parsers.md))
 
+> **Status note (2026-10-22).** Row 11, `xss-clean`, is gone: the package was unmaintained and
+> only corrupted text, so the stack is eleven middleware
+> ([ADR-0082](./adr-0082-text-is-stored-as-sent-and-encoded-where-rendered.md); finding X14 of the
+> dated run of 2026-10-20). The HTTPS check of row 4 reads `req.secure` alone, so
+> `x-forwarded-proto` counts only from a hop `TRUST_PROXY` trusts (`proxy-trust-and-xss-clean`
+> D-01, X12). The order below is unchanged.
+
 ---
 
 ## Context

@@ -3,7 +3,6 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
 import hpp from "hpp";
-import xssClean from "xss-clean";
 import { accessLogMiddleware } from "./access-log.js";
 import { disallowTraceMethod } from "./method-guard.js";
 import { requestIdMiddleware } from "./request-id.js";
@@ -61,9 +60,11 @@ export const mountHttpPipeline = (
   // a POST into a GET. Below the probes, so a platform health check that sends no
   // x-forwarded-proto still passes; above the limiter and the parsers, so a refused
   // request is neither counted nor parsed (error-envelope-residuals D-10).
+  // req.secure reads x-forwarded-proto only from a hop TRUST_PROXY trusts; the
+  // header itself is never read here (proxy-trust-and-xss-clean D-01).
   if (options.requireHttps) {
     app.use((req, res, next) => {
-      if (!req.secure && req.get("x-forwarded-proto") !== "https") {
+      if (!req.secure) {
         sendError(res, 403, HTTPS_REQUIRED_MESSAGE);
         return;
       }
@@ -85,6 +86,7 @@ export const mountHttpPipeline = (
   // Cookie parser — before routes so req.cookies is populated
   app.use(cookieParser());
 
-  app.use(xssClean()); // Prevent XSS attacks
+  // No input sanitiser: text is stored as sent and encoded where it is rendered
+  // (ADR-0082).
   app.use(hpp()); // Prevent HTTP Parameter Pollution
 };

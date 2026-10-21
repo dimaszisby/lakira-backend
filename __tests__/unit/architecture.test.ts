@@ -598,9 +598,7 @@ describe("Architecture enforcement", () => {
       it("only the pipeline mounts the security middleware", () => {
         const offenders = sources()
           .filter(([file]) => file !== PIPELINE)
-          .filter(([, text]) =>
-            /from\s+["'](helmet|hpp|xss-clean|cors)["']/.test(text),
-          )
+          .filter(([, text]) => /from\s+["'](helmet|hpp|cors)["']/.test(text))
           .map(([file]) => file);
 
         expect(offenders).toEqual([]);
