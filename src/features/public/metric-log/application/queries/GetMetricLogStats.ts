@@ -8,6 +8,8 @@ type Input = {
   userId: string;
   organizationId: string;
   metricId?: string;
+  from?: Date;
+  to?: Date;
 };
 
 export class GetMetricLogStats {
@@ -20,11 +22,19 @@ export class GetMetricLogStats {
     userId,
     organizationId,
     metricId,
+    from,
+    to,
   }: Input): Promise<MetricLogStats> {
     if (metricId) {
       await this.access.ensureMetricOwnership(userId, organizationId, metricId);
     }
 
-    return this.statsRepo.computeStats({ organizationId, metricId, userId });
+    return this.statsRepo.computeStats({
+      organizationId,
+      metricId,
+      userId,
+      from,
+      to,
+    });
   }
 }

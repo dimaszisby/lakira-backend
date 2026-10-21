@@ -1,6 +1,6 @@
 # Todo — inner layers can still import infrastructure
 
-- **Status:** Closed on `fix/inner-layers-reach-infrastructure`
+- **Status:** Closed by #201 (`66eaf20`), branch `fix/inner-layers-reach-infrastructure`
   ([`inner-layers-reach-infrastructure`](../initiatives/inner-layers-reach-infrastructure/README.md),
   ADR-0078). Reproduced by tests first; a dated run is owed to confirm it
 - **Created:** 2026-10-20

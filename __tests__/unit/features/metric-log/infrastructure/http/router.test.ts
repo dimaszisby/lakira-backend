@@ -1,6 +1,7 @@
 import { jest } from "@jest/globals";
 import {
   metricLogCacheKey,
+  metricLogStatsCacheKey,
   metricLogsCursorCacheKey,
 } from "@/features/metric-log/infrastructure/http/cache-keys.js";
 import { createMetricLogRouter } from "@/features/metric-log/infrastructure/http/router.js";
@@ -285,17 +286,11 @@ describe("metric log router", () => {
     expect(cacheMiddlewareMock.mock.calls[2]).toEqual([metricLogCacheKey, 300]);
   });
 
-  it("builds stats cache keys for metric scope", () => {
+  it("caches the stats route under metricLogStatsCacheKey", () => {
     buildRouter();
-    const statsKeyFn = cacheMiddlewareMock.mock.calls[1][0] as (
-      req: any,
-    ) => string;
-
-    expect(
-      statsKeyFn({
-        user: { id: "user-2", organizationId: "org-2" },
-        params: { metricId: "metric-3" },
-      }),
-    ).toBe("logStats:org-2:user-2:metric-3");
+    expect(cacheMiddlewareMock.mock.calls[1]).toEqual([
+      metricLogStatsCacheKey,
+      300,
+    ]);
   });
 });

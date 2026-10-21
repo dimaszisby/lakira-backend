@@ -138,6 +138,8 @@ const getAggregatedStats = (feature: MetricLogFeature) =>
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId: query.metricId,
+      from: query.startDate ? new Date(query.startDate) : undefined,
+      to: query.endDate ? new Date(query.endDate) : undefined,
     });
     successResponse(res, 200, stats);
   });

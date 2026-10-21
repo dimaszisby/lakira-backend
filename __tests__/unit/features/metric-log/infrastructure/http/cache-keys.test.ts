@@ -2,6 +2,7 @@ import { describe, it, expect } from "@jest/globals";
 import type { AuthRequest } from "@/types/request.context.js";
 import {
   metricLogCacheKey,
+  metricLogStatsCacheKey,
   metricLogsCursorCacheKey,
 } from "@/features/metric-log/infrastructure/http/cache-keys.js";
 
@@ -70,5 +71,46 @@ describe("metricLogCacheKey", () => {
   it("names the metric the log was asked for under", () => {
     expect(logKey(METRIC_A)).not.toBe(logKey(METRIC_B));
     expect(logKey(METRIC_A)).toBe(`log:org-1:user-1:${LOG}:m:${METRIC_A}`);
+  });
+});
+
+// Kit metric-log-stats-in-sql D-03: the stats key was built from raw `req.query` and left the
+// range out, so a ranged request was answered from the all-time entry (audit X11, X20).
+const statsKey = (query: Record<string, unknown>) =>
+  metricLogStatsCacheKey({
+    user: USER,
+    query,
+    params: {},
+  } as unknown as AuthRequest);
+
+describe("metricLogStatsCacheKey", () => {
+  const START = "2025-01-01T00:00:00Z";
+  const END = "2025-02-01T00:00:00Z";
+
+  it("names the metric, or all, and an open range by the empty sentinel", () => {
+    expect(statsKey({ metricId: METRIC_A })).toBe(
+      `logStats:org-1:user-1:m:${METRIC_A}:s:_:e:_`,
+    );
+    expect(statsKey({})).toBe("logStats:org-1:user-1:m:all:s:_:e:_");
+  });
+
+  it("names each bound in epoch milliseconds", () => {
+    expect(statsKey({ startDate: START, endDate: END })).toBe(
+      `logStats:org-1:user-1:m:all:s:${Date.parse(START)}:e:${Date.parse(END)}`,
+    );
+  });
+
+  it("gives two spellings of one instant the same key", () => {
+    expect(statsKey({ startDate: "2025-01-01T07:00:00+07:00" })).toBe(
+      statsKey({ startDate: START }),
+    );
+  });
+
+  it.each([
+    ["start", { startDate: START }],
+    ["end", { endDate: END }],
+    ["metric", { metricId: METRIC_B }],
+  ])("changes with the %s", (_field, query) => {
+    expect(statsKey(query)).not.toBe(statsKey({}));
   });
 });

@@ -3973,6 +3973,7 @@
       "get": {
         "tags": ["Metric Logs"],
         "summary": "Get aggregated statistics for metric logs",
+        "description": "Average, minimum and maximum of the caller's logs, for one metric or all of them. With startDate and/or endDate, only logs with startDate <= loggedAt < endDate are counted. No log in scope answers zeros.",
         "security": [
           {
             "BearerAuth": []
@@ -3986,6 +3987,28 @@
             "required": false,
             "description": "Optional metric identifier to scope the request",
             "name": "metricId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2025-01-01T00:00:00Z"
+            },
+            "required": false,
+            "description": "Count logs whose loggedAt is at or after this instant. An ISO 8601 datetime with an offset.",
+            "name": "startDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2025-02-01T00:00:00Z"
+            },
+            "required": false,
+            "description": "Count logs whose loggedAt is before this instant (exclusive). An ISO 8601 datetime with an offset; must be after startDate when both are given.",
+            "name": "endDate",
             "in": "query"
           }
         ],

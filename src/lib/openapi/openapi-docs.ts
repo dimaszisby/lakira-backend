@@ -30,6 +30,7 @@ import {
   CreateMetricLogRequestSchema,
   UpdateMetricLogRequestSchema,
   MetricLogStatsResponseSchema,
+  MetricLogStatsQuerySchema,
   MetricLogCursorResponseSchema,
   MetricLogCursorQueryParamsSchema,
   GenerateDummyMetricLogsRequestSchema,
@@ -44,7 +45,6 @@ import {
   MetricSettingsCursorResponseSchema,
   MetricSettingsCursorQueryParamsSchema,
   TrendResponseSchema,
-  MetricIdQuerySchema,
   MetricIdRequiredQuerySchema,
   VisualizationResponseSchema,
   DashboardVisualizationResponseSchema,
@@ -1242,9 +1242,11 @@ registry.registerPath({
   path: "/metric-logs/stats",
   tags: ["Metric Logs"],
   summary: "Get aggregated statistics for metric logs",
+  description:
+    "Average, minimum and maximum of the caller's logs, for one metric or all of them. With startDate and/or endDate, only logs with startDate <= loggedAt < endDate are counted. No log in scope answers zeros.",
   security: [{ BearerAuth: [] }],
   request: {
-    query: MetricIdQuerySchema,
+    query: MetricLogStatsQuerySchema,
   },
   responses: {
     200: {

@@ -69,10 +69,13 @@ describe("MetricLogCacheRedis", () => {
     expect(invalidateCacheByPattern).toHaveBeenCalledWith(
       `${ALL_CURSOR_NS}:user-1:org:org-1:*`,
     );
-    expect(invalidateCache).toHaveBeenCalledWith(
-      "logStats:org-1:user-1:metric-2",
+    // Every range of the metric and of "all" (metric-log-stats-in-sql D-03).
+    expect(invalidateCacheByPattern).toHaveBeenCalledWith(
+      "logStats:org-1:user-1:m:metric-2:*",
     );
-    expect(invalidateCache).toHaveBeenCalledWith("logStats:org-1:user-1:all");
+    expect(invalidateCacheByPattern).toHaveBeenCalledWith(
+      "logStats:org-1:user-1:m:all:*",
+    );
     // The single-log key names the metric it was read under, so every metric's
     // entry for the log goes (query-values-mean-what-they-say D-05).
     expect(invalidateCacheByPattern).toHaveBeenCalledWith(
@@ -94,10 +97,13 @@ describe("MetricLogCacheRedis", () => {
   it("omits logId invalidation when not provided", async () => {
     await cache.invalidate("user-9", "org-9", "metric-7");
 
-    expect(invalidateCache).toHaveBeenCalledWith(
-      "logStats:org-9:user-9:metric-7",
+    // Every range of the metric and of "all" (metric-log-stats-in-sql D-03).
+    expect(invalidateCacheByPattern).toHaveBeenCalledWith(
+      "logStats:org-9:user-9:m:metric-7:*",
     );
-    expect(invalidateCache).toHaveBeenCalledWith("logStats:org-9:user-9:all");
+    expect(invalidateCacheByPattern).toHaveBeenCalledWith(
+      "logStats:org-9:user-9:m:all:*",
+    );
     expect(invalidateCache).not.toHaveBeenCalledWith(
       "log:org-9:user-9:metric-7",
     );

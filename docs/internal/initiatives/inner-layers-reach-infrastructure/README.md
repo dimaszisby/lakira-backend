@@ -1,6 +1,6 @@
 # Inner layers reach infrastructure
 
-**Status:** Implemented on `fix/inner-layers-reach-infrastructure`; PR open. Register row B-80 (findings
+**Status:** Done; merged in #201 (`66eaf20`). Register row B-80 (findings
 X40 and X41 of the dated run of 2026-10-20), with the boundary P3s X42, X43 and X44 of B-83 and
 X45 of B-73 (register D-08).
 **Slug:** `inner-layers-reach-infrastructure` · **Branch:** `fix/inner-layers-reach-infrastructure`
