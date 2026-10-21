@@ -45,6 +45,27 @@ export const connectRabbitMQ = (): AmqpConnectionManager => {
   return connection;
 };
 
+/**
+ * Listens on a raw channel for the `error` amqplib emits when the broker closes it, a 406 from
+ * a declaration with other arguments for one. `amqp-connection-manager` listens for the close,
+ * and reopens the channel, but not for the error, and an `error` nobody listens to is thrown
+ * inside amqplib's frame handling, which takes the whole connection down with it (audit
+ * 2026-10-20 X63; ADR-0080). Every channel's `setup` calls this first.
+ */
+export const absorbChannelErrors = (
+  channel: {
+    on: (event: "error", listener: (error: unknown) => void) => unknown;
+  },
+  name: string,
+): void => {
+  channel.on("error", (error: unknown) => {
+    logger.warn("[RABBITMQ] Channel closed by the broker.", {
+      channel: name,
+      error,
+    });
+  });
+};
+
 export const disconnectRabbitMQ = async (): Promise<void> => {
   if (!connection) return;
   try {

@@ -10,8 +10,10 @@ import type { InviteUserToOrganizationDeps } from "@/features/auth/application/u
 import type { TransactionPort } from "@/features/auth/application/ports/TransactionPort.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
+import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import {
   EXCHANGES,
+  QUEUES,
   ROUTING_KEYS,
 } from "@/shared/application/messaging/job-routes.js";
 import AppError from "@/utils/AppError.js";
@@ -61,7 +63,22 @@ const buildEmail = () => ({
   html: "<p>Join us</p>",
 });
 
+// queue-failure-paths D-03: a fallback runs the job under the published message's id, so
+// the worker's copy of it is a duplicate. This fake runs the work, or reports a duplicate.
+const fakeIdempotency = () => {
+  const outcome = { next: "processed" as "processed" | "duplicate" };
+  const port: jest.Mocked<MessageIdempotencyPort> = {
+    runOnce: jest.fn(async (_key, work) => {
+      if (outcome.next === "duplicate") return "duplicate";
+      await work(TX);
+      return "processed";
+    }),
+  };
+  return { port, outcome };
+};
+
 const build = ({ queueEnabled = false } = {}) => {
+  const idempotency = fakeIdempotency();
   const inviteRepo: jest.Mocked<OrganizationInviteRepository> = {
     save: jest.fn(),
     findById: jest.fn(),
@@ -101,6 +118,7 @@ const build = ({ queueEnabled = false } = {}) => {
     orgRepo,
     emailSender,
     queue,
+    idempotency.port,
     tx,
     {
       frontendInviteUrl: "https://app.example.com/invites/accept",
@@ -109,7 +127,15 @@ const build = ({ queueEnabled = false } = {}) => {
       now: () => NOW,
     },
   );
-  return { sut, inviteRepo, orgRepo, emailSender, queue, buildEmailMock };
+  return {
+    sut,
+    inviteRepo,
+    orgRepo,
+    emailSender,
+    queue,
+    buildEmailMock,
+    idempotency,
+  };
 };
 
 const input = {
@@ -347,14 +373,31 @@ describe("InviteUserToOrganization", () => {
     });
 
     it("sends in the request with a fresh token when the publish fails", async () => {
-      const { sut, inviteRepo, orgRepo, emailSender, queue, buildEmailMock } =
-        build({ queueEnabled: true });
+      const {
+        sut,
+        inviteRepo,
+        orgRepo,
+        emailSender,
+        queue,
+        buildEmailMock,
+        idempotency,
+      } = build({ queueEnabled: true });
       orgRepo.findById.mockResolvedValue(makeOrg());
       inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
       inviteRepo.save.mockResolvedValue(makePendingInvite());
+      inviteRepo.findById.mockResolvedValue(makePendingInvite());
       queue.publish.mockRejectedValueOnce(new Error("Timeout"));
 
       await expect(sut.execute(input)).resolves.toBeUndefined();
+
+      // queue-failure-paths D-03 (X68): the job itself, under the published id.
+      expect(idempotency.port.runOnce).toHaveBeenCalledWith(
+        {
+          messageId: queue.publish.mock.calls[0][2].messageId,
+          queue: QUEUES.AUTH_SEND_INVITE_EMAIL,
+        },
+        expect.any(Function),
+      );
 
       expect(inviteRepo.replaceTokenHash).toHaveBeenCalledWith(
         INVITE_ID,
@@ -373,12 +416,27 @@ describe("InviteUserToOrganization", () => {
       orgRepo.findById.mockResolvedValue(makeOrg());
       inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
       inviteRepo.save.mockResolvedValue(makePendingInvite());
+      inviteRepo.findById.mockResolvedValue(makePendingInvite());
       queue.publish.mockRejectedValueOnce(new Error("Timeout"));
       emailSender.send.mockRejectedValue(new Error("SMTP down"));
 
       await expect(sut.execute(input)).rejects.toThrow("SMTP down");
 
       expect(inviteRepo.deleteById).toHaveBeenCalledWith(INVITE_ID);
+    });
+
+    it("sends nothing, and keeps the invite, when the worker already sent it", async () => {
+      const { sut, inviteRepo, orgRepo, emailSender, queue, idempotency } =
+        build({ queueEnabled: true });
+      orgRepo.findById.mockResolvedValue(makeOrg());
+      inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
+      inviteRepo.save.mockResolvedValue(makePendingInvite());
+      queue.publish.mockRejectedValueOnce(new Error("Timeout"));
+      idempotency.outcome.next = "duplicate";
+
+      await expect(sut.execute(input)).resolves.toBeUndefined();
+      expect(emailSender.send).not.toHaveBeenCalled();
+      expect(inviteRepo.deleteById).not.toHaveBeenCalled();
     });
   });
 

@@ -1,6 +1,6 @@
 import { env } from "./config/envManager.js";
 import http from "http";
-import logger from "@/utils/logger.js";
+import logger, { flushLogs } from "@/utils/logger.js";
 import { APP_NAME } from "@/config/app-name.js";
 
 // The app and its features: every feature built once, here, and handed to its
@@ -122,6 +122,8 @@ const startServer = async () => {
     attachClientErrorHandler(server);
   } catch (error) {
     logger.error("[SERVER ERROR] Server initialization failed:", error);
+    // The line above is why it exits; flushed first, or it can be lost (audit X65).
+    await flushLogs();
     process.exit(1);
   }
 };

@@ -11,6 +11,7 @@ import {
   QUEUES,
   assertTopology,
 } from "@/shared/infrastructure/queue/topology.js";
+import { awaitBroker } from "../helpers/broker.js";
 
 /**
  * worker-cancel-and-one-connection-per-job D-01 (audit 2026-10-20, X60). The
@@ -42,7 +43,7 @@ describe("RabbitMQConsumer.cancel against a broker", () => {
 
   beforeAll(async () => {
     try {
-      await connectRabbitMQ().connect({ timeout: CONNECT_TIMEOUT_MS });
+      await awaitBroker(CONNECT_TIMEOUT_MS);
     } catch (error) {
       await disconnectRabbitMQ();
       throw new Error(

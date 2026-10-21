@@ -16,9 +16,18 @@ export type ScheduleEmailVerificationInput = {
 export type ScheduleEmailVerificationDeps = {
   /**
    * Sends the email in this process, after the response. Not durable: a crash
-   * loses it (ADR-0054). Used when the queue is off or a publish fails.
+   * loses it (ADR-0054). Used when the queue is off.
    */
   sendInProcess: (input: ScheduleEmailVerificationInput) => void;
+  /**
+   * Runs the job in this process, after the response, recorded under `messageId` and the
+   * job's queue, as the worker records it. Used when a publish fails: it may still have
+   * reached the broker, and whichever of the two runs second sends nothing
+   * (queue-failure-paths D-03, ADR-0080; audit 2026-10-20 X68).
+   */
+  sendJobInProcess: (
+    input: ScheduleEmailVerificationInput & { messageId: string },
+  ) => void;
 };
 
 /**
@@ -39,10 +48,11 @@ export class ScheduleEmailVerification {
     }
 
     const job: VerificationEmailJob = { userId: input.userId };
+    const messageId = randomUUID();
     try {
       await this.queue.publish(EXCHANGES.JOBS, job, {
         routingKey: ROUTING_KEYS.AUTH_SEND_VERIFICATION_EMAIL,
-        messageId: randomUUID(),
+        messageId,
       });
     } catch (error) {
       logger.warn(
@@ -53,7 +63,7 @@ export class ScheduleEmailVerification {
           error: error instanceof Error ? error.message : String(error),
         },
       );
-      this.deps.sendInProcess(input);
+      this.deps.sendJobInProcess({ ...input, messageId });
     }
   }
 }

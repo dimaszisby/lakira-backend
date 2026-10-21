@@ -7,8 +7,10 @@ import crypto, { randomUUID } from "node:crypto";
 import logger from "@/utils/logger.js";
 import {
   EXCHANGES,
+  QUEUES,
   ROUTING_KEYS,
 } from "@/shared/application/messaging/job-routes.js";
+import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import { OrganizationInviteRepository } from "../../domain/repositories/OrganizationInviteRepository.js";
@@ -52,6 +54,7 @@ export class InviteUserToOrganization {
     private orgRepo: OrganizationRepository,
     private emailSender: EmailSender,
     private queue: MessageQueuePort,
+    private idempotency: MessageIdempotencyPort,
     private tx: TransactionPort,
     private deps: InviteUserToOrganizationDeps,
   ) {}
@@ -114,10 +117,11 @@ export class InviteUserToOrganization {
     // emails (D-02).
     const invite = await this.inviteRepo.save(data);
     const job: InviteEmailJob = { inviteId: invite.id };
+    const messageId = randomUUID();
     try {
       await this.queue.publish(EXCHANGES.JOBS, job, {
         routingKey: ROUTING_KEYS.AUTH_SEND_INVITE_EMAIL,
-        messageId: randomUUID(),
+        messageId,
       });
       return;
     } catch (error) {
@@ -130,10 +134,20 @@ export class InviteUserToOrganization {
       );
     }
 
+    // The publish may still have reached the broker, so the fallback is the job itself, under
+    // the id it was published with: whichever of this and the worker runs second sends nothing
+    // (queue-failure-paths D-03, ADR-0080; audit 2026-10-20 X68).
     try {
-      await this.tx.runInTransaction((tx) =>
-        this.sendFor(invite, org.name, tx),
+      const outcome = await this.idempotency.runOnce(
+        { messageId, queue: QUEUES.AUTH_SEND_INVITE_EMAIL },
+        (tx) => this.executeInTransaction(invite.id, tx),
       );
+      if (outcome === "duplicate") {
+        logger.info("[RABBITMQ] Invite email already sent by the worker.", {
+          inviteId: invite.id,
+          messageId,
+        });
+      }
     } catch (error) {
       // Nobody received it, so it must not answer 409 on the retry (D-03).
       await this.inviteRepo.deleteById(invite.id);

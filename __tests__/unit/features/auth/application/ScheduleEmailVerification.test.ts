@@ -15,8 +15,12 @@ const build = (enabled: boolean) => {
     close: jest.fn(async () => undefined),
   };
   const sendInProcess = jest.fn();
-  const sut = new ScheduleEmailVerification(queue, { sendInProcess });
-  return { sut, queue, sendInProcess };
+  const sendJobInProcess = jest.fn();
+  const sut = new ScheduleEmailVerification(queue, {
+    sendInProcess,
+    sendJobInProcess,
+  });
+  return { sut, queue, sendInProcess, sendJobInProcess };
 };
 
 describe("ScheduleEmailVerification", () => {
@@ -47,19 +51,24 @@ describe("ScheduleEmailVerification", () => {
     expect(first).not.toBe(second);
   });
 
-  // D-04: a failed publish never fails the request.
-  it("sends in process, without throwing, when the publish fails", async () => {
-    const { sut, queue, sendInProcess } = build(true);
+  // D-04: a failed publish never fails the request. queue-failure-paths D-03 (audit
+  // 2026-10-20 X68): the publish may have reached the broker, so the fallback is the job
+  // itself, under the same message id, and the worker's copy is a duplicate.
+  it("sends the job in process under the message id it tried to publish", async () => {
+    const { sut, queue, sendInProcess, sendJobInProcess } = build(true);
     queue.publish.mockRejectedValueOnce(new Error("Timeout"));
 
     await expect(
       sut.execute({ userId: USER_ID, reason: "resend" }),
     ).resolves.toBeUndefined();
 
-    expect(sendInProcess).toHaveBeenCalledWith({
+    const published = queue.publish.mock.calls[0][2].messageId;
+    expect(sendJobInProcess).toHaveBeenCalledWith({
       userId: USER_ID,
       reason: "resend",
+      messageId: published,
     });
+    expect(sendInProcess).not.toHaveBeenCalled();
   });
 
   it("sends in process when the queue is off", async () => {

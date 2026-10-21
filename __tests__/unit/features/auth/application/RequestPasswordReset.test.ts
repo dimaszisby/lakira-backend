@@ -11,8 +11,10 @@ import { PasswordResetToken } from "@/features/auth/domain/entities/PasswordRese
 import { buildPasswordResetEmail } from "@/features/auth/infrastructure/email/templates/password-reset.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
+import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import {
   EXCHANGES,
+  QUEUES,
   ROUTING_KEYS,
 } from "@/shared/application/messaging/job-routes.js";
 
@@ -30,7 +32,24 @@ const makeUser = () =>
     deletedAt: null,
   });
 
+const TX = { id: "tx" } as unknown as PersistenceTransaction;
+
+// queue-failure-paths D-03: a fallback runs the job under the published message's id, so
+// the worker's copy of it is a duplicate. This fake runs the work, or reports a duplicate.
+const fakeIdempotency = () => {
+  const outcome = { next: "processed" as "processed" | "duplicate" };
+  const port: jest.Mocked<MessageIdempotencyPort> = {
+    runOnce: jest.fn(async (_key, work) => {
+      if (outcome.next === "duplicate") return "duplicate";
+      await work(TX);
+      return "processed";
+    }),
+  };
+  return { port, outcome };
+};
+
 const build = ({ queueEnabled = false } = {}) => {
+  const idempotency = fakeIdempotency();
   const userRepo: jest.Mocked<UserRepository> = {
     existsByEmail: jest.fn(),
     existsByUsername: jest.fn(),
@@ -59,13 +78,14 @@ const build = ({ queueEnabled = false } = {}) => {
     tokenRepo,
     emailSender,
     queue,
+    idempotency.port,
     {
       frontendResetUrl: "https://app.example.com/reset-password",
       buildEmail: buildPasswordResetEmail,
       now: () => FROZEN_NOW,
     },
   );
-  return { sut, userRepo, tokenRepo, emailSender, queue };
+  return { sut, userRepo, tokenRepo, emailSender, queue, idempotency };
 };
 
 const savedToken = async (data: {
@@ -201,6 +221,8 @@ describe("RequestPasswordReset use case", () => {
         queueEnabled: true,
       });
       userRepo.findByEmail.mockResolvedValue(makeUser());
+      // The fallback is the job, which reads the user by id (queue-failure-paths D-03).
+      userRepo.findById.mockResolvedValue(makeUser());
       tokenRepo.create.mockImplementation(savedToken);
       queue.publish.mockRejectedValueOnce(new Error("Timeout"));
 
@@ -210,6 +232,57 @@ describe("RequestPasswordReset use case", () => {
 
       expect(tokenRepo.create).toHaveBeenCalledTimes(1);
       expect(emailSender.send).toHaveBeenCalledTimes(1);
+    });
+
+    // queue-failure-paths D-03 (X68): the publish may have reached the broker.
+    it("sends the job under the published message id and the job's queue, through its transaction", async () => {
+      const { sut, userRepo, tokenRepo, emailSender, queue, idempotency } =
+        build({ queueEnabled: true });
+      userRepo.findByEmail.mockResolvedValue(makeUser());
+      userRepo.findById.mockResolvedValue(makeUser());
+      tokenRepo.create.mockImplementation(savedToken);
+      queue.publish.mockRejectedValueOnce(new Error("Timeout"));
+
+      await sut.execute({ email: "user@example.com" });
+
+      expect(idempotency.port.runOnce).toHaveBeenCalledWith(
+        {
+          messageId: queue.publish.mock.calls[0][2].messageId,
+          queue: QUEUES.AUTH_SEND_PASSWORD_RESET_EMAIL,
+        },
+        expect.any(Function),
+      );
+      expect(tokenRepo.create.mock.calls[0][1]).toBe(TX);
+      expect(emailSender.send).toHaveBeenCalledTimes(1);
+    });
+
+    it("sends nothing when the worker already sent the job", async () => {
+      const { sut, userRepo, emailSender, queue, idempotency } = build({
+        queueEnabled: true,
+      });
+      userRepo.findByEmail.mockResolvedValue(makeUser());
+      queue.publish.mockRejectedValueOnce(new Error("Timeout"));
+      idempotency.outcome.next = "duplicate";
+
+      await expect(
+        sut.execute({ email: "user@example.com" }),
+      ).resolves.toBeUndefined();
+      expect(emailSender.send).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when the fallback's send fails", async () => {
+      const { sut, userRepo, tokenRepo, emailSender, queue } = build({
+        queueEnabled: true,
+      });
+      userRepo.findByEmail.mockResolvedValue(makeUser());
+      userRepo.findById.mockResolvedValue(makeUser());
+      tokenRepo.create.mockImplementation(savedToken);
+      queue.publish.mockRejectedValueOnce(new Error("Timeout"));
+      emailSender.send.mockRejectedValue(new Error("smtp down"));
+
+      await expect(
+        sut.execute({ email: "user@example.com" }),
+      ).resolves.toBeUndefined();
     });
   });
 

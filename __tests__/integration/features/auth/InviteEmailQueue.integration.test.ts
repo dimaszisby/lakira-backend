@@ -30,6 +30,7 @@ import { retryDelaysMs } from "@/shared/infrastructure/queue/retryPolicy.js";
 import { env } from "@/config/envManager.js";
 import { models } from "@/infrastructure/db/models.js";
 import { createHash } from "node:crypto";
+import { awaitBroker } from "../../helpers/broker.js";
 
 /**
  * The queued invite email (ADR-0070): POST /organizations/:id/invites → jobs
@@ -189,7 +190,7 @@ describe("The invite email via RabbitMQ", () => {
     try {
       // Fail fast when no broker is reachable. connect() alone would leave
       // amqp-connection-manager retrying in the background and hang Jest.
-      await connectRabbitMQ().connect({ timeout: POLL_TIMEOUT_MS });
+      await awaitBroker(POLL_TIMEOUT_MS);
     } catch (error) {
       await disconnectRabbitMQ();
       throw new Error(

@@ -190,3 +190,9 @@ failure, or marked `void` with a comment saying why nothing awaits it. Shutdown 
   a read through the pool there deadlocks once the pool is full of jobs (ADR-0077). The password-reset email does the same,
   with its fallback in the request (ADR-0069), and so does the invite email, whose fallback saves
   the invite and sends inside one transaction (ADR-0070).
+- A failed publish may still have reached the broker, so a fallback after one is the job itself:
+  `runOnce` under the `messageId` it tried to publish and the job's queue (`QUEUES` in
+  `job-routes.ts`), so whichever of it and the worker runs second sends nothing. An unroutable
+  publish rejects, and a channel the broker refuses makes the publisher report itself off, so the
+  caller takes its queue-off path instead of the process stopping (ADR-0080). A new job's fallback
+  follows the same rule.

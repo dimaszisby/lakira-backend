@@ -851,4 +851,28 @@ describe("Architecture enforcement", () => {
       }
     });
   });
+
+  // queue-failure-paths (audit 2026-10-20 X65): the server's start failure and the worker's
+  // queue-off check exited without flushing, and the line saying why could be lost.
+  describe("an entry point flushes its logs before it exits", () => {
+    const SRC = path.resolve(__dirname, "../../src");
+    for (const entry of ["server.ts", "worker.ts"]) {
+      it(`${entry} awaits flushLogs() before every process.exit`, () => {
+        const lines = fs
+          .readFileSync(path.join(SRC, entry), "utf-8")
+          .split("\n");
+        const unflushed = lines
+          .map((line, i) => ({ line, i }))
+          .filter(({ line }) => /\bprocess\.exit\(/.test(line))
+          .filter(
+            ({ i }) =>
+              !lines
+                .slice(Math.max(0, i - 3), i)
+                .some((before) => /await flushLogs\(\)/.test(before)),
+          )
+          .map(({ line, i }) => `${entry}:${i + 1}: ${line.trim()}`);
+        expect(unflushed).toEqual([]);
+      });
+    }
+  });
 });

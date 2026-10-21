@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import type { Channel, ConsumeMessage } from "amqplib";
 import type { ChannelWrapper } from "amqp-connection-manager";
-import { connectRabbitMQ } from "./RabbitMQConnection.js";
+import { absorbChannelErrors, connectRabbitMQ } from "./RabbitMQConnection.js";
 import { assertRetryTier, assertTopology, retryQueueFor } from "./topology.js";
 import {
   RETRY_COUNT_HEADER,
@@ -9,6 +10,11 @@ import {
 } from "./retryPolicy.js";
 import { env } from "@/config/envManager.js";
 import logger from "@/utils/logger.js";
+import {
+  REQUEST_ID_HEADER,
+  REQUEST_ID_PATTERN,
+  requestIdStorage,
+} from "@/shared/middleware/request-id.js";
 import type {
   MessagePayload,
   MessageQueuePort,
@@ -19,6 +25,18 @@ import type {
 } from "@/shared/application/ports/MessageHandlerPort.js";
 
 export type { MessageContext, MessageHandler };
+
+/**
+ * The id a job is handled under: the publishing request's, when the header holds one the HTTP
+ * middleware would honour, otherwise a minted one (audit 2026-10-20 N4). Held to the same
+ * pattern, so a header cannot write arbitrary text onto the worker's log lines.
+ */
+const requestIdOf = (msg: ConsumeMessage): string => {
+  const header: unknown = msg.properties.headers?.[REQUEST_ID_HEADER];
+  return typeof header === "string" && REQUEST_ID_PATTERN.test(header)
+    ? header
+    : randomUUID();
+};
 
 export interface ConsumerOptions {
   queue: string;
@@ -54,6 +72,7 @@ export class RabbitMQConsumer {
     this.channel = connection.createChannel({
       name: `consumer:${options.queue}`,
       setup: async (ch: Channel) => {
+        absorbChannelErrors(ch, `consumer:${options.queue}`);
         await assertTopology(ch);
         // A reconnect during the drain re-runs setup: it must not consume again.
         if (this.stopping) return;
@@ -83,9 +102,22 @@ export class RabbitMQConsumer {
         });
       },
     });
+
+    // A failed setup is emitted here; with no listener it took the worker down (audit
+    // 2026-10-20 X63). The library runs setup again on the next reconnect (ADR-0080, D-01).
+    this.channel.on("error", (error: unknown) => {
+      logger.error(
+        "[RABBITMQ] Consumer channel failed; consuming nothing until it reconnects.",
+        { queue: options.queue, error },
+      );
+    });
   }
 
   private dispatch(ch: Channel, msg: ConsumeMessage): void {
+    requestIdStorage.run(requestIdOf(msg), () => this.handle(ch, msg));
+  }
+
+  private handle(ch: Channel, msg: ConsumeMessage): void {
     this.inFlight++;
 
     const retryCount = readRetryCount(msg.properties.headers);

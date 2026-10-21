@@ -1,6 +1,6 @@
 # Metric-log stats in SQL
 
-**Status:** Implemented on `fix/metric-log-stats-in-sql`; PR open. Register row B-79 (finding X20 of the
+**Status:** Done; merged in #202 (`5a3addb`). Register row B-79 (finding X20 of the
 dated run of 2026-10-20; N10 and F4 of the 2026-06-05 run), with the stats key of X11/X21 of B-82
 (register D-09).
 **Slug:** `metric-log-stats-in-sql` · **Branch:** `fix/metric-log-stats-in-sql`

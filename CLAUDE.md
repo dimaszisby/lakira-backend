@@ -48,7 +48,7 @@ Frequently needed:
   next" is answered from here** (`.claude/rules/workflow.md` § What's next)
 - `docs/reference/commands.md` — canonical npm scripts (do not keep a second copy elsewhere)
 - `docs/reference/configuration.md` — all 70 env vars
-- `docs/explanation/decisions/` — 79 ADRs, one per file; check **Status** before trusting one
+- `docs/explanation/decisions/` — 80 ADRs, one per file; check **Status** before trusting one
 - `docs/reference/api/lakira-backend-openapi.json` — generated, CI-drift-gated, never hand-edited
 
 `docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` is the live risk status (as of 2026-10-20: GOLD WITH CAVEATS; no open P0; every caveat, C1 to C6, is confirmed closed on the routes ADR-012 names; two P1 findings block a clean GOLD, both in the queue worker: concurrent email jobs stall on the database connection pool (X62, B-75) and the consumer cancel does nothing, so a stopping worker keeps taking messages (X60, B-74); six P2 findings are open: X1, X20, X40, X41, X61, X63).

@@ -117,10 +117,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0077](./adr-0077-a-queued-job-holds-one-connection.md)                        | A queued job holds one connection, for a bounded time                                                            | Accepted                                            | 2026-10-21 | worker-cancel-and-one-connection-per-job D-02..03 |
 | [ADR-0078](./adr-0078-relative-paths-and-contracts-in-the-inner-layers.md)         | A relative path is judged by where it lands, and inner layers take a feature's `contract.ts`                     | Accepted                                            | 2026-10-21 | inner-layers-reach-infrastructure D-01..03        |
 | [ADR-0079](./adr-0079-metric-log-stats-are-one-ranged-aggregate.md)                | Metric-log stats are one aggregate, over a half-open range of `loggedAt`                                         | Accepted                                            | 2026-10-21 | metric-log-stats-in-sql D-01..03                  |
+| [ADR-0080](./adr-0080-the-queue-fails-over-to-the-process.md)                      | A broken queue fails over to the process, and a fallback runs its job once                                       | Accepted                                            | 2026-10-21 | queue-failure-paths D-01..04                      |
 
 ## Adding one
 
-Take the next free number — **ADR-0080** as of 2026-10-21 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0081** as of 2026-10-21 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 

@@ -4,6 +4,9 @@ import type { Request, Response, NextFunction } from "express";
 
 export const requestIdStorage = new AsyncLocalStorage<string>();
 
+/** The header that carries a request's id, over HTTP and over the queue (ADR-0080). */
+export const REQUEST_ID_HEADER = "x-request-id";
+
 export const getRequestId = (): string | undefined =>
   requestIdStorage.getStore();
 
@@ -22,12 +25,12 @@ export const requestIdMiddleware = (
   res: Response,
   next: NextFunction,
 ): void => {
-  const incoming = req.headers["x-request-id"];
+  const incoming = req.headers[REQUEST_ID_HEADER];
   const requestId =
     typeof incoming === "string" && REQUEST_ID_PATTERN.test(incoming)
       ? incoming
       : randomUUID();
 
-  res.setHeader("x-request-id", requestId);
+  res.setHeader(REQUEST_ID_HEADER, requestId);
   requestIdStorage.run(requestId, () => next());
 };
