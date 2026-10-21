@@ -65,6 +65,10 @@ Lean kit: the acceptance criteria are stated here. Checked against `origin/dev` 
       `docs/internal/todos/2026-10-22-todo-cors-delta-check-reads-server-ts.md`, row B-86
 - [x] Found: a `Parse Error` in the unit project (`cache.test.ts`), once, then three clean runs
       of the file and a clean full run → B-11, logged in its todo
+- [x] Found: `__tests__/unit/compose-ports.test.ts` (S10) pinned the app as the one port on every
+      interface. The local gates ran before the compose change was copied into place, so only CI
+      saw it fail (PR #206, unit tests and Fork Smoke) → in scope: the test now requires the app
+      on `${APP_BIND_ADDRESS:-127.0.0.1}` and nothing on every interface by default
 
 ## Acceptance
 
@@ -82,7 +86,7 @@ Lean kit: the acceptance criteria are stated here. Checked against `origin/dev` 
 - [x] typecheck — clean
 - [x] lint — clean
 - [x] format — `prettier --check` on every touched file and the staged compose file: clean
-- [x] tests — `test:unit:coverage` 149 suites, 1526 tests passed, thresholds met (the first run
+- [x] tests — `test:unit:coverage` 149 suites, 1527 tests passed, thresholds met (the first run
       had one B-11 `Parse Error`; see Discovered); `test:integration:coverage` 43 suites passed
       (2 skipped), 299 tests passed (6 skipped), thresholds met
 - [x] build — clean

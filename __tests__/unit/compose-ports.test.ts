@@ -65,10 +65,28 @@ describe("docker-compose.yml published ports (S10)", () => {
     expect(compose).not.toMatch(/^\s*network_mode:/m);
   });
 
-  // A service added later with a bare "host:container" port fails here.
-  it("leaves the app as the only service published on every interface", () => {
-    const open = publishedPorts().filter(({ spec }) => !LOOPBACK.test(spec));
+  // Audit 2026-10-20, X12 (kit proxy-trust-and-xss-clean, D-03). The app was the one
+  // port left on every interface; it defaults to loopback now, and only an explicit
+  // APP_BIND_ADDRESS opens it.
+  it("publishes the app on loopback unless APP_BIND_ADDRESS says otherwise", () => {
+    const app = publishedPorts().filter(({ service }) => service === "app");
 
-    expect(open).toEqual([{ service: "app", spec: "8001:5000" }]);
+    expect(app).toEqual([
+      { service: "app", spec: "${APP_BIND_ADDRESS:-127.0.0.1}:8001:5000" },
+    ]);
+  });
+
+  // A service added later with a bare "host:container" port fails here.
+  it("publishes nothing on every interface by default", () => {
+    const open = publishedPorts().filter(
+      ({ service, spec }) =>
+        !LOOPBACK.test(spec) &&
+        !(
+          service === "app" &&
+          spec.startsWith("${APP_BIND_ADDRESS:-127.0.0.1}:")
+        ),
+    );
+
+    expect(open).toEqual([]);
   });
 });
