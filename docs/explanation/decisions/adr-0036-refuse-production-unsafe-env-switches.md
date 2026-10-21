@@ -78,3 +78,13 @@ Any environment variable whose `true` value would weaken a production security c
 > judges the login the connection will use. A URL that names no user and password is refused too,
 > since the client logs in as `guest` then. The message names the variable and never quotes the
 > URL. Still production only.
+
+> **2026-10-21:** the
+> [`database-tls-and-staging-refusals`](../../internal/initiatives/database-tls-and-staging-refusals/decisions.md)
+> kit, D-01, D-02 and D-04 (audit 2026-10-20, X1 and X2). Every refusal now applies when `NODE_ENV`
+> is `production` **or** `staging`, staging being reachable from the internet, except
+> `EMAIL_PROVIDER=mailpit`, which ADR-0048 keeps for staging. Production also refuses
+> `DB_SSL_REJECT_UNAUTHORIZED=false`, in the schema and in the migration config; staging defaults
+> to `true` and may set `false`, which `src/config/db.ts` announces at every start. `DB_SSL_CA`, a
+> PEM CA certificate the database connection trusts, lets a database signed by a private CA be
+> verified; a value that holds no certificate is refused.

@@ -1,6 +1,8 @@
 # Todo — a production database connection may skip TLS verification
 
-- **Status:** Open (P2)
+- **Status:** Closed on `fix/database-tls-and-staging-refusals`
+  ([`database-tls-and-staging-refusals`](../initiatives/database-tls-and-staging-refusals/README.md),
+  ADR-0036 note of 2026-10-21). Reproduced by a test first; a dated run is owed to confirm it
 - **Created:** 2026-10-20
 - **Owner:** unassigned
 - **Origin:** dated SaaS-readiness run of 2026-10-20, finding X1

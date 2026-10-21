@@ -25,6 +25,9 @@ For tests: `resetEnvCacheForTesting()` clears the cache so test env can be reloa
 - `PORT`: number (default: 5000)
 - `JWT_SECRET`: required, no default. In `production` and `staging` startup refuses one shorter
   than 32 characters, and the `.env.example` placeholder (ADR-0036)
+- Database TLS: `DB_SSL_REJECT_UNAUTHORIZED` defaults to `true` in staging and production;
+  production refuses `false`, staging may set it with a warning. `DB_SSL_CA` holds a PEM CA to
+  trust (ADR-0036)
 - Database: `DATABASE_URL` or per-env URLs (`DEVELOPMENT_DATABASE_URL`, `TEST_DATABASE_URL`, `STAGING_DATABASE_URL`, `PRODUCTION_DATABASE_URL`), or individual `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
 - Redis: `REDIS_URL` or `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`; `REDIS_REQUIRED` (boolean)
 - Rate limits: `RATE_LIMIT_GLOBAL_MAX`, `RATE_LIMIT_USER_MAX`, `RATE_LIMIT_ANALYTICS_MAX`

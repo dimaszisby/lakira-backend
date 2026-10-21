@@ -6,6 +6,13 @@ const sqlLogger = (message: unknown) => {
   logger.debug(message);
 };
 
+/** The TLS options of a staging or production connection (D-01, D-04). */
+export const sslOptions = (rejectUnauthorized: boolean, ca?: string) => ({
+  require: true,
+  rejectUnauthorized,
+  ...(ca ? { ca } : {}),
+});
+
 const dbConfig = {
   development: {
     dialect: "postgres",
@@ -40,10 +47,7 @@ const dbConfig = {
     database: env.DB_NAME,
     logging: false,
     dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: env.DB_SSL_REJECT_UNAUTHORIZED,
-      },
+      ssl: sslOptions(env.DB_SSL_REJECT_UNAUTHORIZED, env.DB_SSL_CA),
     },
   },
   production: {
@@ -55,10 +59,7 @@ const dbConfig = {
     database: env.DB_NAME,
     logging: env.DB_LOGGING === "true" ? sqlLogger : false,
     dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: env.DB_SSL_REJECT_UNAUTHORIZED,
-      },
+      ssl: sslOptions(env.DB_SSL_REJECT_UNAUTHORIZED, env.DB_SSL_CA),
     },
   },
 };
@@ -70,6 +71,25 @@ const config = dbConfig[envMode];
 // if (!config.url) {
 //   throw new Error(`[ERROR] Database URL is missing for environment: ${envMode}`);
 // }
+
+/**
+ * Staging may turn verification of the database certificate off; production
+ * refuses it at the schema (database-tls-and-staging-refusals D-01). Says so at
+ * every start of the server and the worker, naming the variable, never the URL.
+ */
+export const warnWhenTlsUnverified = (
+  nodeEnv: string,
+  rejectUnauthorized: boolean,
+  warn: (message: string) => void = (message) => logger.warn(message),
+): boolean => {
+  if (nodeEnv !== "staging" || rejectUnauthorized) return false;
+  warn(
+    "[DB] DB_SSL_REJECT_UNAUTHORIZED=false: the database certificate is not verified, so the connection accepts any server.",
+  );
+  return true;
+};
+
+warnWhenTlsUnverified(envMode, env.DB_SSL_REJECT_UNAUTHORIZED);
 
 // Initialize Sequelize
 const sequelize = new Sequelize(
