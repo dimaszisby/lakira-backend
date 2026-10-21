@@ -60,7 +60,7 @@ export class ScheduleEmailVerification {
         {
           userId: input.userId,
           reason: input.reason,
-          error: error instanceof Error ? error.message : String(error),
+          error,
         },
       );
       this.deps.sendJobInProcess({ ...input, messageId });

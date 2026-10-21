@@ -1,6 +1,7 @@
 import morgan from "morgan";
 import type { Request, Response } from "express";
 import logger from "@/utils/logger.js";
+import { maskEmails } from "@/utils/mask-emails.js";
 
 /**
  * HTTP access logging — ADR-0041 item 4.
@@ -36,7 +37,9 @@ export const accessLogMiddleware = morgan<Request, Response>(
 
     logger.http("http_request", {
       method: tokens.method(req, res),
-      path: pathWithoutQuery(req),
+      // An unmatched route's path keeps what was sent, an address included (audit
+      // 2026-10-20 X5; log-and-ci-leaks D-02).
+      path: maskEmails(pathWithoutQuery(req)),
       status: statusRaw ? Number(statusRaw) : undefined,
       durationMs: durationRaw ? Number(durationRaw) : undefined,
       contentLength: lengthRaw ? Number(lengthRaw) : undefined,

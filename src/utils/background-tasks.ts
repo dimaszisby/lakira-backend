@@ -1,4 +1,7 @@
-import logger from "@/utils/logger.js";
+import logger, {
+  loggableErrorMessage,
+  loggableErrorStack,
+} from "@/utils/logger.js";
 
 /**
  * Work started after the response is sent (ADR-0054).
@@ -34,16 +37,12 @@ export const runInBackground = (
     .then(
       () => undefined,
       (error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
         // The message carries the detail: the development format prints no
-        // metadata.
-        logger.error(`[BACKGROUND] Task failed: ${label}: ${message}`, {
-          ...meta,
-          error: message,
-          ...(error instanceof Error
-            ? { errorName: error.name, stack: error.stack }
-            : {}),
-        });
+        // metadata. Masked, as the error itself is below (log-and-ci-leaks D-01).
+        logger.error(
+          `[BACKGROUND] Task failed: ${label}: ${loggableErrorMessage(error)}`,
+          { ...meta, error, stack: loggableErrorStack(error) },
+        );
       },
     )
     // A throwing logger must not turn into an unhandled rejection.

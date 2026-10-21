@@ -43,7 +43,7 @@ export class RequestEmailVerification {
     } catch (error) {
       logger.error("Failed to send verification email", {
         userId: input.userId,
-        error: error instanceof Error ? error.message : String(error),
+        error,
       });
     }
   }

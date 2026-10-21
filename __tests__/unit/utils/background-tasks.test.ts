@@ -8,6 +8,11 @@ import {
 jest.mock("@/utils/logger.js", () => ({
   __esModule: true,
   default: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  // The message and stack helpers, as the real logger has them, unmasked: no database error here.
+  loggableErrorMessage: (e: unknown) =>
+    e instanceof Error ? e.message : String(e),
+  loggableErrorStack: (e: unknown) =>
+    e instanceof Error ? e.stack : undefined,
 }));
 
 const loggerMock = (
@@ -122,8 +127,8 @@ describe("background tasks", () => {
       "[BACKGROUND] Task failed: failing: smtp down",
       expect.objectContaining({
         userId: "user-1",
-        error: "smtp down",
-        errorName: "Error",
+        // The error itself, which the logger reduces (log-and-ci-leaks D-01).
+        error: expect.objectContaining({ message: "smtp down" }),
         stack: expect.stringContaining("smtp down"),
       }),
     );
@@ -149,7 +154,9 @@ describe("background tasks", () => {
     expect(loggerMock.error).toHaveBeenCalledTimes(1);
     expect(loggerMock.error).toHaveBeenCalledWith(
       expect.stringContaining("throwing"),
-      expect.objectContaining({ error: "boom" }),
+      expect.objectContaining({
+        error: expect.objectContaining({ message: "boom" }),
+      }),
     );
   });
 });

@@ -36,6 +36,11 @@ jest.mock("@/utils/logger.js", () => ({
   info: jest.fn(),
   error: jest.fn(),
   warn: jest.fn(),
+  // The message and stack helpers, as the real logger has them, unmasked: no database error here.
+  loggableErrorMessage: (e: unknown) =>
+    e instanceof Error ? e.message : String(e),
+  loggableErrorStack: (e: unknown) =>
+    e instanceof Error ? e.stack : undefined,
 }));
 
 const loggerMock = jest.requireMock("@/utils/logger.js") as Record<
@@ -155,7 +160,7 @@ describe("cacheMiddleware", () => {
       "[BACKGROUND] Task failed: cache-write: boom",
       expect.objectContaining({
         cache: cacheEntryName("cache:user-42"),
-        error: "boom",
+        error: writeError,
         stack: writeError.stack,
       }),
     );

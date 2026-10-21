@@ -22,6 +22,7 @@ const buildApp = () => {
   app.get("/api/v1/health", (_req, res) => void res.status(200).json({}));
   app.get("/api/v1/ready", (_req, res) => void res.status(200).json({}));
   app.get("/api/v1/metrics", (_req, res) => void res.status(401).json({}));
+  app.use((_req, res) => void res.status(404).json({}));
   return app;
 };
 
@@ -51,6 +52,18 @@ describe("accessLogMiddleware (ADR-0041)", () => {
     const serialized = JSON.stringify(meta);
     expect(serialized).not.toContain("secret-search");
     expect(serialized).not.toContain("topsecret");
+  });
+
+  // log-and-ci-leaks D-02 (audit 2026-10-20 X5): an unmatched route's path kept its address.
+  it.each([
+    "/api/v1/users/victim@example.com",
+    "/api/v1/users/victim%40example.com",
+  ])("masks an address in the path %s", async (path) => {
+    await request(buildApp()).get(`${path}/x?q=1`);
+
+    const [, meta] = lastCall();
+    expect(meta.path).toBe("/api/v1/users/[email]/x");
+    expect(JSON.stringify(meta)).not.toMatch(/victim/);
   });
 
   it.each(["/api/v1/health", "/api/v1/ready"])(

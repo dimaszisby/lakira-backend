@@ -3,6 +3,7 @@ import type { NodeOptions } from "@sentry/node";
 import { SENSITIVE_KEY_PATTERN } from "../config/sensitive-keys.js";
 import { redactObject } from "./logger.js";
 import { maskQuotedValues } from "./mask-quoted-values.js";
+import { EMAIL_IN_TEXT, maskEmails } from "./mask-emails.js";
 
 /**
  * The parts of a Sentry event this scrubber touches. Structural rather than importing
@@ -73,8 +74,6 @@ const QUERY_IN_TEXT =
 const JWT_IN_TEXT =
   /eyJ[\w-]{5,2000}\.[\w-]{5,4000}\.[\w-]{0,2000}(?:\.[\w-]{0,4000}){0,2}/g;
 const SCHEME_TOKEN_IN_TEXT = /\b(Bearer|Basic)\s+[\w.~+/=-]{8,4000}/gi;
-const EMAIL_IN_TEXT =
-  /(?:"[^"\r\n]{1,64}"|[\p{L}\p{N}._%+'-]{1,64})(?:@|%40)[\p{L}\p{N}.-]{1,253}\.\p{L}{2,24}/giu;
 
 const ZONE_ID = /%[\w.-]+$/;
 
@@ -115,8 +114,10 @@ const maskAddresses = (text: string): string =>
   text.replace(ADDRESS_CANDIDATE, maskAddressRun);
 
 /** A URL value: no query string, no userinfo, no address. The path is kept (D-14). */
+// The path too can hold an address: an unmatched route keeps what was sent (audit 2026-10-20
+// X5). After the query and userinfo are gone, so userinfo cannot be half-matched as one.
 const cleanUrl = (url: string): string =>
-  maskAddresses(stripUserinfo(stripQuery(url)));
+  maskEmails(maskAddresses(stripUserinfo(stripQuery(url))));
 
 /** The same, for every string of a context or of `extra`, at any depth. */
 const maskAddressesDeep = (value: unknown, depth = 0): unknown => {

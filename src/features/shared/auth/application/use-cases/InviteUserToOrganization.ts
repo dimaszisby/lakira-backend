@@ -129,7 +129,7 @@ export class InviteUserToOrganization {
         "[RABBITMQ] Invite email not queued; sending it in the request.",
         {
           inviteId: invite.id,
-          error: error instanceof Error ? error.message : String(error),
+          error,
         },
       );
     }
