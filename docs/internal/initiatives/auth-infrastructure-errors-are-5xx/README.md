@@ -1,6 +1,6 @@
 # Auth infrastructure errors are 5xx
 
-**Status:** Implemented on `fix/auth-infrastructure-errors-are-5xx`; PR open. Register row B-77 (finding
+**Status:** Done; merged in #200 (`230aada`). Register row B-77 (finding
 X61 of the dated run of 2026-10-20).
 **Slug:** `auth-infrastructure-errors-are-5xx` · **Branch:** `fix/auth-infrastructure-errors-are-5xx`
 

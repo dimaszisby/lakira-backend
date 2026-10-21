@@ -46,11 +46,13 @@ features/{name}/
   reacts to an error reads its kind, never a status
 - Both are lint-enforced (ADR-0058, ADR-0074), in every file under `src/` whatever its
   extension. `domain/` and `application/` import **only from a list** in `eslint.config.mjs`
-  (`DOMAIN_IMPORTS`, `APPLICATION_IMPORTS`): relative paths, `node:crypto`, the shared kernel,
-  shared constants, `@/types/domain/`, another feature's `public.ts`, and for the application
-  the logger, `date-io`, cache keys, `envManager` and `app-name`. No third-party package. An
-  import with an `infrastructure` path segment is rejected too, relative ones included. A new
-  entry on a list needs a reason. `src/shared/{domain,application}` and `src/types/domain`
+  (`DOMAIN_IMPORTS`, `APPLICATION_IMPORTS`): `node:crypto`, the shared kernel, shared constants,
+  `@/types/domain/`, `@/constants/zod/zod-messages.js`, another feature's `contract.ts` (never its
+  `public.ts`), and for the application the logger, `date-io`, cache keys, `envManager` and
+  `app-name`. No third-party package. A relative path is judged by where it lands (ADR-0078): into
+  the file's own layer, the application into its feature's domain, or onto the list. An import
+  with an `infrastructure` path segment is rejected too, relative ones included. A new entry on a
+  list needs a reason. `src/shared/{domain,application}` and `src/types/domain`
   take the same lists. What to use instead:
   - a use case declares its own input type; it does not take a DTO type from `infrastructure/http/`
   - a queue handler takes `IncomingMessage` from `@/shared/application/ports/MessageHandlerPort.js`
@@ -61,12 +63,14 @@ features/{name}/
   `src/lib/openapi/` through one `http/schema.zod` file. Every other file under `src/` imports no
   feature, `public.ts` included: a type that needs a feature's type lives in a feature. Within
   features, the frozen model exception names its six files
-- **One spelling per module** (ADR-0074): an `@/` path with a `.` or `..` segment or a doubled
-  slash, or one starting `src/`, is rejected; it hid which feature it reached
+- **One spelling per module** (ADR-0074, ADR-0078): an `@/`, `@utils/` or `@config/` path with a
+  `.` or `..` segment or a doubled slash, or one starting `src/`, is rejected; it hid which
+  feature it reached
 - **Static imports only under `src/`.** The rules above read `import … from` and `export … from`,
   so the forms they cannot read are refused outright: a dynamic `import()`, an `import("…")` type
   (write `import type { X } from "…"`), anything from node's `module` package
-  (`createRequire`), `process.getBuiltinModule`, and the `Function` constructor (ADR-0074). A
+  (`createRequire`), `process.getBuiltinModule`, `module.require`, `eval`, and the `Function`
+  constructor however it is reached (ADR-0074, ADR-0078). A
   file that truly needs a lazy import gets a named exemption in `eslint.config.mjs`
 - **Infrastructure layer** implements domain interfaces and wires to frameworks
 - **feature.ts** is the composition root — instantiates repos, providers, use cases
@@ -126,21 +130,26 @@ worker once built its handler by hand with the no-op, and queued jobs left chart
 
 ## Export Convention
 
-Two surfaces per feature (ADR-0045):
+Three surfaces per feature (ADR-0045, ADR-0078):
 
 - **`index.ts` is for `src/app.ts` only.** It exports the router factories (`createXRouter`) and
   `buildXFeature`. `createApp` calls the factories at mount time. `feature.ts` may also be
   imported by `src/composition/` (ADR-0056).
-- **`public.ts` is what other features import** — a deliberately narrow set (mappers, DTO
-  helpers, `authMiddleware`). ESLint rejects a feature importing another feature's `index.ts`,
-  bare alias or `feature.ts`, and anything under its `domain/`, `application/` or
-  `infrastructure/`. Both spellings are checked: the short alias (`@/features/metric/...`) and the
+- **`public.ts` is what other features' infrastructure and `src/composition/` import** — a
+  deliberately narrow set (mappers, DTO helpers, `authMiddleware`, adapters). Another feature's
+  domain and application may not import it.
+- **`contract.ts` is what other features' domain and application import** (ADR-0078). It
+  re-exports domain types from its own feature's `domain/` and nothing else; lint holds it to the
+  domain's rules. Only metric-category has one (`type MetricCategory`).
+- **Nothing else of another feature is importable.** ESLint rejects a feature importing another
+  feature's `index.ts`, bare alias or `feature.ts`, and anything under its `domain/`,
+  `application/` or `infrastructure/`. Both spellings are checked: the short alias (`@/features/metric/...`) and the
   full path (`@/features/public/metric/...`). `__tests__/unit/feature-boundaries.lint.test.ts`
   proves each rule rejects, and `architecture.test.ts` catches a relative import that crosses into
   another feature.
-- **A port belongs to the feature that consumes it** (ADR-0023). If a feature needs something from
-  another, it declares the interface in its own `application/ports/` and receives the adapter,
-  which the provider exports from its `public.ts`. `MetricAccessPort` is the worked example: one
+- **A port belongs to the feature that consumes it** (ADR-0023), so a contract carries no port.
+  If a feature needs something from another, it declares the interface in its own
+  `application/ports/` and receives the adapter, which the provider exports from its `public.ts`. `MetricAccessPort` is the worked example: one
   copy each in metric-log, metric-settings and analytics, all satisfied by `MetricAccessSequelize`.
 - **Importing a feature module constructs nothing.** No router, feature or middleware is built at
   module scope. `__tests__/unit/architecture.test.ts` enforces this.
