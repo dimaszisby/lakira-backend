@@ -18,17 +18,22 @@ Applied in this order by `mountHttpPipeline` (`src/shared/middleware/http-pipeli
    added to it goes through that probe
 7. HTTPS required — production only. Plain HTTP gets `403`, never a redirect: a redirect built
    from `Host` goes wherever the client says. Below the probes, so a platform health check without
-   `x-forwarded-proto` still passes (`error-envelope-residuals` D-10)
+   `x-forwarded-proto` still passes (`error-envelope-residuals` D-10). The check is `req.secure`
+   alone: a forwarded protocol counts only from a hop `TRUST_PROXY` trusts, never from the header
+   as sent (`proxy-trust-and-xss-clean` D-01)
 8. `globalRateLimiter` — the only app-wide limiter; the rest are attached per route
 9. `express.json()` — body parsing. **Nothing above this line reads a request body**: a request
    is counted before it is parsed
 10. `cookie-parser` — needed for the refresh-token cookie
-11. `xss-clean` — sanitize request payloads
-12. `hpp()` — prevent HTTP parameter pollution
+11. `hpp()` — prevent HTTP parameter pollution
 
 A new global middleware is added in `mountHttpPipeline` and nowhere else; one that reads the body
 goes below the limiter. No other file under `src/` imports a body or cookie parser, `helmet`,
-`hpp`, `xss-clean` or `cors`, and `architecture.test.ts` fails on one that does.
+`hpp` or `cors`, and `architecture.test.ts` fails on one that does.
+
+No middleware rewrites input. Text is stored as sent and encoded where it is rendered: React in
+the frontend, `escapeHtml` in each email template. A field that must not hold markup says so in its
+Zod schema (ADR-0082, which removed `xss-clean`).
 
 ## Rate Limiting
 

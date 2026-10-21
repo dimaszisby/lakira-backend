@@ -128,7 +128,8 @@ Security baseline:
 - Global and per-route rate limits (see `.claude/rules/security.md`)
 - Production refuses unsafe env switches at startup (ADR-0036)
 - Log and Sentry payloads redact sensitive keys (`src/config/sensitive-keys.ts`)
-- `helmet`, `xss-clean`, `hpp`, and TRACE disallow guard
+- `helmet`, `hpp`, and TRACE disallow guard; input is stored as sent and encoded on output
+  (ADR-0082)
 - Zod validation across body/query/params
 
 Reliability and error handling:

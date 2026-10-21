@@ -21,9 +21,11 @@ const limiterOf = (max: number): RequestHandler =>
   });
 
 const build = (
-  overrides: { max?: number; requireHttps?: boolean } = {},
+  overrides: { max?: number; requireHttps?: boolean; trustProxy?: number } = {},
 ): Application => {
   const app = express();
+  // app.ts sets this from TRUST_PROXY; a bare Express app trusts no proxy.
+  app.set("trust proxy", overrides.trustProxy ?? 0);
   mountHttpPipeline(app, {
     limiter: limiterOf(overrides.max ?? 2),
     corsOrigins: [ORIGIN],
@@ -124,16 +126,17 @@ describe("mountHttpPipeline: the order of the global middleware", () => {
 
   it("still hands a route its parsed body, cookies and query", async () => {
     const res = await request(build())
-      .post("/echo?sort=name&sort=id")
+      .post("/echo?sort=name&sort=id&q=a%3Cb")
       .set("Cookie", "session=abc")
       .send({ name: "<script>x</script>" });
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      // xss-clean escapes markup in the body; hpp keeps the last of a repeated key.
-      body: { name: "&lt;script>x&lt;/script>" },
+      // Text arrives as sent; encoding is the renderer's job (ADR-0082).
+      // hpp keeps the last of a repeated key.
+      body: { name: "<script>x</script>" },
       cookies: { session: "abc" },
-      query: { sort: "id" },
+      query: { sort: "id", q: "a<b" },
     });
   });
 
@@ -182,12 +185,22 @@ describe("mountHttpPipeline: the order of the global middleware", () => {
       expect(probe.status).toBe(200);
     });
 
-    it("lets a request through that a proxy marks as HTTPS", async () => {
-      const res = await request(build({ requireHttps: true }))
-        .get("/probe")
+    // Kit proxy-trust-and-xss-clean, D-01 (audit X12). The header counts only from a
+    // hop TRUST_PROXY trusts; before, any client could claim HTTPS for itself.
+    it("lets a request through that a trusted proxy marks as HTTPS", async () => {
+      const res = await request(build({ requireHttps: true, trustProxy: 1 }))
+        .get("/echo")
         .set("x-forwarded-proto", "https");
 
       expect(res.status).toBe(200);
+    });
+
+    it("refuses a request that marks itself as HTTPS when no proxy is trusted", async () => {
+      const res = await request(build({ requireHttps: true, trustProxy: 0 }))
+        .get("/echo")
+        .set("x-forwarded-proto", "https");
+
+      expect(res.status).toBe(403);
     });
   });
 });

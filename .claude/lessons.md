@@ -84,3 +84,17 @@ summary. A file path is not a presentation. The approval pause in § Task Flow i
 and it only works if the user can see what they are approving. Reading my own checklist back in plan
 mode turned up two template violations (gate commands copied in, integration tests wrongly skipped)
 that the summary had hidden.
+
+## [2026-10-22] Gates run on the tree the commit will hold, not on a tree missing a handed-over file
+
+**Mistake**: A hook blocks edits to `docker-compose.yml`, so on `fix/proxy-trust-and-xss-clean`
+I wrote the change to `.git/docker-compose.yml-<branch>` and handed it over as a `cp`. I ran every
+gate before that copy, so the unit suite read the old compose file and passed.
+`compose-ports.test.ts` pins the published ports and failed in CI on PR #206, in the unit job
+and in Fork Smoke.
+**Rule**: When a change goes through a handed-over copy (a protected compose file, a workflow),
+find what reads that file (`grep -rn "<filename>" __tests__ scripts .github`) and run those tests
+against the staged copy before the handover, by pointing them at it or by running the gates after
+the owner has run the `cp`. Say which in the gate report.
+**Why**: The hook protects the file from my edits, not from my tests. A gate run against a tree
+that differs from the commit proves nothing about the commit.

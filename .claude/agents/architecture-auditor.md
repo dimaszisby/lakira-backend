@@ -157,7 +157,7 @@ Infrastructure → Application → Domain
 
 **Middleware Stack**
 
-- Security middleware (helmet, xss-clean, hpp) applied globally, not per-route
+- Security middleware (helmet, hpp) applied globally, not per-route
 - Authentication middleware applied at the router level, not inside controllers
 - Rate limiting configured per sensitivity tier (global / user / analytics)
 - `assertAuthenticated(req)` used to narrow `req.user` type after `authMiddleware` — no manual `if (!req.user)` checks

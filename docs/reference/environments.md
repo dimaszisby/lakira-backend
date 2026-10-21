@@ -62,12 +62,14 @@ Related secret names:
 - **Backend:**
   - `npm run dev`: `http://localhost:5000` (`PORT`, default `5000`)
   - Compose `app` service: `http://localhost:8001` (host 8001 → container 5000; host 5000 collides
-    with AirPlay Receiver on macOS)
+    with AirPlay Receiver on macOS). Bound to `127.0.0.1`; set `APP_BIND_ADDRESS=0.0.0.0` in the
+    shell or `.env` to reach it from another device. Compose reads that variable, the app never
+    does (`proxy-trust-and-xss-clean` D-03)
   - Port `4000` is only the test/contract server (`npm run start:test`)
 - **Database (Postgres):**
   - Image: `postgres:18` (see the note below — same major everywhere)
-  - Host: `localhost`. Compose publishes Postgres, Redis, RabbitMQ and Mailpit on `127.0.0.1`
-    only; the `app` port is the one published on every interface
+  - Host: `localhost`. Compose publishes every service on `127.0.0.1` only, the `app` included
+    unless `APP_BIND_ADDRESS` says otherwise
   - Port: `5432`
   - DB name: `lakira_development`
   - User: `lakira_user`

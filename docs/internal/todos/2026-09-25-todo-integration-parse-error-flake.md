@@ -225,3 +225,12 @@ hang up`: `JSON body guard › rejects scalar payloads` and `GET /metric-logs/st
 from startDate…`. The Docker VM was short of memory at the time (a throwaway RabbitMQ exited on
 start, and the next one logged `system_memory_high_watermark`), and both suites passed on the
 rerun. Memory pressure is a new condition to check next time it appears.
+
+## 2026-10-22 — a `Parse Error` in the unit project
+
+On `fix/proxy-trust-and-xss-clean`, one `npm run test:unit:coverage` failed one test with `Parse
+Error: Expected HTTP/, RTSP/ or ICE/`: `cacheMiddleware › through a real Express app › answers an
+error the same way every time` (`__tests__/unit/shared/middleware/cache.test.ts`), which the
+branch does not touch. The file alone passed three times in a row, and the next full run passed
+(1526 tests). The first sighting outside the integration project: the flake is not tied to the
+integration server or its database.

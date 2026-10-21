@@ -64,7 +64,7 @@ Lean kit: the acceptance criteria are stated here. Checked against `origin/dev` 
       refuses, wrapped or not
 - [x] AC-3 — › masks an address in the URL's path, plain or percent-encoded; › masks an address
       in a span's URL path; › masks an address in the path (both spellings)
-- [ ] AC-4 — this PR's CI run, green with the read-only token
+- [x] AC-4 — PR run 39638702665, green with the read-only token
 
 ## Gates
 
