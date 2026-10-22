@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { withTestEnv } from "@/tests/env-test-utils.js";
+import { withTestEnv } from "../../helpers/env-test-utils.js";
 
 // app-name.ts reads process.env.APP_NAME at module-load time and derives
 // APP_SHORT_NAME / APP_DISPLAY_NAME from it. Each case here uses withTestEnv

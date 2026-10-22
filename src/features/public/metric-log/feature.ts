@@ -28,16 +28,19 @@ export type MetricLogFeatureOverrides = {
   idempotency?: MessageIdempotencyPort;
 };
 
-export const buildMetricLogFeature = (deps: MetricLogFeatureOverrides = {}) => {
+export const buildMetricLogFeature = (
+  overrides: MetricLogFeatureOverrides = {},
+) => {
   const repo = new MetricLogRepoSequelize();
   const visualizationInvalidator =
-    deps.visualizationInvalidator ?? new NoopVisualizationInvalidation();
+    overrides.visualizationInvalidator ?? new NoopVisualizationInvalidation();
   const cache = new MetricLogCacheRedis(visualizationInvalidator);
-  const access = deps.metricAccess ?? new MetricAccessSequelize();
-  const queue = deps.messageQueue ?? new NoopMessageQueue();
+  const access = overrides.metricAccess ?? new MetricAccessSequelize();
+  const queue = overrides.messageQueue ?? new NoopMessageQueue();
   const queryRepo = new MetricLogQueryRepoSequelize();
-  const statsRepo = deps.statsRepo ?? new MetricLogStatsRepoSequelize();
-  const idempotency = deps.idempotency ?? new SequelizeMessageIdempotency();
+  const statsRepo = overrides.statsRepo ?? new MetricLogStatsRepoSequelize();
+  const idempotency =
+    overrides.idempotency ?? new SequelizeMessageIdempotency();
 
   return {
     createLog: new CreateMetricLog(repo, access, cache),

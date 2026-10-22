@@ -22,7 +22,7 @@ import { EmailSender } from "./application/ports/EmailSender.js";
 import type { LoginAttemptsPort } from "./application/ports/LoginAttemptsPort.js";
 import { OrganizationRepositorySequelize } from "./infrastructure/persistence/OrganizationRepositorySequelize.js";
 import { MembershipRepositorySequelize } from "./infrastructure/persistence/MembershipRepositorySequelize.js";
-import { SequelizeTransactionPort } from "./infrastructure/persistence/SequelizeTransactionPort.js";
+import { SequelizeTransactionPort } from "@/shared/infrastructure/persistence/SequelizeTransactionPort.js";
 import { RegisterUser } from "./application/use-cases/RegisterUser.js";
 import { LoginUser } from "./application/use-cases/LoginUser.js";
 import { GetProfile } from "./application/queries/GetProfile.js";
@@ -84,7 +84,7 @@ export type AuthFeatureOverrides = {
 
 export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
   const lockoutRedis: LockoutRedisClient =
-    overrides.lockoutRedis ?? (redisClient as unknown as LockoutRedisClient);
+    overrides.lockoutRedis ?? redisClient;
   // The edge checks the lockout and answers 429; LoginUser counts the failures
   // (application-errors D-04).
   const loginLockout = {
@@ -123,7 +123,7 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
     token,
     tokenHasher,
     issueRefreshToken,
-    refreshTokenRepo,
+    tx,
   );
   const revokeRefreshTokenFamily = new RevokeRefreshTokenFamily(
     refreshTokenRepo,

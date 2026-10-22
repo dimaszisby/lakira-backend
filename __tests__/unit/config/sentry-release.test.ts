@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { withTestEnv } from "@/tests/env-test-utils.js";
+import { withTestEnv } from "../../helpers/env-test-utils.js";
 
 // server.ts calls Sentry.init(...) at module-load time when SENTRY_DSN is set. Mock the
 // SDK and reload server.ts fresh (jest.isolateModulesAsync) so the init call runs against

@@ -707,6 +707,14 @@ export default [
       ],
     },
   },
+  // The one test file that sets process.env: withTestEnv sets and restores it
+  // for everything else (architecture-dead-code D-04).
+  {
+    files: ["__tests__/helpers/env-test-utils.ts"],
+    rules: {
+      "no-restricted-properties": "off",
+    },
+  },
   // Jest setup files live at repo root but still need Jest globals
   {
     files: ["jest.setup*.ts"],

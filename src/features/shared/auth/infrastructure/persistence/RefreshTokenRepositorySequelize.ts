@@ -1,17 +1,11 @@
 import { Op, Transaction } from "sequelize";
-import sequelize from "@/config/db.js";
 import { models } from "@/infrastructure/db/models.js";
 import { RefreshToken } from "../../domain/entities/RefreshToken.js";
-import {
-  RefreshTokenRepository,
-  TransactionPort,
-} from "../../domain/repositories/RefreshTokenRepository.js";
+import { RefreshTokenRepository } from "../../domain/repositories/RefreshTokenRepository.js";
 import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import { toDomainRefreshToken } from "../mappers/RefreshTokenMapper.js";
 
-export class RefreshTokenRepositorySequelize
-  implements RefreshTokenRepository, TransactionPort
-{
+export class RefreshTokenRepositorySequelize implements RefreshTokenRepository {
   async save(token: RefreshToken, tx?: PersistenceTransaction): Promise<void> {
     await models.RefreshToken.upsert(
       {
@@ -76,13 +70,5 @@ export class RefreshTokenRepositorySequelize
       },
     });
     return rows.map(toDomainRefreshToken);
-  }
-
-  async runInTransaction<T>(
-    fn: (tx: PersistenceTransaction) => Promise<T>,
-  ): Promise<T> {
-    return sequelize.transaction(async (transaction: Transaction) => {
-      return fn(transaction);
-    });
   }
 }

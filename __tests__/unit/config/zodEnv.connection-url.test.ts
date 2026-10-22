@@ -6,7 +6,7 @@ import {
   beforeEach,
   afterEach,
 } from "@jest/globals";
-import { withTestEnv } from "@/tests/env-test-utils.js";
+import { withTestEnv } from "../../helpers/env-test-utils.js";
 
 /**
  * Kit log-redaction-coverage, D-10. A connection URL that fails validation used

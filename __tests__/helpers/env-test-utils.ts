@@ -1,7 +1,4 @@
-import {
-  loadEnvOrExit,
-  resetEnvCacheForTesting,
-} from "../config/envManager.js";
+import { loadEnvOrExit, resetEnvCacheForTesting } from "@/config/envManager.js";
 
 type EnvOverrides = Partial<Record<string, string | undefined>>;
 

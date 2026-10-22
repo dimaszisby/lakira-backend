@@ -5,7 +5,7 @@ import {
   maskEnvValue,
   resetEnvCacheForTesting,
 } from "@/config/envManager.js";
-import { withTestEnv } from "@/tests/env-test-utils.js";
+import { withTestEnv } from "../../helpers/env-test-utils.js";
 
 // These specs ensure the environment bootstrap helpers behave like production.
 // Use withTestEnv to avoid mutating the real process.env in CI.

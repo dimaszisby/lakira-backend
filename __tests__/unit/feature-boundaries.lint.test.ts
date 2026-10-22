@@ -673,7 +673,6 @@ describe("feature boundaries in ESLint (ADR-0044)", () => {
       "src/server.ts",
       "src/worker.ts",
       "src/constants/zod/zod-messages.ts",
-      "src/tests/env-test-utils.ts",
     ])(
       "keeps %s out of every feature",
       (file) => {

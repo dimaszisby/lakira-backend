@@ -1,9 +1,7 @@
 import { UnauthorizedError } from "@/shared/domain/errors/DomainError.js";
 import logger from "@/utils/logger.js";
-import {
-  RefreshTokenRepository,
-  TransactionPort,
-} from "../../domain/repositories/RefreshTokenRepository.js";
+import { RefreshTokenRepository } from "../../domain/repositories/RefreshTokenRepository.js";
+import type { TransactionPort } from "@/shared/application/ports/TransactionPort.js";
 import { TokenProvider, TokenPayload } from "../ports/TokenProvider.js";
 import { TokenHasher } from "../ports/TokenHasher.js";
 import { UserRepository } from "../../domain/repositories/UserRepository.js";

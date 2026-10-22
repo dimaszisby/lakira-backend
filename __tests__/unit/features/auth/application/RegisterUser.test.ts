@@ -9,7 +9,7 @@ import { OrganizationRepository } from "@/features/auth/domain/repositories/Orga
 import { MembershipRepository } from "@/features/auth/domain/repositories/MembershipRepository.js";
 import { PasswordHasher } from "@/features/auth/application/ports/PasswordHasher.js";
 import { TokenProvider } from "@/features/auth/application/ports/TokenProvider.js";
-import { TransactionPort } from "@/features/auth/application/ports/TransactionPort.js";
+import { TransactionPort } from "@/shared/application/ports/TransactionPort.js";
 import { IssueRefreshToken } from "@/features/auth/application/use-cases/IssueRefreshToken.js";
 import { AuthUser } from "@/features/auth/domain/entities/AuthUser.js";
 import { Organization } from "@/features/auth/domain/entities/Organization.js";

@@ -15,9 +15,3 @@ export interface RefreshTokenRepository {
   ): Promise<void>;
   findActiveByUser(userId: string): Promise<RefreshToken[]>;
 }
-
-export interface TransactionPort {
-  runInTransaction<T>(
-    fn: (tx: PersistenceTransaction) => Promise<T>,
-  ): Promise<T>;
-}

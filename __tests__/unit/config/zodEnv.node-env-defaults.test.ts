@@ -1,5 +1,5 @@
 import { describe, it, expect } from "@jest/globals";
-import { withTestEnv } from "@/tests/env-test-utils.js";
+import { withTestEnv } from "../../helpers/env-test-utils.js";
 import { loadEnvOrExit } from "@/config/envManager.js";
 
 /**
