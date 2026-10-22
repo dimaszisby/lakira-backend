@@ -12,7 +12,10 @@ import {
   computeFallbackRange,
   type RangeDescriptor,
 } from "../../domain/fallback-range.js";
-import { summarizeBuckets } from "../../domain/series-stats.js";
+import {
+  summarizeBuckets,
+  type BucketAggregate,
+} from "../../domain/series-stats.js";
 import type {
   VisualizationReadRepository,
   VisualizationQueryParams,
@@ -85,6 +88,16 @@ const bucketValue = (
   return fill === "zero" ? 0 : null;
 };
 
+/** A bucket's SQL row in the domain's names (v6-small-items D-05). */
+const toBucketAggregate = (
+  row: VizRow | DashboardSeriesRow,
+): BucketAggregate => ({
+  average: row.avg_value,
+  min: row.min_value,
+  max: row.max_value,
+  count: row.cnt,
+});
+
 export class VisualizationReadRepoSequelize implements VisualizationReadRepository {
   constructor(private cache: VisualizationCachePort) {}
 
@@ -130,7 +143,7 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
       value: bucketValue(r, fill),
     }));
 
-    const stats = summarizeBuckets(rows);
+    const stats = summarizeBuckets(rows.map(toBucketAggregate));
 
     const result: VizResponse = {
       metricId,
@@ -363,7 +376,7 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
       value: bucketValue(row, input.fill),
     }));
 
-    const stats = summarizeBuckets(effectiveSeries);
+    const stats = summarizeBuckets(effectiveSeries.map(toBucketAggregate));
 
     const item: DashboardVizItem = {
       metricId: metric.metric_id,

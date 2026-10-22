@@ -1,5 +1,4 @@
 import { ValidationError } from "@/shared/domain/errors/DomainError.js";
-import { loadEnvOrExit } from "@/config/envManager.js";
 import type { FillMode } from "../../domain/types.js";
 import {
   resolveBucket,
@@ -22,17 +21,28 @@ export type GetDashboardVisualizationInput = {
   limit?: number;
 };
 
+/**
+ * Handed in by `buildAnalyticsFeature` from `VIZ_MAX_BUCKETS` and
+ * `VIZ_DASH_MAX_METRICS` (v6-small-items D-04).
+ */
+export type GetDashboardVisualizationLimits = {
+  maxBuckets: number;
+  maxDashboardMetrics: number;
+};
+
 export class GetDashboardVisualization {
-  constructor(private repo: VisualizationReadRepository) {}
+  constructor(
+    private repo: VisualizationReadRepository,
+    private limits: GetDashboardVisualizationLimits,
+  ) {}
 
   async execute(
     input: GetDashboardVisualizationInput,
   ): Promise<DashboardVizResponse> {
-    const env = loadEnvOrExit();
     const spec = resolveBucket(input.bucket);
-    assertBounds(input.startISO, input.endISO, spec, env.VIZ_MAX_BUCKETS);
+    assertBounds(input.startISO, input.endISO, spec, this.limits.maxBuckets);
 
-    const limit = Math.min(input.limit ?? 12, env.VIZ_DASH_MAX_METRICS);
+    const limit = Math.min(input.limit ?? 12, this.limits.maxDashboardMetrics);
 
     return this.repo.fetchDashboardVisualization({
       userId: input.userId,

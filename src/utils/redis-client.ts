@@ -156,6 +156,7 @@ const invalidateCacheByPattern = async (pattern: string) => {
     // Named, not printed: the deleted keys hold request text.
     const name = cacheEntryName(pattern);
     let cursor = 0;
+    let deleted = 0;
     do {
       const scanResult = await redisClient.scan(cursor, {
         MATCH: pattern,
@@ -166,13 +167,16 @@ const invalidateCacheByPattern = async (pattern: string) => {
 
       if (keys.length > 0) {
         await redisClient.del(keys);
-        logger.info(
-          `[CACHE] invalidated ${keys.length} entries matching ${name}`,
-        );
-      } else {
-        logger.info(`[CACHE] no entries matching ${name}`);
+        deleted += keys.length;
       }
     } while (cursor !== 0);
+
+    // One line for the whole scan, not one per page (v6-small-items).
+    logger.info(
+      deleted > 0
+        ? `[CACHE] invalidated ${deleted} entries matching ${name}`
+        : `[CACHE] no entries matching ${name}`,
+    );
   }
 };
 

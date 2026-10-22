@@ -73,10 +73,9 @@ describe("error middleware", () => {
 
     handler(err, req, res, next as NextFunction);
 
-    expect(loggerMock.error).toHaveBeenCalledWith(
-      "Error Occurred: Validation failed",
-      err,
-    );
+    // A 4xx is the client's mistake: warn, by name (v6-small-items D-01).
+    expect(loggerMock.error).not.toHaveBeenCalled();
+    expect(loggerMock.warn).toHaveBeenCalledWith("Client error 422: AppError");
     expect(res.status).toHaveBeenCalledWith(422);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({

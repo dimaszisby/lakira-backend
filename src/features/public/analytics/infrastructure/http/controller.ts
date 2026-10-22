@@ -53,10 +53,13 @@ const handleGetVisualization =
       // Headers first: RFC 9110 15.4.5 requires a 304 to carry the same validator a 200
       // would have. Setting them after the conditional sent a bare 304 with no ETag and
       // no Cache-Control, which a client cannot use to refresh its cache entry.
+      // `req.fresh` reads the ETag set here and compares If-None-Match as RFC 9110
+      // 13.1.2 asks: a list, weakly, `*` matching. It is the test `res.send` applies
+      // too; deciding here skips serialising a body a 304 drops (v6-small-items D-03).
       const etag = makeEtag(data);
       res.setHeader("ETag", etag);
       res.setHeader("Cache-Control", VIZ_CACHE_CONTROL);
-      if (req.headers["if-none-match"] === etag) return res.status(304).end();
+      if (req.fresh) return res.status(304).end();
 
       return successResponse(res, 200, data);
     } catch (err) {
@@ -85,7 +88,7 @@ const handleGetDashboardVisualization =
       const etag = makeEtag(data);
       res.setHeader("ETag", etag);
       res.setHeader("Cache-Control", VIZ_CACHE_CONTROL);
-      if (req.headers["if-none-match"] === etag) return res.status(304).end();
+      if (req.fresh) return res.status(304).end();
       return successResponse(res, 200, data);
     } catch (err) {
       next(err);

@@ -11,6 +11,8 @@ import type { Response } from "express";
 import { transports } from "winston";
 import { z } from "zod";
 import logger from "@/utils/logger.js";
+import AppError from "@/utils/AppError.js";
+import { NotFoundError } from "@/shared/domain/errors/DomainError.js";
 import { createErrorHandler } from "@/shared/middleware/error.js";
 import type { AuthRequest } from "@/types/request.context.js";
 
@@ -129,5 +131,40 @@ describe("error handler: what its client-error lines carry", () => {
     expect((JSON.parse(lines[0]) as { message: string }).message).toBe(
       "Client error 415: charset.unsupported",
     );
+  });
+
+  // Kit v6-small-items, D-01 (audit V6). A 4xx raised by our own code was
+  // written at error level with its stack, as if it were a server fault.
+  it.each([
+    [
+      "an AppError",
+      new AppError(`No account for ${EMAIL}`, 401),
+      "Client error 401: AppError",
+    ],
+    [
+      "a DomainError",
+      new NotFoundError(`No metric named ${EMAIL}`),
+      "Client error 404: NotFoundError",
+    ],
+  ])("logs a 4xx from %s as a client error", (_label, err, message) => {
+    createErrorHandler()(err, {} as AuthRequest, respond(), jest.fn());
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).not.toContain(EMAIL);
+    const record = JSON.parse(lines[0]) as Record<string, unknown>;
+    expect(record.level).toBe("warn");
+    expect(record.message).toBe(message);
+    expect(record.stack).toBeUndefined();
+  });
+
+  it("still logs a 5xx AppError at error level, with its stack", () => {
+    const err = new AppError("Mail provider refused the send", 500);
+
+    createErrorHandler()(err, {} as AuthRequest, respond(), jest.fn());
+
+    expect(lines).toHaveLength(1);
+    const record = JSON.parse(lines[0]) as Record<string, unknown>;
+    expect(record.level).toBe("error");
+    expect(record.stack).toContain("Mail provider refused the send");
   });
 });

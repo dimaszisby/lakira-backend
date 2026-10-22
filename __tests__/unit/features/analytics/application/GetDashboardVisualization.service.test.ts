@@ -33,7 +33,10 @@ const buildService = () => {
     },
   };
   const repo = new VisualizationReadRepoSequelize(cache);
-  const service = new GetDashboardVisualization(repo);
+  const service = new GetDashboardVisualization(repo, {
+    maxBuckets: 400,
+    maxDashboardMetrics: 24,
+  });
   return { service };
 };
 

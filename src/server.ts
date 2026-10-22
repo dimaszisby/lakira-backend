@@ -1,6 +1,6 @@
 import { env } from "./config/envManager.js";
 import http from "http";
-import logger, { flushLogs } from "@/utils/logger.js";
+import logger, { flushLogs, logUnhandledRejection } from "@/utils/logger.js";
 import { APP_NAME } from "@/config/app-name.js";
 
 // The app and its features: every feature built once, here, and handed to its
@@ -186,13 +186,8 @@ process.on("uncaughtException", (error) => {
   void shutdown("Uncaught Exception", 1);
 });
 
-process.on("unhandledRejection", (reason, promise) => {
-  logger.error(
-    "[SERVER ERROR] Unhandled Promise Rejection at:",
-    promise,
-    "reason:",
-    reason,
-  );
+process.on("unhandledRejection", (reason) => {
+  logUnhandledRejection("[SERVER ERROR]", reason);
   void shutdown("Unhandled Rejection", 1);
 });
 

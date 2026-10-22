@@ -156,8 +156,11 @@ which request it was. An invalidation reports how many entries it deleted.
 
 A rejected request is logged by field and rule, not by value: `Validation Errors:` carries
 `issues`, each with a `field` and Zod's issue `code` (`invalid_enum_value`, `unrecognized_keys`).
-What was wrong with the value is in the 400 the client received. A parser or routing error reads
-`Client error 415: charset.unsupported`.
+What was wrong with the value is in the 400 the client received. Every other 4xx is one `warn`
+line with no stack and no message, naming the status and the parser's type or the error's class:
+`Client error 415: charset.unsupported`, `Client error 404: NotFoundError`,
+`Client error 401: AppError`. An `error` line from the error handler is always a 5xx. A pattern
+invalidation writes one line for the whole scan, however many pages it took.
 
 ## Startup failures
 
@@ -173,8 +176,9 @@ logger there would be a circular init failure. Secret values in the snapshot are
 
 ## Crashes
 
-`uncaughtException` and `unhandledRejection` log the error with its stack, wait for the stream to
-drain, then exit **non-zero**. If a container restarts and you want to know why, that final line is
+`uncaughtException` and `unhandledRejection` log the error with its stack (a rejection with
+something other than an error writes it into the message), wait for the stream to drain, then exit
+**non-zero**. If a container restarts and you want to know why, that final line is
 on the stream immediately before the restart.
 
 A third exit works the same way: with `REDIS_REQUIRED=true`, losing Redis for longer than the

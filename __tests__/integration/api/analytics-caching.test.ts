@@ -222,6 +222,38 @@ describe("Analytics HTTP caching", () => {
     );
   });
 
+  // Kit v6-small-items, D-03 (audit V6). RFC 9110 § 13.1.2: If-None-Match is a
+  // list, compared weakly, and `*` matches. It was compared as one exact string.
+  describe("If-None-Match", () => {
+    const conditional = async (header: (etag: string) => string) => {
+      const first = await api
+        .get(`/api/v1/analytics/metrics/${metricId}`)
+        .set("Authorization", authHeader(token))
+        .query(RANGE);
+      expect(first.status).toBe(200);
+
+      return api
+        .get(`/api/v1/analytics/metrics/${metricId}`)
+        .set("Authorization", authHeader(token))
+        .set("If-None-Match", header(first.headers.etag as string))
+        .query(RANGE);
+    };
+
+    it.each([
+      ["a list holding the ETag", (etag: string) => `"other", ${etag}`],
+      ["the ETag as a weak validator", (etag: string) => `W/${etag}`],
+      ["*", () => "*"],
+    ])("answers 304 to %s", async (_name, header) => {
+      const res = await conditional(header);
+      expect(res.status).toBe(304);
+    });
+
+    it("answers 200 to a list without the ETag", async () => {
+      const res = await conditional(() => '"other", W/"another"');
+      expect(res.status).toBe(200);
+    });
+  });
+
   it("changes the single metric ETag when the underlying data changes", async () => {
     const before = await api
       .get(`/api/v1/analytics/metrics/${metricId}`)

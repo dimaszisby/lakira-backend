@@ -2,7 +2,7 @@
 
 ## D-01 — One DTO file per feature's `http/`
 
-- **Status:** Proposed
+- **Status:** Accepted (#207, `41d09f7`)
 - **Date:** 2026-10-22
 
 **Context.** metric's `infrastructure/http/` had two DTO files: `dto.ts` with three response
@@ -18,7 +18,7 @@ mappers in metric, and the response mappers belong to the HTTP layer.
 
 ## D-02 — The entity's `DisplayOptionsProps` is metric-settings' one display-options shape
 
-- **Status:** Proposed
+- **Status:** Accepted (#207, `41d09f7`)
 - **Date:** 2026-10-22
 
 **Context.** The shape `{ showOnDashboard, priority, chartType, color }` was the entity's
@@ -46,7 +46,7 @@ the OpenAPI schemas.
 
 ## D-03 — The update use case does not take `isActive`; the entity still can
 
-- **Status:** Proposed
+- **Status:** Accepted (#207, `41d09f7`)
 - **Date:** 2026-10-22
 
 **Context.** `UpdateMetricSettingsInput` was the entity's update props minus the two dates, so it

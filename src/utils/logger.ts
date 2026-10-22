@@ -327,6 +327,25 @@ const logger: Logger = createLogger({
 });
 
 /**
+ * The line for an unhandled rejection, in server.ts and worker.ts. An Error goes
+ * as the error argument, as an uncaught exception does; anything else goes into
+ * the message. Passed as a further argument after a string, the reason was
+ * dropped by `splat()` (v6-small-items D-02).
+ */
+export const logUnhandledRejection = (
+  prefix: string,
+  reason: unknown,
+): void => {
+  if (reason instanceof Error) {
+    logger.error(`${prefix} Unhandled rejection:`, reason);
+  } else {
+    logger.error(
+      `${prefix} Unhandled rejection: ${loggableErrorMessage(reason)}`,
+    );
+  }
+};
+
+/**
  * Winston writes asynchronously and `process.exit()` does not flush pending stream
  * writes, so without this the line describing a crash can be lost — precisely the
  * incident case ADR-0041 exists to serve. Bounded, so a wedged stdout cannot hang

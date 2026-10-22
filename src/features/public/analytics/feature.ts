@@ -1,3 +1,4 @@
+import { env } from "@/config/envManager.js";
 import { GetVisualization } from "./application/queries/GetVisualization.js";
 import { GetDashboardVisualization } from "./application/queries/GetDashboardVisualization.js";
 import { GetMetricTrend } from "./application/queries/GetMetricTrend.js";
@@ -25,10 +26,16 @@ export const buildAnalyticsFeature = (
   const cache = overrides.vizCache ?? new VisualizationCacheRedis();
   const repo = overrides.vizRepo ?? new VisualizationReadRepoSequelize(cache);
 
+  // Config enters here, not in the queries (v6-small-items D-04).
+  const maxBuckets = env.VIZ_MAX_BUCKETS;
+
   return {
-    getVisualization: new GetVisualization(repo),
-    getDashboardVisualization: new GetDashboardVisualization(repo),
-    // wired and ready; endpoint not yet exposed via router
+    getVisualization: new GetVisualization(repo, { maxBuckets }),
+    getDashboardVisualization: new GetDashboardVisualization(repo, {
+      maxBuckets,
+      maxDashboardMetrics: env.VIZ_DASH_MAX_METRICS,
+    }),
+    // Served by metric's router, at /metrics/:metricId/trends (src/app.ts).
     getMetricTrend: new GetMetricTrend(metricAccess, trendRepo),
   };
 };

@@ -1,5 +1,5 @@
 import { env } from "./config/envManager.js";
-import logger, { flushLogs } from "./utils/logger.js";
+import logger, { flushLogs, logUnhandledRejection } from "./utils/logger.js";
 import {
   connectRabbitMQ,
   disconnectRabbitMQ,
@@ -107,7 +107,7 @@ process.on("uncaughtException", (error) => {
 });
 
 process.on("unhandledRejection", (reason) => {
-  logger.error("[WORKER] Unhandled rejection:", reason);
+  logUnhandledRejection("[WORKER]", reason);
   void shutdown("unhandledRejection", 1);
 });
 
