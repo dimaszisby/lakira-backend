@@ -2,10 +2,18 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Transaction } from "sequelize";
 import { sequelize, models } from "@/infrastructure/db/models.js";
-import { tokenGenerator } from "@/utils/token-generator.js";
+import { env } from "@/config/envManager.js";
+import { JwtTokenProvider } from "@/features/auth/infrastructure/providers/JwtTokenProvider.js";
 import logger from "./logger.js";
 
 const OUTPUT_PATH = path.resolve(process.cwd(), "tmp/contract-seed.json");
+
+// Schemathesis sends a seeded token as its bearer for the whole run, and the
+// seed file is reused locally between runs, so these outlive a user's access
+// token (ACCESS_TOKEN_TTL_SEC). Signed by the app's own provider, so the
+// algorithm and the claims are the ones it verifies (single-token-signer D-01,
+// D-02).
+const SEED_TOKEN_TTL = "7d";
 
 const SEED_IDS = {
   primaryUser: "11111111-aaaa-4aaa-8aaa-000000000001",
@@ -942,14 +950,17 @@ async function main() {
     return seedData(transaction);
   });
 
-  const primaryToken = tokenGenerator({
+  const tokens = new JwtTokenProvider(env.JWT_SECRET, SEED_TOKEN_TTL);
+  const primaryToken = tokens.sign({
     id: result.primaryUser.id,
     email: result.primaryUser.email,
+    username: result.primaryUser.username,
     organizationId: SEED_IDS.primaryOrg,
   });
-  const secondaryToken = tokenGenerator({
+  const secondaryToken = tokens.sign({
     id: result.secondaryUser.id,
     email: result.secondaryUser.email,
+    username: result.secondaryUser.username,
     organizationId: SEED_IDS.secondaryOrg,
   });
 

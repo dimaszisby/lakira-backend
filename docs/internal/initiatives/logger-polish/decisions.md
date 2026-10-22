@@ -2,7 +2,7 @@
 
 ## D-01 — One declaration of the logger's default fields
 
-- **Status:** Proposed
+- **Status:** Accepted (#209, `2330901`)
 - **Date:** 2026-10-22
 
 **Context.** `createLogger` sets `defaultMeta: { service: APP_NAME, release }`. `reduceLoggedErrors`
@@ -19,7 +19,7 @@ before the logger exists, so the format would reach forward to it.
 
 ## D-02 — A nested error keeps dropping its stack
 
-- **Status:** Proposed
+- **Status:** Accepted (#209, `2330901`)
 - **Date:** 2026-10-22
 
 **Context.** U3 lists "an error nested in metadata loses its stack" as polish. ADR-0059 decision 4
@@ -35,7 +35,7 @@ not inside a metadata object.
 
 ## D-03 — A thrown non-Error is named through `loggableErrorMessage`
 
-- **Status:** Proposed
+- **Status:** Accepted (#209, `2330901`)
 - **Date:** 2026-10-22
 
 **Context.** The error handler's server-error line read `err.message`, so a thrown string or number

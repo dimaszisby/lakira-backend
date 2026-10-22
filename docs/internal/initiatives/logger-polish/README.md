@@ -1,6 +1,6 @@
 # Logger polish
 
-**Status:** Implemented on `fix/logger-polish`; PR open. Register row B-36: finding U3 of the second
+**Status:** Done (#209, `2330901`). Register row B-36: finding U3 of the second
 2026-10-05 run, `open-unchanged` on 2026-10-20.
 **Slug:** `logger-polish` · **Branch:** `fix/logger-polish`
 
