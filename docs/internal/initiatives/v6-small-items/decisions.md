@@ -2,7 +2,7 @@
 
 ## D-01 — The error handler decides the status first, then logs by it
 
-- **Status:** Proposed
+- **Status:** Accepted (#208, `90d6f6d`)
 - **Date:** 2026-10-22
 
 **Context.** `createErrorHandler` chose its log line before it knew the status. Only a framework
@@ -25,7 +25,7 @@ alert. Telling two 401s apart from the log alone now takes the request id and th
 
 ## D-02 — A rejected promise is logged like a thrown error
 
-- **Status:** Proposed
+- **Status:** Accepted (#208, `90d6f6d`)
 - **Date:** 2026-10-22
 
 **Context.** `server.ts` logged an unhandled rejection with `promise, "reason:", reason` as extra
@@ -44,7 +44,7 @@ past the error allowlist.
 
 ## D-03 — `If-None-Match` is judged by Express's `req.fresh`
 
-- **Status:** Proposed
+- **Status:** Accepted (#208, `90d6f6d`)
 - **Date:** 2026-10-22
 
 **Context.** Both analytics handlers compared `If-None-Match` to their ETag as one exact string, so
@@ -73,7 +73,7 @@ serialisation. The tests stay as guards of the behaviour, not as proof of a fix.
 
 ## D-04 — The analytics limits are handed in by `feature.ts`
 
-- **Status:** Proposed
+- **Status:** Accepted (#208, `90d6f6d`)
 - **Date:** 2026-10-22
 
 **Context.** `GetVisualization` read `env.VIZ_MAX_BUCKETS` at import time; `GetDashboardVisualization`
@@ -98,7 +98,7 @@ gains an "Amended" line pointing here, as its 2026-10-09 amendment did.
 
 ## D-05 — The domain names its own bucket figures
 
-- **Status:** Proposed
+- **Status:** Accepted (#208, `90d6f6d`)
 - **Date:** 2026-10-22
 
 **Context.** `BucketAggregate` in `analytics/domain/series-stats.ts` was the SQL row,

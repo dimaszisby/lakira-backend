@@ -18,6 +18,9 @@ const { env: envMock } = jest.requireMock("@/config/envManager.js") as {
 jest.mock("@/utils/logger.js", () => ({
   error: jest.fn(),
   warn: jest.fn(),
+  // The real helper's rule for anything but a database error.
+  loggableErrorMessage: (error: unknown) =>
+    error instanceof Error ? error.message : String(error),
 }));
 
 const loggerMock = jest.requireMock("@/utils/logger.js") as {

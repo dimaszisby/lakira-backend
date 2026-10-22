@@ -157,6 +157,25 @@ describe("error handler: what its client-error lines carry", () => {
     expect(record.stack).toBeUndefined();
   });
 
+  // Kit logger-polish, D-03 (audit U3). The line read `err.message`, so a
+  // thrown string was logged as "Error Occurred: undefined".
+  it("names a thrown value that is not an Error", () => {
+    const res = respond();
+
+    createErrorHandler()(
+      "queue unavailable" as unknown as Error,
+      {} as AuthRequest,
+      res,
+      jest.fn(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(lines).toHaveLength(1);
+    const record = JSON.parse(lines[0]) as Record<string, unknown>;
+    expect(record.level).toBe("error");
+    expect(record.message).toBe("Error Occurred: queue unavailable");
+  });
+
   it("still logs a 5xx AppError at error level, with its stack", () => {
     const err = new AppError("Mail provider refused the send", 500);
 
