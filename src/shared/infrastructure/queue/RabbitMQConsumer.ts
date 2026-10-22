@@ -19,12 +19,7 @@ import type {
   MessagePayload,
   MessageQueuePort,
 } from "@/shared/application/ports/MessageQueuePort.js";
-import type {
-  MessageContext,
-  MessageHandler,
-} from "@/shared/application/ports/MessageHandlerPort.js";
-
-export type { MessageContext, MessageHandler };
+import type { MessageHandler } from "@/shared/application/ports/MessageHandlerPort.js";
 
 /**
  * The id a job is handled under: the publishing request's, when the header holds one the HTTP

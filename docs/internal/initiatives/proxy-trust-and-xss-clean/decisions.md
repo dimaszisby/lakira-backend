@@ -2,7 +2,7 @@
 
 ## D-01 — The HTTPS gate reads `req.secure` and nothing else
 
-- **Status:** Proposed
+- **Status:** Accepted (#206, `00fb2d2`)
 - **Date:** 2026-10-22
 
 **Context.** In production the HTTPS gate in `mountHttpPipeline` passed a request when
@@ -24,7 +24,7 @@ setting saying what it means. The probes are mounted above the gate and stay rea
 
 ## D-02 — Remove `xss-clean`, with nothing in its place
 
-- **Status:** Proposed
+- **Status:** Accepted (#206, `00fb2d2`)
 - **Date:** 2026-10-22
 
 Promoted to the architecture decision registry as
@@ -35,7 +35,7 @@ That file is authoritative; this entry is a pointer.
 
 ## D-03 — The local app port binds to loopback unless `APP_BIND_ADDRESS` says otherwise
 
-- **Status:** Proposed
+- **Status:** Accepted (#206, `00fb2d2`)
 - **Date:** 2026-10-22
 
 **Context.** `docker-compose.yml` published the app as `"8001:5000"`, on every interface, so that

@@ -1,6 +1,6 @@
 # Proxy trust and xss-clean
 
-**Status:** Implemented on `fix/proxy-trust-and-xss-clean`; PR open. Register row B-81, its
+**Status:** Done. Merged as #206 (`00fb2d2`) on 2026-10-21. Register row B-81, its
 second slice: X12 and X14 of the dated run of 2026-10-20. B-81 keeps X7, X8, X9, X10 and B-17's `iss` and `aud`.
 **Slug:** `proxy-trust-and-xss-clean` · **Branch:** `fix/proxy-trust-and-xss-clean`
 

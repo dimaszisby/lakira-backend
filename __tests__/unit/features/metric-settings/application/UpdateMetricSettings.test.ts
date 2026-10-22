@@ -50,6 +50,23 @@ describe("UpdateMetricSettings", () => {
     expect(repo.save).not.toHaveBeenCalled();
   });
 
+  // dto-and-display-options-polish D-03 (audit T6): no request can carry isActive, and
+  // execute never copied it, so the input does not admit it either.
+  it("takes no isActive", async () => {
+    const { sut, repo, cache } = setup();
+    const entity = buildMetricSettings({ id: "settings-6", isActive: true });
+    repo.findById.mockResolvedValue(entity);
+    repo.save.mockResolvedValue(entity);
+    cache.invalidate.mockResolvedValue();
+
+    await sut.execute("user-1", TEST_ORG_ID, "settings-6", {
+      // @ts-expect-error isActive is not an update field
+      isActive: false,
+    });
+
+    expect(entity.snapshot().isActive).toBe(true);
+  });
+
   it("updates settings, persists, and invalidates cache", async () => {
     const { sut, repo, cache } = setup();
     const entity = buildMetricSettings({

@@ -12,11 +12,12 @@ import { CacheInvalidationPort } from "../ports/CacheInvalidationPort.js";
 /**
  * What a settings update may carry. The entity's own update props, except that the
  * two dates may arrive as the strings a request carries; `execute` turns them into
- * dates.
+ * dates. `isActive` is not one: no request can send it (dto-and-display-options-polish
+ * D-03).
  */
 export type UpdateMetricSettingsInput = Omit<
   UpdateMetricSettingsProps,
-  "startDate" | "deadlineDate"
+  "startDate" | "deadlineDate" | "isActive"
 > & {
   startDate?: Date | string | null;
   deadlineDate?: Date | string | null;
