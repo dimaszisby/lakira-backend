@@ -12,6 +12,13 @@
   register row B-80 (findings X40 and X41 of the dated run of 2026-10-20), with X42, X43 and X44
   of B-83 and X45 of B-73 (register D-08)
 
+> **Status note (2026-10-23).** The residual under Consequences is closed for `process` and
+> `module`: under `src` each is read only as `x.y`, and `globalThis.process`, `global.process` and
+> their `module` forms are refused. The rejected option "refuse every bare reference" was rejected
+> because `src` passed `process` to seams; it no longer does
+> ([`architecture-boundaries` D-06](../../internal/initiatives/architecture-boundaries/decisions.md),
+> X43's rest). Still open: an alias of `globalThis` itself.
+
 ---
 
 ## Context

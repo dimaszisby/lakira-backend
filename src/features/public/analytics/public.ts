@@ -6,6 +6,3 @@
  * not pay for. See ADR-0045 and ADR-0056.
  */
 export { AnalyticsVisualizationInvalidationAdapter } from "./infrastructure/cache/VisualizationInvalidationAdapter.js";
-// The trends query the metric router is handed for GET /metrics/:metricId/trends
-// (inject-features-into-routers D-04). A type only: the metric feature never builds it.
-export type { GetMetricTrend } from "./application/queries/GetMetricTrend.js";

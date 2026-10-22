@@ -83,11 +83,12 @@ describe("shared/cache/keys", () => {
       const key = buildCursorCacheKey({
         feature: "metrics",
         version: undefined,
-        organizationId: undefined,
+        // An organization is required (architecture-boundaries D-03).
+        organizationId: "org-1",
         segments: [],
       });
 
-      expect(key).toBe("cursor:metrics:v1:_:org:_");
+      expect(key).toBe("cursor:metrics:v1:_:org:org-1");
     });
   });
 

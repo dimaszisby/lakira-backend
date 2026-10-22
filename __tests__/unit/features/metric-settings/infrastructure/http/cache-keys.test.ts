@@ -3,6 +3,9 @@ import type { AuthRequest } from "@/types/request.context.js";
 import { metricSettingsCursorCacheKey } from "@/features/metric-settings/infrastructure/http/cache-keys.js";
 
 const USER = { id: "user-1", organizationId: "org-1" };
+// What authMiddleware sets beside the user; a cursor key asserts all three
+// (architecture-boundaries D-03).
+const MEMBERSHIP = { id: "membership-1", role: "owner" };
 const METRIC = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 // Nested, as Express's `qs` parser gives `?filter[isActive]=true`. Real schema,
@@ -11,6 +14,8 @@ const METRIC = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const keyFor = (query: Record<string, unknown>) =>
   metricSettingsCursorCacheKey({
     user: USER,
+    organizationId: USER.organizationId,
+    membership: MEMBERSHIP,
     query,
     params: {},
   } as unknown as AuthRequest);

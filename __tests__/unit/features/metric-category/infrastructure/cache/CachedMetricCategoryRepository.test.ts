@@ -1,5 +1,5 @@
 import { describe, it, expect, jest } from "@jest/globals";
-import { ListCategories } from "@/features/metric-category/application/queries/ListCategories.js";
+import { CachedMetricCategoryRepository } from "@/features/metric-category/infrastructure/cache/CachedMetricCategoryRepository.js";
 import type { CachePort } from "@/features/metric-category/application/ports/CachePort.js";
 import type { MetricCategoryRepository } from "@/features/metric-category/domain/repositories/MetricCategoryRepository.js";
 import type {
@@ -11,7 +11,7 @@ import { MetricCategory } from "@/features/metric-category/domain/entities/Metri
 // After kit list-cache-key-filters (D-02) this is the only cache layer on
 // GET /metric-categories; the router-level one keyed on raw req.query and
 // ignored the name filter. This guards that the remaining layer keys on it.
-// It passes on the code before that change too: this layer was always right.
+// The layer moved here from ListCategories (architecture-boundaries D-02).
 class MapCache implements CachePort {
   store = new Map<string, unknown>();
   isEnabled = () => true;
@@ -66,19 +66,19 @@ const query = (name?: string): ListQuery => ({
   filter: name ? { name } : undefined,
 });
 
-describe("ListCategories cache", () => {
+describe("CachedMetricCategoryRepository list", () => {
   it("does not serve one name filter's page for another", async () => {
     const cache = new MapCache();
     const list = jest.fn(async (q: ListQuery) =>
       pageFor(q.filter?.name ?? "all"),
     );
-    const useCase = new ListCategories(
+    const repo = new CachedMetricCategoryRepository(
       { list } as unknown as MetricCategoryRepository,
       cache,
     );
 
-    const run = await useCase.execute(query("run"));
-    const swim = await useCase.execute(query("swim"));
+    const run = await repo.list(query("run"));
+    const swim = await repo.list(query("swim"));
 
     expect(run.items[0]).toMatchObject({ name: "run" });
     expect(swim.items[0]).toMatchObject({ name: "swim" });
@@ -91,13 +91,13 @@ describe("ListCategories cache", () => {
     const list = jest.fn(async (q: ListQuery) =>
       pageFor(q.filter?.name ?? "all"),
     );
-    const useCase = new ListCategories(
+    const repo = new CachedMetricCategoryRepository(
       { list } as unknown as MetricCategoryRepository,
       cache,
     );
 
-    await useCase.execute(query("run"));
-    await useCase.execute(query("run"));
+    await repo.list(query("run"));
+    await repo.list(query("run"));
 
     expect(list).toHaveBeenCalledTimes(1);
   });
@@ -107,13 +107,13 @@ describe("ListCategories cache", () => {
   it("rebuilds entities, with their dates, from what Redis returns", async () => {
     const cache = new JsonCache();
     const list = jest.fn(async () => pageFor("run"));
-    const useCase = new ListCategories(
+    const repo = new CachedMetricCategoryRepository(
       { list } as unknown as MetricCategoryRepository,
       cache,
     );
 
-    await useCase.execute(query());
-    const hit = await useCase.execute(query());
+    await repo.list(query());
+    const hit = await repo.list(query());
 
     expect(list).toHaveBeenCalledTimes(1);
     const [item] = hit.items;
@@ -132,15 +132,15 @@ describe("ListCategories cache", () => {
   ])("treats a cached entry holding %s as a miss", async (_label, entry) => {
     const cache = new JsonCache();
     const list = jest.fn(async () => pageFor("run"));
-    const useCase = new ListCategories(
+    const repo = new CachedMetricCategoryRepository(
       { list } as unknown as MetricCategoryRepository,
       cache,
     );
-    await useCase.execute(query());
+    await repo.list(query());
     const [key] = [...cache.store.keys()];
     cache.store.set(key, JSON.stringify(entry));
 
-    const page = await useCase.execute(query());
+    const page = await repo.list(query());
 
     expect(list).toHaveBeenCalledTimes(2);
     expect(page.items[0].name).toBe("run");

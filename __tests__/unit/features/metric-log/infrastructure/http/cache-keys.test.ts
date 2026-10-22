@@ -12,6 +12,9 @@ import {
  * audit S12, R13), and the single-log key left out the metric (D-05; audit T5).
  */
 const USER = { id: "user-1", organizationId: "org-1" };
+// What authMiddleware sets beside the user; a cursor key asserts all three
+// (architecture-boundaries D-03).
+const MEMBERSHIP = { id: "membership-1", role: "owner" };
 const METRIC_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const METRIC_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const LOG = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
@@ -19,6 +22,8 @@ const LOG = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const listKey = (query: Record<string, unknown>) =>
   metricLogsCursorCacheKey({
     user: USER,
+    organizationId: USER.organizationId,
+    membership: MEMBERSHIP,
     query,
     params: {},
   } as unknown as AuthRequest);
@@ -26,6 +31,8 @@ const listKey = (query: Record<string, unknown>) =>
 const logKey = (metricId: string) =>
   metricLogCacheKey({
     user: USER,
+    organizationId: USER.organizationId,
+    membership: MEMBERSHIP,
     query: { metricId },
     params: { id: LOG },
   } as unknown as AuthRequest);
@@ -79,6 +86,8 @@ describe("metricLogCacheKey", () => {
 const statsKey = (query: Record<string, unknown>) =>
   metricLogStatsCacheKey({
     user: USER,
+    organizationId: USER.organizationId,
+    membership: MEMBERSHIP,
     query,
     params: {},
   } as unknown as AuthRequest);

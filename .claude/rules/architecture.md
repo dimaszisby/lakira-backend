@@ -70,7 +70,9 @@ features/{name}/
   so the forms they cannot read are refused outright: a dynamic `import()`, an `import("…")` type
   (write `import type { X } from "…"`), anything from node's `module` package
   (`createRequire`), `process.getBuiltinModule`, `module.require`, `eval`, and the `Function`
-  constructor however it is reached (ADR-0074, ADR-0078). A
+  constructor however it is reached (ADR-0074, ADR-0078). `process` and `module` are read only as
+  `process.x` and `module.x`, never assigned, destructured or passed, so no alias reaches either
+  (`architecture-boundaries` D-06). A
   file that truly needs a lazy import gets a named exemption in `eslint.config.mjs`
 - **Infrastructure layer** implements domain interfaces and wires to frameworks
 - **feature.ts** is the composition root — instantiates repos, providers, use cases
@@ -151,6 +153,9 @@ Three surfaces per feature (ADR-0045, ADR-0078):
   If a feature needs something from another, it declares the interface in its own
   `application/ports/` and receives the adapter, which the provider exports from its `public.ts`. `MetricAccessPort` is the worked example: one
   copy each in metric-log, metric-settings and analytics, all satisfied by `MetricAccessSequelize`.
+  `MetricTrendPort` is the same in reverse: metric declares it, and `src/app.ts` hands it
+  analytics' query. No two features import each other both ways; `architecture.test.ts` fails on a
+  new pair, and freezes the two that remain (register B-88)
 - **Importing a feature module constructs nothing.** No router, feature or middleware is built at
   module scope. `__tests__/unit/architecture.test.ts` enforces this.
 - **A feature is handed to its router** (ADR-0072). `src/composition/features.ts`

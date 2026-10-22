@@ -145,10 +145,14 @@ describe("Architecture enforcement", () => {
     const USER_REF = /\$\{[^}]*\b(?:userId|user\?\.id|user\.id)\b[^}]*\}/;
     const ORG_REF = /organizationId|\borg\b/;
 
+    // An invalidator names the keys it deletes, wherever it sits: the metric-settings
+    // one lives in providers/ and went unread (architecture-boundaries D-04).
     const isCacheKeyFile = (file: string, content: string): boolean =>
       file.includes(`${path.sep}cache${path.sep}`) ||
       content.includes("cacheMiddleware") ||
-      content.includes("buildCursorCacheKey");
+      content.includes("buildCursorCacheKey") ||
+      content.includes("cursorCacheNamespace") ||
+      content.includes("invalidateCache");
 
     const cacheFiles = getAllSourceFiles(SRC_ROOT).filter((file) =>
       isCacheKeyFile(file, fs.readFileSync(file, "utf-8")),
@@ -225,20 +229,24 @@ describe("Architecture enforcement", () => {
     const FROZEN_MODEL_ASSOCIATION_IMPORTS = 11;
     // Both spellings: the short alias (@/features/metric/...) and the full path
     // (@/features/public/metric/...). Matching only the first let the count undercount.
+    // Any feature name and either quote, as the lint's FEATURE reads them (X52).
     const MODEL_IMPORT =
-      /from\s+"@\/features\/(?:(?:public|shared)\/)?[a-z-]+\/infrastructure\/persistence\/models\//g;
+      /from\s+["']@\/features\/(?:(?:public|shared)\/)?[^/"']+\/infrastructure\/persistence\/models\//g;
     const MODEL_IMPORT_TARGET =
-      /@\/features\/(?:(?:public|shared)\/)?([a-z-]+)\//;
+      /@\/features\/(?:(?:public|shared)\/)?([^/"']+)\//;
 
     it("counts a model import in either spelling", () => {
       const sample = [
         'import { M } from "@/features/metric/infrastructure/persistence/models/metric.sequelize.js";',
         'import { M } from "@/features/public/metric/infrastructure/persistence/models/metric.sequelize.js";',
+        // The lint takes any feature name and either quote (X52).
+        "import { M } from '@/features/metric/infrastructure/persistence/models/metric.sequelize.js';",
+        'import { M } from "@/features/metric2/infrastructure/persistence/models/m.sequelize.js";',
       ].join("\n");
       const targets = (sample.match(MODEL_IMPORT) ?? []).map(
         (m) => m.match(MODEL_IMPORT_TARGET)![1],
       );
-      expect(targets).toEqual(["metric", "metric"]);
+      expect(targets).toEqual(["metric", "metric", "metric", "metric2"]);
     });
 
     it(`holds at exactly ${FROZEN_MODEL_ASSOCIATION_IMPORTS} cross-feature model imports`, () => {
@@ -270,6 +278,43 @@ describe("Architecture enforcement", () => {
         );
       }
       expect(found.length).toBe(FROZEN_MODEL_ASSOCIATION_IMPORTS);
+    });
+  });
+
+  // architecture-boundaries D-01 (X48): two features that import each other can only be
+  // built and tested together. A feature that needs another's work declares a port for it
+  // (ADR-0023). Model imports are frozen above, so they do not count here.
+  describe("no two features depend on each other both ways", () => {
+    // Frozen, as the model count is: register row B-88. Remove a pair when it is fixed.
+    const KNOWN_BOTH_WAYS = [
+      "metric <-> metric-log",
+      "metric <-> metric-settings",
+    ];
+    const FEATURE_IMPORT =
+      /from\s+["']@\/features\/(?:(?:public|shared)\/)?([^/"']+)([^"']*)["']/g;
+
+    it(`finds no pair but ${KNOWN_BOTH_WAYS.length} known ones`, () => {
+      const edges = new Set<string>();
+      for (const featureDir of featureDirs) {
+        const owner = path.basename(featureDir);
+        for (const file of getAllSourceFiles(featureDir)) {
+          const content = fs.readFileSync(file, "utf-8");
+          for (const [, target, rest] of content.matchAll(FEATURE_IMPORT)) {
+            if (target === owner) continue;
+            if (rest.startsWith("/infrastructure/persistence/models/"))
+              continue;
+            edges.add(`${owner} -> ${target}`);
+          }
+        }
+      }
+
+      const pairs = [...edges]
+        .map((edge) => edge.split(" -> "))
+        .filter(([a, b]) => a < b && edges.has(`${b} -> ${a}`))
+        .map(([a, b]) => `${a} <-> ${b}`)
+        .sort();
+
+      expect(pairs).toEqual(KNOWN_BOTH_WAYS);
     });
   });
 

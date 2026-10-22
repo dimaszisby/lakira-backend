@@ -3,6 +3,9 @@ import type { AuthRequest } from "@/types/request.context.js";
 import { metricsCursorCacheKey } from "@/features/metric/infrastructure/http/cache-keys.js";
 
 const USER = { id: "user-1", organizationId: "org-1" };
+// What authMiddleware sets beside the user; a cursor key asserts all three
+// (architecture-boundaries D-03).
+const MEMBERSHIP = { id: "membership-1", role: "owner" };
 const CATEGORY_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const CATEGORY_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
@@ -13,11 +16,25 @@ const CATEGORY_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const keyFor = (query: Record<string, unknown>) =>
   metricsCursorCacheKey({
     user: USER,
+    organizationId: USER.organizationId,
+    membership: MEMBERSHIP,
     query,
     params: {},
   } as unknown as AuthRequest);
 
 describe("metricsCursorCacheKey", () => {
+  // architecture-boundaries D-03: no key without a tenant, so never `org:_`.
+  // cacheMiddleware catches the throw and skips the cache.
+  it("throws for a request with no organization", () => {
+    expect(() =>
+      metricsCursorCacheKey({
+        user: USER,
+        query: {},
+        params: {},
+      } as unknown as AuthRequest),
+    ).toThrow("User not authenticated");
+  });
+
   it("gives different name filters different keys", () => {
     expect(keyFor({ filter: { name: "run" } })).not.toBe(
       keyFor({ filter: { name: "swim" } }),
