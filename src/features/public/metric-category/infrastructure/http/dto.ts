@@ -1,12 +1,3 @@
-import { z } from "zod";
-
-// Internal validation schemas
-import {
-  createMetricCategorySchema,
-  updateMetricCategorySchema,
-  generateDummyMetricCategoriesSchema,
-} from "./schema.zod.js";
-
 /**
  * @file src/types/dtos/metric-category.dto.ts
  * @description Defines the Data Transfer Objects (DTOs) for MetricCategory.
@@ -76,34 +67,3 @@ export interface MetricCategoryResponseDTO {
    */
   readonly metricCount: number;
 }
-
-/**
- * @typedef CreateMetricCategoryRequestDTO
- * @description Represents the expected structure of the request body when creating a new metric category.
- * Inferred from the Zod schema for validation.
- */
-export type CreateMetricCategoryRequestDTO = z.infer<
-  typeof createMetricCategorySchema.shape.body
->;
-
-/**
- * @typedef UpdateMetricCategoryRequestDTO
- * @description Represents the expected structure of the request body when updating an existing metric category.
- * Inferred from the Zod schema for validation.
- */
-export type UpdateMetricCategoryRequestDTO = z.infer<
-  typeof updateMetricCategorySchema.shape.body
->;
-
-/**
- * * ===== DTOs for Testing Purposes =====
- */
-
-/**
- * @typedef GenerateDummyMetricCategoriesRequestDTO
- * @description Represents the expected structure of the request body when generating dummy metric category entries.
- * Inferred from the Zod schema for validation.
- */
-export type GenerateDummyMetricCategoriesRequestDTO = z.infer<
-  typeof generateDummyMetricCategoriesSchema.shape.body
->;

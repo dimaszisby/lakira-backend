@@ -903,4 +903,50 @@ describe("Architecture enforcement", () => {
       expect(STRING_MESSAGE.test("error,")).toBe(false);
     });
   });
+
+  // dto-and-display-options-polish (audit T6): request DTO types outlived the move to
+  // `req.validated` and sat unused through three audit runs.
+  describe("every exported DTO type is used", () => {
+    it("names no type in an http DTO file that nothing references", () => {
+      const root = path.resolve(__dirname, "../..");
+      // A JSDoc `@typedef Name` is not a use of Name.
+      const code = (file: string) =>
+        fs
+          .readFileSync(file, "utf-8")
+          .replace(/\/\*[\s\S]*?\*\//g, "")
+          .replace(/^\s*\/\/.*$/gm, "");
+      const readers = [
+        ...getAllSourceFiles(path.join(root, "src")),
+        ...getAllSourceFiles(path.join(root, "__tests__")),
+      ].map((file) => [file, code(file)] as const);
+      const dtoFiles = getAllSourceFiles(SRC_FEATURES).filter((file) =>
+        /\/infrastructure\/http\/[^/]*dto[^/]*\.ts$/.test(
+          file.split(path.sep).join("/"),
+        ),
+      );
+
+      const unused = dtoFiles.flatMap((file) => {
+        const text = code(file);
+        const names = [
+          ...text.matchAll(/^export (?:type|interface) (\w+)/gm),
+        ].map((match) => match[1]);
+        // A type its own mappers return is in use: it names the response.
+        const usedInFile = (name: string) =>
+          (text.match(new RegExp(`\\b${name}\\b`, "g")) ?? []).length > 1;
+        return names
+          .filter(
+            (name) =>
+              !usedInFile(name) &&
+              !readers.some(
+                ([reader, content]) =>
+                  reader !== file && new RegExp(`\\b${name}\\b`).test(content),
+              ),
+          )
+          .map((name) => `${path.relative(root, file)}: ${name}`);
+      });
+
+      expect(dtoFiles.length).toBeGreaterThan(0);
+      expect(unused).toEqual([]);
+    });
+  });
 });

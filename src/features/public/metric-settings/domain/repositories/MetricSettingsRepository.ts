@@ -1,4 +1,7 @@
-import { MetricSettings } from "../entities/MetricSettings.js";
+import {
+  MetricSettings,
+  type DisplayOptionsProps,
+} from "../entities/MetricSettings.js";
 
 export type CreateMetricSettingsDTO = {
   metricId: string;
@@ -13,12 +16,7 @@ export type CreateMetricSettingsDTO = {
   alertEnabled: boolean;
   alertThresholds: number | null;
   isAchieved: boolean;
-  displayOptions: {
-    showOnDashboard: boolean;
-    priority: number | null;
-    chartType: string | null;
-    color: string | null;
-  };
+  displayOptions: DisplayOptionsProps;
 };
 
 export interface MetricSettingsRepository {
