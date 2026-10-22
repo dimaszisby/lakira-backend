@@ -166,5 +166,5 @@ npm run lint && npm run typecheck && npm run docs:openapi:generate && npm test
 - [C4 Level 3](../explanation/architecture/c4-components-auth.md) — the same anatomy on the
   largest slice
 - [ADR-0022](../explanation/decisions/adr-0022-transaction-port-consolidation.md) — how
-  transactions are meant to cross the boundary without leaking Sequelize (Proposed: two
-  `TransactionPort`s still exist today)
+  transactions cross the boundary without leaking Sequelize: one `TransactionPort`, in
+  `src/shared/application/ports/`

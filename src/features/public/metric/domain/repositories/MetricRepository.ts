@@ -1,5 +1,4 @@
 import { Metric } from "../entities/Metric.js";
-import type {} from "@/shared/domain/PersistenceTransaction.js";
 import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 
 export type CreateMetricDTO = {

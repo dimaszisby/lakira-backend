@@ -2,10 +2,8 @@ import { jest } from "@jest/globals";
 import { UnauthorizedError } from "@/shared/domain/errors/DomainError.js";
 import { RotateRefreshToken } from "@/features/auth/application/use-cases/RotateRefreshToken.js";
 import { IssueRefreshToken } from "@/features/auth/application/use-cases/IssueRefreshToken.js";
-import {
-  RefreshTokenRepository,
-  TransactionPort,
-} from "@/features/auth/domain/repositories/RefreshTokenRepository.js";
+import { RefreshTokenRepository } from "@/features/auth/domain/repositories/RefreshTokenRepository.js";
+import type { TransactionPort } from "@/shared/application/ports/TransactionPort.js";
 import { UserRepository } from "@/features/auth/domain/repositories/UserRepository.js";
 import { MembershipRepository } from "@/features/auth/domain/repositories/MembershipRepository.js";
 import { TokenProvider } from "@/features/auth/application/ports/TokenProvider.js";

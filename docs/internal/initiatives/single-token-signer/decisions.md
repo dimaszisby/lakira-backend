@@ -2,7 +2,7 @@
 
 ## D-01 — The seed signs through `JwtTokenProvider`; `token-generator.ts` is deleted
 
-- **Status:** Proposed
+- **Status:** Accepted (#210, `b0a6ee9`)
 - **Date:** 2026-10-22
 
 **Context.** `src/utils/token-generator.ts` called `jwt.sign` with a fixed `expiresIn: "7d"` and
@@ -21,7 +21,7 @@ contract fixtures' included.
 
 ## D-02 — The seed's tokens keep a seven-day life, stated where they are signed
 
-- **Status:** Proposed
+- **Status:** Accepted (#210, `b0a6ee9`)
 - **Date:** 2026-10-22
 
 **Context.** Schemathesis sends the seeded token as a fixed bearer for its whole run

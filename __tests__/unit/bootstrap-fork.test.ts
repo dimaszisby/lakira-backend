@@ -2,7 +2,7 @@ import { execFileSync } from "child_process";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { withTestEnv } from "@/tests/env-test-utils.js";
+import { withTestEnv } from "../helpers/env-test-utils.js";
 
 /**
  * SaaS-readiness caveat C1 (audit-2026-09-29 § 5): a fresh fork's `npm test` failed because

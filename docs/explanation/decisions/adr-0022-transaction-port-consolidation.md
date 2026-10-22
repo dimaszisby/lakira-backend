@@ -4,6 +4,13 @@
 - **Date:** 2026-05-03
 - **Origin:** `ADR-001` in the Feature vertical-slice migration kit — [`feature-vertical-slice-migration`](../../internal/initiatives/feature-vertical-slice-migration/decisions.md)
 
+> **Status note (2026-10-23).** Carried out across the app, not only the metric slice: one
+> `TransactionPort` in `src/shared/application/ports/` and one `SequelizeTransactionPort` in
+> `src/shared/infrastructure/persistence/`, used by auth and metric. Auth's and metric's copies,
+> and a third declaration with its adapter in auth's refresh-token repository, are deleted
+> ([`architecture-dead-code` D-01](../../internal/initiatives/architecture-dead-code/decisions.md),
+> audit finding R11). The status becomes Accepted when that branch merges.
+
 ---
 
 ## Context

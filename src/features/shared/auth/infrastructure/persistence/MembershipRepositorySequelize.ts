@@ -4,7 +4,6 @@ import {
   Membership,
   MembershipRole,
 } from "../../domain/entities/Membership.js";
-import type {} from "@/shared/domain/PersistenceTransaction.js";
 import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import {
   CreateMembershipDTO,

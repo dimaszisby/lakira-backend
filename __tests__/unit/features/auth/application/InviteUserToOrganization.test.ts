@@ -7,7 +7,7 @@ import { EmailSender } from "@/features/auth/application/ports/EmailSender.js";
 import { Organization } from "@/features/auth/domain/entities/Organization.js";
 import { OrganizationInvite } from "@/features/auth/domain/entities/OrganizationInvite.js";
 import type { InviteUserToOrganizationDeps } from "@/features/auth/application/use-cases/InviteUserToOrganization.js";
-import type { TransactionPort } from "@/features/auth/application/ports/TransactionPort.js";
+import type { TransactionPort } from "@/shared/application/ports/TransactionPort.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";

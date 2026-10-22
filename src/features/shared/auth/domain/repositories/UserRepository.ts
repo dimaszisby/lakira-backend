@@ -1,5 +1,4 @@
 import { AuthUser } from "../entities/AuthUser.js";
-import type {} from "@/shared/domain/PersistenceTransaction.js";
 import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 
 export type CreateUserDTO = {

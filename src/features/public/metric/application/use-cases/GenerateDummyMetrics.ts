@@ -1,7 +1,7 @@
 import { Metric } from "../../domain/entities/Metric.js";
 import { MetricRepository } from "../../domain/repositories/MetricRepository.js";
 import { CachePort } from "../ports/CachePort.js";
-import { TransactionPort } from "../ports/TransactionPort.js";
+import { TransactionPort } from "@/shared/application/ports/TransactionPort.js";
 
 type Input = {
   userId: string;

@@ -8,7 +8,7 @@ import { MetricRepository } from "@/features/metric/domain/repositories/MetricRe
 import { Metric } from "@/features/metric/domain/entities/Metric.js";
 import { MetricSettingsPort } from "@/features/metric/application/ports/MetricSettingsPort.js";
 import { CachePort } from "@/features/metric/application/ports/CachePort.js";
-import { TransactionPort } from "@/features/metric/application/ports/TransactionPort.js";
+import { TransactionPort } from "@/shared/application/ports/TransactionPort.js";
 
 type RepoMock = jest.Mocked<MetricRepository>;
 type SettingsMock = jest.Mocked<MetricSettingsPort>;

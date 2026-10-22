@@ -1,6 +1,6 @@
 # One way to sign a token
 
-**Status:** Implemented on `refactor/single-token-signer`; PR open. Register row B-64, from
+**Status:** Done (#210, `b0a6ee9`). Register row B-64, from
 [B-07's analysis](../backend-debt-register/analysis-w2-jwt-secret.md) § 7.
 **Slug:** `single-token-signer` · **Branch:** `refactor/single-token-signer`
 

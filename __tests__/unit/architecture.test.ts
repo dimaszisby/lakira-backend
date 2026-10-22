@@ -973,4 +973,24 @@ describe("Architecture enforcement", () => {
       expect(offenders).toEqual([]);
     });
   });
+
+  // architecture-dead-code D-02 (X47): src/app.ts imports index.ts, so a build
+  // function there would let it rebuild a feature without its wiring (ADR-0056).
+  describe("a feature's index.ts does not export its build function", () => {
+    it("re-exports nothing from ./feature.js", () => {
+      const indexes = getAllSourceFiles(SRC_FEATURES).filter(
+        (file) => path.basename(file) === "index.ts",
+      );
+      const offenders = indexes
+        .filter((file) =>
+          /from\s+["']\.\/feature(?:\.js)?["']/.test(
+            fs.readFileSync(file, "utf8"),
+          ),
+        )
+        .map((file) => path.relative(SRC_FEATURES, file));
+
+      expect(indexes.length).toBeGreaterThan(0);
+      expect(offenders).toEqual([]);
+    });
+  });
 });

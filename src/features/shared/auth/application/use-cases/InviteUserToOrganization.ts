@@ -16,7 +16,7 @@ import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransact
 import { OrganizationInviteRepository } from "../../domain/repositories/OrganizationInviteRepository.js";
 import { OrganizationRepository } from "../../domain/repositories/OrganizationRepository.js";
 import { EmailSender, type EmailMessage } from "../ports/EmailSender.js";
-import type { TransactionPort } from "../ports/TransactionPort.js";
+import type { TransactionPort } from "@/shared/application/ports/TransactionPort.js";
 import type {
   InviteRole,
   OrganizationInvite,

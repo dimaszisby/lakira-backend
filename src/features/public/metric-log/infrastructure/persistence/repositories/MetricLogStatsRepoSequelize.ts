@@ -74,6 +74,8 @@ export class MetricLogStatsRepoSequelize implements MetricLogStatsPort {
       query.include = [metricInclude];
     }
 
+    // Sequelize types findOne as a model even with `raw: true`; the row holds
+    // only the aggregate attributes above.
     const row = (await models.MetricLog.findOne(
       query,
     )) as unknown as AggregateRow | null;

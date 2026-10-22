@@ -7,7 +7,7 @@ import { OrganizationRepository } from "../../domain/repositories/OrganizationRe
 import { MembershipRepository } from "../../domain/repositories/MembershipRepository.js";
 import { PasswordHasher } from "../ports/PasswordHasher.js";
 import { TokenProvider } from "../ports/TokenProvider.js";
-import { TransactionPort } from "../ports/TransactionPort.js";
+import { TransactionPort } from "@/shared/application/ports/TransactionPort.js";
 import { IssueRefreshToken } from "./IssueRefreshToken.js";
 import { AuthUser } from "../../domain/entities/AuthUser.js";
 

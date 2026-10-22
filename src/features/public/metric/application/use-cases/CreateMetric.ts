@@ -9,7 +9,7 @@ import {
 } from "../../domain/repositories/MetricRepository.js";
 import { CachePort } from "../ports/CachePort.js";
 import { MetricSettingsPort } from "../ports/MetricSettingsPort.js";
-import { TransactionPort } from "../ports/TransactionPort.js";
+import { TransactionPort } from "@/shared/application/ports/TransactionPort.js";
 
 type Input = CreateMetricDTO;
 
