@@ -4,7 +4,7 @@ import {
   DomainError,
   type DomainErrorKind,
 } from "@/shared/domain/errors/DomainError.js";
-import logger from "@/utils/logger.js";
+import logger, { loggableErrorMessage } from "@/utils/logger.js";
 import { env } from "@/config/envManager.js";
 import { AuthRequest } from "@/types/request.context.js";
 import { ZodError } from "zod";
@@ -144,7 +144,9 @@ export const createErrorHandler =
         `Client error ${appError.statusCode}: ${clientErrorLabel(err)}`,
       );
     } else {
-      logger.error(`Error Occurred: ${err.message}`, err);
+      // A thrown value need not be an Error; this names it either way, a
+      // database error's quoted values masked (logger-polish D-03).
+      logger.error(`Error Occurred: ${loggableErrorMessage(err)}`, err);
     }
 
     if (appError.statusCode >= 500) {

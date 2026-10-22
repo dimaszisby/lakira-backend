@@ -1,6 +1,6 @@
 # V6: the smaller items of 2026-10-10
 
-**Status:** Implemented on `fix/v6-small-items`; PR open. Register row B-35: finding V6 of the 2026-10-10
+**Status:** Done (#208, `90d6f6d`). Register row B-35: finding V6 of the 2026-10-10
 run, `open-unchanged` on 2026-10-20, which reproduced its first two items.
 **Slug:** `v6-small-items` · **Branch:** `fix/v6-small-items`
 

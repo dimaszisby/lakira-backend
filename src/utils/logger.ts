@@ -17,6 +17,11 @@ const nodeEnv = (process.env.NODE_ENV || "development").toLowerCase();
 const release =
   process.env.APP_RELEASE || process.env.RENDER_GIT_COMMIT || "unknown";
 
+// Every record carries these. The logger's `defaultMeta`, and what
+// `reduceLoggedErrors` puts back where it rebuilds a record around an error,
+// so a field added here reaches both (logger-polish D-01).
+const DEFAULT_META = { service: APP_NAME, release } as const;
+
 const LOG_LEVELS = [
   "error",
   "warn",
@@ -115,7 +120,7 @@ export function loggableErrorStack(error: unknown): string | undefined {
 }
 
 /** The allowlisted view of an error: its scalar identity fields, and `db`. */
-export function summarizeError(error: Error): Record<string, unknown> {
+function summarizeError(error: Error): Record<string, unknown> {
   const source = error as unknown as Record<string, unknown>;
   const summary: Record<string, unknown> = { name: error.name };
   for (const key of Object.keys(source)) {
@@ -211,8 +216,7 @@ const reduceLoggedErrors = format((info) => {
       [LEVEL]: record[LEVEL],
       message: maskDbText(info.message, info),
       stack: maskDbText(info.stack, info),
-      service: APP_NAME,
-      release,
+      ...DEFAULT_META,
     } as unknown as typeof info;
   }
 
@@ -243,8 +247,7 @@ const reduceLoggedErrors = format((info) => {
     if (hasError) {
       // The copy may have replaced the logger's own defaults, or metadata
       // passed beside the error; put both back, then each error's view.
-      record.service = APP_NAME;
-      record.release = release;
+      Object.assign(record, DEFAULT_META);
       for (const arg of reduced) {
         if (isPlainObject(arg)) Object.assign(record, arg);
       }
@@ -275,12 +278,10 @@ const attachRequestId = format((info) => {
 // a valid SGR sequence — which is why the dev console colours never actually rendered.
 // The uncolourised level is still available under winston's LEVEL symbol, so uppercase only
 // that word within the colourised string and leave the escape codes untouched.
-const LEVEL_SYMBOL = LEVEL;
-
 const logFormat = printf((info) => {
   const { message, timestamp, stack, requestId } = info;
   const plainLevel = String(
-    (info as unknown as Record<symbol, unknown>)[LEVEL_SYMBOL] ?? info.level,
+    (info as unknown as Record<symbol, unknown>)[LEVEL] ?? info.level,
   );
   const level = String(info.level).replace(
     plainLevel,
@@ -301,7 +302,7 @@ const logger: Logger = createLogger({
     redactSensitive(),
     json(),
   ),
-  defaultMeta: { service: APP_NAME, release },
+  defaultMeta: DEFAULT_META,
   // ADR-0041 — the application writes its log stream to stdout and nothing else. It does
   // not create, rotate, route, or retain log files in any environment. Collection is the
   // platform's responsibility: Render captures stdout in production, the json-file driver

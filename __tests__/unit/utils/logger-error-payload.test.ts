@@ -233,6 +233,41 @@ describe("logger: an error's payload", () => {
     expect(lastRecord().jobId).toBe("j-1");
   });
 
+  // Kit logger-polish, D-01 (audit U3). Each path that rebuilds the record
+  // around an error puts the logger's default fields back from one place.
+  it("keeps the default fields on every record that carries an error", () => {
+    logger.info("plain line");
+    const plain = lastRecord();
+
+    logger.error(new Error("as the record"));
+    const asRecord = lastRecord();
+    logger.log({
+      level: "error",
+      message: new Error("as the message") as never,
+    });
+    const asMessage = lastRecord();
+    logger.error("as an argument", new Error("boom"));
+    const asArgument = lastRecord();
+
+    for (const record of [asRecord, asMessage, asArgument]) {
+      expect(record.service).toBe(plain.service);
+      expect(record.release).toBe(plain.release);
+    }
+    expect(plain.service).toEqual(expect.any(String));
+  });
+
+  // ADR-0059 decision 4, kept by kit logger-polish D-02: a nested error keeps
+  // its message and not its stack.
+  it("writes no stack for an error nested in metadata", () => {
+    const err = new Error("nested failure");
+    logger.error("background task failed", { err });
+
+    const record = lastRecord();
+    expect(record.err).toMatchObject({ message: "nested failure" });
+    expect(record.stack).toBeUndefined();
+    expect(lines[lines.length - 1]).not.toContain("at ");
+  });
+
   // Audit U1, kit log-redaction-coverage D-07. An error that is not a top-level
   // argument: `splat()` prints an argument whole through a token, and the walk
   // used to pass an object through at its depth limit.
