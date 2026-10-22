@@ -2,7 +2,6 @@ import { jest } from "@jest/globals";
 import { ValidationError } from "@/shared/domain/errors/DomainError.js";
 import { GetDashboardVisualization } from "@/features/analytics/application/queries/GetDashboardVisualization.js";
 import type { VisualizationReadRepository } from "@/features/analytics/application/ports/VisualizationReadRepository.js";
-import { withTestEnv } from "@/tests/env-test-utils.js";
 
 const makeRepo = () => {
   const repo = {
@@ -28,6 +27,9 @@ const makeRepo = () => {
   return repo as unknown as VisualizationReadRepository;
 };
 
+// Kit v6-small-items, D-04: the limits are handed in, not read from env.
+const LIMITS = { maxBuckets: 400, maxDashboardMetrics: 24 };
+
 describe("GetDashboardVisualization query", () => {
   const TEST_ORG_ID = "org-test-id";
 
@@ -41,39 +43,49 @@ describe("GetDashboardVisualization query", () => {
   };
 
   it("delegates to the read repository with bucket spec and clamped limit", async () => {
-    const overrideLimit = "4";
-    await withTestEnv(
-      async () => {
-        const repo = makeRepo();
-        const query = new GetDashboardVisualization(repo);
+    const repo = makeRepo();
+    const query = new GetDashboardVisualization(repo, {
+      ...LIMITS,
+      maxDashboardMetrics: 4,
+    });
 
-        await query.execute({ ...baseInput, limit: 999, fill: "zero" });
+    await query.execute({ ...baseInput, limit: 999, fill: "zero" });
 
-        expect(repo.fetchDashboardVisualization).toHaveBeenCalledTimes(1);
-        const payload = (repo.fetchDashboardVisualization as jest.Mock).mock
-          .calls[0][0] as any;
-        expect(payload).toMatchObject({
-          userId: baseInput.userId,
-          organizationId: TEST_ORG_ID,
-          startISO: baseInput.startISO,
-          endISO: baseInput.endISO,
-          bucket: baseInput.bucket,
-          tz: baseInput.tz,
-          fill: "zero",
-          limit: Number(overrideLimit),
-        });
-        expect(payload.bucketSpec).toMatchObject({
-          iso: "P1D",
-          approxMs: expect.any(Number),
-        });
-      },
-      { overrides: { VIZ_DASH_MAX_METRICS: overrideLimit } },
+    expect(repo.fetchDashboardVisualization).toHaveBeenCalledTimes(1);
+    const payload = (repo.fetchDashboardVisualization as jest.Mock).mock
+      .calls[0][0] as any;
+    expect(payload).toMatchObject({
+      userId: baseInput.userId,
+      organizationId: TEST_ORG_ID,
+      startISO: baseInput.startISO,
+      endISO: baseInput.endISO,
+      bucket: baseInput.bucket,
+      tz: baseInput.tz,
+      fill: "zero",
+      limit: 4,
+    });
+    expect(payload.bucketSpec).toMatchObject({
+      iso: "P1D",
+      approxMs: expect.any(Number),
+    });
+  });
+
+  it("refuses a range of more buckets than its limit", async () => {
+    const repo = makeRepo();
+    const query = new GetDashboardVisualization(repo, {
+      ...LIMITS,
+      maxBuckets: 3,
+    });
+
+    await expect(query.execute(baseInput)).rejects.toThrow(
+      "Range too large for P1D (~6 buckets, max=3)",
     );
+    expect(repo.fetchDashboardVisualization).not.toHaveBeenCalled();
   });
 
   it("throws when the requested range is invalid", async () => {
     const repo = makeRepo();
-    const query = new GetDashboardVisualization(repo);
+    const query = new GetDashboardVisualization(repo, LIMITS);
 
     await expect(
       query.execute({

@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-05-21
 - **Amended:** 2026-10-09, by [`deterministic-query-ordering` D-06](../../internal/initiatives/deterministic-query-ordering/decisions.md). Two of the seven variables below, `VIZ_CACHE_MAX_AGE_SEC` and `VIZ_CACHE_STALE_SEC`, were removed: both analytics routes now send `Cache-Control: private, no-cache`. The decision to read the other five through `envManager` stands.
+- **Amended:** 2026-10-22, by [`v6-small-items` D-04](../../internal/initiatives/v6-small-items/decisions.md). `GetVisualization` and `GetDashboardVisualization` no longer read `env` or call `loadEnvOrExit()`: `buildAnalyticsFeature` reads `VIZ_MAX_BUCKETS` and `VIZ_DASH_MAX_METRICS` once and hands them to both constructors, as auth's factory does for its use cases. The `loadEnvOrExit()` call inside `execute()` existed only so a `withTestEnv` test could change the limit; that test now passes the limit to the constructor. This settles the follow-up below for `GetVisualization.ts`; reads still go through `envManager`.
 - **Origin:** `ADR-004` in the Observability kit — [`observability`](../../internal/initiatives/observability/decisions.md)
 
 ---

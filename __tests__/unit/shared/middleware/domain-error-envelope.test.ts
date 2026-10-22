@@ -31,6 +31,7 @@ jest.mock("@/config/envManager.js", () => ({
 
 jest.mock("@/utils/logger.js", () => ({
   error: jest.fn(),
+  warn: jest.fn(),
 }));
 
 const createResponse = () => {

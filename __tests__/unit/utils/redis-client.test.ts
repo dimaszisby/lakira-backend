@@ -156,12 +156,41 @@ describe("redis-client utils", () => {
         COUNT: 100,
       });
       expect(mockRedisClient.del).toHaveBeenCalledWith(["k1", "k2"]);
+      // Kit v6-small-items (audit V6): one line for the whole scan, not one
+      // per page.
       const name = cacheEntryName("metrics:user-1:*");
+      expect(loggerMock.info).toHaveBeenCalledTimes(1);
       expect(loggerMock.info).toHaveBeenCalledWith(
         `[CACHE] invalidated 2 entries matching ${name}`,
       );
+    });
+
+    it("logs one line with the total across pages", async () => {
+      mockRedisClient.scan
+        .mockResolvedValueOnce({ cursor: 7, keys: ["k1"] })
+        .mockResolvedValueOnce({ cursor: 3, keys: [] as string[] })
+        .mockResolvedValueOnce({ cursor: 0, keys: ["k2", "k3"] });
+
+      await invalidateCacheByPattern("metrics:user-1:*");
+
+      expect(mockRedisClient.del).toHaveBeenCalledTimes(2);
+      expect(loggerMock.info).toHaveBeenCalledTimes(1);
       expect(loggerMock.info).toHaveBeenCalledWith(
-        `[CACHE] no entries matching ${name}`,
+        `[CACHE] invalidated 3 entries matching ${cacheEntryName("metrics:user-1:*")}`,
+      );
+    });
+
+    it("logs one line when nothing matches", async () => {
+      mockRedisClient.scan
+        .mockResolvedValueOnce({ cursor: 4, keys: [] as string[] })
+        .mockResolvedValueOnce({ cursor: 0, keys: [] as string[] });
+
+      await invalidateCacheByPattern("metrics:user-1:*");
+
+      expect(mockRedisClient.del).not.toHaveBeenCalled();
+      expect(loggerMock.info).toHaveBeenCalledTimes(1);
+      expect(loggerMock.info).toHaveBeenCalledWith(
+        `[CACHE] no entries matching ${cacheEntryName("metrics:user-1:*")}`,
       );
     });
 

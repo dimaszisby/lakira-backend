@@ -116,25 +116,6 @@ export const createErrorHandler =
       return;
     }
 
-    const clientError = toClientError(err);
-
-    // The logger keeps only an error's allowlisted fields, so passing `err` does
-    // not write its SQL or bound values (log-redaction-coverage D-06).
-    if (err instanceof DatabaseError) {
-      const dbMessage = err.original?.message ?? err.message;
-      logger.error(`Database error: ${dbMessage}`, err);
-    } else if (err instanceof UniqueConstraintError) {
-      // A duplicate is a conflict the client caused, answered 409 below.
-      logger.warn(`Client error 409: ${DUPLICATE_VALUE_MESSAGE}`);
-    } else if (clientError) {
-      // The client's mistake, not ours: no stack, not at error level.
-      logger.warn(
-        `Client error ${clientError.statusCode}: ${clientErrorLabel(err)}`,
-      );
-    } else {
-      logger.error(`Error Occurred: ${err.message}`, err);
-    }
-
     const appError =
       err instanceof AppError
         ? err
@@ -142,7 +123,29 @@ export const createErrorHandler =
           ? new AppError(err.message, DOMAIN_ERROR_STATUS[err.kind])
           : err instanceof UniqueConstraintError
             ? new AppError(DUPLICATE_VALUE_MESSAGE, 409)
-            : (clientError ?? new AppError("Internal Server Error", 500));
+            : (toClientError(err) ??
+              new AppError("Internal Server Error", 500));
+
+    // Logged by the status it is answered with, which is known only now: an
+    // AppError or a DomainError 4xx was written at error level with its stack
+    // (v6-small-items D-01). The logger keeps only an error's allowlisted
+    // fields, so passing `err` does not write its SQL or bound values
+    // (log-redaction-coverage D-06).
+    if (err instanceof DatabaseError) {
+      const dbMessage = err.original?.message ?? err.message;
+      logger.error(`Database error: ${dbMessage}`, err);
+    } else if (err instanceof UniqueConstraintError) {
+      // A duplicate is a conflict the client caused, answered 409 below.
+      logger.warn(`Client error 409: ${DUPLICATE_VALUE_MESSAGE}`);
+    } else if (appError.statusCode < 500) {
+      // The client's mistake, not ours: no stack, not at error level, and not
+      // its message, which can repeat what was sent.
+      logger.warn(
+        `Client error ${appError.statusCode}: ${clientErrorLabel(err)}`,
+      );
+    } else {
+      logger.error(`Error Occurred: ${err.message}`, err);
+    }
 
     if (appError.statusCode >= 500) {
       Sentry.captureException(err, {

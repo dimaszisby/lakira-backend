@@ -1,6 +1,6 @@
 # DTO and display-options polish
 
-**Status:** Implemented on `refactor/dto-and-display-options-polish`; PR open. Register row
+**Status:** Done (#207, `41d09f7`). Register row
 B-33: finding T6 of the 2026-10-05 run, `open-unchanged` on 2026-10-10 and 2026-10-20.
 **Slug:** `dto-and-display-options-polish` · **Branch:** `refactor/dto-and-display-options-polish`
 
