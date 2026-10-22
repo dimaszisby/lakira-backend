@@ -949,4 +949,28 @@ describe("Architecture enforcement", () => {
       expect(unused).toEqual([]);
     });
   });
+
+  // Kit single-token-signer, D-01 (register B-64). A second signer with no
+  // pinned algorithm sat in src/utils for the contract seed. Every token is
+  // signed and verified by JwtTokenProvider, which pins HS256 both ways.
+  describe("one way to sign a token", () => {
+    it("imports jsonwebtoken only in JwtTokenProvider", () => {
+      const root = path.resolve(__dirname, "../..");
+      const allowed = path.join(
+        root,
+        "src/features/shared/auth/infrastructure/providers/JwtTokenProvider.ts",
+      );
+      const importsJwt =
+        /from\s+["']jsonwebtoken["']|require\(\s*["']jsonwebtoken["']\s*\)/;
+
+      const offenders = ["src", "scripts"]
+        .flatMap((dir) => getAllSourceFiles(path.join(root, dir)))
+        .filter((file) => file !== allowed)
+        .filter((file) => importsJwt.test(fs.readFileSync(file, "utf8")))
+        .map((file) => path.relative(root, file));
+
+      expect(fs.existsSync(allowed)).toBe(true);
+      expect(offenders).toEqual([]);
+    });
+  });
 });
