@@ -1,6 +1,5 @@
 import { MetricLogRepoSequelize } from "./infrastructure/persistence/repositories/MetricLogRepoSequelize.js";
 import { MetricLogCacheRedis } from "./infrastructure/cache/MetricLogCacheRedis.js";
-import { MetricAccessSequelize } from "@/features/metric/public.js";
 import { CreateMetricLog } from "./application/use-cases/CreateMetricLog.js";
 import { GetMetricLog } from "./application/queries/GetMetricLog.js";
 import { UpdateMetricLog } from "./application/use-cases/UpdateMetricLog.js";
@@ -20,22 +19,26 @@ import { SequelizeMessageIdempotency } from "@/shared/infrastructure/queue/Seque
 import type { MetricAccessPort } from "./application/ports/MetricAccessPort.js";
 import type { MetricLogStatsPort } from "./application/ports/MetricLogStatsPort.js";
 
+/** What src/composition/ supplies: another feature's adapter (metric-access-wiring D-01, D-03). */
+export type MetricLogFeatureDeps = {
+  metricAccess: MetricAccessPort;
+};
+
 export type MetricLogFeatureOverrides = {
   visualizationInvalidator?: VisualizationInvalidationPort;
   messageQueue?: MessageQueuePort;
-  metricAccess?: MetricAccessPort;
   statsRepo?: MetricLogStatsPort;
   idempotency?: MessageIdempotencyPort;
 };
 
 export const buildMetricLogFeature = (
+  { metricAccess: access }: MetricLogFeatureDeps,
   overrides: MetricLogFeatureOverrides = {},
 ) => {
   const repo = new MetricLogRepoSequelize();
   const visualizationInvalidator =
     overrides.visualizationInvalidator ?? new NoopVisualizationInvalidation();
   const cache = new MetricLogCacheRedis(visualizationInvalidator);
-  const access = overrides.metricAccess ?? new MetricAccessSequelize();
   const queue = overrides.messageQueue ?? new NoopMessageQueue();
   const queryRepo = new MetricLogQueryRepoSequelize();
   const statsRepo = overrides.statsRepo ?? new MetricLogStatsRepoSequelize();

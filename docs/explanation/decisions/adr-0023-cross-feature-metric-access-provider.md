@@ -4,6 +4,14 @@
 - **Date:** 2026-05-03
 - **Origin:** `ADR-002` in the Feature vertical-slice migration kit — [`feature-vertical-slice-migration`](../../internal/initiatives/feature-vertical-slice-migration/decisions.md)
 
+> **Status note (2026-10-23).** Decision 3 holds with one change: a consumer's `buildXFeature()` no
+> longer imports the adapter from `metric`. metric-log, metric-settings and analytics take it as
+> `{ metricAccess }`, their factory's first parameter, and `src/composition/` passes metric's
+> `MetricAccessSequelize`, as § Consequences anticipated. Importing it made metric-log and
+> metric-settings depend on metric both ways, since metric's detail response reads their mappers
+> ([`metric-access-wiring` D-01 and D-03](../../internal/initiatives/metric-access-wiring/decisions.md),
+> register row B-88).
+
 ---
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR registry hygiene
 
-**Status:** Implemented on `docs/adr-registry-hygiene`; PR open. Register row B-83, its third and
+**Status:** Done (#213, `f8b9ff8`). Register row B-83, its third and
 last slice: X46 and the ADR sentences of A1020 § 4.5 (`audit-2026-10-20.md`).
 **Slug:** `adr-registry-hygiene` · **Branch:** `docs/adr-registry-hygiene`
 

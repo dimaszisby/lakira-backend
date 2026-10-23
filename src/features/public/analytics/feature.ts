@@ -5,23 +5,26 @@ import { GetMetricTrend } from "./application/queries/GetMetricTrend.js";
 import { VisualizationReadRepoSequelize } from "./infrastructure/persistence/VisualizationReadRepoSequelize.js";
 import { VisualizationCacheRedis } from "./infrastructure/cache/VisualizationCacheRedis.js";
 import { TrendRepoSequelize } from "./infrastructure/persistence/TrendRepoSequelize.js";
-import { MetricAccessSequelize } from "@/features/metric/public.js";
 import type { MetricAccessPort } from "./application/ports/MetricAccessPort.js";
 import type { TrendRepository } from "./application/ports/TrendRepository.js";
 import type { VisualizationCachePort } from "./application/ports/VisualizationCachePort.js";
 import type { VisualizationReadRepository } from "./application/ports/VisualizationReadRepository.js";
 
+/** What src/composition/ supplies: another feature's adapter (metric-access-wiring D-01, D-03). */
+export type AnalyticsFeatureDeps = {
+  metricAccess: MetricAccessPort;
+};
+
 export type AnalyticsFeatureOverrides = {
-  metricAccess?: MetricAccessPort;
   trendRepo?: TrendRepository;
   vizCache?: VisualizationCachePort;
   vizRepo?: VisualizationReadRepository;
 };
 
 export const buildAnalyticsFeature = (
+  { metricAccess }: AnalyticsFeatureDeps,
   overrides: AnalyticsFeatureOverrides = {},
 ) => {
-  const metricAccess = overrides.metricAccess ?? new MetricAccessSequelize();
   const trendRepo = overrides.trendRepo ?? new TrendRepoSequelize();
   const cache = overrides.vizCache ?? new VisualizationCacheRedis();
   const repo = overrides.vizRepo ?? new VisualizationReadRepoSequelize(cache);

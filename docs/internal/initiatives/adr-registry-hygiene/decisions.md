@@ -2,7 +2,7 @@
 
 ## D-01 — A stale record gets a dated status note, not a rewrite
 
-- **Status:** Proposed
+- **Status:** Accepted (#213, `f8b9ff8`)
 - **Date:** 2026-10-23
 
 **Context.** A1020 § 4.5 lists nine records with a statement that no longer holds; X46 adds that
@@ -23,7 +23,7 @@ unchanged. A reader of a stale sentence meets the note first.
 
 ## D-02 — B-83 closes
 
-- **Status:** Proposed
+- **Status:** Accepted (#213, `f8b9ff8`)
 - **Date:** 2026-10-23
 
 **Context.** #211 fixed X47, X50, X51 and R11's rest; #212 fixed X48, X49, X52 and X43's rest;
