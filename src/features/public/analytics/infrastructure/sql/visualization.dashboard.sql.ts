@@ -39,8 +39,11 @@ export function buildDashboardSQL(spec: BucketSpec) {
       FROM logs l
       GROUP BY 1,2
     )
+    -- A label is the bucket's wall time in :tz, sent with a Z (ADR-0062). As a
+    -- timestamptz read in UTC, the driver reads it the same in every process zone
+    -- (analytics-leftovers D-03).
     SELECT cm.metric_id,
-           s.bucket_start,
+           timezone('UTC', s.bucket_start) AS bucket_start,
            b.avg_value, b.min_value, b.max_value, b.cnt
     FROM covered_metrics cm
     CROSS JOIN series s
@@ -95,7 +98,8 @@ export function buildDashboardLifecycleSQL(spec: BucketSpec) {
            ag.last_log_at,
            COALESCE(ag.total_logs, 0)::bigint AS total_logs,
            ag.latest_value,
-           ag.latest_bucket_start
+           -- A label, as bucket_start is above (analytics-leftovers D-03).
+           timezone('UTC', ag.latest_bucket_start) AS latest_bucket_start
     FROM covered_metrics cm
     LEFT JOIN aggregates ag ON ag.metric_id = cm.metric_id
     ORDER BY cm.metric_id;

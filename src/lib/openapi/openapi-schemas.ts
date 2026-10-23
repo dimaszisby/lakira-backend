@@ -1038,12 +1038,23 @@ export const TrendResponseSchema = registerSchema(
 );
 
 // Analytics Schemas
+const BUCKET_LABEL_DESCRIPTION =
+  "The start of a bucket in the requested `tz`, written as if it were UTC: midnight of 2025-06-10 in Asia/Jakarta is `2025-06-10T00:00:00.000Z` (ADR-0062).";
+
 const VisualizationSeriesSchema = z.object({
-  bucketStartISO: z
-    .string()
-    .datetime()
-    .openapi({ example: "2023-01-01T00:00:00Z" }),
+  bucketStartISO: z.string().datetime().openapi({
+    example: "2023-01-01T00:00:00Z",
+    description: BUCKET_LABEL_DESCRIPTION,
+  }),
   value: z.number().nullable().openapi({ example: 42.5 }),
+});
+
+const BucketEnumSchema = z.enum(["1h", "1d", "1w", "1m", "1y"]);
+
+const VisualizationRangeSchema = z.object({
+  startISO: z.string().datetime(),
+  endISO: z.string().datetime(),
+  bucket: BucketEnumSchema,
 });
 
 const VisualizationStatsSchema = z.object({
@@ -1062,11 +1073,13 @@ const VisualizationMetaSchema = z.object({
     startISO: z.string().datetime(),
     endISO: z.string().datetime(),
   }),
+  fill: z.enum(["none", "zero", "nan"]).openapi({ example: "none" }),
 });
 
 export const VisualizationResponseSchema = registerSchema(
   "VisualizationResponse",
   z.object({
+    metricId: UuidSchema,
     series: z.array(VisualizationSeriesSchema),
     stats: VisualizationStatsSchema,
     meta: VisualizationMetaSchema,
@@ -1083,6 +1096,40 @@ const DashboardVisualizationItemSchema = z.object({
   priority: z.number().nullable().openapi({ example: 1 }),
   series: z.array(VisualizationSeriesSchema),
   stats: VisualizationStatsSchema,
+  lastLogAt: z.string().datetime().nullable().openapi({
+    example: "2025-06-10T12:00:00.000Z",
+    description: "The newest log's stored instant (ADR-0062).",
+  }),
+  firstLogAt: z.string().datetime().nullable().openapi({
+    example: "2025-01-02T08:30:00.000Z",
+    description: "The oldest log's stored instant (ADR-0062).",
+  }),
+  totalLogs: z.number().int().openapi({ example: 42 }),
+  latestValue: z.number().nullable().openapi({ example: 7.5 }),
+  latestBucketStart: z
+    .string()
+    .datetime()
+    .nullable()
+    .openapi({
+      example: "2025-06-10T00:00:00.000Z",
+      description: `The bucket of the newest log. ${BUCKET_LABEL_DESCRIPTION}`,
+    }),
+  requestedRange: VisualizationRangeSchema,
+  actualRange: VisualizationRangeSchema.openapi({
+    description:
+      "The range `series` covers: `requestedRange`, or the fallback range when the requested one holds no log.",
+  }),
+  fallbackRangeUsed: z.boolean(),
+  fallbackStrategy: z
+    .enum(["last_activity_window"])
+    .nullable()
+    .openapi({
+      // The generator leaves null out of a nullable enum's values, and an OpenAPI 3.1
+      // reader then refuses the null that every item without a fallback sends.
+      enum: ["last_activity_window", null],
+      description:
+        "`last_activity_window` when `fallbackRangeUsed`: a window ending with the bucket of the newest log. Null otherwise.",
+    }),
 });
 
 export const DashboardVisualizationResponseSchema = registerSchema(
@@ -1097,11 +1144,24 @@ export const DashboardVisualizationResponseSchema = registerSchema(
         endISO: z.string().datetime(),
       }),
       count: z.number().openapi({ example: 5 }),
+      totalMetrics: z.number().int().openapi({
+        example: 8,
+        description: "Metrics shown on the dashboard, before `limit`.",
+      }),
+      fallbackMetrics: z.number().int().openapi({
+        example: 1,
+        description: "Items whose series uses the fallback range.",
+      }),
+    }),
+    sync: z.object({
+      etagSeed: z.string().openapi({
+        description:
+          "A hash of the request and the metrics' settings. Not the response's `ETag`, which is a digest of the body.",
+      }),
     }),
   }),
 );
 
-const BucketEnumSchema = z.enum(["1h", "1d", "1w", "1m", "1y"]);
 const FillEnumSchema = z.enum(["none", "zero", "nan"]);
 const RelativeLastWindowSchema = z
   .string()

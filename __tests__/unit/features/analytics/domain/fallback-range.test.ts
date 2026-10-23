@@ -17,7 +17,10 @@ describe("computeFallbackRange", () => {
     expect(result).toBeNull();
   });
 
-  it("coarsens buckets when the guard would be exceeded", () => {
+  // Kit analytics-leftovers, D-02. The window is clamped to the guard's number
+  // of requested buckets, so the requested bucket always fits: the bucket used
+  // to be coarsened to 1d here, and the series was queried hourly anyway.
+  it("keeps the requested bucket, and the window holds at most guard + 1 of them", () => {
     const result = computeFallbackRange({
       requested: { ...requested, bucket: "1h" },
       lastLogAt: "2024-02-01T00:00:00.000Z",
@@ -26,11 +29,11 @@ describe("computeFallbackRange", () => {
     });
 
     expect(result).not.toBeNull();
-    expect(result?.bucketAlias).toBe("1d");
+    expect(result?.range.bucket).toBe("1h");
     // The end of the requested bucket, an hour, that holds the last log.
     expect(result?.range.endISO).toBe("2024-02-01T01:00:00.000Z");
-    expect(result?.estimatedBuckets).toBeLessThanOrEqual(48);
-    expect(result?.coarsenedBucket).toBe(true);
+    expect(result?.range.startISO).toBe("2024-01-30T01:00:00.000Z");
+    expect(result?.estimatedBuckets).toBeLessThanOrEqual(49);
   });
 
   it("clamps the fallback window when range still exceeds guard limit", () => {
@@ -42,7 +45,9 @@ describe("computeFallbackRange", () => {
     });
 
     expect(result).not.toBeNull();
-    expect(result?.estimatedBuckets).toBeLessThanOrEqual(5);
+    // Counted at the requested bucket, a window that does not start on a bucket's
+    // edge touches one more (analytics-leftovers D-02).
+    expect(result?.estimatedBuckets).toBeLessThanOrEqual(6);
     expect(
       new Date(result!.range.endISO).getTime() -
         new Date(result!.range.startISO).getTime(),
