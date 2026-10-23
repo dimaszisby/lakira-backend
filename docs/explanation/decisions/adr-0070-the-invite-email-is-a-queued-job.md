@@ -12,6 +12,13 @@
   [`durable-invite-email`](../../internal/initiatives/durable-invite-email/decisions.md); register
   row B-70 ([todo](../../internal/todos/2026-10-18-todo-reset-and-invite-email-not-durable.md))
 
+> **Status note (2026-10-23).** `installAuthFeature` and `installOrgFeature`, named at the end of
+> § Decision, no longer exist: since
+> [ADR-0072](./adr-0072-features-are-handed-to-their-routers.md), `buildWiredFeatures`
+> (`src/composition/features.ts`) builds one auth feature with the server's publisher, and
+> `src/app.ts` hands it to the auth, organization, invite and membership routers. The invite route
+> still publishes with the server's publisher (audit 2026-10-20, X46).
+
 ---
 
 ## Context
