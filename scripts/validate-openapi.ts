@@ -94,11 +94,26 @@ const validate = (): string[] => {
       // 5. The app-wide limiter sits in front of every router, so every operation
       //    can answer 429. The generator adds the shared response; 40 of 47
       //    operations had none while each author was left to write it
-      //    (SaaS-readiness caveat C3, audit-2026-10-10 V5).
-      if (responses && !responses["429"]) {
+      //    (SaaS-readiness caveat C3, audit-2026-10-10 V5). The Health probes run
+      //    ahead of the limiter and are exempt (openapi-contract-polish D-01).
+      const tags = Array.isArray(op.tags) ? op.tags : [];
+      if (responses && !responses["429"] && !tags.includes("Health")) {
         problems.push(
           `${method.toUpperCase()} ${route} documents no 429 — the app-wide limiter can answer it on any operation`,
         );
+      }
+
+      // 6. express.json reads the body of every operation that has one, and can
+      //    answer 413 and 415. The generator adds both (openapi-contract-polish
+      //    D-03).
+      if (responses && op.requestBody) {
+        for (const status of ["413", "415"]) {
+          if (!responses[status]) {
+            problems.push(
+              `${method.toUpperCase()} ${route} takes a body and documents no ${status} — the body parser can answer it`,
+            );
+          }
+        }
       }
 
       const id = op.operationId;

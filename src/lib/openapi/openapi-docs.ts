@@ -1903,6 +1903,79 @@ registry.registerPath({
   },
 });
 
+// The platform's probes (src/app.ts). They run ahead of the limiter and take no
+// credentials, so they carry no 429 and no security; the contract gate does not
+// fuzz the Health tag (openapi-contract-polish D-01).
+const HEALTH_TAG = "Health";
+const READINESS_CHECKS = z.object({
+  db: z.enum(["ok", "fail"]),
+  redis: z.enum(["ok", "fail"]),
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/health",
+  tags: [HEALTH_TAG],
+  summary: "Liveness probe",
+  description:
+    "Answers 200 while the process serves requests. It checks no dependency.",
+  responses: {
+    200: {
+      description: "The process is up",
+      content: {
+        "application/json": {
+          schema: z.object({
+            status: z.literal("ok"),
+            environment: z.string().openapi({ example: "production" }),
+            release: z.string().openapi({
+              description:
+                "`APP_RELEASE`, else the platform's commit, else `unknown`",
+              example: "d985155",
+            }),
+            timestamp: z.string().datetime(),
+          }),
+        },
+      },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/ready",
+  tags: [HEALTH_TAG],
+  summary: "Readiness probe",
+  description:
+    "Checks Postgres and Redis, each within 2 s. A result is held for 2 s, so it can lag by that much. Not the error envelope: a 503 is a probe document.",
+  responses: {
+    200: {
+      description: "Every dependency answered",
+      content: {
+        "application/json": {
+          schema: z.object({
+            status: z.literal("ok"),
+            checks: READINESS_CHECKS,
+          }),
+        },
+      },
+    },
+    503: {
+      description: "A dependency failed or timed out; `checks` names which",
+      content: {
+        "application/json": {
+          schema: z.object({
+            status: z.literal("degraded"),
+            checks: READINESS_CHECKS,
+          }),
+        },
+      },
+    },
+    500: {
+      $ref: "#/components/responses/InternalServerError",
+    },
+  },
+});
+
 const OPERATION_METHODS = [
   "get",
   "put",
@@ -1916,6 +1989,10 @@ const OPERATION_METHODS = [
 const SHARED_RATE_LIMIT_RESPONSE = {
   $ref: "#/components/responses/TooManyRequestsError",
 };
+const SHARED_BODY_RESPONSES = {
+  "413": { $ref: "#/components/responses/PayloadTooLargeError" },
+  "415": { $ref: "#/components/responses/UnsupportedMediaTypeError" },
+} as const;
 
 export const getOpenApiDocumentation = () => {
   const generator = new OpenApiGeneratorV31(registry.definitions);
@@ -1956,12 +2033,23 @@ export const getOpenApiDocumentation = () => {
   // answer 429. Added here, once: when each registerPath call was left to write
   // it, 40 of 47 did not. An operation with a limiter of its own keeps the
   // description it wrote. scripts/validate-openapi.ts fails if one has none.
+  // The probes are the exception: they run ahead of the limiter.
+  //
+  // express.json reads the body of every operation that has one, and answers
+  // an oversized body with 413 and an unsupported charset or encoding with 415
+  // (openapi-contract-polish D-03). Added here for the same reason as the 429.
   for (const pathItem of Object.values(document.paths ?? {})) {
     for (const method of OPERATION_METHODS) {
       const operation = pathItem[method];
       if (!operation) continue;
       operation.responses ??= {};
-      operation.responses["429"] ??= SHARED_RATE_LIMIT_RESPONSE;
+      if (!operation.tags?.includes(HEALTH_TAG)) {
+        operation.responses["429"] ??= SHARED_RATE_LIMIT_RESPONSE;
+      }
+      if (operation.requestBody) {
+        operation.responses["413"] ??= SHARED_BODY_RESPONSES["413"];
+        operation.responses["415"] ??= SHARED_BODY_RESPONSES["415"];
+      }
     }
   }
 

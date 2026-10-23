@@ -41,6 +41,10 @@
       "description": "Visualization and dashboard analytics endpoints"
     },
     {
+      "name": "Health",
+      "description": "Liveness and readiness probes for the platform. They run ahead of the rate limiter and the HTTPS check, take no credentials, and are not fuzzed by the contract gate (openapi-contract-polish D-01)."
+    },
+    {
       "name": "Admin",
       "description": "Organization admin/owner surface. Excluded from the default contract-test tag set — these routes require an elevated role the seeded fixtures do not hold."
     }
@@ -108,6 +112,7 @@
               "properties": {
                 "status": {
                   "type": "string",
+                  "enum": ["fail"],
                   "example": "fail"
                 },
                 "message": {
@@ -129,6 +134,7 @@
               "properties": {
                 "status": {
                   "type": "string",
+                  "enum": ["fail"],
                   "example": "fail"
                 },
                 "message": {
@@ -150,6 +156,7 @@
               "properties": {
                 "status": {
                   "type": "string",
+                  "enum": ["fail"],
                   "example": "fail"
                 },
                 "message": {
@@ -171,6 +178,7 @@
               "properties": {
                 "status": {
                   "type": "string",
+                  "enum": ["fail"],
                   "example": "fail"
                 },
                 "message": {
@@ -209,6 +217,7 @@
               "properties": {
                 "status": {
                   "type": "string",
+                  "enum": ["error"],
                   "example": "error"
                 },
                 "message": {
@@ -230,11 +239,56 @@
               "properties": {
                 "status": {
                   "type": "string",
+                  "enum": ["fail"],
                   "example": "fail"
                 },
                 "message": {
                   "type": "string",
                   "example": "Resource already exists"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PayloadTooLargeError": {
+        "description": "The request body is larger than the server accepts (`REQUEST_BODY_LIMIT`, 1mb by default).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["status", "message"],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": ["fail"],
+                  "example": "fail"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "request entity too large"
+                }
+              }
+            }
+          }
+        }
+      },
+      "UnsupportedMediaTypeError": {
+        "description": "The request body's charset or `Content-Encoding` is not supported. A JSON body's charset must be a UTF one (UTF-8 when none is given), and its encoding `identity`, `gzip` or `deflate`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["status", "message"],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": ["fail"],
+                  "example": "fail"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "unsupported charset \"LATIN1\""
                 }
               }
             }
@@ -256,6 +310,7 @@
               "properties": {
                 "status": {
                   "type": "string",
+                  "enum": ["fail"],
                   "example": "fail"
                 },
                 "message": {
@@ -281,6 +336,7 @@
         "properties": {
           "status": {
             "type": "string",
+            "enum": ["fail"],
             "example": "fail"
           },
           "message": {
@@ -2205,6 +2261,12 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
           "429": {
             "description": "Too many registration attempts from this IP (RATE_LIMIT_REGISTER_IP_MAX per hour)",
             "headers": {
@@ -2264,6 +2326,12 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
@@ -2345,6 +2413,12 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
@@ -2465,6 +2539,12 @@
           "400": {
             "$ref": "#/components/responses/BadRequestError"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
           "429": {
             "description": "Rate limit exceeded for password reset requests",
             "headers": {
@@ -2515,6 +2595,12 @@
           "400": {
             "$ref": "#/components/responses/BadRequestError"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
           "429": {
             "description": "Rate limit exceeded for password reset requests",
             "headers": {
@@ -2564,6 +2650,12 @@
           },
           "400": {
             "$ref": "#/components/responses/BadRequestError"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
           },
           "429": {
             "description": "Rate limit exceeded for email verification requests",
@@ -2679,6 +2771,12 @@
           "403": {
             "$ref": "#/components/responses/ForbiddenError"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
           },
@@ -2743,6 +2841,12 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
@@ -2872,6 +2976,12 @@
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
           },
@@ -2934,6 +3044,12 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFoundError"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
@@ -3045,6 +3161,12 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
@@ -3305,6 +3427,12 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
           },
@@ -3417,6 +3545,12 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
@@ -3710,6 +3844,12 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
           },
@@ -3833,6 +3973,12 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
@@ -4191,6 +4337,12 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
           },
@@ -4313,6 +4465,12 @@
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
           },
@@ -4372,6 +4530,12 @@
           },
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
@@ -4446,6 +4610,12 @@
           "403": {
             "$ref": "#/components/responses/ForbiddenError"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
           },
@@ -4507,6 +4677,12 @@
           },
           "409": {
             "$ref": "#/components/responses/ConflictError"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
@@ -4763,6 +4939,12 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
           },
@@ -4968,6 +5150,12 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFoundError"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
@@ -5386,6 +5574,119 @@
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequestsError"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Liveness probe",
+        "description": "Answers 200 while the process serves requests. It checks no dependency.",
+        "responses": {
+          "200": {
+            "description": "The process is up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["ok"]
+                    },
+                    "environment": {
+                      "type": "string",
+                      "example": "production"
+                    },
+                    "release": {
+                      "type": "string",
+                      "description": "`APP_RELEASE`, else the platform's commit, else `unknown`",
+                      "example": "d985155"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": ["status", "environment", "release", "timestamp"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Readiness probe",
+        "description": "Checks Postgres and Redis, each within 2 s. A result is held for 2 s, so it can lag by that much. Not the error envelope: a 503 is a probe document.",
+        "responses": {
+          "200": {
+            "description": "Every dependency answered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["ok"]
+                    },
+                    "checks": {
+                      "type": "object",
+                      "properties": {
+                        "db": {
+                          "type": "string",
+                          "enum": ["ok", "fail"]
+                        },
+                        "redis": {
+                          "type": "string",
+                          "enum": ["ok", "fail"]
+                        }
+                      },
+                      "required": ["db", "redis"]
+                    }
+                  },
+                  "required": ["status", "checks"]
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          },
+          "503": {
+            "description": "A dependency failed or timed out; `checks` names which",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["degraded"]
+                    },
+                    "checks": {
+                      "type": "object",
+                      "properties": {
+                        "db": {
+                          "type": "string",
+                          "enum": ["ok", "fail"]
+                        },
+                        "redis": {
+                          "type": "string",
+                          "enum": ["ok", "fail"]
+                        }
+                      },
+                      "required": ["db", "redis"]
+                    }
+                  },
+                  "required": ["status", "checks"]
+                }
+              }
+            }
           }
         }
       }

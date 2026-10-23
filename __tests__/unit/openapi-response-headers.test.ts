@@ -149,10 +149,11 @@ describe("response headers in the OpenAPI spec", () => {
           ),
     );
 
-    it("are declared on every operation", () => {
-      const operations = Object.values(spec.paths).flatMap((item) =>
-        Object.values(item),
-      );
+    // The probes run ahead of the limiter (openapi-contract-polish D-01).
+    it("are declared on every operation but the probes", () => {
+      const operations = Object.entries(spec.paths)
+        .filter(([route]) => route !== "/health" && route !== "/ready")
+        .flatMap(([, item]) => Object.values(item));
       expect(tooManyRequests).toHaveLength(operations.length);
     });
 

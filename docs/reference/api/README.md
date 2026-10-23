@@ -40,25 +40,32 @@ Full workflow: [`../../how-to/development/regenerate-the-openapi-spec.md`](../..
 
 ## Coverage
 
-**47 documented operations** (counted from the committed spec on 2026-09-25) across `Auth` (11),
+**49 documented operations** (counted from the committed spec on 2026-10-23) across `Auth` (11),
 `Organizations` (6), `Metric Categories` (5), `Metrics` (5), `Metric Logs` (6), `Metric Settings`
-(7), `Dummy Data` (3), `Analytics` (2), `Trends` (1) and `Admin` (1).
+(7), `Dummy Data` (3), `Analytics` (2), `Trends` (1), `Admin` (1) and `Health` (2).
 
-Two routes are served but intentionally absent from the spec. Separately, the local contract run
-fuzzes only the tags in `DEFAULT_TAGS`, minus the operations named in `EXCLUDED_OPERATIONS` (both in
-`tests/contract/schemathesis/scripts/run-local.js`). Two documented tags are not fuzzed, `Admin` (1)
-and `Dummy Data` (3), and one operation is excluded by name, so the gate reports **42 of 47**
-operations selected (seed 42, as of 2026-09-29). The organization routes are fuzzed against the
-seeded primary organization, its members and a pool of deletable memberships
+Every operation documents the 429 of the app-wide limiter, except the two `Health` probes, which
+run ahead of it. Every operation that takes a body documents 413 and 415, which the body parser
+answers for an oversized body and for an unsupported charset or encoding. The generator adds all
+three, and `docs:openapi:validate` fails on an operation that lacks one
+([`openapi-contract-polish`](../../internal/initiatives/openapi-contract-polish/decisions.md) D-01,
+D-03).
+
+Every API route is in the spec; only `/api/v1/docs`, which serves the spec itself, is not. The
+local contract run fuzzes only the tags in `DEFAULT_TAGS`, minus the operations named in
+`EXCLUDED_OPERATIONS` (both in `tests/contract/schemathesis/scripts/run-local.js`). Three documented tags are not fuzzed, `Admin`
+(1), `Dummy Data` (3) and `Health` (2), and one operation is excluded by name, so the gate reports
+**42 of 49** operations selected: the same 42 it reported as "42 of 47" (seed 42, 2026-09-29)
+before the probes were documented. The organization routes are fuzzed against the seeded primary
+organization, its members and a pool of deletable memberships
 ([`fuzz-organization-routes`](../../internal/initiatives/fuzz-organization-routes/README.md)).
 
-| Route                           | Why                                                                                                                                                                                                                                                |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/v1/health`            | liveness probe, not part of the API contract                                                                                                                                                                                                       |
-| `GET /api/v1/ready`             | readiness probe — pings Postgres and Redis; the result is held for 2 s, so it can lag by that much                                                                                                                                                 |
-| `GET /api/v1/admin/_ping`       | documented under the `Admin` tag, which is **excluded from the contract-test tag set** — the seeded fixtures hold no admin role, so fuzzing it would only produce 403s                                                                             |
-| `POST /api/v1/invites/accept`   | excluded by name: a valid token exists only in an invite email, so every generated body is a random token the API rightly answers with 400. Included, it passes but tests only that rejection. The accept path is covered by the integration suite |
-| `Dummy Data` tag (3 operations) | no recorded reason                                                                                                                                                                                                                                 |
+| Route                           | Why                                                                                                                                                                                                                                                                         |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Health` tag (2 operations)     | `GET /health` and `GET /ready`: the platform's probes. `/ready` answers 503 when Postgres or Redis fails, so fuzzing it would test the infrastructure, not the contract ([`openapi-contract-polish`](../../internal/initiatives/openapi-contract-polish/decisions.md) D-01) |
+| `GET /api/v1/admin/_ping`       | documented under the `Admin` tag, which is **excluded from the contract-test tag set** — the seeded fixtures hold no admin role, so fuzzing it would only produce 403s                                                                                                      |
+| `POST /api/v1/invites/accept`   | excluded by name: a valid token exists only in an invite email, so every generated body is a random token the API rightly answers with 400. Included, it passes but tests only that rejection. The accept path is covered by the integration suite                          |
+| `Dummy Data` tag (3 operations) | no recorded reason                                                                                                                                                                                                                                                          |
 
 ## Request id
 
