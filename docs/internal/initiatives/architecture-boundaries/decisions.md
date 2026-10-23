@@ -117,3 +117,23 @@ destructured, passed, returned. `no-restricted-properties` refuses `globalThis.p
 type-aware rule that follows values:_ a rule of the repository's own for one residual.
 **Consequences.** A seam that needs `process` takes the members it uses. Still open: an alias of
 `globalThis` itself (`const g = globalThis; g.process`).
+
+---
+
+## D-07 — A queue test waits for the job's commit, not only for its email
+
+- **Status:** Proposed
+- **Date:** 2026-10-23
+
+**Context.** On #212, "Fork bootstrap and npm test" failed once and passed once on the same commit:
+`PasswordResetEmailQueue.integration.test.ts` › retries a failed send counted 0 reset tokens where
+1 was expected. Each email job sends inside `runOnce`'s transaction, before the token row (or the
+invite's new hash) commits, and the tests polled only until the email was sent, then read the row
+on another connection. The verification and invite queue tests do the same. Nothing in this
+branch caused it.
+**Decision.** After the email arrives, each of the three tests polls until the row it reads next
+has committed: the token count for password reset and verification, the emailed token's hash for
+invites. Both the happy path and the retry test of each file.
+**Options considered.** _Send after the commit:_ a send that fails would then leave a token behind,
+which the durable-email kits' D-02 and D-03 rule out. _Retry the job in CI:_ hides the race.
+**Consequences.** The tests assert what a user sees: the link works once the job is done.

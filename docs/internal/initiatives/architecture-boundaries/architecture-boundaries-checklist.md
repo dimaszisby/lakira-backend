@@ -22,7 +22,7 @@ Lean kit: the acceptance criteria are stated here. Checked against `origin/dev` 
 
 - [x] `refactor/architecture-boundaries` cut with `--no-track` from `origin/dev` at `ed0e783`;
       HEAD and upstream verified
-- [x] This kit: README, this file, `decisions.md` with D-01 to D-06
+- [x] This kit: README, this file, `decisions.md` with D-01 to D-06; D-07 added when CI failed
 - [x] #211's loose ends: `architecture-dead-code` D-01 to D-05 Accepted, README Done; ADR-0022
       Accepted, in its file and the registry; "As of" `ed0e783`
 
@@ -67,6 +67,9 @@ Lean kit: the acceptance criteria are stated here. Checked against `origin/dev` 
 - metric depends both ways on metric-log and on metric-settings: out of scope, filed as register
   row B-88 and frozen by D-01's test.
 - `src/features/public/metric-category/infrastructure/cache/cache.ts` has no caller: in scope, D-02.
+- A race in the three email queue tests, which failed CI once on #212: in scope, D-07. Each of
+  `PasswordResetEmailQueue`, `VerificationEmailQueue` and `InviteEmailQueue` now waits for the
+  row it reads next to commit. With RabbitMQ on, the three suites passed 4 runs of 4 locally
 
 ## Acceptance
 
@@ -89,7 +92,7 @@ Node 24.22.0; integration against throwaway Postgres 18 and Redis 7, migrated wi
 - [x] format — `prettier --check` on every touched file: clean
 - [x] tests — `test:unit:coverage` 149 suites, 1531 tests passed, thresholds met;
       `test:integration:coverage` 43 suites passed (2 skipped), 303 tests passed (6 skipped),
-      thresholds met
+      thresholds met, rerun with RabbitMQ on after D-07
 - [x] build — clean
 - [x] OpenAPI — `docs:openapi:check` clean, spec unchanged
 - [ ] security delta — skipped: no dependency change

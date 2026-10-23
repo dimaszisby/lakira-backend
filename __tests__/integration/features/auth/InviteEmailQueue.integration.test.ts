@@ -270,6 +270,14 @@ describe("The invite email via RabbitMQ", () => {
       (n) => n === 1,
     );
     expect(sender.sent[0].to).toBe(email);
+    // The email is sent inside the job's transaction, before the new hash commits, so
+    // another connection can see the email first.
+    const sentHash = sha256(tokenFrom(sender.sent[0]));
+    await pollUntil(
+      "the emailed token's hash to commit",
+      async () => (await invitesFor(orgId))[0]?.tokenHash,
+      (hash) => hash === sentHash,
+    );
 
     const invitee = await createTestUser({ email, username });
     const accept = await api
@@ -296,7 +304,14 @@ describe("The invite email via RabbitMQ", () => {
     expect(await depth(QUEUES.PARKING)).toBe(0);
 
     // The hash written by the failed attempt rolled back with it (D-02): the
-    // row holds the hash of the token that was sent.
+    // row holds the hash of the token that was sent. The email is sent before
+    // the job's transaction commits, so the hash is waited for.
+    const sentHash = sha256(tokenFrom(sender.sent[0]));
+    await pollUntil(
+      "the emailed token's hash to commit",
+      async () => (await invitesFor(orgId))[0]?.tokenHash,
+      (hash) => hash === sentHash,
+    );
     const rows = await invitesFor(orgId);
     expect(rows).toHaveLength(1);
     expect(rows[0].tokenHash).toBe(sha256(tokenFrom(sender.sent[0])));
