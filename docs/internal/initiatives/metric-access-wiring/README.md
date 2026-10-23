@@ -1,6 +1,6 @@
 # Metric access wiring
 
-**Status:** Implemented on `refactor/metric-access-wiring`; PR open. Register row B-88, found by
+**Status:** Done (#214, `d985155`). Register row B-88, found by
 [`architecture-boundaries`](../architecture-boundaries/README.md) D-01 (#212).
 **Slug:** `metric-access-wiring` · **Branch:** `refactor/metric-access-wiring`
 

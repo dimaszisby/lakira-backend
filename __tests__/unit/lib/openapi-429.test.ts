@@ -18,6 +18,9 @@ const METHODS = [
 
 type Responses = Record<string, { $ref?: string; description?: string }>;
 
+// The probes sit ahead of the limiter (openapi-contract-polish D-01).
+const UNTHROTTLED = ["GET /health", "GET /ready"];
+
 const operations = () => {
   const document = getOpenApiDocumentation();
   const paths = (document.paths ?? {}) as Record<
@@ -35,13 +38,23 @@ const operations = () => {
 };
 
 describe("OpenAPI: the 429 every operation can answer", () => {
-  it("is documented on every operation", () => {
-    const all = operations();
+  it("is documented on every operation but the probes", () => {
+    const all = operations().filter(({ name }) => !UNTHROTTLED.includes(name));
     expect(all.length).toBeGreaterThan(40);
     const missing = all
       .filter(({ operation }) => !operation.responses["429"])
       .map(({ name }) => name);
     expect(missing).toEqual([]);
+  });
+
+  it("is not documented on the probes, which run ahead of the limiter", () => {
+    const probes = operations().filter(({ name }) =>
+      UNTHROTTLED.includes(name),
+    );
+    expect(probes.map(({ name }) => name).sort()).toEqual(UNTHROTTLED);
+    expect(
+      probes.filter(({ operation }) => operation.responses["429"]),
+    ).toEqual([]);
   });
 
   it("is the shared response where an operation wrote none", () => {

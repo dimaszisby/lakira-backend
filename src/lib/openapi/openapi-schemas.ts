@@ -50,7 +50,7 @@ export const UuidSchema = registerSchema(
 export const RateLimitErrorSchema = registerSchema(
   "RateLimitError",
   z.object({
-    status: z.string().openapi({ example: "fail" }),
+    status: z.enum(["fail"]).openapi({ example: "fail" }),
     message: z
       .string()
       .openapi({ example: "Too many requests, please try again later." }),

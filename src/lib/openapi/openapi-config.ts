@@ -56,6 +56,11 @@ export const openApiDocument = {
       description: "Visualization and dashboard analytics endpoints",
     },
     {
+      name: "Health",
+      description:
+        "Liveness and readiness probes for the platform. They run ahead of the rate limiter and the HTTPS check, take no credentials, and are not fuzzed by the contract gate (openapi-contract-polish D-01).",
+    },
+    {
       name: "Admin",
       description:
         "Organization admin/owner surface. Excluded from the default contract-test tag set — these routes require an elevated role the seeded fixtures do not hold.",
@@ -135,7 +140,12 @@ export const openApiDocument = {
     // to hang the response on and Schemathesis never generates such a request. A
     // `MethodNotAllowedError` component would be unreferenced here and would
     // generate an unused type in lakira-frontend. The body it sends is the same
-    // envelope as everything else.
+    // envelope as everything else. The 404 `notFoundHandler` sends for a path no
+    // route matches is undocumented for the same reason
+    // (openapi-contract-polish D-04).
+    //
+    // `status` is an enum in each: `envelopeStatus` sends `fail` for a 4xx and
+    // `error` otherwise, and nothing else writes it (openapi-contract-polish D-02).
     responses: {
       UnauthorizedError: {
         description: "Authentication required or invalid token",
@@ -145,7 +155,7 @@ export const openApiDocument = {
               type: "object",
               required: ["status", "message"],
               properties: {
-                status: { type: "string", example: "fail" },
+                status: { type: "string", enum: ["fail"], example: "fail" },
                 message: { type: "string", example: "Unauthorized" },
               },
             },
@@ -160,7 +170,7 @@ export const openApiDocument = {
               type: "object",
               required: ["status", "message"],
               properties: {
-                status: { type: "string", example: "fail" },
+                status: { type: "string", enum: ["fail"], example: "fail" },
                 message: { type: "string", example: "Forbidden" },
               },
             },
@@ -175,7 +185,7 @@ export const openApiDocument = {
               type: "object",
               required: ["status", "message"],
               properties: {
-                status: { type: "string", example: "fail" },
+                status: { type: "string", enum: ["fail"], example: "fail" },
                 message: { type: "string", example: "Resource not found" },
               },
             },
@@ -190,7 +200,7 @@ export const openApiDocument = {
               type: "object",
               required: ["status", "message"],
               properties: {
-                status: { type: "string", example: "fail" },
+                status: { type: "string", enum: ["fail"], example: "fail" },
                 message: { type: "string", example: "Validation failed" },
                 // `field` — not `path`. The emitter
                 // (`zod-error-formatter.ts`) produces a dotted string such as
@@ -224,7 +234,7 @@ export const openApiDocument = {
               type: "object",
               required: ["status", "message"],
               properties: {
-                status: { type: "string", example: "error" },
+                status: { type: "string", enum: ["error"], example: "error" },
                 message: { type: "string", example: "Internal Server Error" },
               },
             },
@@ -239,8 +249,50 @@ export const openApiDocument = {
               type: "object",
               required: ["status", "message"],
               properties: {
-                status: { type: "string", example: "fail" },
+                status: { type: "string", enum: ["fail"], example: "fail" },
                 message: { type: "string", example: "Resource already exists" },
+              },
+            },
+          },
+        },
+      },
+      // `express.json` raises both on an operation that takes a body, and the
+      // error handler keeps them in the envelope (error-envelope-residuals
+      // D-02). The generator adds them to every operation with a request body
+      // (openapi-contract-polish D-03).
+      PayloadTooLargeError: {
+        description:
+          "The request body is larger than the server accepts (`REQUEST_BODY_LIMIT`, 1mb by default).",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["status", "message"],
+              properties: {
+                status: { type: "string", enum: ["fail"], example: "fail" },
+                message: {
+                  type: "string",
+                  example: "request entity too large",
+                },
+              },
+            },
+          },
+        },
+      },
+      UnsupportedMediaTypeError: {
+        description:
+          "The request body's charset or `Content-Encoding` is not supported. A JSON body's charset must be a UTF one (UTF-8 when none is given), and its encoding `identity`, `gzip` or `deflate`.",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["status", "message"],
+              properties: {
+                status: { type: "string", enum: ["fail"], example: "fail" },
+                message: {
+                  type: "string",
+                  example: 'unsupported charset "LATIN1"',
+                },
               },
             },
           },
@@ -260,7 +312,7 @@ export const openApiDocument = {
               type: "object",
               required: ["status", "message"],
               properties: {
-                status: { type: "string", example: "fail" },
+                status: { type: "string", enum: ["fail"], example: "fail" },
                 message: {
                   type: "string",
                   example: "Too many requests, please try again later.",

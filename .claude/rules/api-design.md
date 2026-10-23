@@ -123,10 +123,13 @@ wired in (C3, `docs/internal/todos/2026-09-01-todo-error-envelope.md`).
 - **405**: Method not allowed
 - **409**: Conflict (duplicate unique constraint)
 - **413**: Request body larger than `REQUEST_BODY_LIMIT`
-- **415**: Unsupported request charset or content encoding
+- **415**: Unsupported request charset or content encoding. The spec generator adds 413 and 415
+  to every operation with a request body, so a `registerPath` call never writes them
+  (`openapi-contract-polish` D-03)
 - **429**: Rate limit exceeded. The spec generator adds this response to every operation
   (`getOpenApiDocumentation`), so a `registerPath` call writes a 429 only when the route has a
-  limiter of its own and the text should name it
+  limiter of its own and the text should name it. The `Health` probes are the exception: they run
+  ahead of the limiter (D-01)
 - **500**: Internal server error
 
 A response header a client depends on is declared in the spec from the shared components in

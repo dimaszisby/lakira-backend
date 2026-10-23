@@ -2,7 +2,7 @@
 
 ## D-01 — A feature's factory takes another feature's adapter, and `src/composition/` supplies it
 
-- **Status:** Proposed
+- **Status:** Accepted (#214, `d985155`)
 - **Date:** 2026-10-23
 
 **Context.** metric's `infrastructure/http/dto.ts` imports metric-log's and metric-settings' response
@@ -28,7 +28,7 @@ another feature. A test that builds one of the three factories passes an access 
 
 ## D-02 — Guards: no pair, and no `feature.ts` naming another feature
 
-- **Status:** Proposed
+- **Status:** Accepted (#214, `d985155`)
 - **Date:** 2026-10-23
 
 **Context.** "No two features depend on each other both ways" freezes the two pairs, and nothing
@@ -44,7 +44,7 @@ from another's without a rule per feature, and the architecture test already par
 
 ## D-03 — What composition must supply is a parameter of its own, ahead of the overrides
 
-- **Status:** Proposed
+- **Status:** Accepted (#214, `d985155`)
 - **Date:** 2026-10-23
 
 **Context.** D-01 first made `metricAccess` a required field of each overrides bag, and
