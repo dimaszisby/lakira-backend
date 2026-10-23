@@ -97,9 +97,11 @@ in_image() {
 # ---------------------------------------------------------------------------
 if [[ -z "$IMAGE" ]]; then
   # Left in place afterwards on purpose: the next build reuses its layers.
+  # --pull, so a cached node:24-alpine never holds back a Node security
+  # release (node-24-runtime D-05).
   IMAGE="image-smoke:local"
   echo "[image-smoke] building ${IMAGE} from ./Dockerfile"
-  docker build -t "$IMAGE" . || fail "1. image builds"
+  docker build --pull -t "$IMAGE" . || fail "1. image builds"
   pass "1. image builds"
 else
   docker image inspect "$IMAGE" >/dev/null 2>&1 ||

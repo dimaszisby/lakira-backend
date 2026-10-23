@@ -234,3 +234,12 @@ error the same way every time` (`__tests__/unit/shared/middleware/cache.test.ts`
 branch does not touch. The file alone passed three times in a row, and the next full run passed
 (1526 tests). The first sighting outside the integration project: the flake is not tied to the
 integration server or its database.
+
+## 2026-10-23 — a `socket hang up` on Node 24.22.1
+
+On `ci/node-24-check-latest`, the first `npm run test:integration:coverage` on Node 24.22.1
+failed one test with `socket hang up`: `Metric API › updates a metric` (`metric.test.ts`), which
+the branch does not touch. 24.22.1 changed the HTTP agent (CVE-2026-105481), so the file was rerun
+five times on 24.22.1 and five times on 24.22.0: all ten passed. The next full run on 24.22.1, on
+fresh containers, passed (303 passed, 6 skipped). The same shape as the sightings above, and not
+tied to the patch release.

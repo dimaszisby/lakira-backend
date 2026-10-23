@@ -1,6 +1,6 @@
 # OpenAPI contract polish
 
-**Status:** Implemented on `fix/openapi-contract-polish`; PR open. Register row B-47: S14 of
+**Status:** Done (#215, `7acd1f9`). Register row B-47: S14 of
 `audit-2026-10-03.md`, open-unchanged in `audit-2026-10-20.md`.
 **Slug:** `openapi-contract-polish` · **Branch:** `fix/openapi-contract-polish`
 

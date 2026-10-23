@@ -9,6 +9,11 @@
 - **Origin:** `D-01`..`D-04` in the node-24-runtime kit —
   [`node-24-runtime`](../../internal/initiatives/node-24-runtime/decisions.md)
 
+> **Status note (2026-10-23).** A major-only pin receives a patch only where something fetches
+> it. Every `setup-node` step now sets `check-latest: true`, and `npm run docker:build` and the
+> image smoke build with `--pull`, so neither a runner's cached 24.x nor a locally cached
+> `node:24-alpine` holds back a security release (node-24-runtime D-05). Decisions 2 and 3 stand.
+
 ---
 
 ## Context

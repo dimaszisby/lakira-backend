@@ -155,6 +155,7 @@ Use `actions/setup-node@v4` with the version read from `.nvmrc` and npm caching:
   uses: actions/setup-node@v4
   with:
     node-version-file: .nvmrc
+    check-latest: true
     cache: npm
 ```
 
@@ -162,6 +163,10 @@ Locking the version:
 
 - Ensures consistency between local dev and CI,
 - Reduces “works-on-my-machine” issues.
+
+`.nvmrc` names the major only (`24`). Without `check-latest: true`, `setup-node` uses whatever
+24.x the runner image has cached, which can trail a Node security release by days. With it, every
+run resolves the newest 24.x (node-24-runtime D-05).
 
 ### 4.2 Dependency Installation
 
@@ -364,6 +369,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+          check-latest: true
           cache: npm
       - run: npm ci
       - run: npm run lint
@@ -413,6 +419,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+          check-latest: true
           cache: npm
       - run: npm ci
       - run: npm run build
@@ -462,6 +469,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+          check-latest: true
           cache: npm
       - run: npm ci
       - run: npm run build

@@ -2,7 +2,7 @@
 
 ## D-01 — The probes are in the spec, under a tag the contract gate does not fuzz
 
-- **Status:** Proposed
+- **Status:** Accepted (#215, `7acd1f9`)
 - **Date:** 2026-10-23
 
 **Context.** `GET /api/v1/health` and `GET /api/v1/ready` (`src/app.ts`) were not in the spec, so
@@ -27,7 +27,7 @@ gains its first exception, by tag.
 
 ## D-02 — The error envelope's `status` is an enum
 
-- **Status:** Proposed
+- **Status:** Accepted (#215, `7acd1f9`)
 - **Date:** 2026-10-23
 
 **Context.** The seven error components typed `status` as a bare `string`, though
@@ -46,7 +46,7 @@ field is unaffected, so there is no Notion record.
 
 ## D-03 — 413 and 415 are on every operation that takes a body
 
-- **Status:** Proposed
+- **Status:** Accepted (#215, `7acd1f9`)
 - **Date:** 2026-10-23
 
 **Context.** `express.json` answers an oversized body with 413 and an unsupported charset or
@@ -65,7 +65,7 @@ would document statuses it cannot produce. _Each `registerPath` call writes its 
 
 ## D-04 — The unknown-route 404 stays undocumented
 
-- **Status:** Proposed
+- **Status:** Accepted (#215, `7acd1f9`)
 - **Date:** 2026-10-23
 
 **Context.** S14 also names the 404 `notFoundHandler` sends for a path nothing matched.
