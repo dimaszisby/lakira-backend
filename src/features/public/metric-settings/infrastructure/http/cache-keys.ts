@@ -2,10 +2,14 @@ import { AuthRequest } from "@/types/request.context.js";
 import { buildCursorCacheKey } from "@/shared/cache/keys.js";
 import { pickValidated } from "@/shared/middleware/validated.js";
 import { assertAuthenticated } from "@/utils/auth-guards.js";
-import { listMetricSettingsViaCursorSchema } from "./schema.zod.js";
+import {
+  getMetricSettingsSchema,
+  listMetricSettingsViaCursorSchema,
+} from "./schema.zod.js";
 import {
   METRIC_SETTINGS_CURSOR_FEATURE,
   METRIC_SETTINGS_CURSOR_VERSION,
+  metricSettingEntryKey,
 } from "../../application/cache.constants.js";
 
 /**
@@ -35,4 +39,14 @@ export const metricSettingsCursorCacheKey = (req: AuthRequest) => {
       ["it", query.includeTotal],
     ],
   });
+};
+
+/**
+ * Cache key for `GET /metric-settings/:id`, from the validated id. It read raw
+ * `req.params` (api-tooling-residuals D-03, audit X11).
+ */
+export const metricSettingCacheKey = (req: AuthRequest) => {
+  assertAuthenticated(req);
+  const { params } = pickValidated(getMetricSettingsSchema)(req);
+  return metricSettingEntryKey(req.user.organizationId, req.user.id, params.id);
 };

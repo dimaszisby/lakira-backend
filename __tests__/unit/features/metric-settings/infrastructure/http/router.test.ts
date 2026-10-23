@@ -1,6 +1,9 @@
 import { jest } from "@jest/globals";
 import { createMetricSettingsRouter } from "@/features/metric-settings/infrastructure/http/router.js";
-import { metricSettingsCursorCacheKey } from "@/features/metric-settings/infrastructure/http/cache-keys.js";
+import {
+  metricSettingCacheKey,
+  metricSettingsCursorCacheKey,
+} from "@/features/metric-settings/infrastructure/http/cache-keys.js";
 
 type RouterDouble = {
   use: jest.Mock;
@@ -257,18 +260,13 @@ describe("metric settings router", () => {
     ]);
   });
 
-  it("builds cache keys for detail routes using user + metricSetting ids", () => {
+  // The key's own rules are tested in cache-keys.test.ts (api-tooling-residuals D-03).
+  it("caches the detail route under metricSettingCacheKey", () => {
     buildRouter();
-    const detailKeyFn = cacheMiddlewareMock.mock.calls[1][0] as (
-      req: any,
-    ) => string;
 
-    const req: any = {
-      user: { id: "user-A", organizationId: "org-A" },
-      params: { id: "settings-9" },
-    };
-
-    const key = detailKeyFn(req);
-    expect(key).toBe("metricSetting:org-A:user-A:settings-9");
+    expect(cacheMiddlewareMock.mock.calls[1]).toEqual([
+      metricSettingCacheKey,
+      300,
+    ]);
   });
 });

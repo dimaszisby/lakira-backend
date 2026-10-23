@@ -48,6 +48,9 @@ Per route (`src/shared/middleware/rate-limiter.ts`):
 - **Switch org**: per 15 min, `RATE_LIMIT_SWITCH_ORG_MAX`
 - **Registration**: per hour, per client IP, first in the `POST /auth/register` chain,
   `RATE_LIMIT_REGISTER_IP_MAX` (ADR-0053)
+- **Login**: 50 req / 15 min per client IP, `RATE_LIMIT_LOGIN_MAX`; **refresh and logout**
+  together: 50 req / 15 min per client IP, `RATE_LIMIT_AUTH_SESSION_MAX`. Each is first in its
+  chain, apart from the other's budget (`api-tooling-residuals` D-08)
 - **Password reset** and **email verification**: per hour, each keyed both by email and by IP.
   The token-submitting routes, `/reset-password` and `/verify-email`, go through the per-IP
   limiter of the route that sent the token, first in their chain
@@ -56,7 +59,8 @@ Per route (`src/shared/middleware/rate-limiter.ts`):
 A limiter keyed by user (`userRateLimiter`, `switchOrgRateLimiter`, `analyticsRateLimiter`) runs
 **after** `authMiddleware` on any route that has it: ahead of it there is no `req.user`, and the
 request is counted by IP (`register-rate-limiter` D-06). `architecture.test.ts` fails on a router
-call that puts one first. Under Redis, each limiter counts under its own prefix, `rl:<name>:`, set
+call that puts one first, and on one in a route no `authMiddleware` covers: login, refresh and
+logout shared `userRateLimiter`'s IP fallback until `api-tooling-residuals` D-08. Under Redis, each limiter counts under its own prefix, `rl:<name>:`, set
 by `maybeCreateStore(name)`; with one shared prefix the global limiter and an IP fallback counted
 the same key (D-07). A new limiter passes a name of its own.
 

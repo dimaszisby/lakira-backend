@@ -14,12 +14,9 @@ import {
   deleteMetricCategorySchema,
   generateDummyMetricCategoriesSchema,
 } from "./schema.zod.js";
-import { AuthRequest } from "@/types/request.context.js";
 import { methodNotAllowed } from "@/shared/middleware/method-guard.js";
 import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.js";
-
-const categoryCacheKey = (req: AuthRequest) =>
-  `category:${req.user?.organizationId}:${req.user?.id}:${req.params.id}`;
+import { categoryCacheKey } from "./cache-keys.js";
 
 export const createMetricCategoryRouter = (feature: MetricCategoryFeature) => {
   const controller = createMetricCategoryController(feature);

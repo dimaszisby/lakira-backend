@@ -724,7 +724,8 @@ describe("Architecture enforcement", () => {
       expect(offenders).toEqual([]);
       expect(
         limiterCalls(fs.readFileSync(path.join(SRC, LIMITER_FILE), "utf-8")),
-      ).toHaveLength(9);
+        // 11: login and auth-session (api-tooling-residuals D-08).
+      ).toHaveLength(11);
     });
 
     it("only rate-limiter.ts imports express-rate-limit", () => {
@@ -887,6 +888,40 @@ describe("Architecture enforcement", () => {
       expect(files.map((file) => path.basename(file))).toEqual(
         expect.arrayContaining(["organization.router.ts", "router.ts"]),
       );
+    });
+
+    // Kit api-tooling-residuals, D-08 (audit X26). On a route no authMiddleware
+    // covers, a user-keyed limiter finds no user and counts by IP, in the bucket
+    // the per-user routes share: /login, /logout and /refresh all did.
+    const limitersWithoutAuth = (content: string): string[] =>
+      /\brouter\.use\(\s*authMiddleware\b/.test(content)
+        ? []
+        : routerCalls(content).filter(
+            (call) =>
+              USER_KEYED_LIMITER.test(call) && !/\bauthMiddleware\b/.test(call),
+          );
+
+    it("flags a user-keyed limiter on a route no authMiddleware covers", () => {
+      const open = [
+        'router.post("/login", userRateLimiter, login);',
+        'router.put("/profile", authMiddleware, userRateLimiter, update);',
+        'router.post("/refresh", authSessionRateLimiter, refresh);',
+      ].join("\n");
+      const covered = ["router.use(authMiddleware);", open].join("\n");
+
+      expect(limitersWithoutAuth(open)).toHaveLength(1);
+      expect(limitersWithoutAuth(covered)).toHaveLength(0);
+    });
+
+    it("finds no user-keyed limiter without auth in src/features", () => {
+      const offenders = routerFiles()
+        .map((file) => ({
+          file: path.relative(SRC_FEATURES, file).split(path.sep).join("/"),
+          calls: limitersWithoutAuth(fs.readFileSync(file, "utf-8")).length,
+        }))
+        .filter(({ calls }) => calls !== 0);
+
+      expect(offenders).toEqual([]);
     });
   });
 

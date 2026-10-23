@@ -7,6 +7,7 @@ import {
   resolveRelativeRange,
   type RelativeUnit,
 } from "../../domain/relative-range.js";
+import { isIanaTimeZone } from "@/utils/time-zone.js";
 
 const DEFAULT_TZ = env.DEFAULT_TZ;
 const BucketEnum = z.enum(["1h", "1d", "1w", "1m", "1y"]);
@@ -28,14 +29,7 @@ const RelativeWindow = z
 const tzSchema = z
   .string()
   .default(DEFAULT_TZ)
-  .refine((tz) => {
-    try {
-      new Intl.DateTimeFormat("en-US", { timeZone: tz });
-      return true;
-    } catch {
-      return false;
-    }
-  }, "Invalid IANA time zone");
+  .refine(isIanaTimeZone, "Invalid IANA time zone");
 
 const validateAbsoluteRange = (
   start: string | undefined,

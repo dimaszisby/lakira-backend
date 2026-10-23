@@ -10,6 +10,7 @@ import {
   changeMemberRoleSchema,
   removeMembershipSchema,
   listMembersSchema,
+  listMyOrganizationsSchema,
 } from "./organization.schema.zod.js";
 import { methodNotAllowed } from "@/shared/middleware/method-guard.js";
 import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.js";
@@ -22,6 +23,7 @@ export const createOrganizationRouter = (feature: AuthFeature) => {
     "/",
     authMiddleware,
     userRateLimiter,
+    validate(listMyOrganizationsSchema),
     controller.listMyOrganizations,
   );
 

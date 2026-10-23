@@ -57,6 +57,7 @@ import {
   AcceptInviteRequestSchema,
   ChangeMemberRoleRequestSchema,
   MemberListResponseSchema,
+  MembershipPageQuerySchema,
   UserOrganizationListResponseSchema,
   successEnvelope,
 } from "./openapi-schemas.js";
@@ -605,9 +606,11 @@ registry.registerPath({
     "Returns the organizations the authenticated user holds an active membership in, " +
     "oldest membership first, with the caller's role in each. `isCurrent` marks the " +
     "organization the access token is scoped to; pass any listed `organizationId` to " +
-    "`POST /auth/switch-org`. Scoped to the caller: it takes no parameters and never " +
-    "lists another user's organizations.",
+    "`POST /auth/switch-org`. Scoped to the caller: it never lists another user's " +
+    "organizations. Paged by cursor, 100 per page unless `limit` says fewer; follow " +
+    "`nextCursor` until it is null.",
   security: [{ BearerAuth: [] }],
+  request: { query: MembershipPageQuerySchema },
   responses: {
     200: {
       description: "The caller's organizations",
@@ -616,6 +619,9 @@ registry.registerPath({
           schema: UserOrganizationListResponseSchema,
         },
       },
+    },
+    400: {
+      $ref: "#/components/responses/BadRequestError",
     },
     401: {
       $ref: "#/components/responses/UnauthorizedError",
@@ -632,10 +638,12 @@ registry.registerPath({
   tags: ["Organizations"],
   summary: "List organization members",
   description:
-    "Returns all active memberships for the organization with user details. " +
-    "Any member of the organization can call this endpoint.",
+    "Returns the organization's memberships, of every status, with user details, " +
+    "oldest first. Any member of the organization can call this endpoint. Paged by " +
+    "cursor, 100 per page unless `limit` says fewer; follow `nextCursor` until it is null.",
   security: [{ BearerAuth: [] }],
   request: {
+    query: MembershipPageQuerySchema,
     params: z.object({
       id: z.string().uuid().openapi({
         description: "Organization ID",
@@ -651,6 +659,9 @@ registry.registerPath({
           schema: MemberListResponseSchema,
         },
       },
+    },
+    400: {
+      $ref: "#/components/responses/BadRequestError",
     },
     401: {
       $ref: "#/components/responses/UnauthorizedError",

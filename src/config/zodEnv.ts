@@ -1,5 +1,6 @@
 import "./loadEnv.js";
 import { z } from "zod";
+import { isIanaTimeZone } from "@/utils/time-zone.js";
 
 // Tokens are HS256, so the secret's strength is the signature's. Both are checked in
 // the superRefine below, in production and staging (ADR-0036; kit
@@ -453,6 +454,30 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           return parsed;
         })
         .default("10"),
+      // POST /auth/login, per IP per 15 minutes (api-tooling-residuals D-08).
+      RATE_LIMIT_LOGIN_MAX: z
+        .string()
+        .transform((val) => {
+          const parsed = parseInt(val, 10);
+          if (isNaN(parsed) || parsed <= 0) {
+            throw new Error("RATE_LIMIT_LOGIN_MAX must be a positive number");
+          }
+          return parsed;
+        })
+        .default("50"),
+      // POST /auth/refresh and /auth/logout, per IP per 15 minutes (api-tooling-residuals D-08).
+      RATE_LIMIT_AUTH_SESSION_MAX: z
+        .string()
+        .transform((val) => {
+          const parsed = parseInt(val, 10);
+          if (isNaN(parsed) || parsed <= 0) {
+            throw new Error(
+              "RATE_LIMIT_AUTH_SESSION_MAX must be a positive number",
+            );
+          }
+          return parsed;
+        })
+        .default("50"),
       // POST /auth/register, per IP per hour (ADR-0053).
       RATE_LIMIT_REGISTER_IP_MAX: z
         .string()
@@ -476,7 +501,12 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
         .int()
         .positive()
         .default(96),
-      DEFAULT_TZ: z.string().default("Asia/Jakarta"),
+      // An offset is read with opposite signs by Intl and Postgres
+      // (api-tooling-residuals D-01).
+      DEFAULT_TZ: z
+        .string()
+        .default("Asia/Jakarta")
+        .refine(isIanaTimeZone, "DEFAULT_TZ must be an IANA time zone or UTC"),
     })
     .superRefine((data, ctx) => {
       // ADR-0036: a switch whose value weakens a production security control must be

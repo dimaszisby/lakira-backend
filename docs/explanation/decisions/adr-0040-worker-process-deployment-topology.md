@@ -12,6 +12,11 @@
 > Compose service (opt-in `worker` profile) and CI coverage of the queue path (`85b4e77`, #86).
 > There is no staging or production deployment, and ADR-0042 moves that target to the VPS.
 
+> **Status note (2026-10-23).** Decision 5 is carried out: `worker:staging` was still in
+> `package.json`, with `staging` and `prod`, which ran the server from `src/` the same way. All three
+> are deleted, and `ts-node`, which only they used, left `devDependencies`
+> (`api-tooling-residuals` D-05, audit X25). The worker runs as `npm run worker`, from `dist/`.
+
 ---
 
 ## Context

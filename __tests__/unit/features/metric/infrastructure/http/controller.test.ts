@@ -158,7 +158,8 @@ describe("Metric HTTP controller", () => {
     expect(getMetricDetailExecute).toHaveBeenCalledWith({
       userId,
       metricId,
-      includes: ["settings", "category", "logs"],
+      // One order, the cache key's (api-tooling-residuals D-03).
+      includes: ["category", "logs", "settings"],
       logsLimit: 10,
     });
     expect(response.status).toHaveBeenCalledWith(200);

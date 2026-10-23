@@ -2,7 +2,7 @@
 
 ## D-01 — The spec describes the dashboard response as it is sent
 
-- **Status:** Proposed
+- **Status:** Accepted (#217, `28b731f`)
 - **Date:** 2026-10-23
 
 **Context.** The controller sends the repository's response whole. The spec's dashboard item
@@ -27,7 +27,7 @@ reader is unaffected, so there is no Notion record.
 
 ## D-02 — A fallback keeps the requested bucket
 
-- **Status:** Proposed
+- **Status:** Accepted (#217, `28b731f`)
 - **Date:** 2026-10-23
 
 **Context.** `computeFallbackRange` coarsens the bucket while its estimate exceeds
@@ -49,7 +49,7 @@ that was never queried.
 
 ## D-03 — Bucket labels do not depend on the server process's zone
 
-- **Status:** Proposed
+- **Status:** Accepted (#217, `28b731f`)
 - **Date:** 2026-10-23
 
 **Context.** `bucket_start` and `latest_bucket_start` are `timestamp without time zone`, the

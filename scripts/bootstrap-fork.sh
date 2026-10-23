@@ -9,7 +9,7 @@
 #   1. Replaces "lakira-backend" with <new-name> in package.json,
 #      package-lock.json, .env.example, and CI workflows, and renames the
 #      generated OpenAPI spec to <new-name>-openapi.json to match: the spec's
-#      path comes from the package name (scripts/openapi-spec-path.ts).
+#      path comes from the package name (scripts/openapi-spec-path.js).
 #   2. Replaces "lakira" with the derived short name (strip -backend suffix)
 #      in DB names and CI DB refs. The running app's queue names come from
 #      src/config/app-name.ts, not from here. Database

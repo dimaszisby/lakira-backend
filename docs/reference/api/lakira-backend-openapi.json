@@ -621,9 +621,14 @@
                     "items": {
                       "$ref": "#/components/schemas/Member"
                     }
+                  },
+                  "nextCursor": {
+                    "type": ["string", "null"],
+                    "description": "Pass as `after` for the next page; null on the last page. A page can hold fewer rows than `limit` and still be followed by another.",
+                    "example": null
                   }
                 },
-                "required": ["members"]
+                "required": ["members", "nextCursor"]
               }
             }
           }
@@ -684,9 +689,14 @@
                     "items": {
                       "$ref": "#/components/schemas/UserOrganization"
                     }
+                  },
+                  "nextCursor": {
+                    "type": ["string", "null"],
+                    "description": "Pass as `after` for the next page; null on the last page. A page can hold fewer rows than `limit` and still be followed by another.",
+                    "example": null
                   }
                 },
-                "required": ["organizations"]
+                "required": ["organizations", "nextCursor"]
               }
             }
           }
@@ -2978,10 +2988,32 @@
       "get": {
         "tags": ["Organizations"],
         "summary": "List the caller's organizations",
-        "description": "Returns the organizations the authenticated user holds an active membership in, oldest membership first, with the caller's role in each. `isCurrent` marks the organization the access token is scoped to; pass any listed `organizationId` to `POST /auth/switch-org`. Scoped to the caller: it takes no parameters and never lists another user's organizations.",
+        "description": "Returns the organizations the authenticated user holds an active membership in, oldest membership first, with the caller's role in each. `isCurrent` marks the organization the access token is scoped to; pass any listed `organizationId` to `POST /auth/switch-org`. Scoped to the caller: it never lists another user's organizations. Paged by cursor, 100 per page unless `limit` says fewer; follow `nextCursor` until it is null.",
         "security": [
           {
             "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required": false,
+            "description": "Rows per page, 1 to 100; 100 when omitted",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "description": "Opaque cursor returned from the previous page",
+            "name": "after",
+            "in": "query"
           }
         ],
         "responses": {
@@ -2994,6 +3026,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
           },
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
@@ -3011,7 +3046,7 @@
       "get": {
         "tags": ["Organizations"],
         "summary": "List organization members",
-        "description": "Returns all active memberships for the organization with user details. Any member of the organization can call this endpoint.",
+        "description": "Returns the organization's memberships, of every status, with user details, oldest first. Any member of the organization can call this endpoint. Paged by cursor, 100 per page unless `limit` says fewer; follow `nextCursor` until it is null.",
         "security": [
           {
             "BearerAuth": []
@@ -3028,6 +3063,26 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required": false,
+            "description": "Rows per page, 1 to 100; 100 when omitted",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "description": "Opaque cursor returned from the previous page",
+            "name": "after",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3040,6 +3095,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
           },
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"

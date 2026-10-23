@@ -14,16 +14,12 @@ import {
   updateDisplayOptionsSchema,
   goalAchievementSchema,
 } from "./schema.zod.js";
-import { AuthRequest } from "@/types/request.context.js";
 import { methodNotAllowed } from "@/shared/middleware/method-guard.js";
 import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.js";
-import { metricSettingsCursorCacheKey } from "./cache-keys.js";
-
-// const metricSettingsCacheKey = (req: AuthRequest) =>
-//   `metricSettings:${req.user?.id}:${req.query.metricId || "all"}`;
-
-const metricSettingCacheKey = (req: AuthRequest) =>
-  `metricSetting:${req.user?.organizationId}:${req.user?.id}:${req.params.id}`;
+import {
+  metricSettingCacheKey,
+  metricSettingsCursorCacheKey,
+} from "./cache-keys.js";
 
 export const createMetricSettingsRouter = (feature: MetricSettingsFeature) => {
   const controller = createMetricSettingsController(feature);

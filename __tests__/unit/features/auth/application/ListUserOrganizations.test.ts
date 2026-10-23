@@ -32,6 +32,8 @@ const makeOrg = (id: string) =>
     deletedAt: null,
   });
 
+const PAGE = { limit: 100 };
+
 const build = () => {
   const membershipRepo: jest.Mocked<MembershipRepository> = {
     findById: jest.fn(),
@@ -39,6 +41,8 @@ const build = () => {
     findDefaultByUser: jest.fn(),
     findAllByUser: jest.fn(),
     findAllByOrganization: jest.fn(),
+    findActivePageByUser: jest.fn(),
+    findPageByOrganization: jest.fn(),
     countByOrgAndRole: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
@@ -63,19 +67,24 @@ describe("ListUserOrganizations query", () => {
 
   it("lists the user's organizations and marks the current one", async () => {
     const { sut, membershipRepo, orgRepo } = build();
-    membershipRepo.findAllByUser.mockResolvedValue([
-      makeMembership("a", { role: "owner" }),
-      makeMembership("b"),
-    ]);
+    membershipRepo.findActivePageByUser.mockResolvedValue({
+      items: [makeMembership("a", { role: "owner" }), makeMembership("b")],
+      next: null,
+    });
     orgRepo.findByIds.mockResolvedValue([makeOrg("a"), makeOrg("b")]);
 
     const result = await sut.execute({
       userId: "user-1",
       currentOrganizationId: "b",
+      page: PAGE,
     });
 
-    expect(membershipRepo.findAllByUser).toHaveBeenCalledWith("user-1");
-    expect(result).toEqual([
+    expect(membershipRepo.findActivePageByUser).toHaveBeenCalledWith(
+      "user-1",
+      PAGE,
+    );
+    expect(result.next).toBeNull();
+    expect(result.organizations).toEqual([
       {
         organizationId: "a",
         name: "Org a",
@@ -95,51 +104,59 @@ describe("ListUserOrganizations query", () => {
     ]);
   });
 
-  it("excludes memberships that are not active", async () => {
+  // Kit api-tooling-residuals, D-09 (audit X27). The repository reads active
+  // memberships a page at a time; where the page ended is passed back as is.
+  it("returns where the next page starts", async () => {
     const { sut, membershipRepo, orgRepo } = build();
-    membershipRepo.findAllByUser.mockResolvedValue([
-      makeMembership("a"),
-      makeMembership("b", { status: "invited" }),
-      makeMembership("c", { status: "removed" }),
-    ]);
+    const next = { joinedAt: new Date("2026-09-02T00:00:00Z"), id: "m-a" };
+    membershipRepo.findActivePageByUser.mockResolvedValue({
+      items: [makeMembership("a")],
+      next,
+    });
     orgRepo.findByIds.mockResolvedValue([makeOrg("a")]);
 
     const result = await sut.execute({
       userId: "user-1",
       currentOrganizationId: "a",
+      page: { limit: 1 },
     });
 
-    expect(orgRepo.findByIds).toHaveBeenCalledWith(["a"]);
-    expect(result.map((o) => o.organizationId)).toEqual(["a"]);
+    expect(result.next).toBe(next);
+    expect(result.organizations.map((o) => o.organizationId)).toEqual(["a"]);
   });
 
   it("skips a membership whose organization is not found", async () => {
     const { sut, membershipRepo, orgRepo } = build();
-    membershipRepo.findAllByUser.mockResolvedValue([
-      makeMembership("a"),
-      makeMembership("deleted"),
-    ]);
+    membershipRepo.findActivePageByUser.mockResolvedValue({
+      items: [makeMembership("a"), makeMembership("deleted")],
+      next: null,
+    });
     orgRepo.findByIds.mockResolvedValue([makeOrg("a")]);
 
     const result = await sut.execute({
       userId: "user-1",
       currentOrganizationId: "a",
+      page: PAGE,
     });
 
-    expect(result.map((o) => o.organizationId)).toEqual(["a"]);
+    expect(result.organizations.map((o) => o.organizationId)).toEqual(["a"]);
   });
 
   it("returns an empty list when the user has no memberships", async () => {
     const { sut, membershipRepo, orgRepo } = build();
-    membershipRepo.findAllByUser.mockResolvedValue([]);
+    membershipRepo.findActivePageByUser.mockResolvedValue({
+      items: [],
+      next: null,
+    });
     orgRepo.findByIds.mockResolvedValue([]);
 
     const result = await sut.execute({
       userId: "user-1",
       currentOrganizationId: "a",
+      page: PAGE,
     });
 
-    expect(result).toEqual([]);
+    expect(result.organizations).toEqual([]);
     expect(orgRepo.findByIds).toHaveBeenCalledWith([]);
   });
 });

@@ -95,6 +95,11 @@ wired in (C3, `docs/internal/todos/2026-09-01-todo-error-envelope.md`).
   filter (audit R2; kit `list-cache-key-filters`). Every field that changes the result is a
   segment. Examples: `src/features/public/metric/infrastructure/http/cache-keys.ts`,
   `…/metric-settings/infrastructure/http/cache-keys.ts`
+- A single resource's key (`metric:`, `category:`, `metricSetting:`) is spelled by one function in
+  the feature's `application/cache.constants.ts`, and the route's key generator and every
+  invalidation call it. Spelled twice, the category invalidation left out the organization, and
+  an updated or deleted category was served from the cache for ten minutes
+  (`api-tooling-residuals` D-03, register row B-90)
 - Keys are tenant-scoped through `buildCursorCacheKey` (ADR-0035), which requires an
   organization: a key generator calls `assertAuthenticated(req)` first, and its throw makes
   `cacheMiddleware` skip the cache (`architecture-boundaries` D-03). Bump the feature's

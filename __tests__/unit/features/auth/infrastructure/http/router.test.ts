@@ -29,6 +29,8 @@ const { Router: RouterMock } = jest.requireMock("express") as {
 jest.mock("@/shared/middleware/rate-limiter.js", () => ({
   registerIpRateLimiter: "registerIpRateLimiter",
   userRateLimiter: "userRateLimiter",
+  loginRateLimiter: "loginRateLimiter",
+  authSessionRateLimiter: "authSessionRateLimiter",
   passwordResetEmailRateLimiter: "passwordResetEmailRateLimiter",
   passwordResetIpRateLimiter: "passwordResetIpRateLimiter",
   switchOrgRateLimiter: "switchOrgRateLimiter",
@@ -106,6 +108,22 @@ describe("auth router", () => {
     const call = router.post.mock.calls.find(([p]) => p === path);
 
     expect(call?.[1]).toBe(limiter);
+    expect(call?.[call.length - 1]).toBe(handler);
+  });
+
+  // Kit api-tooling-residuals, D-08 (audit X26). These routes have no user, so
+  // userRateLimiter counted all three by IP in one bucket: refreshes spent the
+  // logins' budget. Each now has a per-IP limiter of its own, first in its chain.
+  it.each([
+    ["/login", "loginRateLimiter", "login"],
+    ["/refresh", "authSessionRateLimiter", "refresh"],
+    ["/logout", "authSessionRateLimiter", "logout"],
+  ])("puts a limiter of its own first on POST %s", (path, limiter, handler) => {
+    const router = routerFor();
+    const call = router.post.mock.calls.find(([p]) => p === path);
+
+    expect(call?.[1]).toBe(limiter);
+    expect(call).not.toContain("userRateLimiter");
     expect(call?.[call.length - 1]).toBe(handler);
   });
 

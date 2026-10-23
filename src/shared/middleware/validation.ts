@@ -19,7 +19,8 @@ type SchemaBag = {
 
 const handleError = (res: Response, error: ZodError) => {
   const formattedErrors = formatZodIssues(error);
-  logger.error("Validation Errors:", { issues: describeZodIssues(error) });
+  // The client's mistake: at warn, as every other 4xx (api-tooling-residuals D-02).
+  logger.warn("Validation Errors:", { issues: describeZodIssues(error) });
   sendError(res, 400, VALIDATION_FAILED_MESSAGE, { errors: formattedErrors });
 };
 

@@ -28,6 +28,11 @@ const loggerErrorSpy = jest
   .mockImplementation(() => logger) as unknown as jest.SpiedFunction<
   (message: string, ...meta: unknown[]) => typeof logger
 >;
+const loggerWarnSpy = jest
+  .spyOn(logger, "warn")
+  .mockImplementation(() => logger) as unknown as jest.SpiedFunction<
+  (message: string, ...meta: unknown[]) => typeof logger
+>;
 
 const makeRequest = (overrides: Partial<AuthRequest>): AuthRequest =>
   ({
@@ -44,6 +49,7 @@ describe("validation middleware", () => {
 
   afterAll(() => {
     loggerErrorSpy.mockRestore();
+    loggerWarnSpy.mockRestore();
   });
 
   it("passes through when no schema is provided", () => {
@@ -110,8 +116,9 @@ describe("validation middleware", () => {
   });
 
   // Kit log-redaction-coverage, D-09. Zod's enum message repeats the value it
-  // rejected, so the line carries the field and the issue code only.
-  it("logs a failure by field and code, not by Zod's message", () => {
+  // rejected, so the line carries the field and the issue code only. At warn, as
+  // every other 4xx is (api-tooling-residuals D-02, audit X22).
+  it("logs a failure at warn, by field and code, not by Zod's message", () => {
     const schema = z.object({
       query: z.object({ sortOrder: z.enum(["ASC", "DESC"]) }),
     });
@@ -119,11 +126,12 @@ describe("validation middleware", () => {
 
     validate(schema)(req, createResponse(), jest.fn() as NextFunction);
 
-    expect(loggerErrorSpy).toHaveBeenCalledTimes(1);
-    expect(loggerErrorSpy).toHaveBeenCalledWith("Validation Errors:", {
+    expect(loggerErrorSpy).not.toHaveBeenCalled();
+    expect(loggerWarnSpy).toHaveBeenCalledTimes(1);
+    expect(loggerWarnSpy).toHaveBeenCalledWith("Validation Errors:", {
       issues: [{ field: "query.sortOrder", code: "invalid_enum_value" }],
     });
-    expect(JSON.stringify(loggerErrorSpy.mock.calls)).not.toContain(
+    expect(JSON.stringify(loggerWarnSpy.mock.calls)).not.toContain(
       "victim@example.com",
     );
   });

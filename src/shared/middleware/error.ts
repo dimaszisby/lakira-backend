@@ -100,8 +100,9 @@ export const createErrorHandler =
   (err: Error, req: AuthRequest, res: Response, next: NextFunction): void => {
     void next;
     if (isBodyParseError(err)) {
-      // Not the error: its message and stack quote the start of the body.
-      logger.error("Invalid JSON payload received", { type: err.type });
+      // Not the error: its message and stack quote the start of the body. At
+      // warn, as every other 4xx (api-tooling-residuals D-02).
+      logger.warn("Invalid JSON payload received", { type: err.type });
       sendError(res, 400, MALFORMED_JSON_MESSAGE, {
         errors: [{ field: "body", message: MALFORMED_JSON_MESSAGE }],
       });
@@ -109,7 +110,7 @@ export const createErrorHandler =
     }
     if (err instanceof ZodError) {
       const formattedErrors = formatZodIssues(err);
-      logger.error("Validation Errors:", { issues: describeZodIssues(err) });
+      logger.warn("Validation Errors:", { issues: describeZodIssues(err) });
       sendError(res, 400, VALIDATION_FAILED_MESSAGE, {
         errors: formattedErrors,
       });

@@ -11,3 +11,12 @@ export const METRIC_CATEGORY_CURSOR_NAMESPACE_ALL = cursorCacheNamespace(
   METRIC_CATEGORY_CURSOR_FEATURE,
   "*",
 );
+
+// `GET /metric-categories/:id`. Its route builds the key and every category write
+// deletes it, both from here: the writes once spelled it without the organization, so
+// nothing they deleted matched (api-tooling-residuals D-03, register row B-90).
+export const categoryEntryKey = (
+  organizationId: string,
+  userId: string,
+  categoryId: string,
+): string => `category:${organizationId}:${userId}:${categoryId}`;

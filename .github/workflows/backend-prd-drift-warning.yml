@@ -68,7 +68,7 @@ jobs:
           while IFS= read -r file; do
             [[ -z "$file" ]] && continue
 
-            if [[ "$file" == "docs/documentation/product/lakira-backend-prd.md" ]]; then
+            if [[ "$file" == "docs/explanation/product-requirements.md" ]]; then
               PRD_CHANGED=true
             fi
 
@@ -94,7 +94,7 @@ jobs:
       - name: Emit warning annotation
         if: steps.drift.outputs.contract_changed == 'true' && steps.drift.outputs.prd_changed != 'true'
         run: |
-          echo "::warning title=Backend PRD Drift Guard::Contract-related backend files changed without updating docs/documentation/product/lakira-backend-prd.md. Review cadence expects a PRD check."
+          echo "::warning title=Backend PRD Drift Guard::Contract-related backend files changed without updating docs/explanation/product-requirements.md. Review cadence expects a PRD check."
 
       - name: Job summary
         run: |
