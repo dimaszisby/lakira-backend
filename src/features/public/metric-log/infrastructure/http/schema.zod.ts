@@ -14,6 +14,7 @@ extendZodWithOpenApi(z);
 
 const normalizedSearchParam = z
   .union([z.string(), z.undefined(), z.null()])
+  .optional()
   .transform((value) => {
     if (typeof value !== "string") return undefined;
     return value.trim();
@@ -60,7 +61,7 @@ const FilterSchema = z
   .strict();
 
 export const metricLogParams = z.object({
-  id: z.string().uuid({ message: ZodMessages.metricLog.invalidId }),
+  id: z.string().guid({ message: ZodMessages.metricLog.invalidId }),
 });
 
 export const metricLogBody = z.object({
@@ -105,6 +106,7 @@ const listMetricCursorBase = z
     q: normalizedSearchParam,
     after: z
       .union([z.string(), z.undefined(), z.null()])
+      .optional()
       .transform((value) =>
         typeof value === "string" && value.trim().length ? value : undefined,
       ),
@@ -152,7 +154,7 @@ export const aggregatedStatsQuery = z
 
 export const createMetricLogSchema = z.object({ body: metricLogBody });
 export const updateMetricLogSchema = z.object({
-  params: z.object({ id: z.string().uuid() }),
+  params: z.object({ id: z.string().guid() }),
   body: metricLogBody.partial().extend({
     loggedAt: zISODateTime.optional(),
   }),

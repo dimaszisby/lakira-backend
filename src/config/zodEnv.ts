@@ -1,6 +1,7 @@
 import "./loadEnv.js";
 import { z } from "zod";
 import { isIanaTimeZone } from "@/utils/time-zone.js";
+import { zod3Messages } from "@/shared/utils/zod3-messages.js";
 
 // Tokens are HS256, so the secret's strength is the signature's. Both are checked in
 // the superRefine below, in production and staging (ADR-0036; kit
@@ -53,7 +54,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("5000"),
+        .prefault("5000"),
 
       // Security
       JWT_SECRET: z.string().min(1, { message: "JWT_SECRET is required" }),
@@ -66,7 +67,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("900"),
+        .prefault("900"),
       REFRESH_TOKEN_TTL_DAYS: z
         .string()
         .transform((val) => {
@@ -76,7 +77,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("30"),
+        .prefault("30"),
 
       // CORS
       // Comma-separated list of allowed origins. Single origin still works
@@ -105,7 +106,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
       DB_PORT: z
         .string()
         .transform((val) => parseInt(val, 10))
-        .default("5432"),
+        .prefault("5432"),
       DB_LOGGING: z.string().default("false"), // Allows enabling/disabling logging
 
       // Winston log level. Declared here as the fail-fast contract and the documentation;
@@ -123,7 +124,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
       DB_SSL_REJECT_UNAUTHORIZED: z
         .string()
         .transform((val) => val.toLowerCase() !== "false")
-        .default(
+        .prefault(
           nodeEnv === "production" || nodeEnv === "staging" ? "true" : "false",
         ),
       // The CA certificate (PEM) the database connection trusts, beside Node's
@@ -150,16 +151,16 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("6379"),
+        .prefault("6379"),
       REDIS_PASSWORD: z.string().optional(),
       REDIS_REQUIRED: z
         .string()
         .transform((val) => val === "true") // Convert string to boolean
-        .default(nodeEnv === "test" ? "false" : "true"),
+        .prefault(nodeEnv === "test" ? "false" : "true"),
       ENABLE_REDIS_INTEGRATION: z
         .string()
         .transform((val) => val === "true")
-        .default("false"),
+        .prefault("false"),
       RATE_LIMIT_GLOBAL_MAX: z
         .string()
         .transform((val) => {
@@ -169,7 +170,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("100"),
+        .prefault("100"),
       RATE_LIMIT_USER_MAX: z
         .string()
         .transform((val) => {
@@ -179,10 +180,10 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("50"),
+        .prefault("50"),
 
       // Jest
-      JEST_TIMEOUT: z.string().transform(Number).default("30000"),
+      JEST_TIMEOUT: z.string().transform(Number).prefault("30000"),
 
       // Database
       DB_USER: z
@@ -210,7 +211,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
       ENABLE_DUMMY_ENDPOINTS: z
         .string()
         .transform((val) => val === "true")
-        .default(["development", "test"].includes(nodeEnv) ? "true" : "false"),
+        .prefault(["development", "test"].includes(nodeEnv) ? "true" : "false"),
 
       RATE_LIMIT_ANALYTICS_MAX: z
         .string()
@@ -223,7 +224,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("30"),
+        .prefault("30"),
 
       RATE_LIMIT_SWITCH_ORG_MAX: z
         .string()
@@ -236,17 +237,17 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("10"),
+        .prefault("10"),
 
       DISABLE_RATE_LIMITING: z
         .string()
         .transform((val) => val === "true")
-        .default("false"),
+        .prefault("false"),
 
       ALLOW_TEST_HTTP_SERVER: z
         .string()
         .transform((val) => val === "true")
-        .default("false"),
+        .prefault("false"),
 
       // Skips the database bootstrap at startup. Test-only: jest.setup.ts and the
       // contract runners set it so suites do not pay for a DB lifecycle they mock.
@@ -255,14 +256,14 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
       SKIP_DB_LIFECYCLE: z
         .string()
         .transform((val) => val === "true")
-        .default("false"),
+        .prefault("false"),
 
       // RabbitMQ
       RABBITMQ_URL: z.string().optional(),
       RABBITMQ_ENABLED: z
         .string()
         .transform((val) => val === "true")
-        .default("false"),
+        .prefault("false"),
       RABBITMQ_HOST: z.string().default("127.0.0.1"),
       RABBITMQ_PORT: z
         .string()
@@ -273,7 +274,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("5672"),
+        .prefault("5672"),
       RABBITMQ_USER: z.string().default("guest"),
       RABBITMQ_PASSWORD: z.string().default("guest"),
       RABBITMQ_VHOST: z.string().default("/"),
@@ -286,7 +287,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("10"),
+        .prefault("10"),
       RABBITMQ_MAX_RETRIES: z
         .string()
         .transform((val) => {
@@ -298,7 +299,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("5"),
+        .prefault("5"),
       // First retry delay; doubles per retry, capped at 5 minutes (ADR-0005).
       RABBITMQ_RETRY_BASE_DELAY_MS: z
         .string()
@@ -311,7 +312,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("2000"),
+        .prefault("2000"),
 
       // Observability
       // Blank or unset leaves Sentry off. The message names the variable only.
@@ -328,7 +329,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           const parsed = parseFloat(val);
           return isNaN(parsed) ? 0 : parsed;
         })
-        .default("0"),
+        .prefault("0"),
       // Release identity (ADR-0039 Part 1). CI/platform supplies the commit SHA via
       // APP_RELEASE; Render also auto-sets RENDER_GIT_COMMIT from the branch tip it builds,
       // used as a fallback when APP_RELEASE is unset — APP_RELEASE always wins when both are
@@ -357,7 +358,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
       SWAGGER_REQUIRE_AUTH: z
         .string()
         .transform((val) => val !== "false")
-        .default("true"),
+        .prefault("true"),
 
       // Email / Password Reset
       EMAIL_PROVIDER: z
@@ -393,7 +394,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("7"),
+        .prefault("7"),
       EMAIL_VERIFICATION_TTL_SEC: z
         .string()
         .transform((val) => {
@@ -405,7 +406,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("86400"),
+        .prefault("86400"),
       RATE_LIMIT_EMAIL_VERIFICATION_EMAIL_MAX: z
         .string()
         .transform((val) => {
@@ -417,7 +418,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("3"),
+        .prefault("3"),
       RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX: z
         .string()
         .transform((val) => {
@@ -429,7 +430,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("10"),
+        .prefault("10"),
       RATE_LIMIT_PASSWORD_RESET_EMAIL_MAX: z
         .string()
         .transform((val) => {
@@ -441,7 +442,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("3"),
+        .prefault("3"),
       RATE_LIMIT_PASSWORD_RESET_IP_MAX: z
         .string()
         .transform((val) => {
@@ -453,7 +454,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("10"),
+        .prefault("10"),
       // POST /auth/login, per IP per 15 minutes (api-tooling-residuals D-08).
       RATE_LIMIT_LOGIN_MAX: z
         .string()
@@ -464,7 +465,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("50"),
+        .prefault("50"),
       // POST /auth/refresh and /auth/logout, per IP per 15 minutes (api-tooling-residuals D-08).
       RATE_LIMIT_AUTH_SESSION_MAX: z
         .string()
@@ -477,7 +478,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("50"),
+        .prefault("50"),
       // POST /auth/register, per IP per hour (ADR-0053).
       RATE_LIMIT_REGISTER_IP_MAX: z
         .string()
@@ -490,7 +491,7 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
           }
           return parsed;
         })
-        .default("10"),
+        .prefault("10"),
 
       // Analytics / Visualization
       VIZ_MAX_BUCKETS: z.coerce.number().int().positive().default(400),
@@ -843,8 +844,10 @@ const buildEnv = (): Env => {
   // NODE_ENV first, on its own path, so a bad value is reported as NODE_ENV.
   const { NODE_ENV } = z
     .object({ NODE_ENV: nodeEnvSchema })
-    .parse({ NODE_ENV: process.env.NODE_ENV });
-  const parsedEnv = buildEnvSchema(NODE_ENV).parse(process.env);
+    .parse({ NODE_ENV: process.env.NODE_ENV }, { error: zod3Messages });
+  const parsedEnv = buildEnvSchema(NODE_ENV).parse(process.env, {
+    error: zod3Messages,
+  });
   const withDatabaseConfig = normalizeDatabaseConfig(parsedEnv);
   const withRedisConfig = normalizeRedisConfig(withDatabaseConfig) as RawEnv;
   return normalizeRabbitMQConfig(withRedisConfig) as Env;

@@ -129,7 +129,7 @@ describe("validation middleware", () => {
     expect(loggerErrorSpy).not.toHaveBeenCalled();
     expect(loggerWarnSpy).toHaveBeenCalledTimes(1);
     expect(loggerWarnSpy).toHaveBeenCalledWith("Validation Errors:", {
-      issues: [{ field: "query.sortOrder", code: "invalid_enum_value" }],
+      issues: [{ field: "query.sortOrder", code: "invalid_value" }],
     });
     expect(JSON.stringify(loggerWarnSpy.mock.calls)).not.toContain(
       "victim@example.com",

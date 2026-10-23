@@ -27,7 +27,7 @@ const UUID_REGEX = new RegExp(UUID_PATTERN);
 
 export const zUUID = z
   .string()
-  .uuid({ message: ZodMessages.common.invalidUUID })
+  .guid({ message: ZodMessages.common.invalidUUID })
   .regex(UUID_REGEX, { message: ZodMessages.common.invalidUUID })
   .openapi({ format: "uuid", pattern: UUID_PATTERN });
 export const zDateOptional = z
@@ -121,14 +121,16 @@ export const zMetricName = z
   });
 export const zMetricCategoryId = z
   .string()
-  .uuid({ message: ZodMessages.metric.invalidCategoryId })
+  .guid({ message: ZodMessages.metric.invalidCategoryId })
   .regex(UUID_REGEX, { message: ZodMessages.metric.invalidCategoryId })
+  .openapi({ format: "uuid" })
   .nullable()
   .optional();
 export const zMetricOriginalId = z
   .string()
-  .uuid({ message: ZodMessages.metric.invalidOriginalMetricId })
+  .guid({ message: ZodMessages.metric.invalidOriginalMetricId })
   .regex(UUID_REGEX, { message: ZodMessages.metric.invalidOriginalMetricId })
+  .openapi({ format: "uuid" })
   .nullable()
   .optional();
 export const zMetricDescription = z
@@ -222,26 +224,34 @@ const zDisplayOptionText = z
     }
   })
   .openapi({ pattern: CONTROL_CHARS_PATTERN_SOURCE });
-export const zDisplayOptions = z
-  .object({
-    showOnDashboard: z.boolean().optional().default(true),
-    priority: z.number().int().min(1).max(1000).optional().default(1),
-    chartType: zDisplayOptionText.optional().default("line"),
-    color: zDisplayOptionText.optional().default("#E897A3"),
-  })
-  .optional()
-  .default({
-    showOnDashboard: true,
-    priority: 1,
-    chartType: "line",
-    color: "#E897A3",
-  });
+/**
+ * The display options as sent, each field defaulted. An update takes this, made optional:
+ * zod 4 applies a default inside `.optional()`, so `zDisplayOptions.optional()` would reset
+ * the options of every update that leaves them out (zod-4-migration D-05).
+ */
+export const zDisplayOptionsObject = z.object({
+  showOnDashboard: z.boolean().optional().default(true),
+  priority: z.number().int().min(1).max(1000).optional().default(1),
+  chartType: zDisplayOptionText.optional().default("line"),
+  color: zDisplayOptionText.optional().default("#E897A3"),
+});
+export const zDisplayOptions = zDisplayOptionsObject.optional().default({
+  showOnDashboard: true,
+  priority: 1,
+  chartType: "line",
+  color: "#E897A3",
+});
 
 /**
  * * * Metric Log
  */
 export const zPositiveFloat = z
-  .number({ required_error: ZodMessages.metricLog.logValueRequired })
+  .number({
+    error: (issue) =>
+      issue.input === undefined
+        ? ZodMessages.metricLog.logValueRequired
+        : undefined,
+  })
   .finite({ message: ZodMessages.metricLog.logValueFinite })
   .min(METRIC_LOG_VALUE_RULE.min, {
     message: ZodMessages.metricLog.logValueNonNegative,
@@ -251,7 +261,10 @@ export const zPositiveFloat = z
   });
 
 export const zLogType = z.enum(["manual", "automatic"], {
-  required_error: ZodMessages.metricLog.logTypeInvalid,
+  error: (issue) =>
+    issue.input === undefined
+      ? ZodMessages.metricLog.logTypeInvalid
+      : undefined,
 });
 
 /**

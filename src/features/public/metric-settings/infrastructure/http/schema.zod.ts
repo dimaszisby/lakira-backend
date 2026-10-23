@@ -9,6 +9,7 @@ import {
   zAlertThresholds,
   zAlertThresholdsOptional,
   zDisplayOptions,
+  zDisplayOptionsObject,
   zStrictBooleanQuery,
 } from "@/constants/zod/zod-rules.js";
 import { ZodMessages } from "@/constants/zod/zod-messages.js";
@@ -59,7 +60,7 @@ const settingsUpdateShared = z
     deadlineDate: zDateOptionalNullable,
     alertEnabled: z.boolean().optional(),
     alertThresholds: zAlertThresholdsOptional.nullable(),
-    displayOptions: zDisplayOptions.optional(),
+    displayOptions: zDisplayOptionsObject.optional(),
   })
   .strict();
 
