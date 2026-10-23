@@ -21,6 +21,7 @@ import catchAsync from "@/utils/catch-async.js";
 import { assertAuthenticated } from "@/utils/auth-guards.js";
 import type { MetricTrendPort } from "../../application/ports/MetricTrendPort.js";
 import { pickValidated } from "@/shared/middleware/validated.js";
+import { metricDetailIncludes } from "./detail-includes.js";
 
 const createMetric = (feature: MetricFeature) =>
   catchAsync(async (req: AuthRequest, res: Response) => {
@@ -87,18 +88,8 @@ const getUserDetailMetricById = (feature: MetricFeature) =>
     assertAuthenticated(req);
 
     const { params, query } = pickValidated(getMetricSchema)(req);
-    const includeRaw = query.include ?? "flat";
-    const allowed = new Set(["settings", "category", "logs"]);
-
-    let includes: Array<"settings" | "category" | "logs"> = [];
-    if (includeRaw === "full") {
-      includes = ["settings", "category", "logs"];
-    } else if (includeRaw !== "flat") {
-      includes = includeRaw
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s): s is "settings" | "category" | "logs" => allowed.has(s));
-    }
+    // The same reading the cache key takes (api-tooling-residuals D-03).
+    const includes = metricDetailIncludes(query.include);
 
     const logsLimit = query.logsLimit ?? 20;
 

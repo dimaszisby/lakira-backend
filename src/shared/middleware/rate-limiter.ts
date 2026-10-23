@@ -319,3 +319,51 @@ export const createRegisterIpRateLimiter = () =>
       });
 
 export const registerIpRateLimiter = createRegisterIpRateLimiter();
+
+/**
+ * `POST /auth/login`, per client IP. It shared `userRateLimiter` with refresh and
+ * logout: none has a user, so all three counted by IP in one bucket, and refreshes
+ * spent the logins' budget (api-tooling-residuals D-08, audit X26). The per-email
+ * lockout bounds guessing one account; this bounds an address.
+ */
+export const createLoginRateLimiter = () =>
+  env.DISABLE_RATE_LIMITING
+    ? (maybeLogDisableNotice(), noopRateLimiter)
+    : rateLimit({
+        keyGenerator: (req: AuthRequest): string =>
+          `login:${clientIpKey(req.ip)}`,
+        store: maybeCreateStore("login"),
+        windowMs: 15 * 60 * 1000,
+        max: env.RATE_LIMIT_LOGIN_MAX,
+        standardHeaders: true,
+        legacyHeaders: false,
+        ...limitExceeded(
+          "Too many login attempts, please try again later.",
+          (req) => `Login rate limit hit for ${req.ip}`,
+        ),
+      });
+
+export const loginRateLimiter = createLoginRateLimiter();
+
+/**
+ * `POST /auth/refresh` and `POST /auth/logout`, per client IP: they run before any
+ * user is known, the refresh token being checked by the handler (D-08).
+ */
+export const createAuthSessionRateLimiter = () =>
+  env.DISABLE_RATE_LIMITING
+    ? (maybeLogDisableNotice(), noopRateLimiter)
+    : rateLimit({
+        keyGenerator: (req: AuthRequest): string =>
+          `auth-session:${clientIpKey(req.ip)}`,
+        store: maybeCreateStore("auth-session"),
+        windowMs: 15 * 60 * 1000,
+        max: env.RATE_LIMIT_AUTH_SESSION_MAX,
+        standardHeaders: true,
+        legacyHeaders: false,
+        ...limitExceeded(
+          "Too many requests, please try again later.",
+          (req) => `Session rate limit hit for ${req.ip}`,
+        ),
+      });
+
+export const authSessionRateLimiter = createAuthSessionRateLimiter();

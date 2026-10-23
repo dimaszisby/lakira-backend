@@ -2,10 +2,12 @@ import { AuthRequest } from "@/types/request.context.js";
 import { buildCursorCacheKey } from "@/shared/cache/keys.js";
 import { pickValidated } from "@/shared/middleware/validated.js";
 import { assertAuthenticated } from "@/utils/auth-guards.js";
-import { getAllMetricsViaCursorSchema } from "./schema.zod.js";
+import { getAllMetricsViaCursorSchema, getMetricSchema } from "./schema.zod.js";
+import { metricDetailIncludes } from "./detail-includes.js";
 import {
   METRIC_CURSOR_FEATURE,
   METRIC_CURSOR_VERSION,
+  metricEntryKey,
 } from "../../application/cache.constants.js";
 
 /**
@@ -38,4 +40,22 @@ export const metricsCursorCacheKey = (req: AuthRequest) => {
       ["it", query.includeTotal],
     ],
   });
+};
+
+/**
+ * Cache key for `GET /metrics/:id`, from the validated id, includes and log limit. It
+ * read raw `req.params` and `req.query` (api-tooling-residuals D-03, audit X11).
+ */
+export const metricDetailCacheKey = (req: AuthRequest) => {
+  assertAuthenticated(req);
+  const { params, query } = pickValidated(getMetricSchema)(req);
+  const includes = metricDetailIncludes(query.include);
+
+  return metricEntryKey(
+    req.user.organizationId,
+    req.user.id,
+    params.id,
+    includes.length ? includes.join(",") : "flat",
+    query.logsLimit ?? 20,
+  );
 };

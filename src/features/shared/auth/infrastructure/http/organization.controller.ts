@@ -13,7 +13,9 @@ import {
   changeMemberRoleBody,
   orgIdParam,
   membershipIdParam,
+  membershipPageQuery,
 } from "./organization.schema.zod.js";
+import { encodeMembershipCursor } from "./membership-cursor.js";
 import type { AuthFeature } from "../../feature.js";
 
 type OrgFeature = AuthFeature;
@@ -26,7 +28,12 @@ const pickChangeMemberRole = pickValidated(
   z.object({ body: changeMemberRoleBody, params: membershipIdParam }),
 );
 const pickMembershipId = pickValidated(z.object({ params: membershipIdParam }));
-const pickOrgId = pickValidated(z.object({ params: orgIdParam }));
+const pickMembersPage = pickValidated(
+  z.object({ params: orgIdParam, query: membershipPageQuery }),
+);
+const pickOrganizationsPage = pickValidated(
+  z.object({ query: membershipPageQuery }),
+);
 
 const createInvite = (feature: OrgFeature) =>
   catchAsync(async (req: AuthRequest, res: Response) => {
@@ -111,29 +118,44 @@ const listMembers = (feature: OrgFeature) =>
     assertAuthenticated(req);
     const {
       params: { id: organizationId },
-    } = pickOrgId(req);
+      query: { limit, after },
+    } = pickMembersPage(req);
 
     if (req.membership.organizationId !== organizationId) {
       throw new AppError("Forbidden: not a member of this organization", 403);
     }
 
-    const members =
-      await feature.listOrganizationMembers.execute(organizationId);
+    const { members, next } = await feature.listOrganizationMembers.execute(
+      organizationId,
+      { limit, after },
+    );
 
-    successResponse(res, 200, { members });
+    successResponse(res, 200, {
+      members,
+      nextCursor: next ? encodeMembershipCursor(next) : null,
+    });
   });
 
 const listMyOrganizations = (feature: OrgFeature) =>
   catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
 
-    // Scoped by the verified token only; the route takes no parameters.
-    const organizations = await feature.listUserOrganizations.execute({
-      userId: req.user.id,
-      currentOrganizationId: req.membership.organizationId,
-    });
+    // Scoped by the verified token only; the query pages, it does not select.
+    const {
+      query: { limit, after },
+    } = pickOrganizationsPage(req);
+    const { organizations, next } = await feature.listUserOrganizations.execute(
+      {
+        userId: req.user.id,
+        currentOrganizationId: req.membership.organizationId,
+        page: { limit, after },
+      },
+    );
 
-    successResponse(res, 200, { organizations });
+    successResponse(res, 200, {
+      organizations,
+      nextCursor: next ? encodeMembershipCursor(next) : null,
+    });
   });
 
 /** Every handler, closed over the feature the router hands it (ADR-0072). */

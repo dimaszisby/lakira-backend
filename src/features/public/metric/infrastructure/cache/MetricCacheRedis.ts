@@ -1,7 +1,10 @@
 import { invalidateCacheByPattern, redisClient } from "@/utils/redis-client.js";
 import { CachePort } from "../../application/ports/CachePort.js";
 import { cursorCacheNamespace } from "@/shared/cache/keys.js";
-import { METRIC_CURSOR_FEATURE } from "../../application/cache.constants.js";
+import {
+  METRIC_CURSOR_FEATURE,
+  metricEntryPattern,
+} from "../../application/cache.constants.js";
 import {
   logCacheInvalidation,
   logCacheInvalidationError,
@@ -29,7 +32,7 @@ export class MetricCacheRedis implements CachePort {
       );
       if (metricId) {
         await invalidateCacheByPattern(
-          `metric:${organizationId}:${userId}:${metricId}:*`,
+          metricEntryPattern(organizationId, userId, metricId),
         );
       }
       logCacheInvalidation("metric-cache", {

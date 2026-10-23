@@ -10,6 +10,8 @@ import {
   emailVerificationEmailRateLimiter,
   emailVerificationIpRateLimiter,
   registerIpRateLimiter,
+  loginRateLimiter,
+  authSessionRateLimiter,
 } from "@/shared/middleware/rate-limiter.js";
 import { validate } from "@/shared/middleware/validation.js";
 import {
@@ -37,7 +39,7 @@ export const createAuthRouter = (feature: AuthFeature) => {
   );
   router.post(
     "/login",
-    userRateLimiter,
+    loginRateLimiter,
     requireJsonObjectBody(),
     validate(loginUserSchema),
     controller.login,
@@ -52,8 +54,10 @@ export const createAuthRouter = (feature: AuthFeature) => {
     validate(updateUserSchema),
     controller.updateProfile,
   );
-  router.post("/logout", userRateLimiter, controller.logout);
-  router.post("/refresh", userRateLimiter, controller.refresh);
+  // Neither has a user to key on: limited by address, apart from login's budget
+  // (api-tooling-residuals D-08).
+  router.post("/logout", authSessionRateLimiter, controller.logout);
+  router.post("/refresh", authSessionRateLimiter, controller.refresh);
 
   router.post(
     "/forgot-password",

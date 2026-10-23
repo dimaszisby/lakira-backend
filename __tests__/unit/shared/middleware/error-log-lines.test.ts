@@ -70,6 +70,8 @@ describe("error handler: what its client-error lines carry", () => {
     const record = JSON.parse(lines[0]) as Record<string, unknown>;
     expect(record.message).toBe("Invalid JSON payload received");
     expect(record.type).toBe("entity.parse.failed");
+    // A client's mistake, at warn as every other 4xx (api-tooling-residuals D-02).
+    expect(record.level).toBe("warn");
   });
 
   const respond = () =>
@@ -91,7 +93,8 @@ describe("error handler: what its client-error lines carry", () => {
 
     expect(lines).toHaveLength(1);
     expect(lines[0]).not.toContain(EMAIL);
-    const record = JSON.parse(lines[0]) as { issues: unknown };
+    const record = JSON.parse(lines[0]) as { issues: unknown; level: string };
+    expect(record.level).toBe("warn");
     expect(record.issues).toEqual([
       { field: "sortOrder", code: "invalid_enum_value" },
       { field: "body", code: "unrecognized_keys" },

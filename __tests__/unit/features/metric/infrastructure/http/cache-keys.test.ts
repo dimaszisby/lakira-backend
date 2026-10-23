@@ -1,6 +1,10 @@
 import { describe, it, expect } from "@jest/globals";
 import type { AuthRequest } from "@/types/request.context.js";
-import { metricsCursorCacheKey } from "@/features/metric/infrastructure/http/cache-keys.js";
+import {
+  metricDetailCacheKey,
+  metricsCursorCacheKey,
+} from "@/features/metric/infrastructure/http/cache-keys.js";
+import { metricEntryPattern } from "@/features/metric/application/cache.constants.js";
 
 const USER = { id: "user-1", organizationId: "org-1" };
 // What authMiddleware sets beside the user; a cursor key asserts all three
@@ -59,5 +63,58 @@ describe("metricsCursorCacheKey", () => {
     expect(key).toContain("cursor:metrics:v4:");
     expect(key).toContain(":org:org-1:");
     expect(key).toContain(":fn:run:");
+  });
+});
+
+// Kit api-tooling-residuals, D-03 (audit X11/X21). The key read raw `req.params` and
+// `req.query`, and spelled itself apart from the pattern its invalidation deletes.
+describe("metricDetailCacheKey", () => {
+  const METRIC = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const OTHER = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const detailKey = (overrides: Record<string, unknown>) =>
+    metricDetailCacheKey({
+      user: USER,
+      organizationId: USER.organizationId,
+      membership: MEMBERSHIP,
+      params: { id: METRIC },
+      query: {},
+      ...overrides,
+    } as unknown as AuthRequest);
+
+  it("throws for a request with no organization", () => {
+    expect(() =>
+      metricDetailCacheKey({
+        user: USER,
+        params: { id: METRIC },
+        query: {},
+      } as unknown as AuthRequest),
+    ).toThrow("User not authenticated");
+  });
+
+  it("is built from the validated values, not the raw ones", () => {
+    const key = detailKey({
+      params: { id: OTHER },
+      query: { logsLimit: "999" },
+      validated: {
+        params: { id: METRIC },
+        query: { include: "logs", logsLimit: 5 },
+      },
+    });
+    expect(key).toContain(METRIC);
+    expect(key).not.toContain(OTHER);
+    expect(key).toContain(":inc:logs:ll:5");
+  });
+
+  it("gives `full` and every include named the same key", () => {
+    expect(detailKey({ query: { include: "full" } })).toBe(
+      detailKey({ query: { include: "settings, logs,category" } }),
+    );
+  });
+
+  it("is matched by the pattern a metric write deletes", () => {
+    const pattern = metricEntryPattern(USER.organizationId, USER.id, METRIC);
+    const key = detailKey({ query: { include: "logs", logsLimit: "7" } });
+    expect(key.startsWith(pattern.slice(0, -1))).toBe(true);
+    expect(pattern.endsWith(":*")).toBe(true);
   });
 });

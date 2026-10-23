@@ -1,6 +1,9 @@
 import { jest } from "@jest/globals";
 import { createMetricRouter } from "@/features/metric/infrastructure/http/router.js";
-import { metricsCursorCacheKey } from "@/features/metric/infrastructure/http/cache-keys.js";
+import {
+  metricDetailCacheKey,
+  metricsCursorCacheKey,
+} from "@/features/metric/infrastructure/http/cache-keys.js";
 
 type RouterDouble = {
   use: jest.Mock;
@@ -260,20 +263,13 @@ describe("metric router", () => {
     ]);
   });
 
-  it("builds resource cache keys with normalized include query", () => {
+  // The key's own rules are tested in cache-keys.test.ts (api-tooling-residuals D-03).
+  it("caches the detail route under metricDetailCacheKey", () => {
     buildRouter();
-    const detailBuilder = cacheMiddlewareMock.mock.calls[1][0] as (
-      req: any,
-    ) => string;
 
-    const req: any = {
-      user: { id: "user-1", organizationId: "org-1" },
-      params: { id: "metric-1" },
-      query: { include: "logs,settings,unknown", logsLimit: "15" },
-    };
-
-    expect(detailBuilder(req)).toBe(
-      "metric:org-1:user-1:metric-1:inc:logs,settings:ll:15",
-    );
+    expect(cacheMiddlewareMock.mock.calls[1]).toEqual([
+      metricDetailCacheKey,
+      60,
+    ]);
   });
 });

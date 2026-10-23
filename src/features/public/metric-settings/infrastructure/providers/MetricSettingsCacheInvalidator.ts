@@ -5,7 +5,10 @@ import {
 } from "@/utils/redis-client.js";
 import { CacheInvalidationPort } from "../../application/ports/CacheInvalidationPort.js";
 import { cursorCacheNamespace } from "@/shared/cache/keys.js";
-import { METRIC_SETTINGS_CURSOR_FEATURE } from "../../application/cache.constants.js";
+import {
+  METRIC_SETTINGS_CURSOR_FEATURE,
+  metricSettingEntryKey,
+} from "../../application/cache.constants.js";
 import {
   logCacheInvalidation,
   logCacheInvalidationError,
@@ -34,7 +37,7 @@ export class MetricSettingsCacheInvalidator implements CacheInvalidationPort {
 
       if (settingsId) {
         await invalidateCache(
-          `metricSetting:${organizationId}:${userId}:${settingsId}`,
+          metricSettingEntryKey(organizationId, userId, settingsId),
         );
       }
 

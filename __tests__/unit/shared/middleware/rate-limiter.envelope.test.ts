@@ -21,6 +21,8 @@ jest.mock("@/config/envManager.js", () => ({
     RATE_LIMIT_EMAIL_VERIFICATION_EMAIL_MAX: 1,
     RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX: 1,
     RATE_LIMIT_REGISTER_IP_MAX: 1,
+    RATE_LIMIT_LOGIN_MAX: 1,
+    RATE_LIMIT_AUTH_SESSION_MAX: 1,
   },
 }));
 
@@ -92,6 +94,16 @@ const LIMITERS: [FactoryName, string, string][] = [
     "createRegisterIpRateLimiter",
     "Too many registration attempts, please try again later.",
     "Registration IP rate limit hit for ",
+  ],
+  [
+    "createLoginRateLimiter",
+    "Too many login attempts, please try again later.",
+    "Login rate limit hit for ",
+  ],
+  [
+    "createAuthSessionRateLimiter",
+    "Too many requests, please try again later.",
+    "Session rate limit hit for ",
   ],
 ];
 
@@ -220,5 +232,27 @@ describe("rate limiters answer through the error envelope", () => {
     expect(loggerMock.warn).toHaveBeenCalledWith(
       `Email verification email rate limit hit for user ${USER.id}`,
     );
+  });
+});
+
+// Kit api-tooling-residuals, D-08 (audit X26). Refresh, logout and login shared one
+// per-IP bucket under userRateLimiter, so a client's refreshes could lock out its
+// logins. Each limit is 1 here.
+describe("login's budget", () => {
+  it("is not spent by refresh or logout", async () => {
+    const { createLoginRateLimiter, createAuthSessionRateLimiter } =
+      await import("@/shared/middleware/rate-limiter.js");
+    const session = createAuthSessionRateLimiter();
+    const app = express();
+    const ok: RequestHandler = (_req, res) => {
+      res.status(200).json({ ok: true });
+    };
+    app.post("/login", createLoginRateLimiter(), ok);
+    app.post("/refresh", session, ok);
+    app.post("/logout", session, ok);
+
+    expect((await request(app).post("/refresh")).status).toBe(200);
+    expect((await request(app).post("/logout")).status).toBe(429);
+    expect((await request(app).post("/login")).status).toBe(200);
   });
 });

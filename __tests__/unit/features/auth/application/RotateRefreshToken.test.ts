@@ -86,6 +86,8 @@ const build = () => {
     findDefaultByUser: jest.fn(),
     findAllByUser: jest.fn(),
     findAllByOrganization: jest.fn(),
+    findActivePageByUser: jest.fn(),
+    findPageByOrganization: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
     countByOrgAndRole: jest.fn(),

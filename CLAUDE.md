@@ -47,7 +47,7 @@ Frequently needed:
 - `docs/internal/initiatives/backend-debt-register/register.md` — every open item, ranked; **"what's
   next" is answered from here** (`.claude/rules/workflow.md` § What's next)
 - `docs/reference/commands.md` — canonical npm scripts (do not keep a second copy elsewhere)
-- `docs/reference/configuration.md` — all 70 env vars
+- `docs/reference/configuration.md` — all 72 env vars
 - `docs/explanation/decisions/` — 82 ADRs, one per file; check **Status** before trusting one
 - `docs/reference/api/lakira-backend-openapi.json` — generated, CI-drift-gated, never hand-edited
 

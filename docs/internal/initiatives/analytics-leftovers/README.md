@@ -1,6 +1,6 @@
 # Analytics leftovers
 
-**Status:** Implemented on `fix/analytics-leftovers`; PR open. Register row B-65: three items the
+**Status:** Done (#217, `28b731f`). Register row B-65: three items the
 `analytics-relative-range` kit found and filed (its checklist, § Discovered).
 **Slug:** `analytics-leftovers` · **Branch:** `fix/analytics-leftovers`
 

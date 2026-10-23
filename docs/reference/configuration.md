@@ -46,7 +46,7 @@ secrets to end in one of the suffix words, or add a term to that module.
 | `CORS_ORIGIN`            | string                                                         | optional — comma-separated allowlist                             |
 | `TRUST_PROXY`            | whole number, 0 or more; blank refused                         | `1` — proxy hops in front of the app                             |
 | `REQUEST_BODY_LIMIT`     | string                                                         | `1mb`                                                            |
-| `DEFAULT_TZ`             | string                                                         | `Asia/Jakarta`                                                   |
+| `DEFAULT_TZ`             | IANA time zone name or `UTC`; an offset is refused             | `Asia/Jakarta`                                                   |
 
 > `NODE_ENV` is read in any case: `Production` runs as `production`, and every default that
 > depends on it, such as `DB_SSL_REJECT_UNAUTHORIZED`, follows the lowercase name.
@@ -172,8 +172,14 @@ worker before `npm test`, because it would consume the test's messages.
 | `RATE_LIMIT_PASSWORD_RESET_EMAIL_MAX`     | number  | `3`     | per email        |
 | `RATE_LIMIT_PASSWORD_RESET_IP_MAX`        | number  | `10`    | per IP           |
 | `RATE_LIMIT_REGISTER_IP_MAX`              | number  | `10`    | 1 h, per IP      |
+| `RATE_LIMIT_LOGIN_MAX`                    | number  | `50`    | 15 min, per IP   |
+| `RATE_LIMIT_AUTH_SESSION_MAX`             | number  | `50`    | 15 min, per IP   |
 | `DISABLE_RATE_LIMITING`                   | boolean | `false` |                  |
 
+> `RATE_LIMIT_LOGIN_MAX` bounds `POST /auth/login`, and `RATE_LIMIT_AUTH_SESSION_MAX` bounds
+> `POST /auth/refresh` and `POST /auth/logout` together, each per client IP in a bucket of its own:
+> none of the three has a user to count by (`api-tooling-residuals` D-08).
+>
 > `RATE_LIMIT_REGISTER_IP_MAX` bounds `POST /auth/register` per client IP (ADR-0053). Every per-IP
 > limit is only as good as `req.ip`, which depends on `TRUST_PROXY` matching the real number of
 > proxies in front of the app; see the ADR's consequences. Startup refuses a blank, negative or

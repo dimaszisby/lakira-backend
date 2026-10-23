@@ -7,7 +7,8 @@ import { appWith } from "../helpers/app-with.js";
 import { buildAuthFeature } from "@/features/shared/auth/feature.js";
 import type { EmailMessage } from "@/features/shared/auth/application/ports/EmailSender.js";
 import { OrganizationInviteRepositorySequelize } from "@/features/shared/auth/infrastructure/persistence/OrganizationInviteRepositorySequelize.js";
-import { models } from "@/infrastructure/db/models.js";
+import { models, sequelize } from "@/infrastructure/db/models.js";
+import { createUserRow } from "../helpers/db-fixtures.js";
 
 // An app of this file's own, rebuilt with a replaced auth feature where a test
 // needs one (inject-features-into-routers D-05).
@@ -562,6 +563,168 @@ describe("Organization Membership API", () => {
         .send({});
 
       expect(res.status).toBe(405);
+    });
+  });
+
+  // Kit api-tooling-residuals, D-09 (audit X27). Both lists loaded every membership.
+  // Rows are added with explicit joinedAt values after the owner's, so the order
+  // the pages follow is the one the test names (ADR-0052).
+  describe("pages", () => {
+    const later = (minutes: number) =>
+      new Date(Date.now() + minutes * 60 * 1000);
+
+    const ownerWithTwoMembers = async () => {
+      const owner = await createTestUser();
+      const orgId = decodeOrgId(owner.token);
+      const members = [];
+      for (const minutes of [1, 2]) {
+        const user = await createUserRow();
+        await models.Membership.create({
+          userId: user.id,
+          organizationId: orgId,
+          role: "member",
+          status: "active",
+          joinedAt: later(minutes),
+        });
+        members.push(user.id);
+      }
+      return { owner, orgId, members };
+    };
+
+    const userInThreeOrgs = async () => {
+      const user = await createTestUser();
+      const userId = (
+        await api
+          .get("/api/v1/auth/profile")
+          .set("Authorization", authHeader(user.token))
+      ).body.data.id as string;
+      const orgIds = [decodeOrgId(user.token)];
+      for (const minutes of [1, 2]) {
+        const org = await models.Organization.create({
+          name: `Org ${minutes}`,
+          slug: `org-${minutes}-${userId.slice(0, 8)}`,
+        });
+        await models.Membership.create({
+          userId,
+          organizationId: org.id,
+          role: "member",
+          status: "active",
+          joinedAt: later(minutes),
+        });
+        orgIds.push(org.id);
+      }
+      return { user, orgIds };
+    };
+
+    it("pages an organization's members by cursor", async () => {
+      const { owner, orgId, members } = await ownerWithTwoMembers();
+      const page = (query: Record<string, string | number>) =>
+        api
+          .get(`/api/v1/organizations/${orgId}/members`)
+          .query(query)
+          .set("Authorization", authHeader(owner.token));
+
+      const whole = await page({});
+      expect(whole.status).toBe(200);
+      expect(whole.body.data.members).toHaveLength(3);
+      expect(whole.body.data.nextCursor).toBeNull();
+
+      const first = await page({ limit: 2 });
+      expect(first.status).toBe(200);
+      expect(first.body.data.members.map((m: any) => m.role)).toEqual([
+        "owner",
+        "member",
+      ]);
+      expect(first.body.data.members[1].userId).toBe(members[0]);
+      expect(typeof first.body.data.nextCursor).toBe("string");
+
+      const second = await page({
+        limit: 2,
+        after: first.body.data.nextCursor,
+      });
+      expect(second.status).toBe(200);
+      expect(second.body.data.members.map((m: any) => m.userId)).toEqual([
+        members[1],
+      ]);
+      expect(second.body.data.nextCursor).toBeNull();
+    });
+
+    it("pages a user's organizations by cursor", async () => {
+      const { user, orgIds } = await userInThreeOrgs();
+      const page = (query: Record<string, string | number>) =>
+        api
+          .get("/api/v1/organizations")
+          .query(query)
+          .set("Authorization", authHeader(user.token));
+
+      const whole = await page({});
+      expect(whole.status).toBe(200);
+      expect(
+        whole.body.data.organizations.map((o: any) => o.organizationId),
+      ).toEqual(orgIds);
+      expect(whole.body.data.nextCursor).toBeNull();
+
+      const first = await page({ limit: 2 });
+      expect(
+        first.body.data.organizations.map((o: any) => o.organizationId),
+      ).toEqual(orgIds.slice(0, 2));
+      const second = await page({
+        limit: 2,
+        after: first.body.data.nextCursor,
+      });
+      expect(
+        second.body.data.organizations.map((o: any) => o.organizationId),
+      ).toEqual(orgIds.slice(2));
+      expect(second.body.data.nextCursor).toBeNull();
+    });
+
+    // Postgres keeps microseconds and a cursor holds a JS Date, which keeps
+    // milliseconds. The backfill migration wrote joined_at with NOW(), so a
+    // membership whose time has microseconds sorted after its own cursor and came
+    // back on the next page.
+    it("does not repeat a membership whose joined_at has microseconds", async () => {
+      const { owner, orgId } = await ownerWithTwoMembers();
+      await sequelize.query(
+        `UPDATE memberships SET joined_at = joined_at + interval '123 microseconds'
+         WHERE organization_id = :orgId`,
+        { replacements: { orgId } },
+      );
+      const page = (query: Record<string, string | number>) =>
+        api
+          .get(`/api/v1/organizations/${orgId}/members`)
+          .query(query)
+          .set("Authorization", authHeader(owner.token));
+
+      const seen: string[] = [];
+      let after: string | null = null;
+      for (let i = 0; i < 4; i += 1) {
+        const res = await page(after ? { limit: 1, after } : { limit: 1 });
+        expect(res.status).toBe(200);
+        seen.push(...res.body.data.members.map((m: any) => m.membershipId));
+        after = res.body.data.nextCursor;
+        if (!after) break;
+      }
+
+      expect(seen).toHaveLength(3);
+      expect(new Set(seen).size).toBe(3);
+    });
+
+    it.each([
+      ["a cursor that does not decode", { after: "not-a-cursor" }],
+      ["a limit over 100", { limit: 101 }],
+      ["a limit of 0", { limit: 0 }],
+    ])("refuses %s with 400", async (_name, query) => {
+      const { token } = await createTestUser();
+      for (const path of [
+        "/api/v1/organizations",
+        `/api/v1/organizations/${decodeOrgId(token)}/members`,
+      ]) {
+        const res = await api
+          .get(path)
+          .query(query)
+          .set("Authorization", authHeader(token));
+        expect(res.status).toBe(400);
+      }
     });
   });
 });

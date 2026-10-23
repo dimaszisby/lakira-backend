@@ -18,11 +18,11 @@ import {
   metricLogBody,
   generateDummyMetricLogsBody,
 } from "@/features/metric-log/infrastructure/http/schema.zod.js";
+import { isIanaTimeZone, TZ_REGEX } from "@/utils/time-zone.js";
 
 // Common Schemas
 const EMAIL_PATTERN = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
 const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-const TZ_REGEX = /^([A-Za-z_]+(?:\/[A-Za-z0-9_+-]+)+|UTC)$/;
 const UUID_PATTERN =
   "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$";
 const UUID_REGEX = new RegExp(UUID_PATTERN);
@@ -100,15 +100,6 @@ const deepObjectParamMetadata = (
 });
 
 const DEFAULT_TZ = "Asia/Jakarta";
-
-const isValidTimeZone = (tz: string) => {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-};
 
 const validateAbsoluteRange = (
   start: string | undefined,
@@ -503,11 +494,32 @@ export const MemberSchema = registerSchema(
   }),
 );
 
+// Both organization lists page by cursor (api-tooling-residuals D-09, audit X27).
+export const MembershipPageQuerySchema = z.object({
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .openapi(
+      queryParamMetadata("limit", "Rows per page, 1 to 100; 100 when omitted"),
+    ),
+  after: z.string().optional().openapi(cursorAfterParam),
+});
+
+const membershipNextCursor = z.string().nullable().openapi({
+  description:
+    "Pass as `after` for the next page; null on the last page. A page can hold fewer rows than `limit` and still be followed by another.",
+  example: null,
+});
+
 export const MemberListResponseSchema = registerSchema(
   "MemberListResponse",
   successEnvelope(
     z.object({
       members: z.array(MemberSchema),
+      nextCursor: membershipNextCursor,
     }),
   ),
 );
@@ -536,6 +548,7 @@ export const UserOrganizationListResponseSchema = registerSchema(
   successEnvelope(
     z.object({
       organizations: z.array(UserOrganizationSchema),
+      nextCursor: membershipNextCursor,
     }),
   ),
 );
@@ -1183,7 +1196,7 @@ const VisualizationQueryRawSchema = z
       .min(1)
       .regex(TZ_REGEX, { message: "Invalid IANA time zone" })
       .default(DEFAULT_TZ)
-      .refine((value) => isValidTimeZone(value), {
+      .refine((value) => isIanaTimeZone(value), {
         message: "Invalid IANA time zone",
       })
       .openapi({

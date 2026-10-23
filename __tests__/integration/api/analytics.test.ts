@@ -46,6 +46,26 @@ describe("Analytics API", () => {
     expect(res.body.data.meta.metricId).toBe(metricId);
   });
 
+  // Kit api-tooling-residuals, D-01 (audit X23). Intl and Postgres read an offset with
+  // opposite signs, so a request's range and its buckets disagreed by twice the offset.
+  it.each([
+    ["+07:00", 400],
+    ["-04:00", 400],
+    ["Asia/Jakarta", 200],
+    ["UTC", 200],
+  ])("answers tz=%s with %i on both routes", async (tz, status) => {
+    for (const path of [
+      "/api/v1/analytics/dashboard",
+      `/api/v1/analytics/metrics/${metricId}`,
+    ]) {
+      const res = await api
+        .get(path)
+        .set("Authorization", authHeader(token))
+        .query({ last: "7d", tz });
+      expect(res.status).toBe(status);
+    }
+  });
+
   it("requires authentication", async () => {
     const res = await api
       .get("/api/v1/analytics/dashboard")

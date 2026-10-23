@@ -13,38 +13,10 @@ import {
   generateDummyMetricsSchema,
   getAllMetricsViaCursorSchema,
 } from "./schema.zod.js";
-import { AuthRequest } from "@/types/request.context.js";
 import { env } from "@/config/envManager.js";
 import { methodNotAllowed } from "@/shared/middleware/method-guard.js";
 import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.js";
-import { metricsCursorCacheKey } from "./cache-keys.js";
-
-const asString = (value: unknown): string | undefined =>
-  typeof value === "string" ? value : undefined;
-
-const metricCacheKey = (req: AuthRequest) => {
-  const includeRaw = asString(req.query.include) ?? "flat";
-  const logsLimit = Number(asString(req.query.logsLimit) ?? 20);
-  const allowed = ["settings", "category", "logs"] as const;
-
-  const isAllowedInclude = (value: string): value is (typeof allowed)[number] =>
-    allowed.includes(value as (typeof allowed)[number]);
-
-  let includeNormalized = "flat";
-  if (includeRaw === "full") {
-    includeNormalized = "category,logs,settings";
-  } else if (includeRaw !== "flat") {
-    includeNormalized = includeRaw
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s): s is (typeof allowed)[number] => isAllowedInclude(s))
-      .sort()
-      .join(",");
-    if (!includeNormalized) includeNormalized = "flat";
-  }
-
-  return `metric:${req.user?.organizationId}:${req.user?.id}:${req.params.id}:inc:${includeNormalized}:ll:${logsLimit}`;
-};
+import { metricDetailCacheKey, metricsCursorCacheKey } from "./cache-keys.js";
 
 export const createMetricRouter = (
   deps: Parameters<typeof createMetricController>[0],
@@ -71,7 +43,7 @@ export const createMetricRouter = (
   router.get(
     "/:id",
     validate(getMetricSchema),
-    cacheMiddleware(metricCacheKey, 60),
+    cacheMiddleware(metricDetailCacheKey, 60),
     controller.getUserDetailMetricById,
   );
 

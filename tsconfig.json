@@ -40,11 +40,6 @@
     "skipLibCheck": true,
     "sourceMap": true
   },
-  "ts-node": {
-    "compilerOptions": {
-      "module": "NodeNext"
-    }
-  },
   "include": [
     "*.ts",
     "src/**/*",
