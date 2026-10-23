@@ -95,7 +95,9 @@ wired in (C3, `docs/internal/todos/2026-09-01-todo-error-envelope.md`).
   filter (audit R2; kit `list-cache-key-filters`). Every field that changes the result is a
   segment. Examples: `src/features/public/metric/infrastructure/http/cache-keys.ts`,
   `…/metric-settings/infrastructure/http/cache-keys.ts`
-- Keys are tenant-scoped through `buildCursorCacheKey` (ADR-0035). Bump the feature's
+- Keys are tenant-scoped through `buildCursorCacheKey` (ADR-0035), which requires an
+  organization: a key generator calls `assertAuthenticated(req)` first, and its throw makes
+  `cacheMiddleware` skip the cache (`architecture-boundaries` D-03). Bump the feature's
   `*_CURSOR_VERSION` when a key's meaning changes, so entries written under the old key are never
   read. It encodes every string segment, so free text cannot stand for another segment, a
   search for `_` is not the empty sentinel, and `*` never reaches a key; an id or a number comes
@@ -107,8 +109,9 @@ wired in (C3, `docs/internal/todos/2026-09-01-todo-error-envelope.md`).
 - `cacheMiddleware` stores a response only when its status is 200, because a hit is always
   replayed as a 200. Errors are never cached (audit S1: a 404 was stored and came back as a 200).
   Do not put it on a route whose success status is anything else
-- One cache layer per route: do not wrap a route in `cacheMiddleware` when its use case already
-  caches. Writes invalidate the list namespace as `cursor:<feature>:v*:<user>:org:<org>:*`
+- One cache layer per route: do not wrap a route in `cacheMiddleware` when its repository already
+  caches (metric-category's list, through `CachedMetricCategoryRepository`). Writes invalidate the
+  list namespace as `cursor:<feature>:v*:<user>:org:<org>:*`
 
 ## HTTP Status Codes
 

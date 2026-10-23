@@ -1,6 +1,6 @@
 # Dead and duplicated code
 
-**Status:** Implemented on `refactor/architecture-dead-code`; PR open. Register row B-83, its
+**Status:** Done (#211, `ed0e783`). Register row B-83, its
 first slice: X47, X50, X51 and R11's rest of the 2026-10-20 run (`audit-2026-10-20.md` § 6,
 § 4.3).
 **Slug:** `architecture-dead-code` · **Branch:** `refactor/architecture-dead-code`

@@ -301,6 +301,15 @@ const NO_UNCHECKED_IMPORT_FORMS = [
     message:
       "No Function constructor under src/: it evaluates code no boundary rule can read. Write the function.",
   },
+  {
+    // ADR-0078 (X43's rest; architecture-boundaries D-06): an alias of `process` or
+    // `module` reaches getBuiltinModule or require under a name no rule reads. Each is
+    // read only as `x.y`; a type position (`typeof process`) loads nothing.
+    selector:
+      "Identifier[name=/^(process|module)$/]:not(MemberExpression > .object):not(MemberExpression[computed=false] > .property):not(:matches(Property, PropertyDefinition, MethodDefinition, TSPropertySignature)[computed=false] > .key):not(TSTypeQuery > .exprName):not(TSQualifiedName > .left)",
+    message:
+      "Under src/, process and module are read only as process.x and module.x: an alias would reach getBuiltinModule or require under a name no boundary rule reads. Pass the member you need.",
+  },
 ];
 
 // ADR-0078 (inner-layers-reach-infrastructure D-01): no-restricted-imports reads a specifier's
@@ -680,6 +689,15 @@ export default [
           message:
             "No module.require under src/: it loads a module with no import statement, which the boundary rules cannot read. Use a static import.",
         },
+        // ADR-0078 (architecture-boundaries D-06): the same two objects reached as a
+        // property, then aliased.
+        ...["globalThis", "global"].flatMap((object) =>
+          ["process", "module"].map((property) => ({
+            object,
+            property,
+            message: `No ${object}.${property} under src/: read ${property}.x directly, so the boundary rules can see what it loads.`,
+          })),
+        ),
       ],
     },
   },

@@ -9,6 +9,13 @@
   [`inject-features-into-routers`](../../internal/initiatives/inject-features-into-routers/decisions.md);
   register rows B-32, B-31 and B-34
 
+> **Status note (2026-10-23).** Decision 4 holds with one change: `metricTrend` is typed by
+> metric's own `MetricTrendPort`, not through analytics' `public.ts`, which no longer exports
+> `GetMetricTrend`. `src/app.ts` still hands the router analytics' `getMetricTrend`. Before this,
+> metric and analytics imported each other
+> ([`architecture-boundaries` D-01](../../internal/initiatives/architecture-boundaries/decisions.md),
+> audit finding X48).
+
 ---
 
 ## Context

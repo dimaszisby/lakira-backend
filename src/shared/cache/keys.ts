@@ -46,9 +46,10 @@ export const cursorCacheNamespace = (
 /**
  * Builds a cursor-pagination cache key.
  *
- * `organizationId` is a required property, not an optional `segments` entry, so a
- * caller cannot silently omit the tenant boundary — see ADR-0035. It is emitted as
- * a fixed `org:<id>` segment directly after the user segment.
+ * `organizationId` is a required string, not an optional `segments` entry, so a
+ * caller cannot omit the tenant boundary — see ADR-0035. It is emitted as a fixed
+ * `org:<id>` segment directly after the user segment. It once accepted a missing
+ * one and wrote `org:_` (architecture-boundaries D-03).
  */
 export const buildCursorCacheKey = ({
   feature,
@@ -60,7 +61,7 @@ export const buildCursorCacheKey = ({
   feature: string;
   version?: number | string;
   userId?: string | null;
-  organizationId: string | null | undefined;
+  organizationId: string;
   segments?: CursorCacheSegment[];
 }): string => {
   // A missing value is the "_" sentinel itself, not the text "_", which is encoded.

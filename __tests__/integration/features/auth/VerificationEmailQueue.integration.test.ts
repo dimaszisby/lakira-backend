@@ -235,6 +235,13 @@ describe("The verification email via RabbitMQ", () => {
       (n) => n === 1,
     );
     expect(sender.sent[0].to).toBe(email);
+    // The email is sent inside the job's transaction, before it commits, so
+    // another connection can see the email first.
+    await pollUntil(
+      "the token to commit",
+      () => models.EmailVerificationToken.count({ where: { userId } }),
+      (n) => n === 1,
+    );
 
     const verified = await api
       .post("/api/v1/auth/verify-email")
@@ -258,9 +265,14 @@ describe("The verification email via RabbitMQ", () => {
     expect(await depth(QUEUES.PARKING)).toBe(0);
 
     // The token minted by the failed attempt rolled back with it (D-03): one
-    // row, and the link that was sent is the one that works.
+    // row, and the link that was sent is the one that works. The email is sent
+    // before the job's transaction commits, so the row is waited for.
     expect(
-      await models.EmailVerificationToken.count({ where: { userId } }),
+      await pollUntil(
+        "the token to commit",
+        () => models.EmailVerificationToken.count({ where: { userId } }),
+        (n) => n >= 1,
+      ),
     ).toBe(1);
     const verified = await api
       .post("/api/v1/auth/verify-email")

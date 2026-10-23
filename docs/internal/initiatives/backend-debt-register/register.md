@@ -1,6 +1,6 @@
 # Backend debt register
 
-**As of:** 2026-10-23, backend `dev` at `b0a6ee9`. Ranked by [D-01](decisions.md).
+**As of:** 2026-10-23, backend `dev` at `ed0e783`. Ranked by [D-01](decisions.md).
 
 **"What's next" is the first row below whose state is `ready`.** A row above it that is waiting on
 someone is reported with it, as a gap. How rows are added and closed:
@@ -61,11 +61,12 @@ Listed, not analysed ([D-03](decisions.md)). Security and privacy:
 
 Architecture and code:
 
-| ID   | Item                                                                                                                                                                                                                                                                                                                                                                                                          | Sev | State                  | Source                                          |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------------------- | ----------------------------------------------- |
-| B-41 | No cleanup of `processed_messages`                                                                                                                                                                                                                                                                                                                                                                            | —   | deliberately not built | `2026-09-15-todo-processed-messages-cleanup.md` |
-| B-42 | A migration's `down` re-adds foreign keys without `NOT VALID` (R9). The fix edits `20260816000001`, and `.claude/hooks/protect-files.sh` makes an existing migration immutable: the owner allows a one-off edit to its `down`, or closes R9 as accepted                                                                                                                                                       | P3  | owner                  | A0929 § 6 R9                                    |
-| B-83 | Architecture P3 of the 2026-10-20 run (X47, X50, X51 and R11's rest fixed on `refactor/architecture-dead-code`): an aliased `process` or `module` (X43's rest; X42 to X44 otherwise fixed, D-08); ADR-0061 and ADR-0070 unlinked to ADR-0072 (X46); metric and analytics depend on each other (X48); cache drift and tenant-test gaps (X49); the frozen-model counter (X52); the ADR sentences of A1020 § 4.5 | P3  | ready                  | A1020 § 4.5, § 6                                |
+| ID   | Item                                                                                                                                                                                                                                                    | Sev | State                  | Source                                          |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------------------- | ----------------------------------------------- |
+| B-41 | No cleanup of `processed_messages`                                                                                                                                                                                                                      | —   | deliberately not built | `2026-09-15-todo-processed-messages-cleanup.md` |
+| B-42 | A migration's `down` re-adds foreign keys without `NOT VALID` (R9). The fix edits `20260816000001`, and `.claude/hooks/protect-files.sh` makes an existing migration immutable: the owner allows a one-off edit to its `down`, or closes R9 as accepted | P3  | owner                  | A0929 § 6 R9                                    |
+| B-83 | Architecture P3 of the 2026-10-20 run (X47, X50, X51 and R11's rest fixed by #211, `ed0e783`; X48, X49, X52 and X43's rest on `refactor/architecture-boundaries`): ADR-0061 and ADR-0070 unlinked to ADR-0072 (X46); the ADR sentences of A1020 § 4.5   | P3  | ready                  | A1020 § 4.5, § 6                                |
+| B-88 | metric depends both ways on metric-log and on metric-settings: metric's `http/dto.ts` imports their response mappers, and their `feature.ts` imports `MetricAccessSequelize` from metric. `architecture.test.ts` freezes the two pairs                  | P3  | ready                  | `architecture-boundaries` D-01                  |
 
 API and data:
 

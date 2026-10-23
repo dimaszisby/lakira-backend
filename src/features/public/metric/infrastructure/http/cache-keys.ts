@@ -1,6 +1,7 @@
 import { AuthRequest } from "@/types/request.context.js";
 import { buildCursorCacheKey } from "@/shared/cache/keys.js";
 import { pickValidated } from "@/shared/middleware/validated.js";
+import { assertAuthenticated } from "@/utils/auth-guards.js";
 import { getAllMetricsViaCursorSchema } from "./schema.zod.js";
 import {
   METRIC_CURSOR_FEATURE,
@@ -17,13 +18,16 @@ import {
  * spellings into `filter`.
  */
 export const metricsCursorCacheKey = (req: AuthRequest) => {
+  // Throws without a tenant; cacheMiddleware then skips the cache
+  // (architecture-boundaries D-03).
+  assertAuthenticated(req);
   const { query } = pickValidated(getAllMetricsViaCursorSchema)(req);
 
   return buildCursorCacheKey({
     feature: METRIC_CURSOR_FEATURE,
     version: METRIC_CURSOR_VERSION,
-    userId: req.user?.id,
-    organizationId: req.user?.organizationId,
+    userId: req.user.id,
+    organizationId: req.user.organizationId,
     segments: [
       ["l", query.limit],
       ["s", query.sort],

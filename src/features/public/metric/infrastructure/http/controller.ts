@@ -19,7 +19,7 @@ import AppError from "@/utils/AppError.js";
 import { successResponse } from "@/utils/response-formatter.js";
 import catchAsync from "@/utils/catch-async.js";
 import { assertAuthenticated } from "@/utils/auth-guards.js";
-import type { GetMetricTrend } from "@/features/analytics/public.js";
+import type { MetricTrendPort } from "../../application/ports/MetricTrendPort.js";
 import { pickValidated } from "@/shared/middleware/validated.js";
 
 const createMetric = (feature: MetricFeature) =>
@@ -183,7 +183,7 @@ const generateDummyMetrics = (feature: MetricFeature) =>
     );
   });
 
-const handleMetricTrend = (metricTrend: GetMetricTrend) =>
+const handleMetricTrend = (metricTrend: MetricTrendPort) =>
   catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
 
@@ -204,14 +204,15 @@ const handleMetricTrend = (metricTrend: GetMetricTrend) =>
 
 /**
  * Every handler, closed over what the router hands it (ADR-0072). The trends
- * endpoint gets analytics' query, not its feature (D-04).
+ * endpoint gets analytics' query, not its feature (D-04), through metric's own
+ * port (architecture-boundaries D-01).
  */
 export const createMetricController = ({
   metric,
   metricTrend,
 }: {
   metric: MetricFeature;
-  metricTrend: GetMetricTrend;
+  metricTrend: MetricTrendPort;
 }) => ({
   createMetric: createMetric(metric),
   getUserMetricLibrariesViaCursor: getUserMetricLibrariesViaCursor(metric),

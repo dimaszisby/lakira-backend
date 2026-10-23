@@ -972,5 +972,37 @@ describe("feature boundaries in ESLint (ADR-0044)", () => {
         { spec: "@config/envManager.js", rejected: false },
       ]);
     }, 60_000);
+
+    // X43's rest (architecture-boundaries D-06): an alias of `process` or `module` reaches
+    // getBuiltinModule or require under a name no rule reads.
+    it("rejects process or module used other than as x.y, anywhere under src", () => {
+      const source =
+        "const p = process;\n" +
+        "const { getBuiltinModule } = process;\n" +
+        "export const f = (g: (x: unknown) => void) => g(module);\n" +
+        "export const e = process.env.NODE_ENV;\n" +
+        "export const q = globalThis.process;\n" +
+        "export const r = global.module;\n";
+      for (const file of [
+        DOMAIN_FILE,
+        "src/server.ts",
+        "src/utils/logger.ts",
+      ]) {
+        expect(
+          [...reportedLines(file, source, "no-restricted-syntax")].sort(),
+        ).toEqual([1, 2, 3]);
+        // Line 2 twice: no-restricted-properties reads a destructured getBuiltinModule too.
+        expect(
+          [...reportedLines(file, source, "no-restricted-properties")].sort(),
+        ).toEqual([2, 5, 6]);
+      }
+      expect([
+        ...reportedLines(
+          "src/config/probe.cjs",
+          "const env = process.env;\nmodule.exports = { p: process };\n",
+          "no-restricted-syntax",
+        ),
+      ]).toEqual([2]);
+    }, 60_000);
   });
 });

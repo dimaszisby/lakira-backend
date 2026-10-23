@@ -2,7 +2,7 @@
 
 ## D-01 — One `TransactionPort` and one adapter, in the shared kernel
 
-- **Status:** Proposed
+- **Status:** Accepted (#211, `ed0e783`)
 - **Date:** 2026-10-23
 
 **Context.** Auth and metric each declared `TransactionPort` in `application/ports/` and each had a
@@ -26,7 +26,7 @@ copied.
 
 ## D-02 — A feature's `index.ts` exports routers and middleware, never its build function
 
-- **Status:** Proposed
+- **Status:** Accepted (#211, `ed0e783`)
 - **Date:** 2026-10-23
 
 **Context.** Every `index.ts` re-exported `buildXFeature`, which nothing imported through it:
@@ -41,7 +41,7 @@ that re-exports from `./feature.js`.
 
 ## D-03 — The dead `db-helper.ts` exports are deleted
 
-- **Status:** Proposed
+- **Status:** Accepted (#211, `ed0e783`)
 - **Date:** 2026-10-23
 
 **Context.** Of `src/utils/db-helper.ts`'s six exports only `validateMetricAccess` has a caller,
@@ -56,7 +56,7 @@ its own repository; these duplicate it untested in production.
 
 ## D-04 — `env-test-utils.ts` moves to `__tests__/helpers/`
 
-- **Status:** Proposed
+- **Status:** Accepted (#211, `ed0e783`)
 - **Date:** 2026-10-23
 
 **Context.** `src/tests/env-test-utils.ts` is used only by tests and `jest.setup.unit.ts`, but
@@ -74,7 +74,7 @@ also need mapping in Jest and ESLint. _Leave it in `src/tests` and exclude that 
 
 ## D-05 — Auth's Redis client needs no cast
 
-- **Status:** Proposed
+- **Status:** Accepted (#211, `ed0e783`)
 - **Date:** 2026-10-23
 
 **Context.** `buildAuthFeature` passed `redisClient as unknown as LockoutRedisClient`, with no

@@ -1,6 +1,6 @@
 # ADR-0022 — Transaction port consolidation for metric slice
 
-- **Status:** Proposed
+- **Status:** Accepted (merged in #211, `ed0e783`)
 - **Date:** 2026-05-03
 - **Origin:** `ADR-001` in the Feature vertical-slice migration kit — [`feature-vertical-slice-migration`](../../internal/initiatives/feature-vertical-slice-migration/decisions.md)
 
@@ -9,7 +9,7 @@
 > `src/shared/infrastructure/persistence/`, used by auth and metric. Auth's and metric's copies,
 > and a third declaration with its adapter in auth's refresh-token repository, are deleted
 > ([`architecture-dead-code` D-01](../../internal/initiatives/architecture-dead-code/decisions.md),
-> audit finding R11). The status becomes Accepted when that branch merges.
+> audit finding R11).
 
 ---
 

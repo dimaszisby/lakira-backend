@@ -261,6 +261,13 @@ describe("The password-reset email via RabbitMQ", () => {
       (n) => n === 1,
     );
     expect(sender.sent[0].to).toBe(email);
+    // The email is sent inside the job's transaction, before the token row commits,
+    // so another connection can see the email first.
+    await pollUntil(
+      "the token to commit",
+      () => models.PasswordResetToken.count({ where: { userId } }),
+      (n) => n === 1,
+    );
 
     const newPassword = "BrandNewPass123!";
     const reset = await api.post("/api/v1/auth/reset-password").send({
@@ -302,10 +309,15 @@ describe("The password-reset email via RabbitMQ", () => {
     expect(await depth(QUEUES.PARKING)).toBe(0);
 
     // The token minted by the failed attempt rolled back with it (D-02): one
-    // row, and the link that was sent is the one that works.
-    expect(await models.PasswordResetToken.count({ where: { userId } })).toBe(
-      1,
-    );
+    // row, and the link that was sent is the one that works. The email is sent
+    // before the job's transaction commits, so the row is waited for.
+    expect(
+      await pollUntil(
+        "the token to commit",
+        () => models.PasswordResetToken.count({ where: { userId } }),
+        (n) => n >= 1,
+      ),
+    ).toBe(1);
     const newPassword = "BrandNewPass123!";
     const reset = await api.post("/api/v1/auth/reset-password").send({
       token: tokenFrom(sender.sent[0]),
