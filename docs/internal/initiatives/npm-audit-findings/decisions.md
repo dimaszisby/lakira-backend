@@ -195,3 +195,32 @@ run on Jest 30: 32 suites passed, 2 skipped, 249 tests, no teardown error.
 
 Promoted to the architecture decision registry as **[ADR-0066](../../../explanation/decisions/adr-0066-junit-reports-from-jest-junit-17.md)**.
 That file is authoritative; this entry is a pointer. Register row B-25; branch `fix/jest-junit-17`.
+
+---
+
+## D-10 — Take the `follow-redirects` patch through the lockfile, alone
+
+- **Status:** Proposed
+- **Date:** 2026-10-24
+- **Size:** Micro — single commit, no separate kit. Commits carry `refs: follow-redirects-dev-high`.
+  Register row B-91; branch `fix/follow-redirects-dev-high`.
+
+**Context.** `npm audit` on `dev` at `d1ff8da` reported `follow-redirects@1.16.0` as high, under
+GHSA-q3jh-wrc6-jgq8 (array-form headers bypass the cross-origin credential stripping) and
+GHSA-8r9p-f939-6h3c (the `sensitiveHeaders` regex escaping can expose credential headers). It is
+reached only through `wait-on@9.0.4` → `axios@1.20.0`, a devDependency that polls local ports in
+scripts, so the image does not hold it and `npm audit --omit=dev`, which the gate reads, did not
+report it. `axios` declares `follow-redirects: ^1.16.0`, and 1.16.1 is published.
+**Decision.** Move `follow-redirects` to 1.16.1 in `package-lock.json` with
+`npm update follow-redirects`, and nothing else. `package.json` does not change.
+**Options considered.** _`npm audit fix`:_ it would also reach for the accepted `sequelize`/`uuid`
+moderates (D-04), and a dependency change reads best whole, as D-05 put it. _An `overrides` pin:_
+the range already admits the fix, and the dependency policy keeps overrides for cases where it does
+not. _An accepted exception, on the ground that it is dev-only:_ a fix exists and costs one
+lockfile entry.
+**Consequences.** Full `npm audit` went from 3 findings (1 high, 2 moderate) to 2 moderate, the
+accepted `uuid` root; `--omit=dev` stays at those 2. `npm ls --omit=dev --all` is identical before
+and after, so the image is unchanged. `wait-on` still answers on an open port and times out on a
+closed one. Found while checking: `braces` 3.0.3 and `sprintf-js` 1.0.3, the two findings B-25
+kept open for an upstream release, are still installed and no longer reported; the advisory data
+changed, not the tree, and B-25 closes with this entry.

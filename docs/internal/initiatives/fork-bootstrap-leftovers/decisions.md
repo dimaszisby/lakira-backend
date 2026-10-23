@@ -2,7 +2,7 @@
 
 ## D-01 — In a user's env files, only database identifiers are renamed
 
-- **Status:** Proposed
+- **Status:** Accepted (#219, `d1ff8da`)
 - **Date:** 2026-10-23
 
 **Context.** Step 2b renames an `.env` or `.env.test` that exists before the run with
@@ -23,7 +23,7 @@ its database name, as it does in the template.
 
 ## D-02 — No secret the script writes is a command-line argument
 
-- **Status:** Proposed
+- **Status:** Accepted (#219, `d1ff8da`)
 - **Date:** 2026-10-23
 
 **Context.** The database password reaches `awk` through its environment, which only the same user
@@ -39,7 +39,7 @@ script and fails on a generated value inside a `sed` or `do_sed` argument.
 
 ## D-03 — The script has no BSD/GNU branch
 
-- **Status:** Proposed
+- **Status:** Accepted (#219, `d1ff8da`)
 - **Date:** 2026-10-23
 
 **Context.** The script detects the `sed` flavour to pick `sed -i` or `sed -i ''`. CI runs the
@@ -56,7 +56,7 @@ that can be removed.
 
 ## D-04 — A run finishes a rename that an earlier run left part-way
 
-- **Status:** Proposed
+- **Status:** Accepted (#219, `d1ff8da`)
 - **Date:** 2026-10-23
 
 **Context.** "Already renamed" is read from `package.json`, which step 1 renames first. A run
@@ -76,7 +76,7 @@ comment; in CI that is the job's own checkout, on a machine it is a change `git 
 
 ## D-05 — An `.env.test` the user filled in gives its login to a new `.env`
 
-- **Status:** Proposed
+- **Status:** Accepted (#219, `d1ff8da`)
 - **Date:** 2026-10-23
 
 **Context.** With no `.env`, step 3 creates one from the template and generates a password, and
@@ -94,7 +94,7 @@ message says which happened.
 
 ## D-06 — Bootstrap generates the broker login; Redis keeps no password
 
-- **Status:** Proposed
+- **Status:** Accepted (#219, `d1ff8da`)
 - **Date:** 2026-10-23
 
 **Context.** Both templates ship `RABBITMQ_USER=guest` and `RABBITMQ_PASSWORD=guest`, and Compose
@@ -114,7 +114,7 @@ a route Redis closes itself. _Documentation only:_ leaves the UI on a known logi
 
 ## D-07 — The script's short name strips only `-backend`
 
-- **Status:** Proposed
+- **Status:** Accepted (#219, `d1ff8da`)
 - **Date:** 2026-10-23
 
 **Context.** The script strips `-backend` or `-api` for the database, CI and queue names it
@@ -131,7 +131,7 @@ every deployed `-api` fork.
 
 ## D-08 — Fork Smoke checks what the bootstrap produced
 
-- **Status:** Proposed
+- **Status:** Accepted (#219, `d1ff8da`)
 - **Date:** 2026-10-23
 
 **Context.** Fork Smoke proves the bootstrap, Compose and `.env.test` chain logs in. It would pass
@@ -148,7 +148,7 @@ and does not run Compose.
 
 ## D-09 — The docs say how to rotate in place, and publish on loopback
 
-- **Status:** Proposed
+- **Status:** Accepted (#219, `d1ff8da`)
 - **Date:** 2026-10-23
 
 **Context.** The tutorial says how to recreate a volume, not how to change a password in one that
