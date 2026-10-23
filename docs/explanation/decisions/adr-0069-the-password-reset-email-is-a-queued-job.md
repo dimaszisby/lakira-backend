@@ -12,6 +12,10 @@
   [`durable-password-reset-email`](../../internal/initiatives/durable-password-reset-email/decisions.md);
   register row B-70 ([todo](../../internal/todos/2026-10-18-todo-reset-and-invite-email-not-durable.md))
 
+> **Status note (2026-10-23).** The last item of § Consequences is closed: the invite email is a
+> queued job ([ADR-0070](./adr-0070-the-invite-email-is-a-queued-job.md)) (audit 2026-10-20,
+> § 4.5).
+
 ---
 
 ## Context

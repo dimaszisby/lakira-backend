@@ -9,6 +9,11 @@
   [`queue-design-hardening`](../../internal/initiatives/queue-design-hardening/decisions.md);
   register row B-40 (audit 2026-09-29, § 6 R8)
 
+> **Status note (2026-10-23).** § Consequences' "up to about nine retry queues per work queue" is
+> too many: a work queue has at most `RABBITMQ_MAX_RETRIES` retry queues, one per distinct delay
+> (`retryDelaysMs`). The defaults, 5 retries from 2000 ms, give five: 2, 4, 8, 16 and 32 s
+> (audit 2026-10-20, § 4.5).
+
 ---
 
 ## Context

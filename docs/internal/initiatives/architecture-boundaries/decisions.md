@@ -2,7 +2,7 @@
 
 ## D-01 — metric declares the trend port it consumes
 
-- **Status:** Proposed
+- **Status:** Accepted (#212, `b45c4f3`)
 - **Date:** 2026-10-23
 
 **Context.** metric's controller typed `GET /metrics/:metricId/trends` by analytics'
@@ -27,7 +27,7 @@ The test freezes those two pairs as the only exceptions; register row B-88 recor
 
 ## D-02 — metric-category's list cache moves into infrastructure
 
-- **Status:** Proposed
+- **Status:** Accepted (#212, `b45c4f3`)
 - **Date:** 2026-10-23
 
 **Context.** `ListCategories`, an application query, built its cursor key with
@@ -50,7 +50,7 @@ invalidation port, repository decorator), each in infrastructure.
 
 ## D-03 — A cursor key requires an organization
 
-- **Status:** Proposed
+- **Status:** Accepted (#212, `b45c4f3`)
 - **Date:** 2026-10-23
 
 **Context.** `buildCursorCacheKey` typed `organizationId` as `string | null | undefined` and wrote a
@@ -68,7 +68,7 @@ organization.
 
 ## D-04 — The tenant-scope test reads every file that names a cache key
 
-- **Status:** Proposed
+- **Status:** Accepted (#212, `b45c4f3`)
 - **Date:** 2026-10-23
 
 **Context.** "cache keys are tenant-scoped" picked files by a `/cache/` path segment,
@@ -85,7 +85,7 @@ lines and messages that hold a user id.
 
 ## D-05 — The frozen model counter reads feature names as the lint does
 
-- **Status:** Proposed
+- **Status:** Accepted (#212, `b45c4f3`)
 - **Date:** 2026-10-23
 
 **Context.** The counter in "cross-feature model associations are frozen" matched feature names of
@@ -102,7 +102,7 @@ import and a name with a digit. D-01's test reads imports with the same pattern.
 
 ## D-06 — Under `src`, `process` and `module` are read only as `x.y`
 
-- **Status:** Proposed
+- **Status:** Accepted (#212, `b45c4f3`)
 - **Date:** 2026-10-23
 
 **Context.** ADR-0078 refuses `process.getBuiltinModule` and `module.require`, and left open an
@@ -122,7 +122,7 @@ type-aware rule that follows values:_ a rule of the repository's own for one res
 
 ## D-07 — A queue test waits for the job's commit, not only for its email
 
-- **Status:** Proposed
+- **Status:** Accepted (#212, `b45c4f3`)
 - **Date:** 2026-10-23
 
 **Context.** On #212, "Fork bootstrap and npm test" failed once and passed once on the same commit:

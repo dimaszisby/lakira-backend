@@ -14,6 +14,14 @@
   [`durable-verification-email`](../../internal/initiatives/durable-verification-email/decisions.md);
   register row B-39 ([todo](../../internal/todos/2026-10-02-todo-durable-email-delivery.md))
 
+> **Status note (2026-10-23).** Decision 1's "the queue and its retry queue are declared by
+> `assertWorkQueue`" no longer holds: `assertWorkQueue` declares the work queue, and each retry
+> waits in a queue of its own delay, declared on demand by `assertRetryTier`
+> ([ADR-0073](./adr-0073-dedup-per-queue-and-retry-tiers.md)). The last item of § Consequences
+> is closed: the password-reset and invite emails are queued jobs too
+> ([ADR-0069](./adr-0069-the-password-reset-email-is-a-queued-job.md),
+> [ADR-0070](./adr-0070-the-invite-email-is-a-queued-job.md)) (audit 2026-10-20, § 4.5).
+
 ---
 
 ## Context

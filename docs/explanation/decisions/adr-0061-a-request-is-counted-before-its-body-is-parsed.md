@@ -18,6 +18,11 @@
 > `x-forwarded-proto` counts only from a hop `TRUST_PROXY` trusts (`proxy-trust-and-xss-clean`
 > D-01, X12). The order below is unchanged.
 
+> **Status note (2026-10-23).** Decision 2's "`src/server.ts` calls it once" no longer holds:
+> since [ADR-0072](./adr-0072-features-are-handed-to-their-routers.md), `createApp` in
+> `src/app.ts` calls `mountHttpPipeline`, once, before it mounts any router, and `src/server.ts`
+> calls `createApp`. The order and the one-function rule are unchanged (audit 2026-10-20, X46).
+
 ---
 
 ## Context

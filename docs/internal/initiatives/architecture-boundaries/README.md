@@ -1,6 +1,6 @@
 # Feature boundaries
 
-**Status:** Implemented on `refactor/architecture-boundaries`; PR open. Register row B-83, its
+**Status:** Done (#212, `b45c4f3`). Register row B-83, its
 second slice: X48, X49, X52 and X43's rest of the 2026-10-20 run (`audit-2026-10-20.md` § 6).
 **Slug:** `architecture-boundaries` · **Branch:** `refactor/architecture-boundaries`
 

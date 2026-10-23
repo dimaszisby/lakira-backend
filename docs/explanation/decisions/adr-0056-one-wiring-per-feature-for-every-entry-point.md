@@ -12,6 +12,15 @@
 - **Origin:** `D-01`, `D-02`, `D-05` and `D-06` in the worker-composition-root kit —
   [`worker-composition-root`](../../internal/initiatives/worker-composition-root/decisions.md)
 
+> **Status note (2026-10-23).** Decision 3's `installMetricLogFeature` and the module-level slots
+> and `override…ForTest` hooks of § Consequences are gone: since
+> [ADR-0072](./adr-0072-features-are-handed-to-their-routers.md), `src/server.ts` builds every
+> feature once through `buildWiredFeatures` (`src/composition/features.ts`) and hands each to its
+> router. "Only metric-log is wired this way" no longer holds: auth is too, through
+> `buildWiredAuthFeature` (`src/composition/auth.ts`), which the server and the worker both call
+> ([ADR-0067](./adr-0067-the-verification-email-is-a-queued-job.md)). The rest of
+> decision 3 and the other decisions hold (audit 2026-10-20, § 4.5).
+
 ---
 
 ## Context

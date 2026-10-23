@@ -18,6 +18,13 @@
 > `.jsx`, `@utils/` and `@config/` are held to the same rules. The consequence below that a
 > relative path into `src/shared/middleware` is "the remaining gap" no longer holds.
 
+> **Status note (2026-10-23).** Decisions 1 and 6 were wider than the lint too: `.mts` and `.cts`
+> under `src` were not linted and `.jsx` had no boundary rule (X44), and `eval`,
+> `globalThis.Function`, `module.require` and an aliased `process` passed (X43).
+> [ADR-0078](./adr-0078-relative-paths-and-contracts-in-the-inner-layers.md) carries them out, and
+> its note of 2026-10-23 refuses `process` and `module` other than as `x.y`. Still open: an alias
+> of `globalThis` itself (audit 2026-10-20, § 4.5).
+
 ---
 
 ## Context
