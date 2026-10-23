@@ -51,6 +51,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+          check-latest: true
           cache: npm
 
       # A hyphenated name, so the database-identifier slug (ADR-0051) is exercised.
