@@ -2,7 +2,7 @@
 
 ## D-01 — `tz` is an IANA name or `UTC`, by one rule (X23)
 
-- **Status:** Proposed
+- **Status:** Accepted (#218, `9534687`)
 - **Date:** 2026-10-23
 
 **Context.** The analytics `tz` passed whatever `Intl` accepts, `+07:00` included. `Intl`, which
@@ -20,7 +20,7 @@ step. _`Intl.supportedValuesOf("timeZone")`:_ leaves out aliases browsers still 
 
 ## D-02 — A rejected request is logged at warn (X22)
 
-- **Status:** Proposed
+- **Status:** Accepted (#218, `9534687`)
 - **Date:** 2026-10-23
 
 **Context.** A failed validation, a `ZodError` reaching the error handler and malformed JSON were
@@ -34,7 +34,7 @@ parser's `type`. "Unexpected Error during Validation", a fault of ours, stays at
 
 ## D-03 — Each single-resource cache key is built once, from validated values (X11, X21, B-90)
 
-- **Status:** Proposed
+- **Status:** Accepted (#218, `9534687`)
 - **Date:** 2026-10-23
 
 **Context.** The `metric:`, `category:` and `metricSetting:` keys read raw `req.params` and
@@ -53,7 +53,7 @@ change, so no cached entry is orphaned.
 
 ## D-04 — The PRD drift guard watches the PRD (X24)
 
-- **Status:** Proposed
+- **Status:** Accepted (#218, `9534687`)
 - **Date:** 2026-10-23
 
 **Context.** `backend-prd-drift-warning.yml` compares against
@@ -68,7 +68,7 @@ is contract-change driven.
 
 ## D-05 — The scripts that run `ts-node`, and `ts-node`, go (X25)
 
-- **Status:** Proposed
+- **Status:** Accepted (#218, `9534687`)
 - **Date:** 2026-10-23
 
 **Context.** `staging`, `prod` and `worker:staging` run `ts-node` against `src/` with
@@ -87,7 +87,7 @@ those.
 
 ## D-06 — `docs:openapi:check` fails on an untracked spec (X28)
 
-- **Status:** Proposed
+- **Status:** Accepted (#218, `9534687`)
 - **Date:** 2026-10-23
 
 **Context.** The check ends in `git diff --exit-code <spec>`, which passes when the spec is not
@@ -101,7 +101,7 @@ path in the script as before, and moves a tracked spec with `git mv`, so a fork 
 
 ## D-07 — The validator's checks are a module, each proven to fire (W7)
 
-- **Status:** Proposed
+- **Status:** Accepted (#218, `9534687`)
 - **Date:** 2026-10-23
 
 **Context.** No operation has an `operationId`, so the duplicate check cannot fire, and a spec
@@ -119,7 +119,7 @@ frontend's type generator would see, made for a check.
 
 ## D-08 — Login, and refresh and logout, have limiters of their own (X26)
 
-- **Status:** Proposed
+- **Status:** Accepted (#218, `9534687`)
 - **Date:** 2026-10-23
 
 **Context.** `/login`, `/logout` and `/refresh` run without `authMiddleware`, so `userRateLimiter`
@@ -139,7 +139,7 @@ would limit an office sooner than today.
 
 ## D-09 — The organization lists are cursor pages (X27)
 
-- **Status:** Proposed
+- **Status:** Accepted (#218, `9534687`)
 - **Date:** 2026-10-23
 
 **Context.** `GET /organizations` and `GET /organizations/:id/members` load every membership. Both

@@ -17,6 +17,15 @@
 > spec's filename follows the package name, from `scripts/openapi-spec-path.js`, so bootstrap
 > renames the file with the package. The bootstrap script also renames an existing `.env`, and a
 > second run creates missing env files without rotating a secret that is in use.
+>
+> **Status note (2026-10-23).** The short name decision 1 slugs is now the name less a trailing
+> `-backend` only, as `src/config/app-name.ts` derives it (ADR-0060); the script also stripped
+> `-api`, so `acme-api` got `acme_*` databases beside an app named `acme-api` (register B-51, kit
+> [`fork-bootstrap-leftovers`](../../internal/initiatives/fork-bootstrap-leftovers/decisions.md)
+> D-07). Bootstrap also generates the broker login (D-06), renames only database identifiers in an
+> existing env file (D-01), and finishes a rename an interrupted run left (D-04). `Fork Smoke`
+> now fails when a template secret survives, when `.env` and `.env.test` disagree on a login, or
+> when Compose publishes a port beyond `127.0.0.1` (D-08).
 
 ## Context
 

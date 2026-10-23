@@ -1,6 +1,7 @@
 # Todo — `bootstrap-fork.sh` and `app-name.ts` derive the short name differently
 
-- **Status:** Open
+- **Status:** Fixed by `fix/fork-bootstrap-leftovers`: the script strips only `-backend`, as
+  `app-name.ts` does ([`fork-bootstrap-leftovers` D-07](../initiatives/fork-bootstrap-leftovers/decisions.md), register row B-51)
 - **Created:** 2026-09-24
 - **Owner:** unassigned
 - **Origin:** found by the `docs-sweep` kit while correcting `docs/tutorials/fork-and-rebrand.md`

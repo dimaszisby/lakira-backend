@@ -63,7 +63,7 @@ This command creates a Docker volume named `pgdata`. You can then use this volum
 docker run -d \
   --name postgres_db \
   -v pgdata:/var/lib/postgresql/data \
-  -p 5432:5432 \
+  -p 127.0.0.1:5432:5432 \
   -e POSTGRES_USER=your_db_user \
   -e POSTGRES_PASSWORD=your_db_password \
   -e POSTGRES_DB=your_db_name \
@@ -77,7 +77,7 @@ docker run -d \
 docker run -d \
   --name postgres_db \
   -v pgdata:/var/lib/postgresql/data \
-  -p 5432:5432 \
+  -p 127.0.0.1:5432:5432 \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=password \
   -e POSTGRES_DB=lakira_development \
@@ -85,7 +85,7 @@ docker run -d \
   postgres:18
 ```
 
-This command creates and runs a PostgreSQL container named `postgres_db`. It mounts the `pgdata` volume to the `/var/lib/postgresql/data` directory inside the container, which is where PostgreSQL stores its data. It also exposes port 5432 on the host machine, allowing you to connect to the database from your local machine. The `-e` flags set the environment variables for the database user, password, and database name. Replace `your_db_user`, `your_db_password`, and `your_db_name` with your desired values. The `PGDATA` environment variable explicitly sets the data directory.
+This command creates and runs a PostgreSQL container named `postgres_db`. It mounts the `pgdata` volume to the `/var/lib/postgresql/data` directory inside the container, which is where PostgreSQL stores its data. It also publishes port 5432 on the host's loopback address, `127.0.0.1`, so you can connect from your own machine and nothing on the network can; `-p 5432:5432` would publish it on every interface, and Docker's port rules bypass a host firewall such as `ufw`. The `-e` flags set the environment variables for the database user, password, and database name. Replace `your_db_user`, `your_db_password`, and `your_db_name` with your desired values. The `PGDATA` environment variable explicitly sets the data directory.
 
 ## 3. Connecting to the Database from the Host Machine -> DONE
 
@@ -284,7 +284,7 @@ Before upgrading, consider the potential impact on your application and data. Al
     docker run -d \
       --name postgres_db \
       -v pgdata:/var/lib/postgresql/data \
-      -p 5432:5432 \
+      -p 127.0.0.1:5432:5432 \
       -e POSTGRES_USER=your_db_user \
       -e POSTGRES_PASSWORD=your_db_password \
       -e POSTGRES_DB=your_db_name \
