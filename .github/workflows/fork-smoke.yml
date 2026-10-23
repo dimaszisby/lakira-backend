@@ -58,6 +58,33 @@ jobs:
       - name: Bootstrap as a fork
         run: bash scripts/bootstrap-fork.sh --name my-app
 
+      # The steps below prove the chain logs in, which it would as well with the
+      # template's secrets, or with a port published on every interface
+      # (fork-bootstrap-leftovers D-08). Names are printed, never values.
+      - name: Bootstrap left no template secret and no open port
+        run: |
+          value() { { grep -m1 "^$1=" "$2" || true; } | cut -d= -f2- | sed 's/[[:space:]]*$//'; }
+          fail=0
+          for key in JWT_SECRET DB_PASSWORD RABBITMQ_PASSWORD; do
+            current="$(value "$key" .env)"
+            if [ -z "$current" ] || [ "$current" = "$(value "$key" .env.example)" ]; then
+              echo "::error::.env keeps the template's $key"
+              fail=1
+            fi
+          done
+          for key in DB_USER DB_PASSWORD RABBITMQ_USER RABBITMQ_PASSWORD; do
+            if [ "$(value "$key" .env)" != "$(value "$key" .env.test)" ]; then
+              echo "::error::.env and .env.test disagree on $key"
+              fail=1
+            fi
+          done
+          open="$(docker compose config --format json | jq -r '.services | to_entries[] | .key as $s | (.value.ports // [])[] | select(.host_ip != "127.0.0.1") | "\($s) \(.published)"')"
+          if [ -n "$open" ]; then
+            echo "::error::Compose publishes beyond 127.0.0.1: $open"
+            fail=1
+          fi
+          exit "$fail"
+
       - name: Start services from the fork's Compose file
         run: docker compose up -d --wait db redis rabbitmq
 

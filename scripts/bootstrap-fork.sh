@@ -10,27 +10,31 @@
 #      package-lock.json, .env.example, and CI workflows, and renames the
 #      generated OpenAPI spec to <new-name>-openapi.json to match: the spec's
 #      path comes from the package name (scripts/openapi-spec-path.js).
-#   2. Replaces "lakira" with the derived short name (strip -backend suffix)
-#      in DB names and CI DB refs. The running app's queue names come from
-#      src/config/app-name.ts, not from here. Database
+#   2. Replaces "lakira" with the short name (the name less a trailing
+#      "-backend", as src/config/app-name.ts derives it) in DB names and CI DB
+#      refs. The running app's queue names come from src/config/app-name.ts, not
+#      from here. Database
 #      identifiers use the short name with hyphens turned into underscores
 #      ("my-app" gives my_app_user), so they stay valid in plain SQL. The test
 #      template and the test-database init SQL are rewritten too, so .env.test
-#      logs in as the user Compose creates from .env. An .env or .env.test that
-#      already exists is rewritten the same way.
+#      logs in as the user Compose creates from .env. In an .env or .env.test
+#      that already exists, only the database identifiers are renamed.
 #   3. Rotates JWT_SECRET in .env (creating it from .env.example if needed), and
-#      replaces the template's database password with a generated one. .env.test
-#      takes its database user and password from .env, whatever user that is.
-#      Redis and RabbitMQ keep their defaults; Compose publishes all three on
-#      127.0.0.1 only.
+#      replaces the template's database password and the broker's guest login
+#      with generated ones. .env.test takes its database and broker logins from
+#      .env, whatever users those are. Redis keeps no password; Compose publishes
+#      every service on 127.0.0.1 only.
 #   4. Sets APP_NAME=<new-name> in .env, and creates .env.test from its template.
 #   5. Removes docs/internal/ (upstream working material); --keep-internal opts out.
 #   6. Drops FORKED-FROM.md with the upstream commit SHA.
 #
 # The script is idempotent: running it twice changes nothing, except that a
 # second run creates .env or .env.test if they are missing (a fresh checkout of a
-# fork has neither). A fork is renamed once: a later run with a different --name
-# keeps the name the tree already has.
+# fork has neither), and finishes a rename an earlier run stopped part-way. A fork
+# is renamed once: a later run with a different --name keeps the name the tree
+# already has. No generated secret is ever a command-line argument, where any
+# user could read it from the process list: each reaches awk through its
+# environment.
 
 set -euo pipefail
 
@@ -79,8 +83,7 @@ fi
 # the workflow "Lakira X X Backend CI", and a second run renamed lakira_x_user
 # to lakira_x_x_user (audit 2026-10-12, T3). A name whose short name is exactly
 # "lakira" is safe, since every rename then writes what it found.
-NAME_STEM="${NEW_NAME%%-backend}"
-NAME_STEM="${NAME_STEM%%-api}"
+NAME_STEM="${NEW_NAME%-backend}"
 if [[ "$NEW_NAME" == *lakira* && "$NAME_STEM" != "lakira" ]]; then
   echo "Error: --name must not contain 'lakira', the template's own name: the renames would match their own output." >&2
   echo "Got: '$NEW_NAME'" >&2
@@ -98,22 +101,59 @@ if ! command -v openssl >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
-# Detect sed flavour (BSD vs GNU) and build an argument array.
-# Using an array (not eval) so patterns containing spaces work correctly.
+# Rewriting a file
+#
+# rewrite_file <file> <command...> runs the command on the file into a temp file,
+# then writes the result back through the file, so it keeps its own mode. No
+# in-place sed: its flag differs between BSD and GNU, and CI runs only GNU, so the
+# macOS branch went untested (fork-bootstrap-leftovers D-03). The temp file is
+# outside the tree: a run that is killed must not leave a copy of the secrets
+# beside .env under a name nothing ignores. REWRITE_CHANGED says whether the file
+# changed; the function itself always succeeds, as `set -e` requires.
 # ---------------------------------------------------------------------------
-if sed --version 2>/dev/null | grep -q GNU; then
-  SED_INPLACE=(sed -i)
-else
-  # macOS / BSD sed requires an empty extension argument
-  SED_INPLACE=(sed -i '')
-fi
+REWRITE_CHANGED=false
+rewrite_file() {
+  local file="$1"
+  shift
+  REWRITE_CHANGED=false
+  [[ -f "$file" ]] || return 0
+  local tmp
+  tmp=$(mktemp "${TMPDIR:-/tmp}/bootstrap-fork.XXXXXX")
+  if ! "$@" "$file" > "$tmp"; then
+    rm -f "$tmp"
+    echo "Error: could not rewrite $(basename "$file")." >&2
+    exit 1
+  fi
+  if ! cmp -s "$tmp" "$file"; then
+    cat "$tmp" > "$file"
+    REWRITE_CHANGED=true
+  fi
+  rm -f "$tmp"
+}
 
 do_sed() {
-  local pattern="$1"
-  local file="$2"
-  if [[ -f "$file" ]]; then
-    "${SED_INPLACE[@]}" "$pattern" "$file"
-  fi
+  rewrite_file "$2" sed "$1"
+}
+
+# set_env_values <file> <KEY...> sets each KEY's line to the value in the
+# variable SET_<KEY>, which the caller puts in awk's environment:
+#   SET_JWT_SECRET="$secret" set_env_values "$ENV_FILE" JWT_SECRET
+# A key with no line is not added. The values never appear in a pattern or an
+# argument.
+set_env_values() {
+  local file="$1"
+  shift
+  rewrite_file "$file" awk -v keys="$*" '
+    BEGIN { n = split(keys, list, " "); for (i = 1; i <= n; i++) wanted[list[i]] = 1 }
+    {
+      eq = index($0, "=")
+      if (eq > 1) {
+        key = substr($0, 1, eq - 1)
+        if (key in wanted) { print key "=" ENVIRON["SET_" key]; next }
+      }
+      print
+    }
+  '
 }
 
 # ---------------------------------------------------------------------------
@@ -145,20 +185,34 @@ if [[ "$CURRENT_NAME" != "$TEMPLATE_NAME" || "$NEW_NAME" == "$TEMPLATE_NAME" ]];
     echo "This tree is already renamed to '$CURRENT_NAME'; keeping that name, not '$NEW_NAME'." >&2
     NEW_NAME="$CURRENT_NAME"
   fi
-  echo "Already renamed to '$NEW_NAME'. Checking .env and .env.test only."
+  echo "Already renamed to '$NEW_NAME'. Finishing any rename left part-way, then checking .env and .env.test."
 fi
 
-# Derive short name (strip trailing -backend, -api, etc.)
-SHORT_NAME="${NEW_NAME%%-backend}"
-SHORT_NAME="${SHORT_NAME%%-api}"
+# Steps 1 to 2 run in both states. "Already renamed" is read from package.json,
+# which step 1 renames first, so a run stopped after it left the spec, the
+# workflows and the test chain on the template's names, and every later run
+# skipped them (fork-bootstrap-leftovers D-04). Each step matches only the
+# template's strings, and a name holding "lakira" is refused above, so on a
+# finished tree they change nothing. The template asked to take its own name
+# renames nothing.
+RENAME_TREE=true
+if [[ "$NEW_NAME" == "$TEMPLATE_NAME" ]]; then
+  RENAME_TREE=false
+fi
+
+# The short name is the name less a trailing "-backend", as src/config/app-name.ts
+# derives APP_SHORT_NAME. The script also stripped "-api", so "acme-api" got acme_*
+# databases beside an app that calls itself acme-api (B-51, D-07).
+SHORT_NAME="${NEW_NAME%-backend}"
 
 # Database identifiers (users, database names) must be valid unquoted in SQL:
 # docker/db/init/01-create-dbs.sql runs a plain CREATE DATABASE, where a hyphen
 # is a syntax error.
 DB_SLUG="${SHORT_NAME//-/_}"
 
-# Derive Title-Cased display name from short name (matches src/config/app-name.ts toTitleCase).
-# e.g. "my-app" → "My App", "lakira" → "Lakira"
+# Title-cased display name, as src/config/app-name.ts derives APP_DISPLAY_NAME.
+# e.g. "my-app" → "My App", "acme-api" → "Acme Api". The generated OpenAPI spec
+# carries it, so step 1b has to write exactly that (audit 2026-10-05, T2).
 DISPLAY_NAME=""
 IFS='-' read -ra _PARTS <<< "$SHORT_NAME"
 for _p in "${_PARTS[@]}"; do
@@ -168,35 +222,20 @@ for _p in "${_PARTS[@]}"; do
 done
 DISPLAY_NAME="${DISPLAY_NAME% }"
 
-# The names the application derives from APP_NAME (src/config/app-name.ts): it
-# strips only a trailing "-backend", where SHORT_NAME above also strips "-api".
-# For "acme-api" the app sets an "acme-api_refresh" cookie and titles its API
-# "Acme Api", so the generated OpenAPI spec says the same, and step 1b has to
-# write exactly that (audit 2026-10-05, T2).
-APP_SHORT_NAME="${NEW_NAME%-backend}"
-APP_DISPLAY_NAME=""
-IFS='-' read -ra _PARTS <<< "$APP_SHORT_NAME"
-for _p in "${_PARTS[@]}"; do
-  [[ -z "$_p" ]] && continue
-  _head="$(printf '%s' "${_p:0:1}" | tr '[:lower:]' '[:upper:]')"
-  APP_DISPLAY_NAME+="${_head}${_p:1} "
-done
-APP_DISPLAY_NAME="${APP_DISPLAY_NAME% }"
-
 OLD_SPEC="docs/reference/api/$TEMPLATE_NAME-openapi.json"
 NEW_SPEC="docs/reference/api/$NEW_NAME-openapi.json"
 
+# Refuse before anything is rewritten: failing at the spec rename would leave
+# package.json and the workflows renamed and the spec not.
+if [[ "$RENAME_TREE" == "true" && -f "$REPO_ROOT/$OLD_SPEC" && -e "$REPO_ROOT/$NEW_SPEC" ]]; then
+  echo "Error: $NEW_SPEC already exists; remove it or pick another name." >&2
+  exit 1
+fi
 if [[ "$ALREADY_RENAMED" == "false" ]]; then
-  # Refuse before anything is rewritten: failing at the spec rename would leave
-  # package.json and the workflows renamed and the spec not.
-  if [[ -f "$REPO_ROOT/$OLD_SPEC" && -e "$REPO_ROOT/$NEW_SPEC" ]]; then
-    echo "Error: $NEW_SPEC already exists; remove it or pick another name." >&2
-    exit 1
-  fi
   echo "Renaming '$CURRENT_NAME' → '$NEW_NAME' (short: lakira → $SHORT_NAME)"
 fi
 
-if [[ "$ALREADY_RENAMED" == "false" ]]; then
+if [[ "$RENAME_TREE" == "true" ]]; then
 
 # ---------------------------------------------------------------------------
 # 1. Replace "lakira-backend" → NEW_NAME in key files
@@ -235,9 +274,9 @@ if [[ -f "$REPO_ROOT/$OLD_SPEC" ]]; then
   # script runs before `npm install` and cannot run the generator, so it rewrites
   # those strings itself; the fork's docs:openapi:check then finds no difference.
   # Staged when the file is tracked, because that check compares with the index.
-  do_sed "s/\"title\": \"Lakira API\"/\"title\": \"$APP_DISPLAY_NAME API\"/" "$REPO_ROOT/$NEW_SPEC"
-  do_sed "s/for the Lakira application\./for the $APP_DISPLAY_NAME application./" "$REPO_ROOT/$NEW_SPEC"
-  do_sed "s/lakira_refresh/${APP_SHORT_NAME}_refresh/g" "$REPO_ROOT/$NEW_SPEC"
+  do_sed "s/\"title\": \"Lakira API\"/\"title\": \"$DISPLAY_NAME API\"/" "$REPO_ROOT/$NEW_SPEC"
+  do_sed "s/for the Lakira application\./for the $DISPLAY_NAME application./" "$REPO_ROOT/$NEW_SPEC"
+  do_sed "s/lakira_refresh/${SHORT_NAME}_refresh/g" "$REPO_ROOT/$NEW_SPEC"
   if git -C "$REPO_ROOT" ls-files --error-unmatch "$NEW_SPEC" >/dev/null 2>&1; then
     git -C "$REPO_ROOT" add "$NEW_SPEC"
   fi
@@ -287,7 +326,7 @@ for f in "${FILES_SHORT[@]}"; do
   do_sed "s/Lakira/${DISPLAY_NAME}/g" "$f"
 done
 
-fi # ALREADY_RENAMED
+fi # RENAME_TREE
 
 # ---------------------------------------------------------------------------
 # 2b. Rename database identifiers in an .env or .env.test that already exists
@@ -295,12 +334,67 @@ fi # ALREADY_RENAMED
 # docs/tutorials/getting-started.md tells a newcomer to copy both templates, so
 # they can be here before this script runs. Leaving them alone kept the upstream
 # database user in them while the templates and the init SQL were renamed (audit
-# 2026-10-03, S3). Only the identifier prefix is rewritten: these files are the
-# user's own, and the broader patterns above could change a value they set.
-# Runs in both states, and changes nothing once the prefix is gone.
+# 2026-10-03, S3). These files are the user's own, so only the database
+# identifiers are renamed: DB_USER, DB_NAME, and the user and database of a
+# *_DATABASE_URL, when they start with the template's prefix. The template's
+# own password is renamed too, so step 3c still knows it for the template's and
+# replaces it. A pattern over the whole file renamed DB_PASSWORD=lakira_secret
+# to my_app_secret, and the user's database then refused the login
+# (fork-bootstrap-leftovers D-01). Runs in both states, and changes nothing once
+# the prefix is gone.
 # ---------------------------------------------------------------------------
+rename_env_identifiers() {
+  rewrite_file "$1" awk -v slug="$DB_SLUG" '
+    function renamed(value) {
+      return value ~ /^[Ll]akira_/ ? slug "_" substr(value, 8) : value
+    }
+    function password(value) {
+      return tolower(value) == "lakira_password" ? slug "_password" : value
+    }
+    {
+      eq = index($0, "=")
+      key = eq > 1 ? substr($0, 1, eq - 1) : ""
+      value = substr($0, eq + 1)
+    }
+    key == "DB_USER" || key == "DB_NAME" { print key "=" renamed(value); next }
+    key == "DB_PASSWORD" { print key "=" password(value); next }
+    key ~ /^[A-Z_]+_DATABASE_URL$/ {
+      sep = index(value, "://")
+      if (sep == 0) { print; next }
+      rest = substr(value, sep + 3)
+      # The authority ends at the path, the query or the fragment.
+      cut = match(rest, "[/?#]")
+      authority = cut ? substr(rest, 1, cut - 1) : rest
+      tail = cut ? substr(rest, cut) : ""
+      at = 0
+      for (i = length(authority); i > 0; i--) {
+        if (substr(authority, i, 1) == "@") { at = i; break }
+      }
+      if (at > 0) {
+        login = substr(authority, 1, at - 1)
+        colon = index(login, ":")
+        if (colon > 0) {
+          login = renamed(substr(login, 1, colon - 1)) ":" password(substr(login, colon + 1))
+        } else {
+          login = renamed(login)
+        }
+        authority = login substr(authority, at)
+      }
+      if (substr(tail, 1, 1) == "/") {
+        path = substr(tail, 2)
+        end = match(path, "[/?#]")
+        database = end ? substr(path, 1, end - 1) : path
+        tail = "/" renamed(database) (end ? substr(path, end) : "")
+      }
+      print key "=" substr(value, 1, sep + 2) authority tail
+      next
+    }
+    { print }
+  '
+}
+
 for f in "$REPO_ROOT/.env" "$REPO_ROOT/.env.test"; do
-  do_sed "s/[Ll]akira_/${DB_SLUG}_/g" "$f"
+  rename_env_identifiers "$f"
 done
 
 # ---------------------------------------------------------------------------
@@ -335,8 +429,7 @@ JWT_ROTATED=false
 if [[ -f "$ENV_FILE" && "$ENV_FRESH" == "true" ]] && ! grep -q "^JWT_SECRET=" "$ENV_FILE"; then
   echo "WARNING: .env has no JWT_SECRET line; none was set" >&2
 elif [[ -f "$ENV_FILE" && "$ENV_FRESH" == "true" ]]; then
-  NEW_SECRET=$(openssl rand -hex 32)
-  do_sed "s|^JWT_SECRET=.*|JWT_SECRET=$NEW_SECRET|" "$ENV_FILE"
+  SET_JWT_SECRET=$(openssl rand -hex 32) set_env_values "$ENV_FILE" JWT_SECRET
   JWT_ROTATED=true
   echo "JWT_SECRET rotated in .env"
 elif [[ -f "$ENV_FILE" ]]; then
@@ -409,12 +502,9 @@ write_db_login() {
     echo "WARNING: DB_USER in .env is not a plain identifier; set the database URLs in $(basename "$file") by hand." >&2
   fi
 
-  local tmp
-  # Outside the tree: a run that is killed must not leave a copy of the secrets
-  # beside .env under a name nothing ignores.
-  tmp=$(mktemp "${TMPDIR:-/tmp}/bootstrap-fork.XXXXXX")
-  if ! LOGIN_USER="$user" LOGIN_PASSWORD="$password" LOGIN_SET_USER="$set_user" \
-    LOGIN_REBUILD_URLS="$rebuild_urls" LOGIN_TEMPLATE_PASSWORD="$TEMPLATE_DB_PASSWORD" awk '
+  LOGIN_USER="$user" LOGIN_PASSWORD="$password" LOGIN_SET_USER="$set_user" \
+    LOGIN_REBUILD_URLS="$rebuild_urls" LOGIN_TEMPLATE_PASSWORD="$TEMPLATE_DB_PASSWORD" \
+    rewrite_file "$file" awk '
       BEGIN {
         user = ENVIRON["LOGIN_USER"]
         password = ENVIRON["LOGIN_PASSWORD"]
@@ -458,35 +548,39 @@ write_db_login() {
         }
       }
       { print }
-    ' "$file" > "$tmp"; then
-    rm -f "$tmp"
-    echo "Error: could not rewrite $(basename "$file")." >&2
-    exit 1
-  fi
-
-  if cmp -s "$tmp" "$file"; then
-    rm -f "$tmp"
-    return 1
-  fi
-  # Written through the file, not moved over it, so it keeps its own mode.
-  cat "$tmp" > "$file"
-  rm -f "$tmp"
-  return 0
+    '
+  [[ "$REWRITE_CHANGED" == "true" ]]
 }
 
 TEMPLATE_DB_PASSWORD="${DB_SLUG}_password"
 PASSWORD_GENERATED=false
+PASSWORD_ADOPTED=false
 
 if [[ -f "$ENV_FILE" ]]; then
   DB_LOGIN_USER=$(read_env_value DB_USER "$ENV_FILE")
   DB_LOGIN_PASSWORD=$(read_env_value DB_PASSWORD "$ENV_FILE")
 
-  if [[ "$DB_LOGIN_PASSWORD" == "$TEMPLATE_DB_PASSWORD" && "$ENV_FRESH" == "true" ]]; then
+  # An .env.test the user filled in, found without an .env: its login is what
+  # their database was created with, so the new .env takes it instead of a
+  # generated one, which used to overwrite it (fork-bootstrap-leftovers D-05).
+  if [[ "$ENV_CREATED" == "true" && -f "$ENV_TEST_FILE" && "$ENV_TEST_CREATED" == "false" ]]; then
+    FOUND_USER=$(read_env_value DB_USER "$ENV_TEST_FILE")
+    FOUND_PASSWORD=$(read_env_value DB_PASSWORD "$ENV_TEST_FILE")
+    if [[ "$FOUND_USER" =~ ^[A-Za-z0-9_]+$ && "$FOUND_PASSWORD" =~ ^[A-Za-z0-9._~-]+$ && "$FOUND_PASSWORD" != "$TEMPLATE_DB_PASSWORD" ]]; then
+      DB_LOGIN_USER="$FOUND_USER"
+      DB_LOGIN_PASSWORD="$FOUND_PASSWORD"
+      write_db_login "$ENV_FILE" "$DB_LOGIN_USER" "$DB_LOGIN_PASSWORD" with-user || true
+      PASSWORD_ADOPTED=true
+      echo "Database login taken from the existing .env.test"
+    fi
+  fi
+
+  if [[ "$PASSWORD_ADOPTED" == "false" && "$DB_LOGIN_PASSWORD" == "$TEMPLATE_DB_PASSWORD" && "$ENV_FRESH" == "true" ]]; then
     DB_LOGIN_PASSWORD=$(openssl rand -hex 24)
     write_db_login "$ENV_FILE" "$DB_LOGIN_USER" "$DB_LOGIN_PASSWORD" || true
     PASSWORD_GENERATED=true
     echo "Database password generated in .env"
-  elif [[ -n "$DB_LOGIN_PASSWORD" ]]; then
+  elif [[ "$PASSWORD_ADOPTED" == "false" && -n "$DB_LOGIN_PASSWORD" ]]; then
     echo "Database password left as it is in the existing .env"
   fi
 
@@ -511,6 +605,39 @@ if [[ -f "$ENV_FILE" ]]; then
       echo "WARNING: the database password in .env has characters this script will not copy." >&2
       echo "  Set DB_USER, DB_PASSWORD and TEST_DATABASE_URL in .env.test to match .env by hand." >&2
     fi
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 3d. Generate the broker login
+#
+# Both templates ship RabbitMQ's guest/guest, and Compose creates the broker
+# from .env with its management UI on 127.0.0.1:15672, which a page that rebinds
+# its DNS name to 127.0.0.1 can reach. An .env this run treats as fresh (the
+# rule JWT_SECRET follows) that still holds guest/guest gets the database slug
+# as its user and a generated password; .env.test takes the same pair while it
+# holds guest. Redis keeps no password: it refuses input that looks like HTTP
+# (fork-bootstrap-leftovers D-06).
+# ---------------------------------------------------------------------------
+BROKER_GENERATED=false
+if [[ -f "$ENV_FILE" ]]; then
+  BROKER_USER=$(read_env_value RABBITMQ_USER "$ENV_FILE")
+  BROKER_PASSWORD=$(read_env_value RABBITMQ_PASSWORD "$ENV_FILE")
+
+  if [[ "$ENV_FRESH" == "true" && "$BROKER_USER" == "guest" && "$BROKER_PASSWORD" == "guest" ]]; then
+    BROKER_USER="$DB_SLUG"
+    BROKER_PASSWORD=$(openssl rand -hex 24)
+    SET_RABBITMQ_USER="$BROKER_USER" SET_RABBITMQ_PASSWORD="$BROKER_PASSWORD" \
+      set_env_values "$ENV_FILE" RABBITMQ_USER RABBITMQ_PASSWORD
+    BROKER_GENERATED=true
+    echo "Broker login generated in .env"
+  fi
+
+  if [[ -f "$ENV_TEST_FILE" && -n "$BROKER_USER" && "$BROKER_USER" != "guest" && -n "$BROKER_PASSWORD" ]] &&
+    [[ "$(read_env_value RABBITMQ_USER "$ENV_TEST_FILE")" == "guest" ]]; then
+    SET_RABBITMQ_USER="$BROKER_USER" SET_RABBITMQ_PASSWORD="$BROKER_PASSWORD" \
+      set_env_values "$ENV_TEST_FILE" RABBITMQ_USER RABBITMQ_PASSWORD
+    echo "Broker login copied to .env.test"
   fi
 fi
 
@@ -578,15 +705,23 @@ echo "  3. Run: npm run migrate:development"
 echo "  4. Run: npm run db:migrate:test"
 echo "  5. Run: npm test"
 echo ""
-if [[ "$JWT_ROTATED" == "true" && "$PASSWORD_GENERATED" == "true" ]]; then
-  echo "This run rotated JWT_SECRET and generated the database password."
-elif [[ "$JWT_ROTATED" == "true" ]]; then
-  echo "This run rotated JWT_SECRET. The database password in .env was left as it is."
-elif [[ "$PASSWORD_GENERATED" == "true" ]]; then
-  echo "This run generated the database password. JWT_SECRET in .env was left as it is."
+DONE=()
+KEPT=()
+if [[ "$JWT_ROTATED" == "true" ]]; then DONE+=("rotated JWT_SECRET"); else KEPT+=("JWT_SECRET"); fi
+if [[ "$PASSWORD_GENERATED" == "true" ]]; then
+  DONE+=("generated the database password")
+elif [[ "$PASSWORD_ADOPTED" == "true" ]]; then
+  DONE+=("took the database login from .env.test")
 else
-  echo "This run left JWT_SECRET and the database password in .env as they are."
+  KEPT+=("the database password")
 fi
-echo "A Postgres volume from an earlier run keeps its old password:"
-echo "'docker compose down -v' removes it. Review .env before pointing it at"
+if [[ "$BROKER_GENERATED" == "true" ]]; then DONE+=("generated the broker login"); else KEPT+=("the broker login"); fi
+for _line in "${DONE[@]+"${DONE[@]}"}"; do
+  echo "This run $_line."
+done
+for _line in "${KEPT[@]+"${KEPT[@]}"}"; do
+  echo "This run left $_line in .env as it was."
+done
+echo "A Postgres or RabbitMQ volume from an earlier run keeps its old login:"
+echo "'docker compose down -v' removes both. Review .env before pointing it at"
 echo "anything real."

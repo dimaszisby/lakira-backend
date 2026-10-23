@@ -27,11 +27,13 @@ them, starting with a letter. The
 script rejects anything else, deliberately: the name is interpolated into `sed` patterns, and a
 `/` or `|` would break them. It also rejects a name that contains `lakira` (`lakira-x`,
 `my-lakira`): the renames replace that word wherever it stands, so they would match their own
-output. `lakira` itself, with or without `-backend` or `-api`, is accepted.
+output. `lakira` itself, with or without `-backend`, is accepted.
 
 It is idempotent: running it twice changes nothing, except that a second run creates `.env` or
-`.env.test` if they are missing, as on a fresh checkout of your fork. A fork is renamed once. A
-later run with a different `--name` keeps the name the tree already has and says so.
+`.env.test` if they are missing, as on a fresh checkout of your fork, and finishes a rename that
+an interrupted run left part-way. A fork is renamed once. A later run with a different `--name`
+keeps the name the tree already has and says so. No secret it generates is ever a command-line
+argument, where another user on the machine could read it from the process list.
 
 What it does:
 
@@ -44,20 +46,21 @@ What it does:
 | Rotates `JWT_SECRET`             | in `.env`, created from `.env.example` if absent                                                                                                         |
 | Generates the database password  | replaces the template's `my_app_password` in `.env`, in `DB_PASSWORD` and the development and test URLs                                                  |
 | Copies the login to `.env.test`  | `DB_USER`, `DB_PASSWORD` and `TEST_DATABASE_URL` take the user and password of `.env`, whatever user that is                                             |
+| Generates the broker login       | replaces `guest`/`guest` in `.env` with `RABBITMQ_USER=my_app` and a generated `RABBITMQ_PASSWORD`; `.env.test` takes the same pair                      |
 | Sets `APP_NAME=my-app`           | in `.env`, for local runs; a deployment does not need it (see below)                                                                                     |
 | Creates `.env.test`              | from the renamed `.env.test.example`, so it logs in as the user Compose creates from `.env`                                                              |
-| Renames an existing `.env`       | if you copied `.env` or `.env.test` from the templates first, their `lakira_` database names are renamed too; nothing else in them is touched            |
+| Renames an existing `.env`       | if you copied `.env` or `.env.test` from the templates first, their `lakira_` database users and names are renamed; no value you set is touched          |
 | Removes `docs/internal/`         | the upstream project's working material — pass `--keep-internal` to keep it                                                                              |
 | Writes `FORKED-FROM.md`          | recording `git rev-parse HEAD` (see step 1)                                                                                                              |
 
-The script's short name is the full name minus a trailing `-backend` or `-api`, so
-`my-app-backend` becomes `my-app`. Database users and names use it with hyphens turned into
-underscores (`my_app_user`, `my_app_test_db`), because the test database is created by plain SQL,
-where a hyphen is a syntax error. The running app does not use the script's short name. It takes
-its name from `APP_NAME`, or from the package name when that is unset, and
-`src/config/app-name.ts` derives its own short and display names from it, stripping only
-`-backend`: a name ending in `-api` keeps the suffix there (`my-app-api` → `My App Api`), in the
-cookie's name and the queue names too. Prefer a `-backend` name if the two should agree.
+The short name is the full name minus a trailing `-backend`, so `my-app-backend` becomes `my-app`
+and `my-app-api` stays `my-app-api`. It is the one `src/config/app-name.ts` derives when the app
+takes its name from `APP_NAME` or the package name, so the database, the queues, the cookie and
+the API title all agree. Database users and names use it with hyphens turned into underscores
+(`my_app_user`, `my_app_test_db`), because the test database is created by plain SQL, where a
+hyphen is a syntax error. Before 2026-10-23 the script also stripped `-api`, so a fork bootstrapped
+earlier as `my-app-api` has `my_app_*` databases; it keeps them, since a renamed tree is not
+renamed again.
 
 ## 3. Check what it could not reach
 
@@ -67,18 +70,42 @@ The script covers file contents. These are yours:
   deployed environment (staging, production) yourself. `APP_NAME` is optional there: a deployment
   with no `APP_NAME` is named after your package, which the script has renamed. If you do set it,
   set it to your own name, since a set value wins.
-- **The database password is generated once.** A later run keeps the password of an `.env` that is
-  in use, and so does Postgres: a Docker volume created before the password changed keeps the old
-  role and password, and the API then fails with `password authentication failed`.
-  `docker compose down -v` removes the volume so the next `up` creates it from `.env`. A password
+- **The database and broker logins are generated once.** A later run keeps the logins of an `.env`
+  that is in use, and so do the containers: a Docker volume created before a password changed
+  keeps the old login, and the API then fails with `password authentication failed` (Postgres) or
+  `ACCESS_REFUSED` (RabbitMQ). `docker compose down -v` removes both volumes, with their data, so
+  the next `up` creates them from `.env`. To keep the data, rotate in place (below). A password
   you set yourself is kept, and `.env.test` takes it together with your `DB_USER`; if it has
   characters outside letters, digits and `._~-`, copy the user and the password into `.env.test`
   by hand, since the script will not. An `.env` with no `DB_PASSWORD` line gets none: the script
-  generates a password only in place of the template's.
-- **Redis and RabbitMQ keep their defaults**: no Redis password, and `guest`/`guest` on the broker.
-  The Compose file publishes the database, Redis, RabbitMQ and Mailpit on `127.0.0.1` only, so
-  they are reachable from your machine and not from the network. Give them real credentials
-  wherever they are deployed; startup refuses `guest` when `NODE_ENV=production` (ADR-0036).
+  generates a password only in place of the template's. If you filled in `.env.test` before
+  creating `.env`, the new `.env` takes that database login instead of generating one, and the
+  script says so.
+- **Redis keeps no password.** The Compose file publishes the database, Redis, RabbitMQ and
+  Mailpit on `127.0.0.1` only, so they are reachable from your machine and not from the network.
+  Redis also refuses input that looks like an HTTP request, so a web page cannot talk to it
+  through your browser. Give every service real credentials wherever it is deployed; startup
+  refuses `guest` on the broker when `NODE_ENV=production` (ADR-0036).
+
+### Rotating a password in place
+
+A fork bootstrapped before the script generated a password still has `my_app_password` and
+`guest`/`guest`. To change either without losing the data in its volume, change it in the running
+service first, then in both env files:
+
+```bash
+docker compose exec db psql -U my_app_user -d postgres -c "ALTER ROLE my_app_user PASSWORD 'new-password'"
+docker compose exec rabbitmq rabbitmqctl add_user my_app 'new-password'
+docker compose exec rabbitmq rabbitmqctl set_user_tags my_app administrator
+docker compose exec rabbitmq rabbitmqctl set_permissions -p / my_app '.*' '.*' '.*'
+docker compose exec rabbitmq rabbitmqctl delete_user guest
+```
+
+Then set the new values in `.env` (`DB_PASSWORD` and the development and test URLs;
+`RABBITMQ_USER` and `RABBITMQ_PASSWORD`) and the same in `.env.test`. To change a broker password
+whose user stays, `rabbitmqctl change_password <user> '<new-password>'` is the one command. The
+shell keeps commands in its history, so clear the lines that hold a password afterwards.
+
 - **`LICENSE`** still names the original author.
 - **`README.md`** still describes Lakira's domain — metrics, logs, categories.
 - **The domain model itself.** `metrics`, `metric_logs`, `metric_categories`, and
@@ -122,7 +149,7 @@ connection may run with TLS verification off, and `.env.example` sets
 database failure inside the auth middleware answers 401 rather than 5xx. A broker whose queue
 declarations differ from the code's takes the API process down. `/metric-logs/stats` fails past
 about 150,000 logs. And two lint rules that guard the domain layer can be stepped around. The
-script generates `JWT_SECRET` and the database password, not the Redis or RabbitMQ credentials
+script generates `JWT_SECRET`, the database password and the broker login, not a Redis password
 (step 3). Other open findings are P3 hardening.
 
 The two findings that used to sit here are **closed**:

@@ -80,6 +80,8 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
   describe.each([
     ["my-app", "my_app"],
     ["acme-backend", "acme"],
+    // Only "-backend" is stripped, as src/config/app-name.ts does (B-51, D-07).
+    ["acme-api", "acme_api"],
   ])("--name %s", (name, slug) => {
     let dir: string;
     let env: Record<string, string>;
@@ -144,6 +146,16 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
         expect(identifier).toMatch(UNQUOTED_IDENTIFIER);
         expect(identifier.startsWith(`${slug}_`)).toBe(true);
       }
+    });
+
+    // Item 8 of the bootstrap review (fork-bootstrap-leftovers D-06): the broker
+    // kept guest/guest, with its management UI on 127.0.0.1:15672.
+    it("generates the broker login, the same in .env and .env.test", () => {
+      expect(env.RABBITMQ_USER).toBe(slug);
+      expect(env.RABBITMQ_PASSWORD).toMatch(GENERATED_PASSWORD);
+      expect(env.RABBITMQ_PASSWORD).not.toBe(env.DB_PASSWORD);
+      expect(envTest.RABBITMQ_USER).toBe(env.RABBITMQ_USER);
+      expect(envTest.RABBITMQ_PASSWORD).toBe(env.RABBITMQ_PASSWORD);
     });
 
     it("leaves no upstream identifier in the files the test chain reads", () => {
@@ -306,6 +318,173 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
       );
       expect(output).not.toContain(env.DB_PASSWORD);
       expect(output).not.toContain(env.JWT_SECRET);
+    });
+
+    // fork-bootstrap-leftovers D-01 (item 1): step 2b renamed every "lakira_" in
+    // a user's env files, a password they chose included.
+    it("renames the identifiers in a hand-made .env, and no value the user chose", () => {
+      const dir = track(
+        bootstrap("my-app", (scratch) => {
+          fs.writeFileSync(
+            path.join(scratch, ".env"),
+            [
+              "DB_USER=lakira_user",
+              "DB_NAME=lakira_development",
+              "DB_PASSWORD=lakira_secret",
+              "DEVELOPMENT_DATABASE_URL=postgresql://lakira_user:lakira_secret@127.0.0.1:5432/lakira_development",
+              "STAGING_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/lakira_staging",
+              "SESSION_NOTE=lakira_keep",
+              "",
+            ].join("\n"),
+          );
+        }),
+      );
+      const env = readEnv(path.join(dir, ".env"));
+
+      expect(env.DB_USER).toBe("my_app_user");
+      expect(env.DB_NAME).toBe("my_app_development");
+      expect(env.DB_PASSWORD).toBe("lakira_secret");
+      expect(env.DEVELOPMENT_DATABASE_URL).toBe(
+        "postgresql://my_app_user:lakira_secret@127.0.0.1:5432/my_app_development",
+      );
+      expect(env.STAGING_DATABASE_URL).toBe(
+        "postgresql://postgres:postgres@127.0.0.1:5432/my_app_staging",
+      );
+      expect(env.SESSION_NOTE).toBe("lakira_keep");
+    });
+
+    // D-02 (item 7): an argument is readable by every user in the process list;
+    // a process's environment only by its own user.
+    it("passes no generated secret to sed as an argument", () => {
+      const script = read(ROOT, "scripts/bootstrap-fork.sh");
+
+      expect(script).not.toMatch(
+        /\b(?:do_)?sed\b[^\n]*\$\{?(?:NEW_SECRET|[A-Z_]*PASSWORD)\b/,
+      );
+    });
+
+    // D-03 (item 6): `sed -i` was the one branch that differs between BSD and
+    // GNU, and CI runs only GNU.
+    it("has no sed -i, and keeps the mode of a file it rewrites", () => {
+      const dir = track(
+        bootstrap("my-app", (scratch) => {
+          fs.copyFileSync(
+            path.join(scratch, ".env.example"),
+            path.join(scratch, ".env"),
+          );
+          fs.chmodSync(path.join(scratch, ".env"), 0o600);
+        }),
+      );
+
+      expect(read(ROOT, "scripts/bootstrap-fork.sh")).not.toMatch(/\bsed -i\b/);
+      expect(fs.statSync(path.join(dir, ".env")).mode & 0o777).toBe(0o600);
+      expect(readEnv(path.join(dir, ".env")).DB_USER).toBe("my_app_user");
+    });
+
+    // D-04 (item 10): step 1 renames package.json first, so a run stopped after
+    // it left a tree that every later run read as finished.
+    it("finishes the renames a run that stopped after step 1 left", () => {
+      const dir = track(
+        bootstrap("my-app", (scratch) => {
+          for (const file of ["package.json", ".env.example"]) {
+            const full = path.join(scratch, file);
+            fs.writeFileSync(
+              full,
+              fs
+                .readFileSync(full, "utf-8")
+                .replaceAll("lakira-backend", "my-app"),
+            );
+          }
+        }),
+      );
+
+      expect(
+        fs.existsSync(path.join(dir, "docs/reference/api/my-app-openapi.json")),
+      ).toBe(true);
+      expect(
+        createdDatabases(path.join(dir, "docker/db/init/01-create-dbs.sql")),
+      ).toEqual(["my_app_test_db"]);
+      expect(read(dir, ".env.test.example")).not.toMatch(/lakira_/i);
+      expect(readEnv(path.join(dir, ".env.test")).DB_USER).toBe("my_app_user");
+    });
+
+    // D-05 (item 10): with no .env, the generated password replaced the one the
+    // user had put in .env.test, which their database still expects.
+    it("gives a new .env the login of an .env.test the user filled in alone", () => {
+      const dir = track(
+        fs.mkdtempSync(path.join(os.tmpdir(), "bootstrap-fork-")),
+      );
+      for (const file of FIXTURE_FILES) {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+        fs.copyFileSync(path.join(ROOT, file), path.join(dir, file));
+      }
+      fs.writeFileSync(
+        path.join(dir, ".env.test"),
+        [
+          "DB_NAME=lakira_test_db",
+          "DB_USER=lakira_user",
+          "DB_PASSWORD=chosen1",
+          "TEST_DATABASE_URL=postgres://lakira_user:chosen1@127.0.0.1:5432/lakira_test_db",
+          "",
+        ].join("\n"),
+      );
+
+      const output = run(dir, "my-app");
+      const env = readEnv(path.join(dir, ".env"));
+      const envTest = readEnv(path.join(dir, ".env.test"));
+
+      expect(env.DB_USER).toBe("my_app_user");
+      expect(env.DB_PASSWORD).toBe("chosen1");
+      expect(new URL(env.DEVELOPMENT_DATABASE_URL).password).toBe("chosen1");
+      expect(new URL(env.TEST_DATABASE_URL).password).toBe("chosen1");
+      expect(envTest.DB_PASSWORD).toBe("chosen1");
+      expect(output).toContain("taken from the existing .env.test");
+    });
+
+    it("keeps a broker login the user chose, and gives it to .env.test", () => {
+      const dir = track(
+        bootstrap("my-app", (scratch) => {
+          fs.writeFileSync(
+            path.join(scratch, ".env"),
+            fs
+              .readFileSync(path.join(scratch, ".env.example"), "utf-8")
+              .replace(/^RABBITMQ_USER=.*$/m, "RABBITMQ_USER=bob")
+              .replace(/^RABBITMQ_PASSWORD=.*$/m, "RABBITMQ_PASSWORD=own-pass"),
+          );
+          fs.copyFileSync(
+            path.join(scratch, ".env.test.example"),
+            path.join(scratch, ".env.test"),
+          );
+        }),
+      );
+      const env = readEnv(path.join(dir, ".env"));
+      const envTest = readEnv(path.join(dir, ".env.test"));
+
+      expect([env.RABBITMQ_USER, env.RABBITMQ_PASSWORD]).toEqual([
+        "bob",
+        "own-pass",
+      ]);
+      expect([envTest.RABBITMQ_USER, envTest.RABBITMQ_PASSWORD]).toEqual([
+        "bob",
+        "own-pass",
+      ]);
+    });
+
+    it("prints no generated secret", () => {
+      const dir = track(
+        fs.mkdtempSync(path.join(os.tmpdir(), "bootstrap-fork-")),
+      );
+      for (const file of FIXTURE_FILES) {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+        fs.copyFileSync(path.join(ROOT, file), path.join(dir, file));
+      }
+
+      const output = run(dir, "my-app");
+      const env = readEnv(path.join(dir, ".env"));
+
+      for (const key of ["JWT_SECRET", "DB_PASSWORD", "RABBITMQ_PASSWORD"]) {
+        expect(output).not.toContain(env[key]);
+      }
     });
 
     it("leaves the URLs alone when the database user is not a plain identifier", () => {
@@ -536,25 +715,22 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
 
     // The template's own short name is the one name holding "lakira" that every
     // rename leaves as it found it.
-    it.each(["lakira", "lakira-api"])(
-      "changes nothing on a second run as %s",
-      (name) => {
-        const dir = track(bootstrap(name));
-        const files = [
-          ".env",
-          ".env.test",
-          ".env.example",
-          ".env.test.example",
-          "docker/db/init/01-create-dbs.sql",
-        ];
-        const before = files.map((file) => read(dir, file));
+    it.each(["lakira"])("changes nothing on a second run as %s", (name) => {
+      const dir = track(bootstrap(name));
+      const files = [
+        ".env",
+        ".env.test",
+        ".env.example",
+        ".env.test.example",
+        "docker/db/init/01-create-dbs.sql",
+      ];
+      const before = files.map((file) => read(dir, file));
 
-        run(dir, name);
+      run(dir, name);
 
-        expect(files.map((file) => read(dir, file))).toEqual(before);
-        expect(readEnv(path.join(dir, ".env")).DB_USER).toBe("lakira_user");
-      },
-    );
+      expect(files.map((file) => read(dir, file))).toEqual(before);
+      expect(readEnv(path.join(dir, ".env")).DB_USER).toBe("lakira_user");
+    });
 
     it("keeps the tree's name, and its secret, when re-run with another name", () => {
       const dir = track(bootstrap("acme-api"));
@@ -661,31 +837,33 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
   // Audit 2026-10-12, T3: the renames match their own output when the new name
   // holds the template's. "lakira-x" titled the workflow "Lakira X X Backend CI"
   // and a second run renamed lakira_x_user to lakira_x_x_user.
-  it.each(["lakira-x", "my-lakira", "lakirax", "lakira-x-backend"])(
-    "refuses the name %s, which holds the template's",
-    (name) => {
-      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bootstrap-fork-"));
-      dirs.push(dir);
-      for (const file of FIXTURE_FILES) {
-        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
-        fs.copyFileSync(path.join(ROOT, file), path.join(dir, file));
-      }
+  it.each([
+    "lakira-x",
+    "my-lakira",
+    "lakirax",
+    "lakira-x-backend",
+    "lakira-api",
+  ])("refuses the name %s, which holds the template's", (name) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bootstrap-fork-"));
+    dirs.push(dir);
+    for (const file of FIXTURE_FILES) {
+      fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+      fs.copyFileSync(path.join(ROOT, file), path.join(dir, file));
+    }
 
-      expect(() => run(dir, name)).toThrow(/--name must not contain 'lakira'/);
-      expect(
-        JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf-8"))
-          .name,
-      ).toBe("lakira-backend");
-      expect(fs.existsSync(path.join(dir, ".env"))).toBe(false);
-    },
-  );
+    expect(() => run(dir, name)).toThrow(/--name must not contain 'lakira'/);
+    expect(
+      JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf-8")).name,
+    ).toBe("lakira-backend");
+    expect(fs.existsSync(path.join(dir, ".env"))).toBe(false);
+  });
 
   // Audit 2026-10-05, T2 (kit fork-openapi-gate, D-04). The spec's title and
   // cookie name are derived from the app's name, and a fork's spec kept the
   // upstream's. Bootstrap cannot run the generator (it runs before npm install),
   // so it rewrites those strings itself, and has to derive them exactly as
-  // src/config/app-name.ts does. The names here are the ones where the script's
-  // own short name ("acme") and the app's ("acme-api") differ, or agree.
+  // src/config/app-name.ts does. "acme-api" is the name where the script's short
+  // name ("acme") and the app's ("acme-api") differed until B-51 (D-07).
   describe.each(["my-app", "acme-api", "shop-backend"])(
     "the spec's content for %s",
     (name) => {

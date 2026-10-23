@@ -1,6 +1,6 @@
 # API, scripts and CI residuals
 
-**Status:** Implemented on `fix/api-tooling-residuals`; PR open. Register row B-82: the API, scripts and CI
+**Status:** Done (#218, `9534687`). Register row B-82: the API, scripts and CI
 P3 findings of the 2026-10-20 run, and B-90, found while fixing X11.
 **Slug:** `api-tooling-residuals` · **Branch:** `fix/api-tooling-residuals`
 
