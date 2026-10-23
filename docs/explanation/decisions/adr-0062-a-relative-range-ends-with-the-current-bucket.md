@@ -10,6 +10,12 @@
   register row B-02
   ([analysis](../../internal/initiatives/backend-debt-register/analysis-analytics-relative-range.md))
 
+> **Status note (2026-10-23).** Decision 2 held only on a server process in UTC: `bucketStartISO`
+> and `latestBucketStart` were a `timestamp without time zone`, which the driver reads in the
+> process's zone. The SQL now sends them as a `timestamptz` read in UTC, so every process sends
+> the labels a UTC one did, and `latestBucketStart` goes through the same ISO conversion as the
+> other timestamps (analytics-leftovers D-03). The decision itself stands.
+
 ---
 
 ## Context

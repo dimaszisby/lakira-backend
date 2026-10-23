@@ -530,13 +530,88 @@ describe("VisualizationReadRepoSequelize (integration)", () => {
         metricId: seed.metric.id,
       });
 
-      // By position: bucket labels are read in the server process's zone (register row
-      // B-65), so a date string would not match on every machine.
+      // By position: the labels are checked by the D-03 test of analytics-leftovers.
       const values = (series: { value: number | null }[]) =>
         series.map((p) => p.value);
       for (const series of [dashboard.items[0].series, single.series]) {
         expect(values(series)).toEqual([zeroBucket, emptyBucket, 5]);
       }
+    },
+  );
+
+  // Kit analytics-leftovers, D-03 (register row B-65). A bucket label is the bucket's wall
+  // time in the requested zone, written with a Z (ADR-0062). The SQL computed it as a
+  // timestamp without zone, which the driver reads in the server process's zone, so a
+  // process anywhere but UTC moved every label by its own offset. Jest gives a test its
+  // own process.env, so TZ cannot be changed here: the driver's parser for that type
+  // (oid 1114) is replaced by one reading it at a fixed offset, as such a process would.
+  it.each([
+    ["in UTC", "Z"],
+    ["7 hours east of UTC", "+07:00"],
+    ["4 hours west of UTC", "-04:00"],
+  ])(
+    "labels a bucket the same with the server process %s",
+    async (_name, offset) => {
+      const {
+        user,
+        metrics: [seed],
+      } = await seedDashboardWithMetrics({
+        metrics: [
+          {
+            metricOverrides: { name: "Water" },
+            settingsOverrides: {
+              displayOptions: {
+                showOnDashboard: true,
+                priority: 1,
+                chartType: "line",
+                color: "#333333",
+              },
+            },
+            // 19:00 on 2025-06-10 in Jakarta.
+            logs: [{ logValue: 3, loggedAt: new Date("2025-06-10T12:00:00Z") }],
+          },
+        ],
+      });
+      const range = {
+        userId: user.id,
+        organizationId: TEST_ORG_ID,
+        // One Jakarta day: 2025-06-10.
+        startISO: "2025-06-09T17:00:00Z",
+        endISO: "2025-06-10T17:00:00Z",
+        bucket: "1d" as const,
+        bucketSpec,
+        tz: "Asia/Jakarta",
+        fill: "none" as const,
+      };
+
+      const TIMESTAMP_WITHOUT_ZONE = 1114;
+      const pgTypes = (sequelize as any).connectionManager.lib.types;
+      const original = pgTypes.getTypeParser(TIMESTAMP_WITHOUT_ZONE);
+      pgTypes.setTypeParser(
+        TIMESTAMP_WITHOUT_ZONE,
+        (value: string) => new Date(`${value.replace(" ", "T")}${offset}`),
+      );
+      let dashboard: DashboardVizResponse;
+      let single: VizResponse;
+      try {
+        dashboard = await repo.fetchDashboardVisualization({
+          ...range,
+          limit: 5,
+        });
+        single = await repo.fetchVisualization({
+          ...range,
+          metricId: seed.metric.id,
+        });
+      } finally {
+        pgTypes.setTypeParser(TIMESTAMP_WITHOUT_ZONE, original);
+      }
+
+      const label = "2025-06-10T00:00:00.000Z";
+      expect(dashboard.items[0].series).toEqual([
+        { bucketStartISO: label, value: 3 },
+      ]);
+      expect(dashboard.items[0].latestBucketStart).toBe(label);
+      expect(single.series).toEqual([{ bucketStartISO: label, value: 3 }]);
     },
   );
 });

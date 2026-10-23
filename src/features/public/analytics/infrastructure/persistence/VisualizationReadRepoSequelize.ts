@@ -31,8 +31,9 @@ import type {
 import type { FillMode, VizResponse } from "../../domain/types.js";
 import { createHash } from "node:crypto";
 
+// A bucket label is a timestamptz (analytics-leftovers D-03): the driver returns a Date.
 type VizRow = {
-  bucket_start: string;
+  bucket_start: Date | string;
   avg_value: number | null;
   min_value: number | null;
   max_value: number | null;
@@ -41,7 +42,7 @@ type VizRow = {
 
 type DashboardSeriesRow = {
   metric_id: string;
-  bucket_start: string;
+  bucket_start: Date | string;
   avg_value: number | string | null;
   min_value: number | string | null;
   max_value: number | string | null;
@@ -55,7 +56,7 @@ type LifecycleRow = {
   last_log_at: Date | string | null;
   total_logs: number | string | null;
   latest_value: number | string | null;
-  latest_bucket_start: string | null;
+  latest_bucket_start: Date | string | null;
 };
 
 type DashboardMetricRow = {
@@ -392,7 +393,7 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
       firstLogAt: isoFrom(lifecycle?.first_log_at),
       totalLogs: numberFrom(lifecycle?.total_logs, 0),
       latestValue: numberFrom(lifecycle?.latest_value, null),
-      latestBucketStart: lifecycle?.latest_bucket_start ?? null,
+      latestBucketStart: isoFrom(lifecycle?.latest_bucket_start),
       requestedRange: baseRequestedRange,
       actualRange,
       fallbackRangeUsed: fallbackApplied,

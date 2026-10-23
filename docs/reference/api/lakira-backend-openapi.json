@@ -2019,6 +2019,9 @@
       "VisualizationResponse": {
         "type": "object",
         "properties": {
+          "metricId": {
+            "$ref": "#/components/schemas/Uuid"
+          },
           "series": {
             "type": "array",
             "items": {
@@ -2027,6 +2030,7 @@
                 "bucketStartISO": {
                   "type": "string",
                   "format": "date-time",
+                  "description": "The start of a bucket in the requested `tz`, written as if it were UTC: midnight of 2025-06-10 in Asia/Jakarta is `2025-06-10T00:00:00.000Z` (ADR-0062).",
                   "example": "2023-01-01T00:00:00Z"
                 },
                 "value": {
@@ -2090,12 +2094,17 @@
                   }
                 },
                 "required": ["startISO", "endISO"]
+              },
+              "fill": {
+                "type": "string",
+                "enum": ["none", "zero", "nan"],
+                "example": "none"
               }
             },
-            "required": ["metricId", "unit", "bucket", "tz", "range"]
+            "required": ["metricId", "unit", "bucket", "tz", "range", "fill"]
           }
         },
-        "required": ["series", "stats", "meta"]
+        "required": ["metricId", "series", "stats", "meta"]
       },
       "DashboardVisualizationResponse": {
         "type": "object",
@@ -2140,6 +2149,7 @@
                       "bucketStartISO": {
                         "type": "string",
                         "format": "date-time",
+                        "description": "The start of a bucket in the requested `tz`, written as if it were UTC: midnight of 2025-06-10 in Asia/Jakarta is `2025-06-10T00:00:00.000Z` (ADR-0062).",
                         "example": "2023-01-01T00:00:00Z"
                       },
                       "value": {
@@ -2171,6 +2181,77 @@
                     }
                   },
                   "required": ["average", "min", "max", "count"]
+                },
+                "lastLogAt": {
+                  "type": ["string", "null"],
+                  "format": "date-time",
+                  "description": "The newest log's stored instant (ADR-0062).",
+                  "example": "2025-06-10T12:00:00.000Z"
+                },
+                "firstLogAt": {
+                  "type": ["string", "null"],
+                  "format": "date-time",
+                  "description": "The oldest log's stored instant (ADR-0062).",
+                  "example": "2025-01-02T08:30:00.000Z"
+                },
+                "totalLogs": {
+                  "type": "integer",
+                  "example": 42
+                },
+                "latestValue": {
+                  "type": ["number", "null"],
+                  "example": 7.5
+                },
+                "latestBucketStart": {
+                  "type": ["string", "null"],
+                  "format": "date-time",
+                  "description": "The bucket of the newest log. The start of a bucket in the requested `tz`, written as if it were UTC: midnight of 2025-06-10 in Asia/Jakarta is `2025-06-10T00:00:00.000Z` (ADR-0062).",
+                  "example": "2025-06-10T00:00:00.000Z"
+                },
+                "requestedRange": {
+                  "type": "object",
+                  "properties": {
+                    "startISO": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endISO": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "bucket": {
+                      "type": "string",
+                      "enum": ["1h", "1d", "1w", "1m", "1y"]
+                    }
+                  },
+                  "required": ["startISO", "endISO", "bucket"]
+                },
+                "actualRange": {
+                  "type": "object",
+                  "properties": {
+                    "startISO": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endISO": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "bucket": {
+                      "type": "string",
+                      "enum": ["1h", "1d", "1w", "1m", "1y"]
+                    }
+                  },
+                  "required": ["startISO", "endISO", "bucket"],
+                  "description": "The range `series` covers: `requestedRange`, or the fallback range when the requested one holds no log."
+                },
+                "fallbackRangeUsed": {
+                  "type": "boolean"
+                },
+                "fallbackStrategy": {
+                  "type": ["string", "null"],
+                  "enum": ["last_activity_window", null],
+                  "description": "`last_activity_window` when `fallbackRangeUsed`: a window ending with the bucket of the newest log. Null otherwise."
                 }
               },
               "required": [
@@ -2182,7 +2263,16 @@
                 "category_color",
                 "priority",
                 "series",
-                "stats"
+                "stats",
+                "lastLogAt",
+                "firstLogAt",
+                "totalLogs",
+                "latestValue",
+                "latestBucketStart",
+                "requestedRange",
+                "actualRange",
+                "fallbackRangeUsed",
+                "fallbackStrategy"
               ]
             }
           },
@@ -2214,12 +2304,39 @@
               "count": {
                 "type": "number",
                 "example": 5
+              },
+              "totalMetrics": {
+                "type": "integer",
+                "description": "Metrics shown on the dashboard, before `limit`.",
+                "example": 8
+              },
+              "fallbackMetrics": {
+                "type": "integer",
+                "description": "Items whose series uses the fallback range.",
+                "example": 1
               }
             },
-            "required": ["bucket", "tz", "range", "count"]
+            "required": [
+              "bucket",
+              "tz",
+              "range",
+              "count",
+              "totalMetrics",
+              "fallbackMetrics"
+            ]
+          },
+          "sync": {
+            "type": "object",
+            "properties": {
+              "etagSeed": {
+                "type": "string",
+                "description": "A hash of the request and the metrics' settings. Not the response's `ETag`, which is a digest of the body."
+              }
+            },
+            "required": ["etagSeed"]
           }
         },
-        "required": ["items", "meta"]
+        "required": ["items", "meta", "sync"]
       }
     },
     "parameters": {}

@@ -38,7 +38,7 @@ That file is authoritative; this entry is a pointer.
 
 ## D-05 — Fetch the newest 24.x wherever the runtime is installed
 
-- **Status:** Proposed
+- **Status:** Accepted (#216, `5b6ee96`)
 - **Date:** 2026-10-23
 
 **Context.** Node 24.22.1 (2026-10-20) is a security release: five High CVEs, in TLS, DNS and the
