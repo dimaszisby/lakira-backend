@@ -21,6 +21,13 @@
 > ([ADR-0067](./adr-0067-the-verification-email-is-a-queued-job.md)). The rest of
 > decision 3 and the other decisions hold (audit 2026-10-20, § 4.5).
 
+> **Status note (2026-10-23, B-88).** The rule now covers an adapter passed to any feature, not
+> only to one that two processes use: `src/composition/features.ts` passes metric's
+> `MetricAccessSequelize` to analytics and metric-settings, and `buildWiredMetricLogFeature` to
+> metric-log. No feature's `feature.ts` imports another feature, and `architecture.test.ts` fails
+> on one that does
+> ([`metric-access-wiring` D-01 and D-02](../../internal/initiatives/metric-access-wiring/decisions.md)).
+
 ---
 
 ## Context

@@ -285,15 +285,10 @@ describe("Architecture enforcement", () => {
   // built and tested together. A feature that needs another's work declares a port for it
   // (ADR-0023). Model imports are frozen above, so they do not count here.
   describe("no two features depend on each other both ways", () => {
-    // Frozen, as the model count is: register row B-88. Remove a pair when it is fixed.
-    const KNOWN_BOTH_WAYS = [
-      "metric <-> metric-log",
-      "metric <-> metric-settings",
-    ];
     const FEATURE_IMPORT =
       /from\s+["']@\/features\/(?:(?:public|shared)\/)?([^/"']+)([^"']*)["']/g;
 
-    it(`finds no pair but ${KNOWN_BOTH_WAYS.length} known ones`, () => {
+    it("finds no pair", () => {
       const edges = new Set<string>();
       for (const featureDir of featureDirs) {
         const owner = path.basename(featureDir);
@@ -314,7 +309,27 @@ describe("Architecture enforcement", () => {
         .map(([a, b]) => `${a} <-> ${b}`)
         .sort();
 
-      expect(pairs).toEqual(KNOWN_BOTH_WAYS);
+      // B-88's two pairs, frozen here until metric-access-wiring D-01.
+      expect(pairs).toEqual([]);
+    });
+
+    // metric-access-wiring D-02: both pairs began as a feature.ts defaulting to another
+    // feature's adapter. One feature's adapter reaches another through src/composition/
+    // (ADR-0056), so a composition root names no feature but its own.
+    it("finds no feature.ts that imports another feature", () => {
+      const offenders: string[] = [];
+      for (const featureDir of featureDirs) {
+        const owner = path.basename(featureDir);
+        const file = path.join(featureDir, "feature.ts");
+        if (!fs.existsSync(file)) continue;
+        const content = fs.readFileSync(file, "utf-8");
+        for (const [, target] of content.matchAll(FEATURE_IMPORT)) {
+          if (target !== owner) {
+            offenders.push(`${path.relative(SRC_FEATURES, file)} -> ${target}`);
+          }
+        }
+      }
+      expect(offenders).toEqual([]);
     });
   });
 

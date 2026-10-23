@@ -1,4 +1,5 @@
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
+import { MetricAccessSequelize } from "@/features/metric/public.js";
 import {
   buildAnalyticsFeature,
   type AnalyticsFeature,
@@ -36,19 +37,24 @@ export type AppFeatures = {
  * The one place the app's features are built. A feature with a composition root of
  * its own (auth, metric-log) is built through it, so the server and the worker wire
  * it the same way. One auth instance serves the auth, organization, invite and
- * membership routers. Import a feature here through its `feature.ts` or `public.ts`
- * only.
+ * membership routers. One metric access adapter serves analytics, metric-log and
+ * metric-settings: a feature's factory takes another feature's adapter, never
+ * imports it (metric-access-wiring D-01). Import a feature here through its
+ * `feature.ts` or `public.ts` only.
  *
  * `messageQueue` is what legitimately differs per process: the server passes its
  * publisher, a test passes nothing and gets the no-op queue.
  */
 export const buildWiredFeatures = ({
   messageQueue,
-}: { messageQueue?: MessageQueuePort } = {}): AppFeatures => ({
-  auth: buildWiredAuthFeature({ messageQueue }),
-  analytics: buildAnalyticsFeature(),
-  metric: buildMetricFeature(),
-  metricCategory: buildMetricCategoryFeature(),
-  metricLog: buildWiredMetricLogFeature({ messageQueue }),
-  metricSettings: buildMetricSettingsFeature(),
-});
+}: { messageQueue?: MessageQueuePort } = {}): AppFeatures => {
+  const metricAccess = new MetricAccessSequelize();
+  return {
+    auth: buildWiredAuthFeature({ messageQueue }),
+    analytics: buildAnalyticsFeature({ metricAccess }),
+    metric: buildMetricFeature(),
+    metricCategory: buildMetricCategoryFeature(),
+    metricLog: buildWiredMetricLogFeature({ messageQueue, metricAccess }),
+    metricSettings: buildMetricSettingsFeature({ metricAccess }),
+  };
+};

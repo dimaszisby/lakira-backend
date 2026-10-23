@@ -207,7 +207,10 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
       close: () => publisher.close(),
     };
     api = appWith({
-      metricLog: buildMetricLogFeature({ messageQueue: queue }),
+      metricLog: buildMetricLogFeature(
+        { metricAccess: new MetricAccessSequelize() },
+        { messageQueue: queue },
+      ),
     });
   });
 

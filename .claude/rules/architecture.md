@@ -118,7 +118,11 @@ cases (`dummyLogsHandler` in `buildMetricLogFeature`), so no process can wire th
 
 The application runs as two processes, `src/server.ts` and `src/worker.ts`. When a feature needs
 an adapter that another feature provides, it is wired once in `src/composition/`
-(`buildWiredMetricLogFeature`), and both entry points call that function.
+(`buildWiredMetricLogFeature`), and both entry points call that function. The same holds for a
+feature only the server uses: a `feature.ts` imports no other feature. What composition must supply
+is the factory's first parameter, `deps` (`{ metricAccess }`), ahead of the optional overrides
+(`metric-access-wiring` D-01, D-03); `architecture.test.ts` fails on a `feature.ts` that imports
+another feature.
 
 - An entry point never calls such a feature's `buildXFeature` itself, and `src/worker.ts` imports
   nothing from a feature's `domain/`, `application/` or `infrastructure/`.
@@ -152,10 +156,10 @@ Three surfaces per feature (ADR-0045, ADR-0078):
 - **A port belongs to the feature that consumes it** (ADR-0023), so a contract carries no port.
   If a feature needs something from another, it declares the interface in its own
   `application/ports/` and receives the adapter, which the provider exports from its `public.ts`. `MetricAccessPort` is the worked example: one
-  copy each in metric-log, metric-settings and analytics, all satisfied by `MetricAccessSequelize`.
-  `MetricTrendPort` is the same in reverse: metric declares it, and `src/app.ts` hands it
-  analytics' query. No two features import each other both ways; `architecture.test.ts` fails on a
-  new pair, and freezes the two that remain (register B-88)
+  copy each in metric-log, metric-settings and analytics, all satisfied by `MetricAccessSequelize`,
+  which `src/composition/` passes in. `MetricTrendPort` is the same in reverse: metric declares it,
+  and `src/app.ts` hands it analytics' query. No two features import each other both ways;
+  `architecture.test.ts` fails on a pair
 - **Importing a feature module constructs nothing.** No router, feature or middleware is built at
   module scope. `__tests__/unit/architecture.test.ts` enforces this.
 - **A feature is handed to its router** (ADR-0072). `src/composition/features.ts`
