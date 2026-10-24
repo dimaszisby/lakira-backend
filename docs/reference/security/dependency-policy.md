@@ -141,7 +141,27 @@ Rules for adding an override:
 - These dev-only alerts do **not** ship to production builds, but we keep them documented with owners so we can react once upstream fixes exist.
 - Junior devs should reference this table before running `npm audit`; do **not** run `npm audit fix --force` (per policy) because it would downgrade or break the toolchain.
 
-## Current Audit Snapshot (2026-10-18)
+## Current Audit Snapshot (2026-10-24)
+
+Full `npm audit`: **2 moderate, 0 high/critical**: `uuid` via `sequelize`, accepted
+(`npm-audit-findings` D-04).
+`npm audit --omit=dev`: **the same 2 moderate** — the value the CI gate evaluates.
+
+### What changed
+
+- #218 removed `ts-node` and the twelve dev-only packages only it pulled in.
+- `follow-redirects` 1.16.0 to 1.16.1 in the lockfile, reached through `wait-on` → `axios`, does
+  not ship (`npm-audit-findings` D-10, register row B-91). It cleared the last high.
+- `braces` 3.0.3 under `nodemon` and `sprintf-js` 1.0.3 under `js-yaml` 3 are still installed and
+  are no longer reported: the advisory data changed, not the tree (register row B-25, closed).
+
+### What remains
+
+| Root                   | Severity | Why it stays                                                                         |
+| ---------------------- | -------- | ------------------------------------------------------------------------------------ |
+| `uuid` via `sequelize` | moderate | accepted, `npm-audit-findings` D-04; fixed only by a `sequelize` major (a downgrade) |
+
+## Superseded Snapshot (2026-10-18)
 
 Full `npm audit`: **25 findings: 0 critical, 3 high, 22 moderate**, all in development tooling.
 `npm audit --omit=dev`: **2 moderate, 0 high/critical** — the value the CI gate evaluates.
