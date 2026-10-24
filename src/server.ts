@@ -1,7 +1,7 @@
 import { env } from "./config/envManager.js";
 import http from "http";
 import logger, { flushLogs, logUnhandledRejection } from "@/utils/logger.js";
-import { APP_NAME } from "@/config/app-name.js";
+import { APP_NAME, currentAppNameMismatch } from "@/config/app-name.js";
 
 // The app and its features: every feature built once, here, and handed to its
 // router (ADR-0072). Importing a feature constructs nothing (ADR-0045).
@@ -112,6 +112,15 @@ const startServer = async () => {
     const PORT = env.PORT || 5000;
     server = app.listen(PORT, () => {
       logger.info(`[SERVER] ${APP_NAME} running on port ${PORT}`);
+      // A set APP_NAME wins, so one copied from another app goes unnoticed
+      // otherwise (app-name-review-leftovers D-03).
+      const nameMismatch = currentAppNameMismatch();
+      if (nameMismatch) {
+        logger.warn(
+          `[SERVER] APP_NAME "${nameMismatch.appName}" differs from the package name "${nameMismatch.packageName}"; the app runs as "${nameMismatch.appName}"`,
+          nameMismatch,
+        );
+      }
       // What every per-IP limiter's req.ip depends on (register-rate-limiter D-05).
       // In the message too: the development console prints no metadata.
       const trustProxyHops: unknown = app.get("trust proxy");

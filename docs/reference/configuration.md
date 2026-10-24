@@ -269,8 +269,15 @@ queue names. You do not have to set it: with the variable unset or blank, the ap
 its own package, which `scripts/bootstrap-fork.sh` renames for a fork
 ([ADR-0060](../explanation/decisions/adr-0060-the-app-takes-its-name-from-its-package.md)). The
 image carries `package.json`, so a deployed fork is named after the fork with no platform variable.
-Set `APP_NAME` only to run under a different name than the package's; a set value always wins, and
-nothing checks it against the package.
+Set `APP_NAME` only to run under a different name than the package's. A set value always wins;
+when it differs from the package's name, the server and the worker log a warning at startup, since
+a value copied from another app's platform otherwise goes unnoticed.
+
+The name must match `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`: lowercase letters and digits, with single
+hyphens between them, starting with a letter. It is the rule `scripts/bootstrap-fork.sh` applies to
+`--name`. The app refuses to start with any other name, from the variable or from the package,
+because the name becomes the refresh cookie's name and the queue names. A scoped package name such
+as `@acme/shop-backend` is used without its scope, here and in the OpenAPI spec.
 
 The package it reads is the nearest `package.json` at or above the entry script (`dist/server.js`,
 `dist/worker.js`), or the one in the working directory when there is no entry script outside
@@ -284,8 +291,9 @@ name. If you set `APP_NAME` to something other than the package name, the served
 committed file describe different names.
 
 **This is the one variable not in the Zod schema.** `src/config/app-name.ts` reads
-`process.env.APP_NAME` directly, because `logger.ts` imports it at module load and routing it
-through the validated env object would create a circular initialisation failure. The bypass is
-deliberate and commented at the source. Two names
+`process.env.APP_NAME` directly, because `logger.ts` imports it at module load, and going through
+the validated env object would make every import of the logger validate the whole environment. The
+server and the worker load `.env` before that module runs, so a value set there takes effect. The
+bypass is deliberate and commented at the source. Two names
 are derived from it: `APP_SHORT_NAME` (strips a trailing `-backend`) and `APP_DISPLAY_NAME`
 (title-cased).

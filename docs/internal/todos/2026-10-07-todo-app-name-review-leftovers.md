@@ -1,6 +1,8 @@
 # Todo — what the review of the `APP_NAME` default left open
 
-- **Status:** Open (all P3)
+- **Status:** Fixed by `fix/app-name-review-leftovers`, all six items (kit
+  [`app-name-review-leftovers`](../initiatives/app-name-review-leftovers/README.md), register row
+  B-52)
 - **Created:** 2026-10-07
 - **Owner:** unassigned
 - **Origin:** the code review of the C2 fix; kit

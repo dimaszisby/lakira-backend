@@ -110,8 +110,8 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
       DB_LOGGING: z.string().default("false"), // Allows enabling/disabling logging
 
       // Winston log level. Declared here as the fail-fast contract and the documentation;
-      // src/utils/logger.ts re-reads process.env.LOG_LEVEL directly because it loads before
-      // envManager is initialised (see app-name.ts:1-3). Default follows the house pattern of
+      // src/utils/logger.ts re-reads process.env.LOG_LEVEL directly rather than import
+      // envManager (see the comment at the top of app-name.ts). Default follows the house pattern of
       // a NODE_ENV-dependent default. Production defaults to "http" rather than "info" so the
       // ADR-0041 access-log lines (winston npm level 3) are included; at "info" (2) they are
       // silently dropped. Note DB_LOGGING routes SQL through logger.debug, so it only

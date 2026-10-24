@@ -2,9 +2,10 @@ import { PACKAGE_NAME } from "./openapi-spec-path.js";
 
 /**
  * The committed OpenAPI spec describes the package, so the generator's app name
- * is the package name, whatever the shell or an `.env` says. The spec's title
- * and its refresh cookie's name are built from `APP_NAME` in
- * `src/config/app-name.ts`, which reads it when first imported.
+ * is the package name, without its scope as the app takes it, whatever the
+ * shell or an `.env` says. The spec's title and its refresh cookie's name are
+ * built from `APP_NAME` in `src/config/app-name.ts`, which reads it when first
+ * imported.
  *
  * Import this before anything from `src/`. It used to be the import order alone
  * that decided the name: the logger pulled in `app-name.ts` before any `.env`

@@ -9,6 +9,14 @@
 - **Origin:** `D-01` and `D-03` in the app-name-from-package kit —
   [`app-name-from-package`](../../internal/initiatives/app-name-from-package/decisions.md)
 
+> **Status note (2026-10-25).** The name is now checked: one that fails `bootstrap-fork.sh`'s rule,
+> `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`, stops the app at startup, whether it came from `APP_NAME` or
+> from the package (kit
+> [`app-name-review-leftovers`](../../internal/initiatives/app-name-review-leftovers/decisions.md)
+> D-01). The spec scripts drop a package's scope as the app does, so a scoped package's spec agrees
+> with the app (D-02). A set `APP_NAME` still wins; when it differs from the package name, the
+> server and the worker log a warning at startup (D-03).
+
 ---
 
 ## Context

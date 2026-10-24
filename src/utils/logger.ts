@@ -5,13 +5,13 @@ import { APP_NAME } from "@/config/app-name.js";
 import { maskQuotedValues } from "@/utils/mask-quoted-values.js";
 
 const { combine, timestamp, printf, errors, colorize, json, splat } = format;
-// Reads process.env directly rather than the Zod-validated env — see app-name.ts:1-3;
-// logger.ts loads before envManager is initialised, so importing it would be a circular
-// init failure. Normalised here because it now selects the console format, and zodEnv
-// lowercases NODE_ENV while this does not.
+// Reads process.env directly rather than the Zod-validated env, as app-name.ts does:
+// importing envManager here would make every import of the logger parse and validate
+// the whole environment. Normalised here because it now selects the console format, and
+// zodEnv lowercases NODE_ENV while this does not.
 const nodeEnv = (process.env.NODE_ENV || "development").toLowerCase();
 
-// Release identity (ADR-0039 Part 1) — same circular-init bypass as nodeEnv above.
+// Release identity (ADR-0039 Part 1) — same bypass of envManager as nodeEnv above.
 // Mirrors zodEnv.ts's precedence (APP_RELEASE wins; falls back to Render's own
 // RENDER_GIT_COMMIT; "unknown" otherwise) so this one-line duplicate can't drift silently.
 const release =
@@ -33,7 +33,7 @@ const LOG_LEVELS = [
 ] as const;
 
 // LOG_LEVEL is declared in zodEnv.ts, which is the fail-fast contract for every other
-// consumer. This module cannot import it (circular init, above), so it re-validates the
+// consumer. This module does not import it (see nodeEnv, above), so it re-validates the
 // raw value and falls back to the same default the schema uses.
 const resolveLevel = (): string => {
   const raw = process.env.LOG_LEVEL?.trim().toLowerCase();

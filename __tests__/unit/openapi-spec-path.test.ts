@@ -25,7 +25,10 @@ describe("the OpenAPI spec path", () => {
     const source = read("scripts/openapi-spec-path.js");
 
     expect(source).toContain("package.json");
-    expect(source).toContain("`${packageName}-openapi.json`");
+    expect(source).toContain(
+      "export const PACKAGE_NAME = appNameFromPackage(packageName);",
+    );
+    expect(source).toContain("`${PACKAGE_NAME}-openapi.json`");
     expect(source).not.toContain("lakira");
   });
 
@@ -100,6 +103,40 @@ describe("the OpenAPI spec path", () => {
       .find((line) => line.startsWith("import "));
 
     expect(firstImport).toBe('import "./openapi-app-name.js";');
+  });
+
+  // app-name-review-leftovers D-02. The app drops a package's scope, so the
+  // spec scripts drop it too, and the committed spec, the served one and the
+  // spec's path agree on one name.
+  it("appNameFromPackage drops a scope as the app does", async () => {
+    const names = [
+      "lakira-backend",
+      "my-app",
+      "@acme/shop-backend",
+      "@my-org/x1",
+    ];
+    const fromScripts = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [
+          "--input-type=module",
+          "-e",
+          `import { appNameFromPackage } from "./scripts/openapi-spec-path.js"; process.stdout.write(JSON.stringify(${JSON.stringify(names)}.map(appNameFromPackage)));`,
+        ],
+        { cwd: ROOT, encoding: "utf-8" },
+      ),
+    ) as string[];
+    const { resolveAppName } = await import("@/config/app-name.js");
+
+    expect(fromScripts).toEqual([
+      "lakira-backend",
+      "my-app",
+      "shop-backend",
+      "x1",
+    ]);
+    expect(fromScripts).toEqual(
+      names.map((name) => resolveAppName(undefined, () => name)),
+    );
   });
 
   it("docs:openapi:check diffs the file the scripts write", () => {
