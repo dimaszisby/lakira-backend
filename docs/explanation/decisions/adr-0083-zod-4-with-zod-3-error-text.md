@@ -1,6 +1,6 @@
 # ADR-0083 — Validation runs on zod 4, and answers in zod 3's words
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-24
 - **Related:** `.claude/rules/validation.md`; `.claude/rules/api-design.md` § Response Format (the
   error envelope this keeps)

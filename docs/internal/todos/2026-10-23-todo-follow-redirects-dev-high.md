@@ -1,6 +1,6 @@
 # Todo — `npm audit` reports a High in `follow-redirects`, dev-only
 
-- **Status:** Fixed by `fix/follow-redirects-dev-high`: 1.16.1 in the lockfile
+- **Status:** Fixed in #220 (`b18a3ed`): 1.16.1 in the lockfile
   ([`npm-audit-findings` D-10](../initiatives/npm-audit-findings/decisions.md), register row B-91)
 - **Created:** 2026-10-23
 - **Owner:** unassigned

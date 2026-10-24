@@ -1,6 +1,6 @@
 # zod 4 migration
 
-**Status:** Implemented on `fix/zod-4-migration`; PR open. Register row B-92.
+**Status:** Done (#221, `4e7403f`). Register row B-92.
 **Slug:** `zod-4-migration` · **Branch:** `fix/zod-4-migration`
 
 Standard kit. D-01 and D-03 are promoted to
