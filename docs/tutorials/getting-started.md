@@ -71,7 +71,7 @@ Compose reads `DB_USER`, `DB_PASSWORD`, and `DB_NAME` from `.env` to create the 
 docker compose ps
 ```
 
-`postgres_db` should read `(healthy)`.
+The `db` service should read `(healthy)`.
 
 ## 4. Create the schema
 
@@ -212,7 +212,8 @@ volume. Compose creates the database once, from the values present the first tim
 editing `DB_USER`/`DB_PASSWORD`/`DB_NAME` afterwards requires recreating it:
 `docker compose down -v && docker compose up -d`.
 
-**`database files are incompatible with server`** — your `db_data_volume` was created by an older
+**`database files are incompatible with server`** — your database volume (`db_data_volume`, or
+`<slug>_db_data_volume` in a fork) was created by an older
 Postgres. The images moved to `postgres:18` (matching production) on 2026-08-23, and Postgres will
 not open a data directory written by a different major. Recreate the volumes once:
 

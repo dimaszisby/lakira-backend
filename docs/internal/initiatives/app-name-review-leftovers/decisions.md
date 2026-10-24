@@ -2,7 +2,7 @@
 
 ## D-01 — The app refuses a name bootstrap would refuse
 
-- **Status:** Proposed
+- **Status:** Accepted (#223, `e36b2d5`)
 - **Date:** 2026-10-25
 
 **Context.** `bootstrap-fork.sh` accepts only `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`, but a package renamed
@@ -29,7 +29,7 @@ startup, where before some of those started and failed later. The template's nam
 
 ## D-02 — A scoped package name loses its scope everywhere
 
-- **Status:** Proposed
+- **Status:** Accepted (#223, `e36b2d5`)
 - **Date:** 2026-10-25
 
 **Context.** The app dropped `@scope/` from the package name; `scripts/openapi-app-name.js` gave the
@@ -48,7 +48,7 @@ and `docs/reference/api/shop-backend-openapi.json`. This repo's spec does not ch
 
 ## D-03 — A platform `APP_NAME` that differs from the package is a warning
 
-- **Status:** Proposed
+- **Status:** Accepted (#223, `e36b2d5`)
 - **Date:** 2026-10-25
 
 **Context.** `APP_NAME` wins over the package name by design (ADR-0060). Copied from the template's
@@ -65,7 +65,7 @@ follow the name too.
 
 ## D-04 — The contract-test seed uses `example.com`
 
-- **Status:** Proposed
+- **Status:** Accepted (#223, `e36b2d5`)
 - **Date:** 2026-10-25
 
 **Context.** `scripts/seed-contract-tests.ts` seeded `contract-*@lakira.dev`, which bootstrap does
@@ -80,7 +80,7 @@ need not name anyone.
 
 ## D-05 — Fork Smoke runs the image smoke
 
-- **Status:** Proposed
+- **Status:** Accepted (#223, `e36b2d5`)
 - **Date:** 2026-10-25
 
 **Context.** Check 7 of `scripts/image-smoke.sh` proves that an image with no `APP_NAME` is named
