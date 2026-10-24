@@ -40,7 +40,8 @@ const emailSchema = (example: string) =>
 
 export const UuidSchema = registerSchema(
   "Uuid",
-  z.string().uuid().regex(UUID_REGEX).openapi({
+  z.string().guid().regex(UUID_REGEX).openapi({
+    format: "uuid",
     description: "A UUID identifier",
     example: "123e4567-e89b-42d3-a456-426614174000",
     pattern: UUID_PATTERN,
@@ -444,7 +445,8 @@ export const RefreshResponseSchema = registerSchema(
 export const SwitchOrgRequestSchema = registerSchema(
   "SwitchOrgRequest",
   z.object({
-    organizationId: z.string().uuid().regex(UUID_REGEX).openapi({
+    organizationId: z.string().guid().regex(UUID_REGEX).openapi({
+      format: "uuid",
       description: "Target organization ID to switch to",
       example: "123e4567-e89b-42d3-a456-426614174000",
       pattern: UUID_PATTERN,
@@ -674,7 +676,7 @@ const CursorMetaSchema = {
     .optional()
     .openapi({ example: "sleep", description: "Search term applied, if any" }),
   filter: z
-    .record(z.any())
+    .record(z.string(), z.any())
     .optional()
     .openapi({ description: "Normalized filters applied to the query" }),
   totalCount: z.number().optional().openapi({

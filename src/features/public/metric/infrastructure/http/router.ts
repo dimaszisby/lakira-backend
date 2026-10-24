@@ -62,7 +62,7 @@ export const createMetricRouter = (
     controller.deleteMetric,
   );
 
-  const trendParams = { params: z.object({ metricId: z.string().uuid() }) };
+  const trendParams = { params: z.object({ metricId: z.string().guid() }) };
   router.get(
     "/:metricId/trends",
     validate(trendParams),

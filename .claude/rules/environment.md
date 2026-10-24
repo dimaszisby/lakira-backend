@@ -37,7 +37,9 @@ For tests: `resetEnvCacheForTesting()` clears the cache so test env can be reloa
 
 ## Adding New Env Variables
 
-1. Add to Zod schema in `src/config/zodEnv.ts` with type, default, and description
+1. Add to Zod schema in `src/config/zodEnv.ts` with type, default, and description. A default
+   that a `.transform` comes before is `.prefault("…")`, so it is parsed like a value that was set
+   (ADR-0083); the security gate reads `SWAGGER_REQUIRE_AUTH` and `DISABLE_RATE_LIMITING` as either
 2. Use in code via `const env = loadEnvOrExit(); env.YOUR_VAR`
 3. Add to `.env.test.example` if needed for test setup
 4. If sensitive, it auto-masks in logs — the live pattern is `SENSITIVE_KEY_PATTERN` in

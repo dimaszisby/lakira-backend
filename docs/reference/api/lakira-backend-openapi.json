@@ -385,8 +385,8 @@
           "emailVerifiedAt": {
             "type": ["string", "null"],
             "format": "date-time",
-            "description": "ISO 8601 timestamp when email was verified, or null if unverified",
-            "example": null
+            "example": null,
+            "description": "ISO 8601 timestamp when email was verified, or null if unverified"
           },
           "createdAt": {
             "type": "string",
@@ -967,23 +967,23 @@
           },
           "nextCursor": {
             "type": ["string", "null"],
-            "description": "Opaque cursor for the next page",
-            "example": "eyJpZCI6IjEyMyJ9"
+            "example": "eyJpZCI6IjEyMyJ9",
+            "description": "Opaque cursor for the next page"
           },
           "sort": {
             "type": "string",
-            "description": "Sort applied to the collection",
-            "example": "-createdAt"
+            "example": "-createdAt",
+            "description": "Sort applied to the collection"
           },
           "limit": {
             "type": "integer",
-            "description": "Page size used in the request",
-            "example": 20
+            "example": 20,
+            "description": "Page size used in the request"
           },
           "q": {
             "type": "string",
-            "description": "Search term applied, if any",
-            "example": "sleep"
+            "example": "sleep",
+            "description": "Search term applied, if any"
           },
           "filter": {
             "type": "object",
@@ -992,8 +992,8 @@
           },
           "totalCount": {
             "type": "number",
-            "description": "Total number of records (present only when includeTotal=true)",
-            "example": 120
+            "example": 120,
+            "description": "Total number of records (present only when includeTotal=true)"
           }
         },
         "required": ["items", "nextCursor", "sort", "limit"]
@@ -1009,23 +1009,23 @@
           },
           "nextCursor": {
             "type": ["string", "null"],
-            "description": "Opaque cursor for the next page",
-            "example": "eyJpZCI6IjEyMyJ9"
+            "example": "eyJpZCI6IjEyMyJ9",
+            "description": "Opaque cursor for the next page"
           },
           "sort": {
             "type": "string",
-            "description": "Sort applied to the collection",
-            "example": "-createdAt"
+            "example": "-createdAt",
+            "description": "Sort applied to the collection"
           },
           "limit": {
             "type": "integer",
-            "description": "Page size used in the request",
-            "example": 20
+            "example": 20,
+            "description": "Page size used in the request"
           },
           "q": {
             "type": "string",
-            "description": "Search term applied, if any",
-            "example": "sleep"
+            "example": "sleep",
+            "description": "Search term applied, if any"
           },
           "filter": {
             "type": "object",
@@ -1034,8 +1034,8 @@
           },
           "totalCount": {
             "type": "number",
-            "description": "Total number of records (present only when includeTotal=true)",
-            "example": 120
+            "example": 120,
+            "description": "Total number of records (present only when includeTotal=true)"
           }
         },
         "required": ["items", "nextCursor", "sort", "limit"]
@@ -1304,23 +1304,23 @@
           },
           "nextCursor": {
             "type": ["string", "null"],
-            "description": "Opaque cursor for the next page",
-            "example": "eyJpZCI6IjEyMyJ9"
+            "example": "eyJpZCI6IjEyMyJ9",
+            "description": "Opaque cursor for the next page"
           },
           "sort": {
             "type": "string",
-            "description": "Sort applied to the collection",
-            "example": "-createdAt"
+            "example": "-createdAt",
+            "description": "Sort applied to the collection"
           },
           "limit": {
             "type": "integer",
-            "description": "Page size used in the request",
-            "example": 20
+            "example": 20,
+            "description": "Page size used in the request"
           },
           "q": {
             "type": "string",
-            "description": "Search term applied, if any",
-            "example": "sleep"
+            "example": "sleep",
+            "description": "Search term applied, if any"
           },
           "filter": {
             "type": "object",
@@ -1329,8 +1329,8 @@
           },
           "totalCount": {
             "type": "number",
-            "description": "Total number of records (present only when includeTotal=true)",
-            "example": 120
+            "example": 120,
+            "description": "Total number of records (present only when includeTotal=true)"
           }
         },
         "required": ["items", "nextCursor", "sort", "limit"]
@@ -1383,8 +1383,8 @@
           "jobId": {
             "type": "string",
             "format": "uuid",
-            "description": "UUID identifying the async job. Poll for completion or observe worker logs.",
-            "example": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+            "example": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+            "description": "UUID identifying the async job. Poll for completion or observe worker logs."
           }
         },
         "required": ["jobId"]
@@ -1411,9 +1411,6 @@
               {
                 "type": "string",
                 "enum": ["cumulative", "incremental"]
-              },
-              {
-                "type": "null"
               },
               {
                 "type": "null"
@@ -1662,9 +1659,6 @@
                   },
                   {
                     "type": "null"
-                  },
-                  {
-                    "type": "null"
                   }
                 ]
               },
@@ -1744,12 +1738,6 @@
                     "pattern": "^[^\\u0000-\\u001F\\u007F]*$",
                     "default": "#E897A3"
                   }
-                },
-                "default": {
-                  "showOnDashboard": true,
-                  "priority": 1,
-                  "chartType": "line",
-                  "color": "#E897A3"
                 }
               },
               "goalEnabled": {
@@ -1820,12 +1808,6 @@
                     "pattern": "^[^\\u0000-\\u001F\\u007F]*$",
                     "default": "#E897A3"
                   }
-                },
-                "default": {
-                  "showOnDashboard": true,
-                  "priority": 1,
-                  "chartType": "line",
-                  "color": "#E897A3"
                 }
               },
               "goalEnabled": {
@@ -1840,9 +1822,6 @@
                   },
                   {
                     "type": "null"
-                  },
-                  {
-                    "type": "null"
                   }
                 ]
               },
@@ -1854,8 +1833,8 @@
             "additionalProperties": false
           }
         ],
-        "description": "Updates must include at least one recognized field. When enabling time frames, include both startDate and deadlineDate.",
         "minProperties": 1,
+        "description": "Updates must include at least one recognized field. When enabling time frames, include both startDate and deadlineDate.",
         "example": {
           "goalEnabled": true,
           "goalType": "incremental",
@@ -1913,23 +1892,23 @@
           },
           "nextCursor": {
             "type": ["string", "null"],
-            "description": "Opaque cursor for the next page",
-            "example": "eyJpZCI6IjEyMyJ9"
+            "example": "eyJpZCI6IjEyMyJ9",
+            "description": "Opaque cursor for the next page"
           },
           "sort": {
             "type": "string",
-            "description": "Sort applied to the collection",
-            "example": "-createdAt"
+            "example": "-createdAt",
+            "description": "Sort applied to the collection"
           },
           "limit": {
             "type": "integer",
-            "description": "Page size used in the request",
-            "example": 20
+            "example": 20,
+            "description": "Page size used in the request"
           },
           "q": {
             "type": "string",
-            "description": "Search term applied, if any",
-            "example": "sleep"
+            "example": "sleep",
+            "description": "Search term applied, if any"
           },
           "filter": {
             "type": "object",
@@ -1938,8 +1917,8 @@
           },
           "totalCount": {
             "type": "number",
-            "description": "Total number of records (present only when includeTotal=true)",
-            "example": 120
+            "example": 120,
+            "description": "Total number of records (present only when includeTotal=true)"
           }
         },
         "required": ["items", "nextCursor", "sort", "limit"]
@@ -2010,8 +1989,8 @@
         "properties": {
           "date": {
             "type": "string",
-            "description": "When the value was logged (the log's loggedAt), not when it was recorded. Points are in ascending date order.",
-            "example": "2023-01-01"
+            "example": "2023-01-01",
+            "description": "When the value was logged (the log's loggedAt), not when it was recorded. Points are in ascending date order."
           },
           "value": {
             "type": "number",
@@ -2040,8 +2019,8 @@
                 "bucketStartISO": {
                   "type": "string",
                   "format": "date-time",
-                  "description": "The start of a bucket in the requested `tz`, written as if it were UTC: midnight of 2025-06-10 in Asia/Jakarta is `2025-06-10T00:00:00.000Z` (ADR-0062).",
-                  "example": "2023-01-01T00:00:00Z"
+                  "example": "2023-01-01T00:00:00Z",
+                  "description": "The start of a bucket in the requested `tz`, written as if it were UTC: midnight of 2025-06-10 in Asia/Jakarta is `2025-06-10T00:00:00.000Z` (ADR-0062)."
                 },
                 "value": {
                   "type": ["number", "null"],
@@ -2159,8 +2138,8 @@
                       "bucketStartISO": {
                         "type": "string",
                         "format": "date-time",
-                        "description": "The start of a bucket in the requested `tz`, written as if it were UTC: midnight of 2025-06-10 in Asia/Jakarta is `2025-06-10T00:00:00.000Z` (ADR-0062).",
-                        "example": "2023-01-01T00:00:00Z"
+                        "example": "2023-01-01T00:00:00Z",
+                        "description": "The start of a bucket in the requested `tz`, written as if it were UTC: midnight of 2025-06-10 in Asia/Jakarta is `2025-06-10T00:00:00.000Z` (ADR-0062)."
                       },
                       "value": {
                         "type": ["number", "null"],
@@ -2195,14 +2174,14 @@
                 "lastLogAt": {
                   "type": ["string", "null"],
                   "format": "date-time",
-                  "description": "The newest log's stored instant (ADR-0062).",
-                  "example": "2025-06-10T12:00:00.000Z"
+                  "example": "2025-06-10T12:00:00.000Z",
+                  "description": "The newest log's stored instant (ADR-0062)."
                 },
                 "firstLogAt": {
                   "type": ["string", "null"],
                   "format": "date-time",
-                  "description": "The oldest log's stored instant (ADR-0062).",
-                  "example": "2025-01-02T08:30:00.000Z"
+                  "example": "2025-01-02T08:30:00.000Z",
+                  "description": "The oldest log's stored instant (ADR-0062)."
                 },
                 "totalLogs": {
                   "type": "integer",
@@ -2215,8 +2194,8 @@
                 "latestBucketStart": {
                   "type": ["string", "null"],
                   "format": "date-time",
-                  "description": "The bucket of the newest log. The start of a bucket in the requested `tz`, written as if it were UTC: midnight of 2025-06-10 in Asia/Jakarta is `2025-06-10T00:00:00.000Z` (ADR-0062).",
-                  "example": "2025-06-10T00:00:00.000Z"
+                  "example": "2025-06-10T00:00:00.000Z",
+                  "description": "The bucket of the newest log. The start of a bucket in the requested `tz`, written as if it were UTC: midnight of 2025-06-10 in Asia/Jakarta is `2025-06-10T00:00:00.000Z` (ADR-0062)."
                 },
                 "requestedRange": {
                   "type": "object",
@@ -2317,13 +2296,13 @@
               },
               "totalMetrics": {
                 "type": "integer",
-                "description": "Metrics shown on the dashboard, before `limit`.",
-                "example": 8
+                "example": 8,
+                "description": "Metrics shown on the dashboard, before `limit`."
               },
               "fallbackMetrics": {
                 "type": "integer",
-                "description": "Items whose series uses the fallback range.",
-                "example": 1
+                "example": 1,
+                "description": "Items whose series uses the fallback range."
               }
             },
             "required": [
@@ -2602,6 +2581,7 @@
               "example": "dGVzdC1yZWZyZXNoLXRva2Vu"
             },
             "required": true,
+            "description": "Opaque refresh token set by login",
             "name": "lakira_refresh",
             "in": "cookie"
           }
@@ -2932,6 +2912,7 @@
               "example": "123e4567-e89b-42d3-a456-426614174000"
             },
             "required": true,
+            "description": "Organization ID",
             "name": "id",
             "in": "path"
           }
@@ -3002,18 +2983,18 @@
               "maximum": 100
             },
             "required": false,
-            "description": "Rows per page, 1 to 100; 100 when omitted",
             "name": "limit",
-            "in": "query"
+            "in": "query",
+            "description": "Rows per page, 1 to 100; 100 when omitted"
           },
           {
             "schema": {
               "type": "string"
             },
             "required": false,
-            "description": "Opaque cursor returned from the previous page",
             "name": "after",
-            "in": "query"
+            "in": "query",
+            "description": "Opaque cursor returned from the previous page"
           }
         ],
         "responses": {
@@ -3061,6 +3042,7 @@
               "example": "123e4567-e89b-42d3-a456-426614174000"
             },
             "required": true,
+            "description": "Organization ID",
             "name": "id",
             "in": "path"
           },
@@ -3071,18 +3053,18 @@
               "maximum": 100
             },
             "required": false,
-            "description": "Rows per page, 1 to 100; 100 when omitted",
             "name": "limit",
-            "in": "query"
+            "in": "query",
+            "description": "Rows per page, 1 to 100; 100 when omitted"
           },
           {
             "schema": {
               "type": "string"
             },
             "required": false,
-            "description": "Opaque cursor returned from the previous page",
             "name": "after",
-            "in": "query"
+            "in": "query",
+            "description": "Opaque cursor returned from the previous page"
           }
         ],
         "responses": {
@@ -3367,9 +3349,9 @@
               "maximum": 100
             },
             "required": false,
-            "description": "Maximum number of records to return (1-100)",
             "name": "limit",
-            "in": "query"
+            "in": "query",
+            "description": "Maximum number of records to return (1-100)"
           },
           {
             "schema": {
@@ -3386,9 +3368,9 @@
               ]
             },
             "required": false,
-            "description": "Sort field (prefix with - for DESC)",
             "name": "sort",
-            "in": "query"
+            "in": "query",
+            "description": "Sort field (prefix with - for DESC)"
           },
           {
             "schema": {
@@ -3397,27 +3379,27 @@
               "pattern": "^.*\\S.*$"
             },
             "required": false,
-            "description": "Optional free-text search term (trimmed; must be at least 1 character).",
             "name": "q",
-            "in": "query"
+            "in": "query",
+            "description": "Optional free-text search term (trimmed; must be at least 1 character)."
           },
           {
             "schema": {
               "type": "string"
             },
             "required": false,
-            "description": "Opaque cursor returned from the previous page",
             "name": "after",
-            "in": "query"
+            "in": "query",
+            "description": "Opaque cursor returned from the previous page"
           },
           {
             "schema": {
               "type": "boolean"
             },
             "required": false,
-            "description": "Set to true to include totalCount in the response",
             "name": "includeTotal",
-            "in": "query"
+            "in": "query",
+            "description": "Set to true to include totalCount in the response"
           },
           {
             "schema": {
@@ -3431,9 +3413,9 @@
               }
             },
             "required": false,
-            "description": "Filter categories by name (deepObject).",
             "name": "filter",
             "in": "query",
+            "description": "Filter categories by name (deepObject).",
             "style": "deepObject",
             "explode": true
           }
@@ -3751,9 +3733,9 @@
               "maximum": 100
             },
             "required": false,
-            "description": "Maximum number of records to return (1-100)",
             "name": "limit",
-            "in": "query"
+            "in": "query",
+            "description": "Maximum number of records to return (1-100)"
           },
           {
             "schema": {
@@ -3770,9 +3752,9 @@
               ]
             },
             "required": false,
-            "description": "Sort field (prefix with - for DESC)",
             "name": "sort",
-            "in": "query"
+            "in": "query",
+            "description": "Sort field (prefix with - for DESC)"
           },
           {
             "schema": {
@@ -3781,27 +3763,27 @@
               "pattern": "^.*\\S.*$"
             },
             "required": false,
-            "description": "Optional free-text search term (trimmed; must be at least 1 character).",
             "name": "q",
-            "in": "query"
+            "in": "query",
+            "description": "Optional free-text search term (trimmed; must be at least 1 character)."
           },
           {
             "schema": {
               "type": "string"
             },
             "required": false,
-            "description": "Opaque cursor returned from the previous page",
             "name": "after",
-            "in": "query"
+            "in": "query",
+            "description": "Opaque cursor returned from the previous page"
           },
           {
             "schema": {
               "type": "boolean"
             },
             "required": false,
-            "description": "Set to true to include totalCount in the response",
             "name": "includeTotal",
-            "in": "query"
+            "in": "query",
+            "description": "Set to true to include totalCount in the response"
           },
           {
             "schema": {
@@ -3818,9 +3800,9 @@
               }
             },
             "required": false,
-            "description": "Filter metrics by name and/or categoryId (deepObject).",
             "name": "filter",
             "in": "query",
+            "description": "Filter metrics by name and/or categoryId (deepObject).",
             "style": "deepObject",
             "explode": true
           }
@@ -4179,9 +4161,9 @@
               "maximum": 100
             },
             "required": false,
-            "description": "Maximum number of records to return (1-100)",
             "name": "limit",
-            "in": "query"
+            "in": "query",
+            "description": "Maximum number of records to return (1-100)"
           },
           {
             "schema": {
@@ -4198,9 +4180,9 @@
               ]
             },
             "required": false,
-            "description": "Sort field (prefix with - for DESC)",
             "name": "sort",
-            "in": "query"
+            "in": "query",
+            "description": "Sort field (prefix with - for DESC)"
           },
           {
             "schema": {
@@ -4209,27 +4191,27 @@
               "pattern": "^.*\\S.*$"
             },
             "required": false,
-            "description": "Optional search term applied to log notes/metadata",
             "name": "q",
-            "in": "query"
+            "in": "query",
+            "description": "Optional search term applied to log notes/metadata"
           },
           {
             "schema": {
               "type": "string"
             },
             "required": false,
-            "description": "Opaque cursor returned from the previous page",
             "name": "after",
-            "in": "query"
+            "in": "query",
+            "description": "Opaque cursor returned from the previous page"
           },
           {
             "schema": {
               "type": "boolean"
             },
             "required": false,
-            "description": "Set to true to include totalCount in the response",
             "name": "includeTotal",
-            "in": "query"
+            "in": "query",
+            "description": "Set to true to include totalCount in the response"
           },
           {
             "schema": {
@@ -4245,9 +4227,9 @@
               }
             },
             "required": false,
-            "description": "Filter logs by metricId and/or logValue (deepObject).",
             "name": "filter",
             "in": "query",
+            "description": "Filter logs by metricId and/or logValue (deepObject).",
             "style": "deepObject",
             "explode": true
           }
@@ -4317,9 +4299,9 @@
               "example": "2025-01-01T00:00:00Z"
             },
             "required": false,
-            "description": "Count logs whose loggedAt is at or after this instant. An ISO 8601 datetime with an offset.",
             "name": "startDate",
-            "in": "query"
+            "in": "query",
+            "description": "Count logs whose loggedAt is at or after this instant. An ISO 8601 datetime with an offset."
           },
           {
             "schema": {
@@ -4328,9 +4310,9 @@
               "example": "2025-02-01T00:00:00Z"
             },
             "required": false,
-            "description": "Count logs whose loggedAt is before this instant (exclusive). An ISO 8601 datetime with an offset; must be after startDate when both are given.",
             "name": "endDate",
-            "in": "query"
+            "in": "query",
+            "description": "Count logs whose loggedAt is before this instant (exclusive). An ISO 8601 datetime with an offset; must be after startDate when both are given."
           }
         ],
         "responses": {
@@ -4740,6 +4722,7 @@
               "example": "55555555-eeee-4eee-8eee-000000000005"
             },
             "required": true,
+            "description": "ID of the metric to generate logs for",
             "name": "metricId",
             "in": "path"
           }
@@ -4883,9 +4866,9 @@
               "maximum": 100
             },
             "required": false,
-            "description": "Maximum number of records to return (1-100)",
             "name": "limit",
-            "in": "query"
+            "in": "query",
+            "description": "Maximum number of records to return (1-100)"
           },
           {
             "schema": {
@@ -4900,9 +4883,9 @@
               ]
             },
             "required": false,
-            "description": "Sort field (prefix with - for DESC)",
             "name": "sort",
-            "in": "query"
+            "in": "query",
+            "description": "Sort field (prefix with - for DESC)"
           },
           {
             "schema": {
@@ -4911,27 +4894,27 @@
               "pattern": "^.*\\S.*$"
             },
             "required": false,
-            "description": "Optional free-text search term (trimmed; must be at least 1 character).",
             "name": "q",
-            "in": "query"
+            "in": "query",
+            "description": "Optional free-text search term (trimmed; must be at least 1 character)."
           },
           {
             "schema": {
               "type": "string"
             },
             "required": false,
-            "description": "Opaque cursor returned from the previous page",
             "name": "after",
-            "in": "query"
+            "in": "query",
+            "description": "Opaque cursor returned from the previous page"
           },
           {
             "schema": {
               "type": "boolean"
             },
             "required": false,
-            "description": "Set to true to include totalCount in the response",
             "name": "includeTotal",
-            "in": "query"
+            "in": "query",
+            "description": "Set to true to include totalCount in the response"
           },
           {
             "schema": {
@@ -4946,9 +4929,9 @@
               }
             },
             "required": false,
-            "description": "Filter settings by metricId and/or isActive (deepObject).",
             "name": "filter",
             "in": "query",
+            "description": "Filter settings by metricId and/or isActive (deepObject).",
             "style": "deepObject",
             "explode": true
           }
@@ -5419,9 +5402,9 @@
               "default": "1d"
             },
             "required": false,
-            "description": "Aggregation bucket size (defaults to 1d when omitted).",
             "name": "bucket",
-            "in": "query"
+            "in": "query",
+            "description": "Aggregation bucket size (defaults to 1d when omitted)."
           },
           {
             "schema": {
@@ -5431,9 +5414,9 @@
               "default": "Asia/Jakarta"
             },
             "required": false,
-            "description": "IANA timezone (defaults to Asia/Jakarta when omitted). Leave the parameter out rather than sending an empty string.",
             "name": "tz",
-            "in": "query"
+            "in": "query",
+            "description": "IANA timezone (defaults to Asia/Jakarta when omitted). Leave the parameter out rather than sending an empty string."
           },
           {
             "schema": {
@@ -5442,9 +5425,9 @@
               "default": "none"
             },
             "required": false,
-            "description": "Missing bucket fill strategy",
             "name": "fill",
-            "in": "query"
+            "in": "query",
+            "description": "Missing bucket fill strategy"
           },
           {
             "schema": {
@@ -5452,9 +5435,9 @@
               "format": "date-time"
             },
             "required": false,
-            "description": "Absolute start ISO timestamp. Must be paired with `end` when supplied; sending only one side of the range is invalid.",
             "name": "start",
-            "in": "query"
+            "in": "query",
+            "description": "Absolute start ISO timestamp. Must be paired with `end` when supplied; sending only one side of the range is invalid."
           },
           {
             "schema": {
@@ -5462,9 +5445,9 @@
               "format": "date-time"
             },
             "required": false,
-            "description": "Absolute end ISO timestamp. Must be paired with `start` (and occur after it).",
             "name": "end",
-            "in": "query"
+            "in": "query",
+            "description": "Absolute end ISO timestamp. Must be paired with `start` (and occur after it)."
           },
           {
             "schema": {
@@ -5472,9 +5455,9 @@
               "pattern": "^[1-9][0-9]*(h|d|w|m|y)$"
             },
             "required": false,
-            "description": "Relative range such as 7d or 12m (defaults to 30d; minimum is 1). The range runs through the end of the current bucket in the `tz` zone, so it includes values logged today, and it starts that many hours, days, weeks, months or years before that end; `meta.range.endISO` is therefore in the future. Provide either this parameter or both `start` and `end`, not both; large windows may be rejected based on the bucket size.",
             "name": "last",
-            "in": "query"
+            "in": "query",
+            "description": "Relative range such as 7d or 12m (defaults to 30d; minimum is 1). The range runs through the end of the current bucket in the `tz` zone, so it includes values logged today, and it starts that many hours, days, weeks, months or years before that end; `meta.range.endISO` is therefore in the future. Provide either this parameter or both `start` and `end`, not both; large windows may be rejected based on the bucket size."
           },
           {
             "schema": {
@@ -5483,9 +5466,9 @@
               "maximum": 48
             },
             "required": false,
-            "description": "Maximum number of metrics to include",
             "name": "limit",
-            "in": "query"
+            "in": "query",
+            "description": "Maximum number of metrics to include"
           },
           {
             "schema": {
@@ -5494,6 +5477,7 @@
               "example": "\"mJ3k0sVw2xQ9uYtR1aBcDeFgHiJ\""
             },
             "required": false,
+            "description": "The `ETag` of a response stored earlier. When it still matches, the answer is a 304 with no body.",
             "name": "If-None-Match",
             "in": "header"
           }
@@ -5581,9 +5565,9 @@
               "default": "1d"
             },
             "required": false,
-            "description": "Aggregation bucket size (defaults to 1d when omitted).",
             "name": "bucket",
-            "in": "query"
+            "in": "query",
+            "description": "Aggregation bucket size (defaults to 1d when omitted)."
           },
           {
             "schema": {
@@ -5593,9 +5577,9 @@
               "default": "Asia/Jakarta"
             },
             "required": false,
-            "description": "IANA timezone (defaults to Asia/Jakarta when omitted). Leave the parameter out rather than sending an empty string.",
             "name": "tz",
-            "in": "query"
+            "in": "query",
+            "description": "IANA timezone (defaults to Asia/Jakarta when omitted). Leave the parameter out rather than sending an empty string."
           },
           {
             "schema": {
@@ -5604,9 +5588,9 @@
               "default": "none"
             },
             "required": false,
-            "description": "Missing bucket fill strategy",
             "name": "fill",
-            "in": "query"
+            "in": "query",
+            "description": "Missing bucket fill strategy"
           },
           {
             "schema": {
@@ -5614,9 +5598,9 @@
               "format": "date-time"
             },
             "required": false,
-            "description": "Absolute start ISO timestamp. Must be paired with `end` when supplied; sending only one side of the range is invalid.",
             "name": "start",
-            "in": "query"
+            "in": "query",
+            "description": "Absolute start ISO timestamp. Must be paired with `end` when supplied; sending only one side of the range is invalid."
           },
           {
             "schema": {
@@ -5624,9 +5608,9 @@
               "format": "date-time"
             },
             "required": false,
-            "description": "Absolute end ISO timestamp. Must be paired with `start` (and occur after it).",
             "name": "end",
-            "in": "query"
+            "in": "query",
+            "description": "Absolute end ISO timestamp. Must be paired with `start` (and occur after it)."
           },
           {
             "schema": {
@@ -5634,9 +5618,9 @@
               "pattern": "^[1-9][0-9]*(h|d|w|m|y)$"
             },
             "required": false,
-            "description": "Relative range such as 7d or 12m (defaults to 30d; minimum is 1). The range runs through the end of the current bucket in the `tz` zone, so it includes values logged today, and it starts that many hours, days, weeks, months or years before that end; `meta.range.endISO` is therefore in the future. Provide either this parameter or both `start` and `end`, not both; large windows may be rejected based on the bucket size.",
             "name": "last",
-            "in": "query"
+            "in": "query",
+            "description": "Relative range such as 7d or 12m (defaults to 30d; minimum is 1). The range runs through the end of the current bucket in the `tz` zone, so it includes values logged today, and it starts that many hours, days, weeks, months or years before that end; `meta.range.endISO` is therefore in the future. Provide either this parameter or both `start` and `end`, not both; large windows may be rejected based on the bucket size."
           },
           {
             "schema": {
@@ -5645,6 +5629,7 @@
               "example": "\"mJ3k0sVw2xQ9uYtR1aBcDeFgHiJ\""
             },
             "required": false,
+            "description": "The `ETag` of a response stored earlier. When it still matches, the answer is a 304 with no body.",
             "name": "If-None-Match",
             "in": "header"
           }
