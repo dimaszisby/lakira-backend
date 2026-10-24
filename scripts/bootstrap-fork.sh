@@ -18,14 +18,17 @@
 #      ("my-app" gives my_app_user), so they stay valid in plain SQL. The test
 #      template and the test-database init SQL are rewritten too, so .env.test
 #      logs in as the user Compose creates from .env. In an .env or .env.test
-#      that already exists, only the database identifiers are renamed.
+#      that already exists, only the database identifiers are renamed. The
+#      Compose container, network and volume names take the same prefix
+#      (my_app_postgres_db), so a fork never shares the template's volumes.
 #   3. Rotates JWT_SECRET in .env (creating it from .env.example if needed), and
 #      replaces the template's database password and the broker's guest login
 #      with generated ones. .env.test takes its database and broker logins from
 #      .env, whatever users those are. Redis keeps no password; Compose publishes
 #      every service on 127.0.0.1 only.
 #   4. Sets APP_NAME=<new-name> in .env, and creates .env.test from its template.
-#   5. Removes docs/internal/ (upstream working material); --keep-internal opts out.
+#   5. Removes docs/internal/ (upstream working material), and turns each
+#      Markdown link into it into its text; --keep-internal opts out of both.
 #   6. Drops FORKED-FROM.md with the upstream commit SHA.
 #
 # The script is idempotent: running it twice changes nothing, except that a
@@ -325,6 +328,20 @@ for f in "${FILES_SHORT[@]}"; do
   do_sed "s/Lakira Backend/${DISPLAY_NAME} Backend/g" "$f"
   do_sed "s/Lakira/${DISPLAY_NAME}/g" "$f"
 done
+
+# ---------------------------------------------------------------------------
+# 2a. Prefix the Compose names with the fork's slug
+#
+# docker-compose.yml fixes its container, network and volume names. A fork on
+# the machine that runs the template took the template's database volume, and
+# the `docker compose down -v` printed below would have deleted it (audit
+# 2026-09-29, R12; kit fork-residue D-01). Services find each other by service
+# name, which does not change. The pattern matches only the template's own
+# values, so a second run changes nothing.
+# ---------------------------------------------------------------------------
+COMPOSE_NAMES="postgres_db|redis_cache|rabbitmq_queue|mailpit|node_app|node_worker|backend_network|db_data_volume|redis_data_volume|rabbitmq_data_volume"
+rewrite_file "$REPO_ROOT/docker-compose.yml" sed -E \
+  "s/^([[:space:]]*(container_name|name):[[:space:]]*)(${COMPOSE_NAMES})([[:space:]]*(#.*)?)$/\1${DB_SLUG}_\3\4/"
 
 fi # RENAME_TREE
 
@@ -673,10 +690,13 @@ elif [[ -d "$INTERNAL_DOCS" ]]; then
   INTERNAL_FILE_COUNT=$(find "$INTERNAL_DOCS" -type f | wc -l | tr -d " ")
   rm -rf "$INTERNAL_DOCS"
   echo "Removed docs/internal ($INTERNAL_FILE_COUNT files of upstream working material)."
+  # Every link into it is now dead: keep each one's text (fork-residue D-02).
+  node "$REPO_ROOT/scripts/unlink-internal-docs.js" "$REPO_ROOT"
   echo "  Note: that tree held the upstream SaaS-readiness audit. Re-run your own"
   echo "  assessment before production - see docs/how-to/security/."
 else
   echo "docs/internal already absent - nothing to prune."
+  node "$REPO_ROOT/scripts/unlink-internal-docs.js" "$REPO_ROOT"
 fi
 
 # ---------------------------------------------------------------------------
@@ -723,5 +743,5 @@ for _line in "${KEPT[@]+"${KEPT[@]}"}"; do
   echo "This run left $_line in .env as it was."
 done
 echo "A Postgres or RabbitMQ volume from an earlier run keeps its old login:"
-echo "'docker compose down -v' removes both. Review .env before pointing it at"
-echo "anything real."
+echo "'docker compose down -v' removes both, the volumes docker-compose.yml names."
+echo "Review .env before pointing it at anything real."

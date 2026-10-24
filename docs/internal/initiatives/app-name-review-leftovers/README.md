@@ -1,6 +1,6 @@
 # What the review of the `APP_NAME` default left open
 
-**Status:** Implemented on `fix/app-name-review-leftovers`; PR open. Register row B-52, from
+**Status:** Done (#223, `e36b2d5`). Register row B-52, from
 [`2026-10-07-todo-app-name-review-leftovers.md`](../../todos/2026-10-07-todo-app-name-review-leftovers.md).
 **Slug:** `app-name-review-leftovers` · **Branch:** `fix/app-name-review-leftovers`
 
