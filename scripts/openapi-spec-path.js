@@ -29,12 +29,24 @@ if (typeof packageName !== "string" || packageName.length === 0) {
   );
 }
 
-/** The package's name. The spec is named after it, and describes it. */
-export const PACKAGE_NAME = packageName;
+/**
+ * The app's name for a package name: the name without its `@scope/`, as
+ * `resolveAppName` in `src/config/app-name.ts` takes it. A test keeps the two
+ * the same, so a scoped package's committed spec, served spec and spec path
+ * agree on one name (app-name-review-leftovers D-02).
+ *
+ * @param {string} name
+ * @returns {string}
+ */
+export const appNameFromPackage = (name) =>
+  name.replace(/^@[^/]+\//, "").trim();
+
+/** The package's app name. The spec is named after it, and describes it. */
+export const PACKAGE_NAME = appNameFromPackage(packageName);
 
 export const OPENAPI_SPEC_DIR = path.join(repoRoot, "docs/reference/api");
 
 export const OPENAPI_SPEC_FILE = path.join(
   OPENAPI_SPEC_DIR,
-  `${packageName}-openapi.json`,
+  `${PACKAGE_NAME}-openapi.json`,
 );

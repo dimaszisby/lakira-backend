@@ -24,7 +24,8 @@ the generator pins the name before anything reads it (`scripts/openapi-app-name.
 gives the same answer on every machine. The spec the server serves at `/api/v1/docs/openapi.json`
 is different: it is built at runtime from the runtime `APP_NAME`.
 
-The filename is `<package name>-openapi.json`. It comes from `package.json`'s `name` through
+The filename is `<package name>-openapi.json`, without a scope: `@acme/shop-backend` writes
+`shop-backend-openapi.json`, the name the app runs as. It comes from `package.json`'s `name` through
 `scripts/openapi-spec-path.js`, which the generator, the normalizer, the validator and the contract
 runners all import. A fork's spec is therefore named after the fork; do not write the filename into
 a script.

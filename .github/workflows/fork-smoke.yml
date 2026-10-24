@@ -91,6 +91,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Check 7 proves an image with no APP_NAME is named after its package. On
+      # the template the package name is the old literal, so only a fork can
+      # tell the default from a fixed name coming back
+      # (app-name-review-leftovers D-05).
+      - name: Image smoke
+        run: npm run docker:smoke
+
       # The gates the fork's own CI runs, not only its tests. A fork's
       # docs:openapi:check failed for as long as this job skipped them
       # (audit 2026-10-03, S2): bootstrap renamed the spec's path and not the file.
@@ -107,10 +114,11 @@ jobs:
       # upstream's included. This proves the spec names the fork, and that the
       # gate does not depend on what the shell exports (audit 2026-10-05, T2).
       # The name is read from package.json because a fork's own run of this job
-      # keeps the fork's name, not "my-app".
+      # keeps the fork's name, not "my-app"; without its scope, as the spec
+      # scripts take it (app-name-review-leftovers D-02).
       - name: OpenAPI spec describes the fork
         run: |
-          NAME="$(node -p "require('./package.json').name")"
+          NAME="$(node -p "require('./package.json').name.replace(/^@[^/]+\\//, '')")"
           SPEC="docs/reference/api/${NAME}-openapi.json"
           test "$NAME" != "lakira-backend"
           grep -q "\"name\": \"${NAME%-backend}_refresh\"" "$SPEC"

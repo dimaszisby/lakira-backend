@@ -14,6 +14,7 @@ import { buildWiredAuthFeature } from "./composition/auth.js";
 import { createShutdown } from "./utils/shutdown.js";
 import { disconnectRedis } from "./utils/redis-client.js";
 import { buildWorkerShutdownSteps } from "./worker-shutdown.js";
+import { currentAppNameMismatch } from "./config/app-name.js";
 
 if (!env.RABBITMQ_ENABLED) {
   logger.error(
@@ -30,6 +31,14 @@ let retryPublisher: RabbitMQPublisher | null = null;
 
 const startWorker = async (): Promise<void> => {
   logger.info("[WORKER] Starting...");
+  // The queue names follow the app's name (app-name-review-leftovers D-03).
+  const nameMismatch = currentAppNameMismatch();
+  if (nameMismatch) {
+    logger.warn(
+      `[WORKER] APP_NAME "${nameMismatch.appName}" differs from the package name "${nameMismatch.packageName}"; the queues are named after "${nameMismatch.appName}"`,
+      nameMismatch,
+    );
+  }
 
   loadModels();
   await sequelize.authenticate();

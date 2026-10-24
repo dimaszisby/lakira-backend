@@ -1,9 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 
-// Reads process.env directly — intentional bypass of envManager.
-// logger.ts imports this module at load time, before envManager is initialised,
-// so going through the Zod-validated env object would cause a circular init failure.
+// Reads process.env directly — intentional bypass of envManager. logger.ts
+// imports this module, so going through envManager would make every import of
+// the logger, in a test or a script, parse and validate the whole environment.
+// The entry points import envManager first, and it loads .env, so a .env value
+// is already in process.env when this module runs (app-name-review-leftovers).
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
@@ -64,26 +66,77 @@ export const readPackageName = (file?: string): string => {
 };
 
 /**
+ * What an app name must look like: the rule `scripts/bootstrap-fork.sh`
+ * applies to `--name`, which a test keeps the same. The name becomes the
+ * refresh cookie's name, which Express refuses to set with a space in it, and
+ * the queue names, where a dot adds a segment to every routing key
+ * (app-name-review-leftovers D-01).
+ */
+export const APP_NAME_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+
+const NAME_RULE = `It must match ${APP_NAME_PATTERN.source}: lowercase letters and digits, with single hyphens between them, starting with a letter. The name becomes the refresh cookie's name and the queue names.`;
+
+const withoutScope = (packageName: string): string =>
+  packageName.replace(/^@[^/]+\//, "").trim();
+
+/**
  * The app's name: `APP_NAME` when it is set and not blank, otherwise the
  * package's name without its scope. `scripts/bootstrap-fork.sh` renames the
  * package and the image carries package.json, so a fork deployed with no
  * `APP_NAME` is named after the fork. There is no fixed fallback: one would
- * name every such fork after the template (ADR-0060).
+ * name every such fork after the template (ADR-0060). A name that fails
+ * `APP_NAME_PATTERN` is refused, wherever it came from.
  */
 export const resolveAppName = (
   fromEnv: string | undefined,
   packageName: () => string = readPackageName,
 ): string => {
   const explicit = fromEnv?.trim();
-  if (explicit) return explicit;
+  if (explicit) {
+    if (!APP_NAME_PATTERN.test(explicit)) {
+      throw new Error(
+        `APP_NAME "${explicit}" is not a valid app name. ${NAME_RULE}`,
+      );
+    }
+    return explicit;
+  }
   const scoped = packageName();
-  const name = scoped.replace(/^@[^/]+\//, "").trim();
+  const name = withoutScope(scoped);
   if (name.length === 0) {
     throw new Error(
       `APP_NAME is not set and the package name "${scoped}" leaves no name once its scope is dropped. Set APP_NAME.`,
     );
   }
+  if (!APP_NAME_PATTERN.test(name)) {
+    throw new Error(
+      `The package name "${scoped}" gives the app name "${name}", which is not a valid app name. ${NAME_RULE} Rename the package, or set APP_NAME.`,
+    );
+  }
   return name;
+};
+
+/**
+ * Both names, when `APP_NAME` is set and differs from the package's name
+ * without its scope. The variable wins (ADR-0060), so this is reported, not
+ * refused: a template's `APP_NAME` copied onto a fork's platform names the
+ * fork after the template. Never throws; with no package to read there is
+ * nothing to compare (app-name-review-leftovers D-03).
+ */
+export const appNameMismatch = (
+  fromEnv: string | undefined,
+  packageName: () => string = readPackageName,
+): { appName: string; packageName: string } | undefined => {
+  const explicit = fromEnv?.trim();
+  if (!explicit) return undefined;
+  let fromPackage: string;
+  try {
+    fromPackage = withoutScope(packageName());
+  } catch {
+    return undefined;
+  }
+  return explicit === fromPackage
+    ? undefined
+    : { appName: explicit, packageName: fromPackage };
 };
 
 export const APP_NAME = resolveAppName(process.env.APP_NAME);
@@ -96,3 +149,7 @@ const toTitleCase = (s: string): string =>
     .join(" ");
 
 export const APP_DISPLAY_NAME = toTitleCase(APP_SHORT_NAME);
+
+/** `appNameMismatch` for this process's `APP_NAME`, for the entry points to log. */
+export const currentAppNameMismatch = () =>
+  appNameMismatch(process.env.APP_NAME);

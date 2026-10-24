@@ -135,7 +135,7 @@ async function seedData(transaction: Transaction) {
   const primaryUser = await models.User.create(
     {
       id: SEED_IDS.primaryUser,
-      email: "contract-primary@lakira.dev",
+      email: "contract-primary@example.com",
       username: "contract_primary",
       password: "ContractPrimary!123",
       isPublicProfile: true,
@@ -148,7 +148,7 @@ async function seedData(transaction: Transaction) {
   const secondaryUser = await models.User.create(
     {
       id: SEED_IDS.secondaryUser,
-      email: "contract-secondary@lakira.dev",
+      email: "contract-secondary@example.com",
       username: "contract_secondary",
       password: "ContractSecondary!123",
       isPublicProfile: true,
@@ -212,7 +212,7 @@ async function seedData(transaction: Transaction) {
     await models.User.create(
       {
         id: userId,
-        email: `contract-member-${index}@lakira.dev`,
+        email: `contract-member-${index}@example.com`,
         username: `contract_member_${index}`,
         password: "ContractMember!123",
         isPublicProfile: false,

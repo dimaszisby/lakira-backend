@@ -286,3 +286,115 @@ describe("app-name: the default", () => {
     ).toThrow("no package.json");
   });
 });
+
+// app-name-review-leftovers D-01. The name becomes the refresh cookie's name
+// and the queue names, so the app refuses one bootstrap-fork.sh would refuse,
+// wherever it came from.
+describe("app-name: the name must match bootstrap's rule", () => {
+  it.each(["lakira-backend", "my-app", "foo", "a1", "app2-x9-backend"])(
+    "accepts %j",
+    async (name) => {
+      const { resolveAppName } = await loadAppName();
+
+      expect(resolveAppName(name)).toBe(name);
+      expect(resolveAppName(undefined, () => name)).toBe(name);
+    },
+  );
+
+  it("accepts a scoped package once the scope is dropped", async () => {
+    const { resolveAppName } = await loadAppName();
+
+    expect(resolveAppName(undefined, () => "@acme/shop-backend")).toBe(
+      "shop-backend",
+    );
+  });
+
+  it.each([
+    "Acme Corp",
+    "my.app",
+    "My-App",
+    "my_app",
+    "1app",
+    "my--app",
+    "app-",
+  ])(
+    "refuses %j from APP_NAME, naming the variable and the rule",
+    async (name) => {
+      const { resolveAppName } = await loadAppName();
+
+      expect(() => resolveAppName(name)).toThrow(
+        `APP_NAME "${name}" is not a valid app name`,
+      );
+      expect(() => resolveAppName(name)).toThrow(
+        "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      );
+    },
+  );
+
+  it("refuses an invalid package name, naming the package", async () => {
+    const { resolveAppName } = await loadAppName();
+
+    expect(() => resolveAppName(undefined, () => "@acme/Shop_Api")).toThrow(
+      'The package name "@acme/Shop_Api" gives the app name "Shop_Api", which is not a valid app name',
+    );
+  });
+
+  it("is the rule bootstrap-fork.sh applies to --name", async () => {
+    const { APP_NAME_PATTERN } = await loadAppName();
+    const script = fs.readFileSync(
+      path.resolve(process.cwd(), "scripts/bootstrap-fork.sh"),
+      "utf-8",
+    );
+    const match = /"\$NEW_NAME" =~ (\^\S+\$) \]\]/.exec(script);
+
+    expect(match?.[1]).toBe(APP_NAME_PATTERN.source);
+  });
+});
+
+// app-name-review-leftovers D-03. APP_NAME wins by design (ADR-0060), so a
+// value that differs from the package is reported, not refused.
+describe("app-name: appNameMismatch", () => {
+  it("names both when APP_NAME differs from the package", async () => {
+    const { appNameMismatch } = await loadAppName();
+
+    expect(appNameMismatch("lakira-backend", () => "my-app")).toEqual({
+      appName: "lakira-backend",
+      packageName: "my-app",
+    });
+  });
+
+  it("compares with the package name without its scope", async () => {
+    const { appNameMismatch } = await loadAppName();
+
+    expect(
+      appNameMismatch("shop-backend", () => "@acme/shop-backend"),
+    ).toBeUndefined();
+  });
+
+  it.each([undefined, "", "  "])(
+    "is undefined when APP_NAME is unset or blank (%j)",
+    async (value) => {
+      const { appNameMismatch } = await loadAppName();
+      const readName = jest.fn(() => "my-app");
+
+      expect(appNameMismatch(value, readName)).toBeUndefined();
+      expect(readName).not.toHaveBeenCalled();
+    },
+  );
+
+  it("is undefined when they agree", async () => {
+    const { appNameMismatch } = await loadAppName();
+
+    expect(appNameMismatch(" my-app ", () => "my-app")).toBeUndefined();
+  });
+
+  it("is undefined, and does not throw, when there is no package to read", async () => {
+    const { appNameMismatch } = await loadAppName();
+
+    expect(
+      appNameMismatch("my-app", () => {
+        throw new Error("no package.json");
+      }),
+    ).toBeUndefined();
+  });
+});

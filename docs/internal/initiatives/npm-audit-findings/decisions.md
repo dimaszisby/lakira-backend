@@ -229,7 +229,7 @@ changed, not the tree, and B-25 closes with this entry.
 
 ## D-11 — Take the `fast-uri` patch through the lockfile, alone
 
-- **Status:** Proposed
+- **Status:** Accepted (#222, `6150bc8`)
 - **Date:** 2026-10-25
 - **Size:** Micro — single commit, no separate kit. Commits carry `refs: npm-audit-findings`.
   Register row B-93; branch `fix/fast-uri-dev-moderate`.
