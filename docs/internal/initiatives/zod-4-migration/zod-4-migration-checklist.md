@@ -51,9 +51,15 @@ Checked against `origin/dev` at `d1ff8da` (#219). Acceptance criteria: [the plan
 - [x] Found: the settings update spec claimed a `displayOptions` default zod 3 never applied →
       in scope, the spec now says so (D-10)
 
+- [x] Found: CI failed the gate on GHSA-27r3-jxmh-p828 in `body-parser` 1.20.8, published
+      2026-10-23 20:53 UTC → in scope, `package-lock.json` to 1.20.9 (D-11)
+- [x] Found: one full integration run failed two analytics `GET` tests with `socket hang up` → out
+      of scope, B-11's flake; sighting added to `2026-09-25-todo-integration-parse-error-flake.md`
+
 ## Acceptance
 
-- [x] AC-1 — `npm audit --omit=dev`: 2 moderate, the accepted `uuid` root;
+- [x] AC-1 — `npm audit --omit=dev`, with `body-parser` 1.20.9 (D-11): 2 moderate, the accepted
+      `uuid` root;
       `security:delta:gate` passes, 0 high
 - [x] AC-2 — the corpus run on the branch matches the baseline in every pass or fail, every
       parsed value and every field, except the settings union cases of D-06; unit and

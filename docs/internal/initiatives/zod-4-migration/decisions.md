@@ -165,3 +165,25 @@ zod 3 included (D-05); the descriptions are documentation.
 save one.
 **Consequences.** Generated client types do not change, so no Notion record: the frontend has
 nothing to act on.
+
+---
+
+## D-11 — Take the `body-parser` patch here, through the lockfile
+
+- **Status:** Proposed
+- **Date:** 2026-10-24
+
+**Context.** CI on this branch's PR failed the security gate on a second new High:
+GHSA-27r3-jxmh-p828, published 2026-10-23 20:53 UTC, a denial of service in `body-parser` before
+1.20.9 through trailing bytes after a compressed request body. `body-parser` 1.20.8 parses every
+JSON body (`http-pipeline.ts`), as a direct dependency (`^1.20.4`) and through Express 4.22.3
+(`~1.20.5`). 1.20.9 is inside both ranges.
+**Decision.** `npm update body-parser`: the lockfile moves to 1.20.9, `package.json` does not.
+Taken on this branch, whose job is to make the gate pass again, and logged in this kit, not in
+`npm-audit-findings`, where #220 adds D-10 to the same place.
+**Options considered.** _A branch of its own:_ this PR would stay red until it merged, and so
+would every other. _`npm audit fix`:_ reaches for the accepted `uuid` moderates, as
+`npm-audit-findings` D-05 recorded.
+**Consequences.** `npm ls --omit=dev --all` differs only in `body-parser`'s two lines. One full
+integration run failed two analytics `GET` tests with `socket hang up`; they passed alone three
+times and in the next full run, a sighting of B-11 recorded in its todo.

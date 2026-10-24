@@ -53,7 +53,7 @@ None.
 
 ## Decisions expected
 
-All taken during the work: [decisions.md](decisions.md) D-01 to D-10.
+All taken during the work: [decisions.md](decisions.md) D-01 to D-11.
 
 ## Phases
 

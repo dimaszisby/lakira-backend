@@ -243,3 +243,13 @@ the branch does not touch. 24.22.1 changed the HTTP agent (CVE-2026-105481), so 
 five times on 24.22.1 and five times on 24.22.0: all ten passed. The next full run on 24.22.1, on
 fresh containers, passed (303 passed, 6 skipped). The same shape as the sightings above, and not
 tied to the patch release.
+
+## 2026-10-24 — two `socket hang up`s after a `body-parser` patch
+
+On `fix/zod-4-migration`, after `body-parser` moved from 1.20.8 to 1.20.9, one
+`npm run test:integration:coverage` failed two tests with `socket hang up`: `Analytics HTTP
+caching › returns 304 for a conditional single metric request` and `Analytics API › returns
+dashboard visualization data`. Both are `GET` requests with no body, which `body-parser` does not
+read. The two files alone passed three times in a row, and the next full run, on fresh
+containers, passed (316 passed, 6 skipped). `analytics-caching.test.ts` is the suite of the first
+2026-10-21 sighting.
