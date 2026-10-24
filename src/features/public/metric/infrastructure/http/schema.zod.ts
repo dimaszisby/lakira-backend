@@ -16,6 +16,7 @@ extendZodWithOpenApi(z);
 
 const normalizedSearchParam = z
   .union([z.string(), z.undefined(), z.null()])
+  .optional()
   .transform((value) => {
     if (typeof value !== "string") return undefined;
     return value.trim();
@@ -106,11 +107,14 @@ const listMetricQueryRaw = z
       ] as const)
       .default("-createdAt"),
     q: normalizedSearchParam,
-    after: z.union([z.string(), z.undefined(), z.null()]).transform((value) => {
-      if (typeof value !== "string") return undefined;
-      const trimmed = value.trim();
-      return trimmed.length ? trimmed : undefined;
-    }),
+    after: z
+      .union([z.string(), z.undefined(), z.null()])
+      .optional()
+      .transform((value) => {
+        if (typeof value !== "string") return undefined;
+        const trimmed = value.trim();
+        return trimmed.length ? trimmed : undefined;
+      }),
     includeTotal: zStrictBooleanQuery.optional().default(false),
   })
   .merge(FilterSchema)

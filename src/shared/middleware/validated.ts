@@ -1,5 +1,6 @@
 import type { Request } from "express";
 import type { z } from "zod";
+import { zod3Messages } from "@/shared/utils/zod3-messages.js";
 
 export const pickValidated =
   <S extends z.ZodTypeAny>(schema: S) =>
@@ -8,11 +9,10 @@ export const pickValidated =
       return req.validated as z.infer<S>;
     }
 
-    const parsed = schema.safeParse({
-      params: req.params,
-      query: req.query,
-      body: req.body,
-    });
+    const parsed = schema.safeParse(
+      { params: req.params, query: req.query, body: req.body },
+      { error: zod3Messages },
+    );
 
     if (!parsed.success) {
       throw parsed.error;

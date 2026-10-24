@@ -96,7 +96,7 @@ describe("error handler: what its client-error lines carry", () => {
     const record = JSON.parse(lines[0]) as { issues: unknown; level: string };
     expect(record.level).toBe("warn");
     expect(record.issues).toEqual([
-      { field: "sortOrder", code: "invalid_enum_value" },
+      { field: "sortOrder", code: "invalid_value" },
       { field: "body", code: "unrecognized_keys" },
     ]);
   });

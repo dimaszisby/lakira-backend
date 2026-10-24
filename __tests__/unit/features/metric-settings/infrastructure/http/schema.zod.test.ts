@@ -85,6 +85,29 @@ describe("metric-settings schemas", () => {
     expect(result.success).toBe(false);
   });
 
+  // zod 4 applies a default inside .optional(): an update that left the options out reset
+  // them to the defaults (zod-4-migration D-05).
+  it("leaves displayOptions out of an update that does not send them", () => {
+    const parsed = settingsBodyPartial.parse({ alertEnabled: true });
+    expect(parsed).toEqual({ alertEnabled: true });
+  });
+
+  it("refuses an empty update, with no default to fill it", () => {
+    expect(settingsBodyPartial.safeParse({}).success).toBe(false);
+  });
+
+  it("fills the unsent fields of displayOptions an update sends", () => {
+    const parsed = settingsBodyPartial.parse({
+      displayOptions: { priority: 5 },
+    });
+    expect(parsed.displayOptions).toEqual({
+      showOnDashboard: true,
+      priority: 5,
+      chartType: "line",
+      color: "#E897A3",
+    });
+  });
+
   it("requires goal fields when enabling via partial update", () => {
     const result = settingsBodyPartial.safeParse({
       goalEnabled: true,

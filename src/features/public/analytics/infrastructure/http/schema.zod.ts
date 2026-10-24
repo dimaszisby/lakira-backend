@@ -211,7 +211,7 @@ const DashboardVisualizationQuery = DashboardVisualizationQueryBase.transform(
 );
 
 export const getVisualizationSchema = z.object({
-  params: z.object({ metricId: z.string().uuid("Invalid metric ID format") }),
+  params: z.object({ metricId: z.string().guid("Invalid metric ID format") }),
   query: VisualizationQuery,
 });
 
