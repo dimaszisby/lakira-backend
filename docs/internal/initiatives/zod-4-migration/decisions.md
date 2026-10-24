@@ -6,7 +6,7 @@ taken.
 
 ## D-01 — Migrate to zod 4 rather than waive the advisory
 
-- **Status:** Proposed
+- **Status:** Accepted (#221, `4e7403f`)
 - **Date:** 2026-10-24
 
 Promoted to the architecture decision registry as **[ADR-0083](../../../explanation/decisions/adr-0083-zod-4-with-zod-3-error-text.md)**.
@@ -16,7 +16,7 @@ That file is authoritative; this entry is a pointer.
 
 ## D-02 — zod-to-openapi 9.1.0, not 8
 
-- **Status:** Proposed
+- **Status:** Accepted (#221, `4e7403f`)
 - **Date:** 2026-10-24
 
 **Context.** zod-to-openapi 8 is the first major to take zod 4 (peer `zod ^4.0.0`); 9.0.0 and
@@ -31,7 +31,7 @@ repo relies on, and 9.1.0 adds `z.guid()` support, which D-08 uses.
 
 ## D-03 — Every parse answers in zod 3's words
 
-- **Status:** Proposed
+- **Status:** Accepted (#221, `4e7403f`)
 - **Date:** 2026-10-24
 
 Promoted to the architecture decision registry as **[ADR-0083](../../../explanation/decisions/adr-0083-zod-4-with-zod-3-error-text.md)**.
@@ -41,7 +41,7 @@ That file is authoritative; this entry is a pointer.
 
 ## D-04 — A default a transform follows is `.prefault`
 
-- **Status:** Proposed
+- **Status:** Accepted (#221, `4e7403f`)
 - **Date:** 2026-10-24
 
 **Context.** In zod 3, `z.string().transform(Number).default("5000")` fed `"5000"` through the
@@ -61,7 +61,7 @@ each `NODE_ENV`.
 
 ## D-05 — The settings update takes display options with no default
 
-- **Status:** Proposed
+- **Status:** Accepted (#221, `4e7403f`)
 - **Date:** 2026-10-24
 
 **Context.** The update schema held `zDisplayOptions.optional()`, and `zDisplayOptions` ends in
@@ -79,7 +79,7 @@ fields' defaults, as before. A test fails if an update fills options it was not 
 
 ## D-06 — A union names the fields of its closest object option
 
-- **Status:** Proposed
+- **Status:** Accepted (#221, `4e7403f`)
 - **Date:** 2026-10-24
 
 **Context.** zod 4 reports a union no option matched as one `invalid_union` at the union's path.
@@ -101,7 +101,7 @@ on metric-settings create and update. The envelope is unchanged.
 
 ## D-07 — Logs carry zod 4's issue codes
 
-- **Status:** Proposed
+- **Status:** Accepted (#221, `4e7403f`)
 - **Date:** 2026-10-24
 
 **Context.** zod 4 renamed issue codes: `invalid_enum_value` and `invalid_literal` are
@@ -116,7 +116,7 @@ sees them.
 
 ## D-08 — A request UUID is checked with `.guid()`
 
-- **Status:** Proposed
+- **Status:** Accepted (#221, `4e7403f`)
 - **Date:** 2026-10-24
 
 **Context.** zod 3's `.uuid()` took any 8-4-4-4-12 hex string. zod 4's follows RFC 9562, so the
@@ -136,7 +136,7 @@ refused it.
 
 ## D-09 — The cursor lists' `q` and `after` are optional keys
 
-- **Status:** Proposed
+- **Status:** Accepted (#221, `4e7403f`)
 - **Date:** 2026-10-24
 
 **Context.** `q` and `after` are `z.union([z.string(), z.undefined(), z.null()]).transform(...)`.
@@ -152,7 +152,7 @@ of "Invalid input".
 
 ## D-10 — The spec's remaining differences are kept
 
-- **Status:** Proposed
+- **Status:** Accepted (#221, `4e7403f`)
 - **Date:** 2026-10-24
 
 **Context.** With D-08's formats restored, the regenerated spec differs from `dev`'s in eleven
@@ -170,7 +170,7 @@ nothing to act on.
 
 ## D-11 — Take the `body-parser` patch here, through the lockfile
 
-- **Status:** Proposed
+- **Status:** Accepted (#221, `4e7403f`)
 - **Date:** 2026-10-24
 
 **Context.** CI on this branch's PR failed the security gate on a second new High:

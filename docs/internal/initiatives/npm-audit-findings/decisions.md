@@ -200,7 +200,7 @@ That file is authoritative; this entry is a pointer. Register row B-25; branch `
 
 ## D-10 — Take the `follow-redirects` patch through the lockfile, alone
 
-- **Status:** Proposed
+- **Status:** Accepted (#220, `b18a3ed`)
 - **Date:** 2026-10-24
 - **Size:** Micro — single commit, no separate kit. Commits carry `refs: follow-redirects-dev-high`.
   Register row B-91; branch `fix/follow-redirects-dev-high`.
@@ -224,3 +224,29 @@ and after, so the image is unchanged. `wait-on` still answers on an open port an
 closed one. Found while checking: `braces` 3.0.3 and `sprintf-js` 1.0.3, the two findings B-25
 kept open for an upstream release, are still installed and no longer reported; the advisory data
 changed, not the tree, and B-25 closes with this entry.
+
+---
+
+## D-11 — Take the `fast-uri` patch through the lockfile, alone
+
+- **Status:** Proposed
+- **Date:** 2026-10-25
+- **Size:** Micro — single commit, no separate kit. Commits carry `refs: npm-audit-findings`.
+  Register row B-93; branch `fix/fast-uri-dev-moderate`.
+
+**Context.** Checking #220 against `dev` after #221 merged, the full `npm audit` reported
+`fast-uri@3.1.8` under four advisories, all fixed in 3.1.9: GHSA-w74x-v6f9-j3xg (scheme spoofing
+through a percent-encoded scheme, moderate), GHSA-wjr9-j795-jxcr (host confusion, moderate),
+GHSA-xhq7-xmqj-769h and GHSA-333x-w4r6-6crp (two path normalisation findings, low). It is reached
+only through `@commitlint/cli` → `@commitlint/load` → `@commitlint/config-validator` →
+`ajv@8.20.0`, which declares `fast-uri: ^3.0.1`, so the image does not hold it and
+`npm audit --omit=dev` did not report it. #220 had just written the dependency policy's snapshot as
+"2 moderate", which this made untrue on `dev`.
+**Decision.** Move `fast-uri` to 3.1.9 in `package-lock.json` with `npm update fast-uri`, as D-10
+did for `follow-redirects`. `package.json` does not change.
+**Options considered.** _Leave it, as a moderate the gate does not read:_ a fix exists, costs one
+lockfile entry, and the snapshot would have to record it as open. _`npm audit fix`:_ it reaches for
+the accepted `uuid` moderates (D-04).
+**Consequences.** Full `npm audit` goes from 3 moderate to 2, the accepted `uuid` root, which is
+what the snapshot says. `npm ls --omit=dev --all` is identical before and after. `ajv` validates
+commitlint's own configuration; the commit hook still accepts this commit's message.
