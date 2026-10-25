@@ -47,7 +47,7 @@ verbatim from a clean clone.
 ## Explanation — understanding-oriented
 
 - [`architecture/`](./explanation/architecture/) — feature-slice DDD, persistence, shared middleware
-- [`decisions/`](./explanation/decisions/) — **45 architecture decision records**, one per file, Nygard format
+- [`decisions/`](./explanation/decisions/) — **architecture decision records**, one per file, Nygard format; the registry there lists every one with its status
 - [`testing-strategy.md`](./explanation/testing-strategy.md) — the four-layer pyramid and its gates
 - [`product-requirements.md`](./explanation/product-requirements.md) — as-built product scope
 - [`documentation-standards.md`](./explanation/documentation-standards.md) — how these docs are organised

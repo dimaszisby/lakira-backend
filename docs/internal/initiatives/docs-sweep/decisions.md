@@ -122,3 +122,27 @@ hand and are what the page is for. _Count any backticked name:_ a plain name suc
 pass through an unrelated word.
 **Consequences.** Adding, renaming or removing a script fails the unit suite until the page
 follows. A description that goes stale is not caught.
+
+---
+
+## D-07 — Live status documents follow the register, and carry no count nothing checks
+
+- **Status:** Proposed
+- **Date:** 2026-10-25
+- **Size:** Micro — single commit, no separate kit. Commits carry `refs: doc-contradictions-sweep`.
+  Branch `docs/doc-contradictions-sweep`.
+
+**Context.** A read-only review of the docs found three that disagreed with the code or the debt
+register. `docs/README.md` said 45 ADRs; there are 83. `CLAUDE.md` and `FINAL-AUDIT-SUMMARY.md`
+said two P1 and six P2 findings were open, while the register's Closed table lists all eight as
+fixed (#198 to #203). Each was true on the day it was written. Each is a copy of a number or a
+status that lives somewhere else.
+**Decision.** Correct the three. `docs/README.md` stops stating a count and points at the registry,
+which lists every record with its status. `CLAUDE.md` and the summary give the status with its
+date and say the fixes are not yet confirmed by a dated run. The dated audit files are not edited.
+**Options considered.** _Leave them:_ sessions read `CLAUDE.md` as instructions, and a stale "P1
+open" misleads the "what's next" answer. _A test that counts the ADRs against the README:_ it
+guards a number that should not be written there. _Drop the 83 in `CLAUDE.md` too:_ it is correct
+today, so it stays; if it drifts it goes the way of the README count.
+**Consequences.** The status paragraph in `CLAUDE.md` still needs a hand edit after each dated
+run; the register is the source it is copied from, and nothing checks it mechanically.

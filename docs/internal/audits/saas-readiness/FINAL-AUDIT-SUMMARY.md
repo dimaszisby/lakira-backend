@@ -82,6 +82,14 @@ messages (X60). Under the run's verdict rule (kit D-03), a P1 that cannot be ref
 restated GOLD. Six P2 findings are open beside them (X1, X20, X40, X41, X61, X63). Next step: X60
 and X62, then another dated run, which can restate GOLD.
 
+**2026-10-25 update (no new audit run): the findings that run left open are fixed, and none is
+confirmed yet.** The Closed table of the backend debt register
+([`register.md`](../../initiatives/backend-debt-register/register.md)) records X60 and X62 fixed in
+#198 (`4bfaf4e`), X1 in #199 (`5818042`), X61 in #200 (`230aada`), X40 and X41 in #201
+(`66eaf20`), X20 in #202 (`5a3addb`) and X63 in #203 (`2c1c098`), each marked "Not yet; a run is
+owed". GOLD is not restated until a dated run confirms them. The paragraph above is left as that
+run wrote it.
+
 The **Status** paragraph at the top records the closures as they stood on 2026-09-24, when all six
 were believed closed.
 
@@ -741,7 +749,9 @@ the list still reads as the history it is.
     in the queue worker block it, X62 (email jobs stall on the connection pool) and X60 (the
     consumer cancel does nothing). **Next, in this order:** X60, X62, **then** another dated run,
     which can restate GOLD. After that X1, X61, X63, X20, and X40 with X41. The run's other
-    findings are in its § 6; each has a row in the backend debt register.
+    findings are in its § 6; each has a row in the backend debt register. **Since then (2026-10-25):**
+    X60, X62 and the six P2 findings are fixed (#198 to #203, register rows B-74 to B-80); a dated
+    run is owed to confirm them.
 
 ---
 
