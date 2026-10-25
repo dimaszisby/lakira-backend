@@ -1,7 +1,8 @@
 # Commands
 
-Every script below exists in `package.json` as of 2026-09-24 — nothing checks this automatically,
-so update this page in the same change as any script. Node 24 (`.nvmrc`) is the supported
+Every script in `package.json` is on this page, and every `npm run` on it exists:
+`__tests__/unit/commands-doc.test.ts` fails otherwise, so update this page in the same change as
+any script. Node 24 (`.nvmrc`) is the supported
 version and what CI runs; migrations also work on newer runtimes since sequelize-cli paths are
 passed explicitly rather than through a `.sequelizerc`.
 

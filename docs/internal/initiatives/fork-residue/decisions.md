@@ -2,7 +2,7 @@
 
 ## D-01 — Bootstrap gives the Compose names the fork's prefix
 
-- **Status:** Proposed
+- **Status:** Accepted (#224, `36c324b`)
 - **Date:** 2026-10-25
 
 **Context.** `docker-compose.yml` fixes six container names (`postgres_db`, `redis_cache`,
@@ -25,7 +25,7 @@ service name through `docker compose` (D-03).
 
 ## D-02 — Bootstrap unlinks what pointed into `docs/internal/`
 
-- **Status:** Proposed
+- **Status:** Accepted (#224, `36c324b`)
 - **Date:** 2026-10-25
 
 **Context.** 182 Markdown links in 91 files outside `docs/internal/` point into it, 86 of those files
@@ -44,7 +44,7 @@ Plain-text mentions of `docs/internal/` in code comments and tests are not links
 
 ## D-03 — Docs reach a container through its Compose service
 
-- **Status:** Proposed
+- **Status:** Accepted (#224, `36c324b`)
 - **Date:** 2026-10-25
 
 **Context.** `getting-started.md` and `database-schema.md` told the reader to look for, or
