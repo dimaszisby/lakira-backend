@@ -1,6 +1,7 @@
 # Todo — nothing checks `docs/reference/commands.md` against `package.json`
 
-- **Status:** Open
+- **Status:** Fixed by `chore/commands-doc-drift-check`: `__tests__/unit/commands-doc.test.ts`
+  ([`docs-sweep` D-06](../initiatives/docs-sweep/decisions.md), register row B-56)
 - **Created:** 2026-09-24
 - **Owner:** unassigned
 - **Origin:** found by the `docs-sweep` kit; see [D-05](../initiatives/docs-sweep/decisions.md)

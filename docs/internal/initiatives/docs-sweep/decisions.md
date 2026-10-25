@@ -97,3 +97,28 @@ no code.
 
 **Consequences.** The docs stop overstating what is enforced. Each gap stays visible as a todo
 instead of being fixed quietly.
+
+---
+
+## D-06 — A unit test checks `commands.md` against `package.json`
+
+- **Status:** Proposed
+- **Date:** 2026-10-25
+- **Size:** Micro — single commit, no separate kit. Commits carry `refs: commands-doc-drift-check`.
+  Register row B-56; branch `chore/commands-doc-drift-check`.
+
+**Context.** D-05 corrected the page's claim to be "verified" and filed the missing check as a
+todo (`2026-09-24-todo-commands-doc-drift-check.md`). On `dev` at `36c324b` the page held all 65
+scripts, and named only two that do not exist, `migrate:dev` and `migrate:undo:dev`, in the note
+that says they never existed.
+**Decision.** `__tests__/unit/commands-doc.test.ts` fails when a script is missing from the page,
+and when the page or `.claude/rules/commands.md` runs an `npm run` name that does not exist, brace
+groups expanded. A script counts as documented as `` `npm run <name>` ``, as `` `npm start` `` or
+`` `npm test` ``, or, for a name with a colon, bare in backticks, as variants such as `lint:fix` are
+written. The two names that never existed are listed in the test, so no third one passes. Two
+cases prove each check fails: a page with a row deleted, and one with a made-up script.
+**Options considered.** _Generate the page from `package.json`:_ the descriptions are written by
+hand and are what the page is for. _Count any backticked name:_ a plain name such as `build` would
+pass through an unrelated word.
+**Consequences.** Adding, renaming or removing a script fails the unit suite until the page
+follows. A description that goes stale is not caught.

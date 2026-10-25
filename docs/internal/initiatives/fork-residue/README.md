@@ -1,6 +1,6 @@
 # Fork residue
 
-**Status:** Implemented on `fix/fork-residue`; PR open. Register row B-53, finding R12 of the 2026-09-29 run
+**Status:** Done (#224, `36c324b`). Register row B-53, finding R12 of the 2026-09-29 run
 (`docs/internal/audits/saas-readiness/audit-2026-09-29.md` § 6).
 **Slug:** `fork-residue` · **Branch:** `fix/fork-residue`
 

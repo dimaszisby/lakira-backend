@@ -2,7 +2,8 @@
 
 **Canonical list: [`docs/reference/commands.md`](../../docs/reference/commands.md).**
 
-That file is the single source of truth. Nothing checks it against `package.json` automatically, so
+That file is the single source of truth. `__tests__/unit/commands-doc.test.ts` fails when a script
+in `package.json` is missing from it, or when it or this file runs one that does not exist, so
 update it in the same change as any script. This file used to
 carry a second copy, which drifted — it documented `npm run migrate:dev` and
 `npm run migrate:undo:dev`, neither of which has ever existed. Do not reintroduce a copy here;
