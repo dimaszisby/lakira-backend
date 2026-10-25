@@ -1,6 +1,6 @@
 # Todo — what the review of the `APP_NAME` default left open
 
-- **Status:** Fixed by `fix/app-name-review-leftovers`, all six items (kit
+- **Status:** Fixed in #223 (`e36b2d5`), all six items (kit
   [`app-name-review-leftovers`](../initiatives/app-name-review-leftovers/README.md), register row
   B-52)
 - **Created:** 2026-10-07

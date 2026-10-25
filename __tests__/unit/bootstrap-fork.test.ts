@@ -18,6 +18,8 @@ const FIXTURE_FILES = [
   ".env.test.example",
   "docker/db/init/01-create-dbs.sql",
   "docs/reference/api/lakira-backend-openapi.json",
+  "docker-compose.yml",
+  "scripts/unlink-internal-docs.js",
 ];
 
 const run = (dir: string, name: string): string =>
@@ -930,4 +932,134 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
       });
     },
   );
+});
+
+// Audit 2026-09-29, R12 (kit fork-residue). A fork on the template's machine
+// took its Compose names, the database volume among them, and its links into
+// docs/internal/, which bootstrap deletes, were dead.
+describeTemplate("bootstrap-fork.sh: fork residue (R12)", () => {
+  const TEMPLATE_NAMES = [
+    "postgres_db",
+    "redis_cache",
+    "rabbitmq_queue",
+    "mailpit",
+    "node_app",
+    "node_worker",
+    "backend_network",
+    "db_data_volume",
+    "redis_data_volume",
+    "rabbitmq_data_volume",
+  ];
+  const composeNames = (file: string): string[] =>
+    [
+      ...fs
+        .readFileSync(file, "utf-8")
+        .matchAll(/^\s*(?:container_name|name):\s*(\S+)/gm),
+    ].map((match) => match[1]);
+
+  const read = (dir: string, file: string) =>
+    fs.readFileSync(path.join(dir, file), "utf-8");
+  const dirs: string[] = [];
+  const track = (dir: string) => {
+    dirs.push(dir);
+    return dir;
+  };
+  afterAll(() => {
+    for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  // An ADR whose Origin line points into a kit, as 86 do, beside the links the
+  // rewrite must leave alone.
+  const ADR = "docs/explanation/decisions/adr-9999-example.md";
+  const withDocs = (dir: string) => {
+    const write = (file: string, content: string) => {
+      fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+      fs.writeFileSync(path.join(dir, file), content);
+    };
+    write("docs/internal/initiatives/kit/decisions.md", "# D-01\n");
+    write("docs/explanation/internal-notes.md", "# Notes\n");
+    write(
+      ADR,
+      [
+        "- **Origin:** `D-01` in [the kit](../../internal/initiatives/kit/decisions.md#d-01)",
+        "- [Notes](../internal-notes.md) and [elsewhere](https://example.com/docs/internal/x.md)",
+        "",
+      ].join("\n"),
+    );
+    write("README.md", "See [the todos](docs/internal/todos/a.md).\n");
+  };
+
+  it("gives every Compose name the fork's slug", () => {
+    const dir = track(bootstrap("my-app"));
+
+    expect(composeNames(path.join(dir, "docker-compose.yml"))).toEqual(
+      TEMPLATE_NAMES.map((name) => `my_app_${name}`),
+    );
+  });
+
+  it("changes nothing in docker-compose.yml on a second run", () => {
+    const dir = track(bootstrap("my-app"));
+    const first = read(dir, "docker-compose.yml");
+
+    run(dir, "my-app");
+
+    expect(read(dir, "docker-compose.yml")).toBe(first);
+  });
+
+  it("leaves the template's names alone when the template takes its own name", () => {
+    const dir = track(bootstrap("lakira-backend"));
+
+    expect(read(dir, "docker-compose.yml")).toBe(
+      fs.readFileSync(path.join(ROOT, "docker-compose.yml"), "utf-8"),
+    );
+  });
+
+  it("turns each link into docs/internal into its text, and no other link", () => {
+    const dir = track(bootstrap("my-app", withDocs));
+
+    expect(fs.existsSync(path.join(dir, "docs/internal"))).toBe(false);
+    expect(read(dir, ADR)).toBe(
+      [
+        "- **Origin:** `D-01` in the kit",
+        "- [Notes](../internal-notes.md) and [elsewhere](https://example.com/docs/internal/x.md)",
+        "",
+      ].join("\n"),
+    );
+    expect(read(dir, "README.md")).toBe("See the todos.\n");
+  });
+
+  it("unlinks them too when docs/internal was removed before the run", () => {
+    const dir = track(
+      bootstrap("my-app", (scratch) => {
+        withDocs(scratch);
+        fs.rmSync(path.join(scratch, "docs/internal"), {
+          recursive: true,
+          force: true,
+        });
+      }),
+    );
+
+    expect(read(dir, "README.md")).toBe("See the todos.\n");
+  });
+
+  it("keeps the links with --keep-internal", () => {
+    const dir = track(
+      fs.mkdtempSync(path.join(os.tmpdir(), "bootstrap-fork-")),
+    );
+    for (const file of FIXTURE_FILES) {
+      fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+      fs.copyFileSync(path.join(ROOT, file), path.join(dir, file));
+    }
+    withDocs(dir);
+    const before = read(dir, ADR);
+
+    execFileSync(
+      "bash",
+      ["scripts/bootstrap-fork.sh", "--name", "my-app", "--keep-internal"],
+      { cwd: dir, stdio: "pipe", encoding: "utf-8" },
+    );
+
+    expect(read(dir, ADR)).toBe(before);
+    expect(fs.existsSync(path.join(dir, "docs/internal"))).toBe(true);
+  });
 });

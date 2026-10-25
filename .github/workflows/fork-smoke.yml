@@ -61,7 +61,7 @@ jobs:
       # The steps below prove the chain logs in, which it would as well with the
       # template's secrets, or with a port published on every interface
       # (fork-bootstrap-leftovers D-08). Names are printed, never values.
-      - name: Bootstrap left no template secret and no open port
+      - name: Bootstrap left no template secret, name or link, and no open port
         run: |
           value() { { grep -m1 "^$1=" "$2" || true; } | cut -d= -f2- | sed 's/[[:space:]]*$//'; }
           fail=0
@@ -83,6 +83,15 @@ jobs:
             echo "::error::Compose publishes beyond 127.0.0.1: $open"
             fail=1
           fi
+          # A template name shares the template's containers and volumes on its
+          # machine (fork-residue D-01). Every profile, so the worker is read too.
+          shared="$(docker compose --profile '*' config --format json | jq -r '[(.services[].container_name // empty), (.networks // {} | .[].name // empty), (.volumes // {} | .[].name // empty)] | map(select(IN("postgres_db", "redis_cache", "rabbitmq_queue", "mailpit", "node_app", "node_worker", "backend_network", "db_data_volume", "redis_data_volume", "rabbitmq_data_volume"))) | join(" ")')"
+          if [ -n "$shared" ]; then
+            echo "::error::Compose keeps the template's names: $shared"
+            fail=1
+          fi
+          # docs/internal/ is gone, so no link may point into it (fork-residue D-02).
+          node scripts/unlink-internal-docs.js --check || fail=1
           exit "$fail"
 
       - name: Start services from the fork's Compose file

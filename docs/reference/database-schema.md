@@ -12,7 +12,7 @@ Tables with `deleted_at` are Sequelize-paranoid (soft delete).
 >
 > ```bash
 > docker compose up -d db && npm run db:migrate:test
-> docker exec postgres_db psql -U lakira_user -d lakira_test_db -c '\d+ <table>'
+> docker compose exec db psql -U lakira_user -d lakira_test_db -c '\d+ <table>'
 > ```
 
 ---

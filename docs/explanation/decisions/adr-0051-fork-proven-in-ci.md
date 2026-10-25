@@ -26,6 +26,13 @@
 > existing env file (D-01), and finishes a rename an interrupted run left (D-04). `Fork Smoke`
 > now fails when a template secret survives, when `.env` and `.env.test` disagree on a login, or
 > when Compose publishes a port beyond `127.0.0.1` (D-08).
+>
+> **Status note (2026-10-25).** Bootstrap gives the Compose container, network and volume names the
+> fork's database slug (`my_app_postgres_db`, `my_app_db_data_volume`): a fork on the template's
+> machine took the template's database volume (register B-53, audit 2026-09-29 R12, kit
+> [`fork-residue`](../../internal/initiatives/fork-residue/decisions.md) D-01). When it removes
+> `docs/internal/` it turns each Markdown link into it into its text (D-02). `Fork Smoke` fails on
+> a surviving template Compose name and on a link left pointing into `docs/internal/`.
 
 ## Context
 

@@ -50,7 +50,8 @@ What it does:
 | Sets `APP_NAME=my-app`           | in `.env`, for local runs; a deployment does not need it (see below)                                                                                     |
 | Creates `.env.test`              | from the renamed `.env.test.example`, so it logs in as the user Compose creates from `.env`                                                              |
 | Renames an existing `.env`       | if you copied `.env` or `.env.test` from the templates first, their `lakira_` database users and names are renamed; no value you set is touched          |
-| Removes `docs/internal/`         | the upstream project's working material — pass `--keep-internal` to keep it                                                                              |
+| Renames the Compose names        | containers, network and volumes take the `my_app_` prefix (`my_app_postgres_db`, `my_app_db_data_volume`), so the fork never shares the template's data  |
+| Removes `docs/internal/`         | the upstream project's working material, and turns each Markdown link into it into its text — pass `--keep-internal` to keep both                        |
 | Writes `FORKED-FROM.md`          | recording `git rev-parse HEAD` (see step 1)                                                                                                              |
 
 The short name is the full name minus a trailing `-backend`, so `my-app-backend` becomes `my-app`
@@ -165,11 +166,14 @@ The two findings that used to sit here are **closed**:
 ## 6. Prune the internal docs
 
 Step 2 already did this unless you passed `--keep-internal`. If you kept it to read the audit,
-remove it when you are done:
+remove it when you are done, and turn the links into it into plain text, as step 2 would have:
 
 ```bash
 rm -rf docs/internal
+node scripts/unlink-internal-docs.js
 ```
+
+`node scripts/unlink-internal-docs.js --check` fails while any Markdown link still points into it.
 
 That tree is this project's working material — doc kits, audit runs, incidents, todos. Your fork
 inherits the four Diátaxis quadrants, which describe the template; it does not need Lakira's
@@ -189,9 +193,10 @@ npm run lint && npm run typecheck && npm run docs:openapi:check && npm test
 so both are in the list. This is the same sequence the `Fork Smoke` workflow runs on every push
 (ADR-0051), gates included.
 
-Run it on a machine, or at least a Docker volume, that has not run the upstream stack. The Compose
-file fixes its container and volume names, so on a machine that has, `docker compose up` reuses the
-upstream database, its users and its data, and the result does not tell you whether the fork works.
+The script gave the Compose containers, network and volumes your prefix, so this runs beside the
+upstream stack on the same machine without touching its database, and `docker compose down -v`
+removes only your volumes. Both stacks publish the same host ports, though: stop one before you
+start the other.
 
 Green means the rebrand did not break anything. Then walk
 [Getting started](./getting-started.md) against your new name.
