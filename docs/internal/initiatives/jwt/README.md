@@ -47,6 +47,11 @@ This kit owns all JSON Web Token concerns for the Lakira backend: signing, verif
 
 - [Plan](./jwt_overhaul_plan.md) — Phases A/B/C from the original overhaul plus the new "Phase D — Refresh tokens + verify-port" appended for the audit.
 - [Checklist](./jwt_overhaul_checklist.md) — Mirrors the plan; Phase D has the audit-driven items.
+
+  _Note (2026-10-27):_ these two filenames predate the 2026-09-19 kit format and are kept as
+  written, by the owner's choice (register B-58, `docs-sweep` D-08). They are not a precedent: a
+  new kit names them `<slug>-plan.md` and `<slug>-checklist.md`.
+
 - [Decisions](./decisions.md) — Kit-local ADRs (refresh-token storage, rotation strategy).
 - **Closes audit gaps:** [P0-1.1] (refresh tokens), [P1-10.3] (auth middleware leaks `jwt.verify`) in `docs/internal/audits/saas-readiness/audit-2026-05-01.md`.
 - **Owning ADRs:** ADR-005 (phase order) in `docs/internal/audits/saas-readiness/decisions.md`; (kit-local) ADR-001 in `./decisions.md`.

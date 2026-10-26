@@ -102,7 +102,7 @@ instead of being fixed quietly.
 
 ## D-06 — A unit test checks `commands.md` against `package.json`
 
-- **Status:** Proposed
+- **Status:** Accepted (#225, `3b51ad7`)
 - **Date:** 2026-10-25
 - **Size:** Micro — single commit, no separate kit. Commits carry `refs: commands-doc-drift-check`.
   Register row B-56; branch `chore/commands-doc-drift-check`.
@@ -127,7 +127,7 @@ follows. A description that goes stale is not caught.
 
 ## D-07 — Live status documents follow the register, and carry no count nothing checks
 
-- **Status:** Proposed
+- **Status:** Accepted (#226, `a4c2c83`)
 - **Date:** 2026-10-25
 - **Size:** Micro — single commit, no separate kit. Commits carry `refs: doc-contradictions-sweep`.
   Branch `docs/doc-contradictions-sweep`.
@@ -146,3 +146,23 @@ guards a number that should not be written there. _Drop the 83 in `CLAUDE.md` to
 today, so it stays; if it drifts it goes the way of the README count.
 **Consequences.** The status paragraph in `CLAUDE.md` still needs a hand edit after each dated
 run; the register is the source it is copied from, and nothing checks it mechanically.
+
+---
+
+## D-08 — The jwt kit keeps its underscore filenames
+
+- **Status:** Proposed
+- **Date:** 2026-10-27
+- **Size:** Micro — single commit, no separate kit. Commits carry `refs: jwt-kit-naming`. Register
+  row B-58; branch `docs/jwt-kit-naming`.
+
+**Context.** `docs/internal/initiatives/jwt/` holds `jwt_overhaul_plan.md` and
+`jwt_overhaul_checklist.md`, where every other kit has `<slug>-plan.md` and `<slug>-checklist.md`
+(`2026-09-19-todo-jwt-kit-underscore-naming.md`). The kit predates the 2026-09-19 format, and
+`.claude/rules/documentation.md` leaves such kits as written. Only the kit's README links to the
+two files.
+**Decision.** Owner's choice, 2026-10-27: leave the files as they are. The README says, beside the
+two links, that the names predate the format and are not a precedent.
+**Options considered.** _Rename to `jwt-plan.md` and `jwt-checklist.md`, fixing the two links:_ cheap,
+but it rewrites a record the rules keep as written, for a name nothing reads mechanically.
+**Consequences.** One kit's filenames differ from the template, and say why.
