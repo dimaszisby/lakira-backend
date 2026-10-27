@@ -1,6 +1,7 @@
 # Todo — the jwt kit uses underscores against the kebab-case rule
 
-- **Status:** Open — lowest priority of the three filed 2026-09-19
+- **Status:** Closed — option 1 (leave it) chosen deliberately by the owner on 2026-10-27
+  ([`docs-sweep` D-08](../initiatives/docs-sweep/decisions.md), register row B-58)
 - **Created:** 2026-09-19
 - **Owner:** unassigned
 - **Prepared for:** whoever next has reason to touch the jwt kit
