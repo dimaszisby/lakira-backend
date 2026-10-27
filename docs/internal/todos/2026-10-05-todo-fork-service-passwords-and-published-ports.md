@@ -1,6 +1,14 @@
 # Todo — a fork keeps predictable service passwords, and Compose publishes on all interfaces
 
-- **Status:** Partly. Fixed in #157 ([`fork-test-credentials` D-04](../initiatives/fork-test-credentials/decisions.md)); `audit-2026-10-12.md` § 4.3 confirmed the Compose half closed and kept the script half open on W3, item 2 of [the leftovers todo](2026-10-12-todo-fork-bootstrap-review-leftovers.md)
+- **Status:** Closed (2026-10-27). #157 bound the published ports to loopback and made bootstrap
+  generate the database password
+  ([`fork-test-credentials` D-04](../initiatives/fork-test-credentials/decisions.md));
+  `audit-2026-10-12.md` § 4.3 confirmed the Compose half. What it kept open, `.env.test` not given
+  the login of `.env` (W3), is item 2 of
+  [the leftovers todo](2026-10-12-todo-fork-bootstrap-review-leftovers.md), which is Fixed
+  (register B-08, B-09). Bootstrap generates the broker login since #219 (B-50); Redis keeps no
+  password by the owner's choice
+  ([`fork-bootstrap-leftovers` D-06](../initiatives/fork-bootstrap-leftovers/decisions.md)).
 - **Created:** 2026-10-05
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-10-03.md` § 6, S10; still open in

@@ -158,9 +158,12 @@ a rule fixed in that kit's D-01. Do not rank from memory of the conversation.
 - **Re-rank only by the rule.** If the rule gives the wrong answer, change D-01 with a new
   decision entry, not the order of one row.
 
-Nothing checks the register against the todo folder mechanically (row B-60). Until something
-does, a "what's next" answer starts by listing `docs/internal/todos/` files newer than the
-register's "As of" date and adding any that are missing.
+`__tests__/unit/debt-register-todos.test.ts` checks the register against the todo folder: every
+open todo has a row above `## Closed`, and every todo those rows name exists and is open. A todo's
+state is its first `**Status:**` line; it is finished when that starts with `Complete`, `Fixed`,
+`Closed`, `Done`, `Superseded`, `Resolved` or `Not a todo`, and open otherwise. So a todo closed
+by a fix says so with one of those words, in the PR that moves its row (backend-debt-register
+D-11).
 
 ## Demand Elegance (Balanced)
 

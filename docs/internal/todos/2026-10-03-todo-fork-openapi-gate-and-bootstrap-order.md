@@ -1,8 +1,10 @@
 # Todo — a fork's OpenAPI gate cannot pass; bootstrap ordering
 
-- **Status:** S2, S3 and S4 fixed in kit
-  [`fork-openapi-gate`](../initiatives/fork-openapi-gate/README.md) (#134,
-  `0ce4511`); confirmed closed by the dated run of 2026-10-05 (`audit-2026-10-05.md` § 4.2). **S10 is still open (P2)** and now has its own todo: [`2026-10-05-todo-fork-service-passwords-and-published-ports.md`](2026-10-05-todo-fork-service-passwords-and-published-ports.md)
+- **Status:** Closed (2026-10-27). S2, S3 and S4 were fixed in kit
+  [`fork-openapi-gate`](../initiatives/fork-openapi-gate/README.md) (#134, `0ce4511`) and
+  confirmed by the run of 2026-10-05 (`audit-2026-10-05.md` § 4.2). S10, split out to
+  [`2026-10-05-todo-fork-service-passwords-and-published-ports.md`](2026-10-05-todo-fork-service-passwords-and-published-ports.md),
+  is closed there.
 - **Created:** 2026-10-03
 - **Owner:** unassigned
 - **Origin:** `docs/internal/audits/saas-readiness/audit-2026-10-03.md` § 6, S2, S3, S4, S10; kit `saas-reaudit-2026-10-03` D-03 and D-05
