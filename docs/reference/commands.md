@@ -116,6 +116,15 @@ Scripts are named after the **full** environment (`development`, not `dev`):
 
 The spec is a build artifact — see [`api/README.md`](./api/README.md).
 
+## Issue tracker
+
+| Command                          | Does                                                                         |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| `npm run labels:sync`            | Print what would make the repository's labels match `.github/labels.json`    |
+| `npm run labels:sync -- --apply` | Create, update and delete labels to match; a label the file omits is deleted |
+
+Needs the GitHub CLI signed in. See [`issue-tracker.md`](./issue-tracker.md).
+
 ## Other scripts
 
 Less common, but real — several are what CI or deployment calls.

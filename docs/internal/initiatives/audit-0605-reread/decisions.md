@@ -2,7 +2,7 @@
 
 ## D-01 — `body-parser` is not declared; Express's copy parses the body
 
-- **Status:** Proposed
+- **Status:** Accepted (#229, `6049cc6`)
 - **Date:** 2026-10-27
 
 **Context.** R13 of the 2026-09-29 run (`audit-2026-09-29.md:186`) found `body-parser` declared in
@@ -22,7 +22,7 @@ app reaches it anyway.
 
 ## D-02 — Each finding of the 2026-06-05 run gets a state; what is open is filed, not fixed
 
-- **Status:** Proposed
+- **Status:** Accepted (#229, `6049cc6`)
 - **Date:** 2026-10-27
 
 **Context.** B-61: the run's 20 findings (§ 4.4 and § 6) were never read against the code again.
@@ -40,7 +40,7 @@ against the rest of the register, and a re-read that also changes code is harder
 
 ## D-03 — F5: ownership is checked in the use case, as everywhere else
 
-- **Status:** Proposed
+- **Status:** Accepted (#229, `6049cc6`)
 - **Date:** 2026-10-27
 
 **Context.** F5 (P2) asked `MetricSettingsRepositorySequelize.create()` to re-check that the metric
@@ -58,7 +58,7 @@ with one caller; a register row if it is wanted.
 
 ## D-04 — N11: the join carries ownership and soft delete, not organization alone
 
-- **Status:** Proposed
+- **Status:** Accepted (#229, `6049cc6`)
 - **Date:** 2026-10-27
 
 **Context.** N11 (P2) called the `metric` join in `MetricLogQueryRepoSequelize.listLogs` redundant,
@@ -74,7 +74,7 @@ second source of truth, for a join on an indexed key.
 
 ## D-05 — F7: the refresh cookie stays `SameSite=Strict`, as ADR-0019 records
 
-- **Status:** Proposed
+- **Status:** Accepted (#229, `6049cc6`)
 - **Date:** 2026-10-27
 
 **Context.** F7 (P3) warned that `sameSite: "strict"` on the refresh cookie may push a fork with a

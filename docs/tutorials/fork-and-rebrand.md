@@ -87,6 +87,11 @@ The script covers file contents. These are yours:
   Redis also refuses input that looks like an HTTP request, so a web page cannot talk to it
   through your browser. Give every service real credentials wherever it is deployed; startup
   refuses `guest` on the broker when `NODE_ENV=production` (ADR-0036).
+- **The issue tracker is files, not settings.** The script renames the repository in
+  `SECURITY.md` and in the issue forms' security link (`.github/ISSUE_TEMPLATE/config.yml`), but
+  the owner in both is still `dimaszisby`: change it to yours. Then turn on private vulnerability
+  reporting in your repository's settings, and run `npm run labels:sync -- --apply` once, since a
+  fork copies `.github/` but not the labels ([`issue-tracker.md`](../reference/issue-tracker.md)).
 
 ### Rotating a password in place
 

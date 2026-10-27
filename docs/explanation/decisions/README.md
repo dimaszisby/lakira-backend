@@ -121,10 +121,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0081](./adr-0081-ci-runs-the-suites-in-parallel-behind-a-gate.md)             | CI runs each test suite once, in parallel, behind a gate that keeps the required check                           | Accepted                                            | 2026-10-21 | tests-in-parallel D-01..02                        |
 | [ADR-0082](./adr-0082-text-is-stored-as-sent-and-encoded-where-rendered.md)        | Text is stored as sent, and encoded where it is rendered (`xss-clean` removed)                                   | Accepted                                            | 2026-10-22 | proxy-trust-and-xss-clean D-02                    |
 | [ADR-0083](./adr-0083-zod-4-with-zod-3-error-text.md)                              | Validation runs on zod 4, and answers in zod 3's words                                                           | Accepted                                            | 2026-10-24 | zod-4-migration D-01, D-03                        |
+| [ADR-0084](./adr-0084-open-work-moves-to-github-issues.md)                         | Open work moves to GitHub Issues, with the tracker kept as code                                                  | Proposed                                            | 2026-10-28 | tracker-as-code D-01                              |
 
 ## Adding one
 
-Take the next free number — **ADR-0084** as of 2026-10-24 — copy the shape of an existing record, and open with `Status: Proposed`.
+Take the next free number — **ADR-0085** as of 2026-10-28 — copy the shape of an existing record, and open with `Status: Proposed`.
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
 

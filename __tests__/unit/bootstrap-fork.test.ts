@@ -20,6 +20,8 @@ const FIXTURE_FILES = [
   "docs/reference/api/lakira-backend-openapi.json",
   "docker-compose.yml",
   "scripts/unlink-internal-docs.js",
+  ".github/ISSUE_TEMPLATE/config.yml",
+  "SECURITY.md",
 ];
 
 const run = (dir: string, name: string): string =>
@@ -1062,4 +1064,26 @@ describeTemplate("bootstrap-fork.sh: fork residue (R12)", () => {
     expect(read(dir, ADR)).toBe(before);
     expect(fs.existsSync(path.join(dir, "docs/internal"))).toBe(true);
   });
+});
+
+// ADR-0084, kit tracker-as-code D-04. The form chooser's security link and
+// SECURITY.md name the repository, so a fork's reports go to the fork.
+describeTemplate("bootstrap-fork.sh: the security reporting links", () => {
+  const read = (dir: string, file: string) =>
+    fs.readFileSync(path.join(dir, file), "utf-8");
+  const dirs: string[] = [];
+  afterAll(() => {
+    for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it.each([".github/ISSUE_TEMPLATE/config.yml", "SECURITY.md"])(
+    "points %s at the fork's repository",
+    (file) => {
+      const dir = bootstrap("my-app");
+      dirs.push(dir);
+
+      expect(read(dir, file)).toContain("/my-app/security/advisories/new");
+      expect(read(dir, file)).not.toContain("lakira-backend");
+    },
+  );
 });

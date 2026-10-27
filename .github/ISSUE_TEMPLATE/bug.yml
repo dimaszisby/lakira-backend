@@ -1,0 +1,36 @@
+name: Bug
+description: Something does not work as it should
+labels: ["type:bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A security problem goes to private vulnerability reporting instead, as `SECURITY.md`
+        says. Do not paste tokens, cookies, passwords or personal data.
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: The response or log line you saw. Name a request by its `x-request-id`.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. POST /api/v1/metrics with ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: The commit or deployment, NODE_ENV, and whether Redis and RabbitMQ were on.

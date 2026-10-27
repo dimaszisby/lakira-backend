@@ -7,7 +7,8 @@
 #
 # What it does:
 #   1. Replaces "lakira-backend" with <new-name> in package.json,
-#      package-lock.json, .env.example, and CI workflows, and renames the
+#      package-lock.json, .env.example, CI workflows, SECURITY.md and the issue
+#      forms' security link, and renames the
 #      generated OpenAPI spec to <new-name>-openapi.json to match: the spec's
 #      path comes from the package name (scripts/openapi-spec-path.js).
 #   2. Replaces "lakira" with the short name (the name less a trailing
@@ -250,6 +251,9 @@ FILES_FULL=(
   "$REPO_ROOT/.github/workflows/backend-ci.yml"
   "$REPO_ROOT/.github/workflows/backend-prd-drift-warning.yml"
   "$REPO_ROOT/.github/workflows/promote-dev-to-staging.yml"
+  # The security reporting links name the repository (tracker-as-code D-04).
+  "$REPO_ROOT/.github/ISSUE_TEMPLATE/config.yml"
+  "$REPO_ROOT/SECURITY.md"
 )
 
 for f in "${FILES_FULL[@]}"; do
