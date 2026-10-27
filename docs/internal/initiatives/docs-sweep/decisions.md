@@ -151,7 +151,7 @@ run; the register is the source it is copied from, and nothing checks it mechani
 
 ## D-08 — The jwt kit keeps its underscore filenames
 
-- **Status:** Proposed
+- **Status:** Accepted (#227, `549e411`)
 - **Date:** 2026-10-27
 - **Size:** Micro — single commit, no separate kit. Commits carry `refs: jwt-kit-naming`. Register
   row B-58; branch `docs/jwt-kit-naming`.

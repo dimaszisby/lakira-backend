@@ -214,3 +214,30 @@ and all need the same broker tests. The owner chose to fix them together on 2026
 **Options considered.** Seven PRs, or B-78 alone: each would reopen the publisher and the broker
 test harness.
 **Consequences.** B-78 and B-84 move to Closed. A dated run follows the merge.
+
+---
+
+## D-11 — A unit test checks the register against the todo folder
+
+- **Status:** Proposed
+- **Date:** 2026-10-27
+- **Size:** Micro — single commit, no separate kit. Commits carry `refs: register-todo-check`.
+  Register row B-60; branch `chore/register-todo-check`.
+
+**Context.** The plan's Risks named the register going stale, and `.claude/rules/workflow.md` had
+every "what's next" answer list new todos by hand (B-60). On `dev` at `549e411`, 104 todos: 15
+open, 12 of them named in an open row; one was the audit prompt; two were stale, their remainder
+fixed by later PRs. A row that moves to Closed drops its Source column, so a finished todo is
+usually not named, and should not need to be.
+**Decision.** `__tests__/unit/debt-register-todos.test.ts` reads each todo's first `**Status:**`
+line. A status starting with `Complete`, `Fixed`, `Closed`, `Done`, `Superseded`, `Resolved` or
+`Not a todo` is finished, the words already in use; any other is open. The test fails when a todo
+has no status line, when an open todo is not named above `## Closed`, and when a todo named there
+is finished or does not exist. Three in-memory cases prove each check fails. The two stale todos
+are closed, with what fixed them.
+**Options considered.** _Check every todo against the register:_ closed rows do not keep the
+filename, so 89 finished todos would need rows they no longer have. _Check by date against "As
+of":_ misses a todo filed with an older date, and passes one with no row once "As of" moves past
+it.
+**Consequences.** Filing a todo without a row, or closing one without saying so in its status,
+fails the unit suite. The manual scan in `workflow.md` is gone.
