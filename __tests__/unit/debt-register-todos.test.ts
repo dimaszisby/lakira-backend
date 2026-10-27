@@ -80,9 +80,22 @@ const namedButNotOpen = (todos: Todos, register: string): string[] =>
         : `${name} (no such file)`,
     );
 
-describe("the debt register against docs/internal/todos", () => {
-  const todos = readTodos();
-  const register = fs.readFileSync(REGISTER, "utf-8");
+// `scripts/bootstrap-fork.sh` deletes `docs/internal/`, so the checks on the real files only mean
+// something in the template. Without this guard a fork's first `npm test` fails here, as Fork
+// Smoke (ADR-0051) showed. The cases on in-memory input below do not read those files, and run in
+// a fork too. The files are read in `beforeAll`: a skipped suite still runs its body to collect
+// the tests, and a read there would throw.
+const HAS_INTERNAL_DOCS = fs.existsSync(TODOS) && fs.existsSync(REGISTER);
+const describeInternal = HAS_INTERNAL_DOCS ? describe : describe.skip;
+
+describeInternal("the debt register against docs/internal/todos", () => {
+  let todos: Todos;
+  let register: string;
+
+  beforeAll(() => {
+    todos = readTodos();
+    register = fs.readFileSync(REGISTER, "utf-8");
+  });
 
   it("finds every todo's status", () => {
     expect(withoutStatus(todos)).toEqual([]);
@@ -95,50 +108,50 @@ describe("the debt register against docs/internal/todos", () => {
   it("names in its open rows only todos that exist and are open", () => {
     expect(namedButNotOpen(todos, register)).toEqual([]);
   });
+});
 
-  // The checks above pass on the real files; these prove they can fail.
-  describe("on a register and todos built in memory", () => {
-    const register = [
-      "| B-01 | x | `2026-01-01-todo-still-open.md` |",
-      "## Closed",
-      "| B-02 | y | `2026-01-02-todo-long-done.md` |",
-    ].join("\n");
+// The checks above pass on the real files; these prove they can fail.
+describe("the debt register checks, on a register and todos built in memory", () => {
+  const register = [
+    "| B-01 | x | `2026-01-01-todo-still-open.md` |",
+    "## Closed",
+    "| B-02 | y | `2026-01-02-todo-long-done.md` |",
+  ].join("\n");
 
-    it("names an open todo the register does not name", () => {
-      expect(
-        openButUnnamed(
-          {
-            "2026-01-01-todo-still-open": "Open",
-            "2026-01-03-todo-forgotten": "Partly. Item 1 fixed",
-            "2026-01-02-todo-long-done": "Fixed in #1",
-          },
-          register,
-        ),
-      ).toEqual(["2026-01-03-todo-forgotten"]);
-    });
-
-    it("names an open row whose todo is finished or missing", () => {
-      expect(
-        namedButNotOpen(
-          { "2026-01-01-todo-still-open": "Closed — by decision" },
-          `${register}\n`.replace(
-            "## Closed",
-            "| B-03 | z | `2026-01-04-todo-renamed.md` |\n## Closed",
-          ),
-        ),
-      ).toEqual([
-        "2026-01-01-todo-still-open (Closed — by decision)",
-        "2026-01-04-todo-renamed (no such file)",
-      ]);
-    });
-
-    it("names a todo with no status line", () => {
-      expect(
-        withoutStatus({
+  it("names an open todo the register does not name", () => {
+    expect(
+      openButUnnamed(
+        {
           "2026-01-01-todo-still-open": "Open",
-          "2026-01-05-todo-no-status": undefined,
-        }),
-      ).toEqual(["2026-01-05-todo-no-status"]);
-    });
+          "2026-01-03-todo-forgotten": "Partly. Item 1 fixed",
+          "2026-01-02-todo-long-done": "Fixed in #1",
+        },
+        register,
+      ),
+    ).toEqual(["2026-01-03-todo-forgotten"]);
+  });
+
+  it("names an open row whose todo is finished or missing", () => {
+    expect(
+      namedButNotOpen(
+        { "2026-01-01-todo-still-open": "Closed — by decision" },
+        `${register}\n`.replace(
+          "## Closed",
+          "| B-03 | z | `2026-01-04-todo-renamed.md` |\n## Closed",
+        ),
+      ),
+    ).toEqual([
+      "2026-01-01-todo-still-open (Closed — by decision)",
+      "2026-01-04-todo-renamed (no such file)",
+    ]);
+  });
+
+  it("names a todo with no status line", () => {
+    expect(
+      withoutStatus({
+        "2026-01-01-todo-still-open": "Open",
+        "2026-01-05-todo-no-status": undefined,
+      }),
+    ).toEqual(["2026-01-05-todo-no-status"]);
   });
 });
