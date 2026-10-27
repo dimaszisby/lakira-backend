@@ -219,7 +219,7 @@ test harness.
 
 ## D-11 — A unit test checks the register against the todo folder
 
-- **Status:** Proposed
+- **Status:** Accepted (#228, `e6f7d4b`)
 - **Date:** 2026-10-27
 - **Size:** Micro — single commit, no separate kit. Commits carry `refs: register-todo-check`.
   Register row B-60; branch `chore/register-todo-check`.
