@@ -54,6 +54,11 @@ before the next (D-04).
       in scope: its issue, #257, lists the three still open
 - [x] Found: the first version of the new test missed a status on a todo's last line → fixed
       before it ran against the real files
+- [x] Found: Fork Smoke failed on #263: `open-work-records.test.ts` read the register, which
+      bootstrap deletes. The test it replaces had a guard for that, added after it was first
+      written, and the new one did not carry it over → in scope: the real-file checks are skipped
+      when `docs/internal/` is absent and read their files in `beforeAll`; the in-memory cases
+      still run. Run in a bootstrapped fork: five skipped, four passed
 
 ## Acceptance
 

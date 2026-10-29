@@ -100,16 +100,29 @@ const datedAfterFreeze = (names: string[]): string[] =>
     (name) => /^\d{4}-\d{2}-\d{2}-/.test(name) && name.slice(0, 10) > FROZEN,
   );
 
-const register = fs.readFileSync(REGISTER, "utf-8");
-const todos: Todo[] = fs
-  .readdirSync(TODOS)
-  .filter((name) => name.endsWith(".md"))
-  .map((name) => ({
-    name,
-    text: fs.readFileSync(path.join(TODOS, name), "utf-8"),
-  }));
+// `scripts/bootstrap-fork.sh` deletes `docs/internal/`, so the checks on the real files only mean
+// something in the template. Without this guard a fork's first `npm test` fails here, as Fork
+// Smoke (ADR-0051) showed for the test this one replaces. The cases on in-memory input below do
+// not read those files, and run in a fork too. The files are read in `beforeAll`: a skipped suite
+// still runs its body to collect the tests, and a read there would throw.
+const HAS_INTERNAL_DOCS = fs.existsSync(TODOS) && fs.existsSync(REGISTER);
+const describeInternal = HAS_INTERNAL_DOCS ? describe : describe.skip;
 
-describe("the frozen debt register and the todo folder", () => {
+describeInternal("the frozen debt register and the todo folder", () => {
+  let register: string;
+  let todos: Todo[];
+
+  beforeAll(() => {
+    register = fs.readFileSync(REGISTER, "utf-8");
+    todos = fs
+      .readdirSync(TODOS)
+      .filter((name) => name.endsWith(".md"))
+      .map((name) => ({
+        name,
+        text: fs.readFileSync(path.join(TODOS, name), "utf-8"),
+      }));
+  });
+
   it("reads a frozen register with open rows and a mapping", () => {
     // Otherwise the checks below pass against nothing.
     expect(register).toContain(`**Frozen:** ${FROZEN}`);
@@ -132,47 +145,47 @@ describe("the frozen debt register and the todo folder", () => {
   it("refuses a todo dated after the freeze, since new work is an issue", () => {
     expect(datedAfterFreeze(todos.map(({ name }) => name))).toEqual([]);
   });
+});
 
-  // The checks above pass on the real files; these prove they can fail.
-  describe("on a register and todos built in memory", () => {
-    const built = [
-      "**Frozen:** 2026-10-29",
-      "| B-01 | open row |",
-      "| O-02 | a question |",
-      "## Where each row went",
-      "| B-01 | #300 |",
-      "| O-02 | somewhere |",
-      "## Closed",
-      "| B-09 | closed long ago |",
-    ].join("\n");
+// The checks above pass on the real files; these prove they can fail.
+describe("the open-work records checks, on input built in memory", () => {
+  const built = [
+    "**Frozen:** 2026-10-29",
+    "| B-01 | open row |",
+    "| O-02 | a question |",
+    "## Where each row went",
+    "| B-01 | #300 |",
+    "| O-02 | somewhere |",
+    "## Closed",
+    "| B-09 | closed long ago |",
+  ].join("\n");
 
-    it("names a row the mapping leaves out", () => {
-      expect(unmappedRows(built.replace("| B-01 | #300 |\n", ""))).toEqual([
-        "B-01",
-      ]);
-    });
+  it("names a row the mapping leaves out", () => {
+    expect(unmappedRows(built.replace("| B-01 | #300 |\n", ""))).toEqual([
+      "B-01",
+    ]);
+  });
 
-    it("names a mapping that points nowhere", () => {
-      expect(badTargets(built)).toEqual(["O-02 -> somewhere"]);
-    });
+  it("names a mapping that points nowhere", () => {
+    expect(badTargets(built)).toEqual(["O-02 -> somewhere"]);
+  });
 
-    it("names an open todo with no issue, and passes a finished one", () => {
-      expect(
-        openTodosWithoutIssue([
-          { name: "a.md", text: "- **Status:** Open. Register row B-01\n" },
-          { name: "b.md", text: "- **Status:** Open. Issue #300\n" },
-          { name: "c.md", text: "- **Status:** Fixed in #12\n" },
-        ]),
-      ).toEqual(["a.md"]);
-    });
+  it("names an open todo with no issue, and passes a finished one", () => {
+    expect(
+      openTodosWithoutIssue([
+        { name: "a.md", text: "- **Status:** Open. Register row B-01\n" },
+        { name: "b.md", text: "- **Status:** Open. Issue #300\n" },
+        { name: "c.md", text: "- **Status:** Fixed in #12\n" },
+      ]),
+    ).toEqual(["a.md"]);
+  });
 
-    it("names a todo dated after the freeze", () => {
-      expect(
-        datedAfterFreeze([
-          "2026-10-29-todo-on-the-day.md",
-          "2026-10-30-todo-too-late.md",
-        ]),
-      ).toEqual(["2026-10-30-todo-too-late.md"]);
-    });
+  it("names a todo dated after the freeze", () => {
+    expect(
+      datedAfterFreeze([
+        "2026-10-29-todo-on-the-day.md",
+        "2026-10-30-todo-too-late.md",
+      ]),
+    ).toEqual(["2026-10-30-todo-too-late.md"]);
   });
 });
