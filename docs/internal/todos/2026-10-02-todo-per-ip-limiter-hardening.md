@@ -1,6 +1,6 @@
 # Todo — per-IP rate limiters: IPv6 subnets and the trusted hop count
 
-- **Status:** Partly (P3). Item 1 fixed in #173
+- **Status:** Issue #238 (was register row B-05). Partly (P3). Item 1 fixed in #173
   ([ADR-0063](../../explanation/decisions/adr-0063-a-per-ip-limiter-keys-an-ipv6-client-by-its-64.md));
   item 2 fixed in #174 (`register-rate-limiter` D-05) except the
   per-environment record; that and item 3 stay open with register row B-05

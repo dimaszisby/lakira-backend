@@ -15,17 +15,18 @@ and is deleted on fork.
 
 Ask what the reader is doing, then place it. Never place by artifact name.
 
-| The document…                                        | Goes to                                          |
-| ---------------------------------------------------- | ------------------------------------------------ |
-| teaches a newcomer a skill, followed start to finish | `docs/tutorials/`                                |
-| gets an experienced reader through one task          | `docs/how-to/<area>/`                            |
-| is looked up, not read through                       | `docs/reference/`                                |
-| explains a concept, a trade-off, or why something is | `docs/explanation/`                              |
-| records an architectural decision                    | `docs/explanation/decisions/adr-NNNN-<slug>.md`  |
-| tracks a piece of work — plan, checklist, tracker    | `docs/internal/initiatives/<topic>/`             |
-| is a dated one-off note or session TODO              | `docs/internal/todos/`, `docs/internal/dev-log/` |
-| is an audit run                                      | `docs/internal/audits/<program>/`                |
-| is a postmortem                                      | `docs/internal/incidents/`                       |
+| The document…                                        | Goes to                                         |
+| ---------------------------------------------------- | ----------------------------------------------- |
+| teaches a newcomer a skill, followed start to finish | `docs/tutorials/`                               |
+| gets an experienced reader through one task          | `docs/how-to/<area>/`                           |
+| is looked up, not read through                       | `docs/reference/`                               |
+| explains a concept, a trade-off, or why something is | `docs/explanation/`                             |
+| records an architectural decision                    | `docs/explanation/decisions/adr-NNNN-<slug>.md` |
+| tracks a piece of work — plan, checklist, tracker    | `docs/internal/initiatives/<topic>/`            |
+| is work to do, however small                         | a GitHub issue, not a file (ADR-0085)           |
+| is a dated one-off note                              | `docs/internal/dev-log/`                        |
+| is an audit run                                      | `docs/internal/audits/<program>/`               |
+| is a postmortem                                      | `docs/internal/incidents/`                      |
 
 Two rules keep the tree honest:
 
@@ -49,12 +50,12 @@ Anything under `docs/internal/initiatives/<topic>/` follows the kit pattern. Siz
 | ------------------------------------------------- | ------------ | ---------------------------------------------------------------------------- |
 | Large initiative (multi-week, affects CI/process) | Full kit     | README + plan + checklist + ticket + decisions + incidents + metrics-tracker |
 | Medium effort (2–5 working days)                  | Standard kit | README + plan/ticket (merged) + checklist + decisions                        |
-| Small infra change / quick sweep                  | Lean kit     | README + checklist + at least one `decisions.md` entry                       |
-| Single-commit fix                                 | Micro entry  | One entry in the nearest `decisions.md` referencing the commit SHA           |
+| Under two days                                    | No kit       | The issue body is the plan; the pull request that closes it is the record    |
 
-Ephemeral work skips the kit entirely: one file at
-`docs/internal/todos/YYYY-MM-DD-todo-<kebab-title>.md`, tracked in git but user-controlled and
-deletable without a follow-up PR. Promote it to a kit if it grows into an initiative.
+Every task starts from an issue, and only work of two days or more gets a kit (ADR-0085). If work
+without a kit grows past two days, write the kit then, with the issue in its README. Before
+2026-10-29 a Lean kit, a Micro entry and an ephemeral todo each had their own row; those kits and
+todos stay as written.
 
 ## A kit is the spec, and the checklist is the tickets
 
@@ -67,8 +68,8 @@ Do not invent a `specs/` folder or a parallel ticket file. The kit already is bo
 | decision log  | `decisions.md`        |
 | entry point   | `README.md`           |
 
-The kit directory slug is the task's identity — it is also the branch name and the `refs:` footer on
-every commit. See `.claude/rules/workflow.md` § The kit slug is the traceability spine.
+The issue number is the task's identity; the kit directory slug names the kit, and is the slug in
+the branch name. See `.claude/rules/workflow.md` § The issue number is the traceability spine.
 
 ## What goes inside a kit
 
@@ -86,13 +87,12 @@ Which templates apply follows the kit size, not a separate tier:
 | ------------ | ---- | --------- | --------- | ------ | --------------------------- |
 | Full kit     | yes  | yes       | yes       | yes    | the plan                    |
 | Standard kit | yes  | yes       | yes       | yes    | the plan                    |
-| Lean kit     | no   | yes       | yes       | yes    | **the checklist**           |
-| Micro entry  | no   | no        | yes       | no     | — no spec is owed           |
-| Ephemeral    | no   | no        | no        | no     | — no spec is owed           |
+| No kit       | no   | no        | no        | no     | **the issue body**          |
 
-The Lean row is the one that needs explaining: with no plan there is nowhere to reference `AC-N` ids
-from, so the criteria are stated in the checklist itself. Everything else about a Lean checklist is
-unchanged.
+**Work under two days has no kit**, so its acceptance criteria are the issue's, written in the Task
+form's "Acceptance criteria" field, and its Definition of Ready is that field and the plan the owner
+approved. A decision such work settles goes in the pull request body, or in an ADR when it alters an
+interface, a data shape, a dependency or a security boundary.
 
 ### Shared with lakira-frontend — four deliberate differences
 
@@ -205,7 +205,7 @@ email_verified_at, working down` beats "add migration" — the first is verifiab
 Work found mid-implementation. Two outcomes only, and naming it forces the choice:
 
 - [ ] Found: <thing> → in scope, added to Phase N
-- [ ] Found: <thing> → out of scope, filed as `docs/internal/todos/YYYY-MM-DD-todo-<slug>.md`
+- [ ] Found: <thing> → out of scope, filed as issue #N
 
 If a discovery changes an interface, a data shape, a dependency, or a security boundary,
 stop and re-size per `.claude/rules/workflow.md` § Task Flow.
@@ -213,7 +213,7 @@ stop and re-size per `.claude/rules/workflow.md` § Task Flow.
 ## Acceptance
 
 Reference the plan's AC IDs. Do NOT restate the criteria — "link, never duplicate" applies,
-and duplicated criteria drift silently. (Lean kits have no plan: state the criteria here.)
+and duplicated criteria drift silently.
 
 - [ ] AC-1 — verified by `__tests__/auth/refresh.test.ts` › rejects rotated token
 
@@ -237,7 +237,8 @@ Commands and the conditions each gate fires under live in `.claude/rules/workflo
 ```markdown
 ## D-01 — <decision in one line>
 
-- **Status:** Proposed | Accepted | Superseded by D-NN
+- **Status:** Proposed | Accepted | Superseded by D-NN — Accepted in the PR that makes it, once
+  the owner has approved it (ADR-0085); Proposed only while it waits for that
 - **Date:** YYYY-MM-DD
 
 **Context.** What forced a choice.
@@ -290,7 +291,8 @@ A plan is ready for approval when:
 
 `grep -r 'NEEDS CLARIFICATION' docs/internal/initiatives/<slug>/` is the mechanical half.
 
-Lean kits have no plan and so have no Definition of Ready; their checklist is the thing approved.
+Work under two days has no kit and so no Definition of Ready here — the issue's acceptance
+criteria and the approved plan stand in for it.
 
 ## Architectural decisions
 

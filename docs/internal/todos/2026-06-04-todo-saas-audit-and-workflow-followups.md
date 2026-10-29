@@ -1,6 +1,6 @@
 # 2026-06-04 — SaaS audit + workflow experiment follow-ups
 
-- **Status:** Needs triage (2026-09-15) — predates the SaaS-readiness and twelve-factor campaigns,
+- **Status:** Issue #255 (was register row B-59). Needs triage (2026-09-15) — predates the SaaS-readiness and twelve-factor campaigns,
   and its items were not re-verified during this sweep. Check each against
   `docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` before acting on it.
 

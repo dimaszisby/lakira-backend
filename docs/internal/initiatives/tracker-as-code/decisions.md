@@ -72,7 +72,7 @@ owner; the fork tutorial says to change it, and to turn reporting on in the fork
 
 ## D-05 — What step 1 left out is finished before step 2
 
-- **Status:** Proposed
+- **Status:** Accepted (#231, `8f68b0d`)
 - **Date:** 2026-10-29
 - **Size:** Micro — single commit. Commits carry `refs: tracker-as-code`. Branch
   `docs/tracker-as-code-leftovers`.

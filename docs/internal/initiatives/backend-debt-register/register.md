@@ -1,10 +1,53 @@
 # Backend debt register
 
-**As of:** 2026-10-29, backend `dev` at `f1ddd7c`. Ranked by [D-01](decisions.md).
+**Frozen:** 2026-10-29, at backend `dev` `8f68b0d`, by kit
+[`open-work-to-issues`](../open-work-to-issues/README.md)
+([ADR-0085](../../../explanation/decisions/adr-0085-every-task-starts-from-an-issue.md)).
 
-**"What's next" is the first row below whose state is `ready`.** A row above it that is waiting on
-someone is reported with it, as a gap. How rows are added and closed:
-`.claude/rules/workflow.md` § What's next.
+**Open work is in [GitHub Issues](https://github.com/dimaszisby/lakira-backend/issues), not here.**
+"What's next" is `gh issue list --state open --label state:ready`, ranked as
+`.claude/rules/workflow.md` § What's next says. This file is a record: the rows below are as they
+stood when it was frozen, and the table that follows says where each open row and owner question
+went. A settled gap is in [`known-gaps.md`](../../../reference/known-gaps.md).
+
+## Where each row went
+
+| Row   | Now             |
+| ----- | --------------- |
+| O-02  | #232            |
+| O-03  | #233            |
+| O-04  | #234            |
+| O-05  | #235            |
+| B-03  | #236            |
+| B-04  | #237            |
+| B-05  | #238            |
+| B-94  | #239            |
+| B-95  | #240            |
+| B-96  | #241            |
+| B-97  | #242            |
+| B-11  | #243            |
+| B-26  | #262            |
+| B-81  | #244            |
+| B-98  | #245            |
+| B-41  | `known-gaps.md` |
+| B-42  | #246            |
+| B-99  | #247            |
+| B-48  | #248            |
+| B-71  | #249            |
+| B-87  | #250            |
+| B-100 | #251            |
+| B-54  | #252            |
+| B-55  | #253            |
+| B-57  | #254            |
+| B-59  | #255            |
+| B-62  | #256            |
+| B-63  | #257            |
+| B-67  | #258            |
+| B-73  | #259            |
+| B-86  | #260            |
+| B-101 | #261            |
+
+Until the freeze the rows were ranked by [D-01](decisions.md); the issues now carry that rank as labels (D-12).
 
 Columns. **Sev** is what the source recorded; `a / b` means the todo and a grader disagree, and the
 higher ranks the row; `—` means ungraded. **Owed to** is who is waiting: `GOLD` (a clean audit

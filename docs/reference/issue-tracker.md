@@ -8,9 +8,22 @@ The tracker is defined in the repository
 ([ADR-0084](../explanation/decisions/adr-0084-open-work-moves-to-github-issues.md)). It is the
 same setup as lakira-frontend's, adapted to this repository's register.
 
-**Until the register's open rows move to issues** (ADR-0084, step 2), "what's next" is still read
-from [the debt register](../internal/initiatives/backend-debt-register/register.md), as
-`.claude/rules/workflow.md` says, and an issue filed through a form is not ranked by it.
+Every task starts from an issue ([ADR-0085](../explanation/decisions/adr-0085-every-task-starts-from-an-issue.md)).
+The debt register's open rows became issues #232 to #262 on 2026-10-29; the
+[frozen register](../internal/initiatives/backend-debt-register/register.md) maps each `B-NN` and
+`O-NN` to its issue. Gaps kept on purpose are in [`known-gaps.md`](known-gaps.md), not in issues.
+
+## What's next
+
+The first open issue labelled `state:ready`, by the lowest `tier:`, then the lowest `sev:` (none
+sorts after P3), then the lower number (`backend-debt-register` D-12):
+
+```bash
+gh issue list --state open --label state:ready --json number,title,labels
+```
+
+A higher-ranked issue that waits on someone is a gap worth naming; `type:decision` issues are the
+owner's open questions. A pull request that finishes an issue says `Closes #N`.
 
 ## Labels
 

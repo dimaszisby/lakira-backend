@@ -1,6 +1,6 @@
 # Todo — `SENTRY_TRACES_SAMPLE_RATE` takes any number
 
-- **Status:** Open. Register row B-99
+- **Status:** Open. Issue #247 (was register row B-99)
 - **Created:** 2026-10-27
 - **Owner:** unassigned
 - **Origin:** § 4.4 and § 6.4 (P3, "LOW") of

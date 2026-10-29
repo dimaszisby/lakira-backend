@@ -1,6 +1,6 @@
 # Todo — periodic cleanup of `processed_messages`
 
-- **Status:** Not started — noted, deliberately not built
+- **Status:** Closed (2026-10-29): kept on purpose, recorded in [`known-gaps.md`](../../reference/known-gaps.md) (was register row B-41). Before: Not started — noted, deliberately not built
 - **Created:** 2026-09-15
 - **Owner:** unassigned
 - **Origin:** raised while implementing ADR-0007 consumer idempotency

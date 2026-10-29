@@ -1,6 +1,6 @@
 # Todo — a configured CORS origin must match the browser's spelling exactly
 
-- **Status:** Open. Register row B-98
+- **Status:** Open. Issue #245 (was register row B-98)
 - **Created:** 2026-10-27
 - **Owner:** unassigned
 - **Origin:** F6 (P3) of `docs/internal/audits/saas-readiness/audit-2026-06-05.md` § 6.4, re-read

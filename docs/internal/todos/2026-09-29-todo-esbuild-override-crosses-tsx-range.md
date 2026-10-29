@@ -1,6 +1,6 @@
 # Todo — the `esbuild` override crosses `tsx`'s declared range
 
-- **Status:** Open — kept deliberately; revisit when `tsx` widens its range
+- **Status:** Issue #262 (was register row B-26); its trigger fired on 2026-10-29. Before: Open — kept deliberately; revisit when `tsx` widens its range
 - **Created:** 2026-09-29
 - **Owner:** unassigned
 - **Origin:** the `npm-audit-findings` kit, D-03

@@ -48,8 +48,10 @@ Inside `docs/internal/initiatives/<topic>/`, an initiative gets a kit. Size it t
 | ------------------------------------------------- | ------------ | ---------------------------------------------------------------------------- |
 | Large initiative (multi-week, affects CI/process) | Full kit     | README + plan + checklist + ticket + decisions + incidents + metrics-tracker |
 | Medium effort (2–5 working days)                  | Standard kit | README + plan/ticket (merged) + checklist + decisions                        |
-| Small infra change / quick sweep                  | Lean kit     | README + checklist + at least one `decisions.md` entry                       |
-| Single-commit fix                                 | Micro entry  | One entry in the nearest `decisions.md` referencing the commit SHA           |
+| Under two days                                    | No kit       | The issue body is the plan; the pull request that closes it is the record    |
+
+Every task starts from a GitHub issue, and only work of two days or more gets a kit
+([ADR-0085](decisions/adr-0085-every-task-starts-from-an-issue.md)).
 
 A document in one of the four shipped quadrants is a **single file**. Do not scaffold a kit
 around it.

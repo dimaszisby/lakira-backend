@@ -1,6 +1,6 @@
 # Todo — The security delta's CORS rule reads a file the CORS options left
 
-- **Status:** Open
+- **Status:** Issue #260 (was register row B-86). Open
 - **Created:** 2026-10-22
 - **Owner:** unassigned
 - **Origin:** the `security:delta:gate` run on `fix/proxy-trust-and-xss-clean`

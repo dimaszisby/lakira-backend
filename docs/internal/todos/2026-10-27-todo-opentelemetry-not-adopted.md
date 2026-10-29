@@ -1,6 +1,6 @@
 # Todo — no tracing or metrics beyond Sentry's errors
 
-- **Status:** Open. Register row B-96; waits on the owner's decision on ADR-0038
+- **Status:** Open. Issue #241 (was register row B-96); waits on the owner's decision on ADR-0038
 - **Created:** 2026-10-27
 - **Owner:** unassigned
 - **Origin:** N7 (P2) of `docs/internal/audits/saas-readiness/audit-2026-06-05.md` § 6.3, re-read
