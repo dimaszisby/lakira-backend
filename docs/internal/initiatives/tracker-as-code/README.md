@@ -1,7 +1,7 @@
 # The issue tracker as code
 
-**Status:** Implemented on `chore/tracker-as-code`; PR open. Step 1 of ADR-0084; steps 2 and 3
-follow in their own PRs, and step 4 waits on B-57.
+**Status:** Step 1 done (#230, `f1ddd7c`); its leftovers on `docs/tracker-as-code-leftovers` (D-05).
+Steps 2 and 3 follow in their own PR, and step 4 waits on B-57 (register row B-101).
 **Slug:** `tracker-as-code` · **Branch:** `chore/tracker-as-code`
 
 Lean kit: no plan; the acceptance criteria are in the checklist. D-01 is promoted to

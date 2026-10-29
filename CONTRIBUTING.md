@@ -54,4 +54,4 @@ New features require tests. Bug fixes should include a regression test where fea
 
 ## External PRs
 
-This project is currently maintained by a single developer. External pull requests are welcome but response time is best-effort. Open an issue first for significant changes to discuss approach before writing code.
+This project is currently maintained by a single developer. External pull requests are welcome but response time is best-effort. Open an issue first for significant changes to discuss approach before writing code; the issue forms and labels are described in [`docs/reference/issue-tracker.md`](docs/reference/issue-tracker.md). A security problem is never an issue: report it as [`SECURITY.md`](SECURITY.md) says.

@@ -1,12 +1,17 @@
 # ADR-0084 — Open work moves to GitHub Issues, with the tracker kept as code
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-28
 - **Related:** lakira-frontend ADR-0042 (the same decision there, #154), ADR-0044 (every task
   starts from an issue, #180) and ADR-0045 (release versioning, #183); the Notion record "The
   frontend's open work is in GitHub Issues; the same setup is offered to the backend"
 - **Origin:** `D-01` in the tracker-as-code kit —
   [`tracker-as-code`](../../internal/initiatives/tracker-as-code/decisions.md)
+
+> **Status note (2026-10-29).** Step 1 merged in #230 (`f1ddd7c`); the labels were applied and
+> private vulnerability reporting turned on on 2026-10-28. Steps 2 and 3 carry out the rest of this
+> decision, and step 4 waits on B-57; register row B-101 tracks them until step 2 moves it to an
+> issue.
 
 ---
 
