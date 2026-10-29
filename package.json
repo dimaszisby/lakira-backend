@@ -58,6 +58,7 @@
     "docs:openapi:generate": "NODE_ENV=development tsx ./scripts/generate-openapi.ts && tsx ./scripts/normalize-openapi.ts && npm run docs:openapi:validate",
     "docs:openapi:validate": "tsx ./scripts/validate-openapi.ts",
     "docs:openapi:check": "npm run docs:openapi:generate && git ls-files --error-unmatch docs/reference/api/lakira-backend-openapi.json && git diff --exit-code docs/reference/api/lakira-backend-openapi.json",
+    "labels:sync": "tsx scripts/github/sync-labels.ts",
     "security:audit:init": "node scripts/security/init-audit-doc-kit.mjs",
     "security:delta:check": "node scripts/security/security-delta-check.mjs",
     "security:gate:evaluate": "node scripts/security/evaluate-gate.mjs",

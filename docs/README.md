@@ -43,6 +43,7 @@ verbatim from a clean clone.
 | [`security/`](./reference/security/)                       | Control catalogue (ASVS/SSDF), risk model, gate policy, audit-run template |
 | [`branch-protection.md`](./reference/branch-protection.md) | Branch ruleset                                                             |
 | [`frontend-handoff.md`](./reference/frontend-handoff.md)   | Backend→frontend CI/CD contract                                            |
+| [`issue-tracker.md`](./reference/issue-tracker.md)         | The GitHub labels and issue forms, and how a fork gets them                |
 
 ## Explanation — understanding-oriented
 

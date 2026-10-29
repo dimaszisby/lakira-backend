@@ -1,6 +1,6 @@
 # The 2026-06-05 run, re-read; the rest of R13
 
-**Status:** Implemented on `chore/audit-0605-reread`; PR open. Register row B-61.
+**Status:** Done (#229, `6049cc6`). Register row B-61.
 **Slug:** `audit-0605-reread` · **Branch:** `chore/audit-0605-reread`
 
 Lean kit: no plan; the acceptance criteria and the re-read table are in the checklist. No ADR:
