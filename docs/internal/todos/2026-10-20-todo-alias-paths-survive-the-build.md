@@ -1,6 +1,6 @@
 # Todo — the `@utils/*` and `@config/*` aliases do not survive the build
 
-- **Status:** Open. Register row B-73
+- **Status:** Open. Issue #259 (was register row B-73)
 - **Created:** 2026-10-20
 - **Owner:** unassigned
 - **Origin:** item 3 of `2026-10-11-todo-apperror-lint-rule-review-leftovers.md`, left out of the

@@ -1,6 +1,6 @@
 # Todo — an invite whose email never arrived blocks re-inviting
 
-- **Status:** Open. Register row B-71; waits on the frontend's choice of remedy
+- **Status:** Open. Issue #249 (was register row B-71); waits on the frontend's choice of remedy
 - **Created:** 2026-10-19
 - **Owner:** unassigned
 - **Origin:** [`durable-invite-email` D-04](../initiatives/durable-invite-email/decisions.md)

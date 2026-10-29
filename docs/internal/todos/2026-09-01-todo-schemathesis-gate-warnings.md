@@ -1,6 +1,6 @@
 # Todo — the four Schemathesis gate warnings, characterised
 
-- **Status:** Investigated — decision needed, no code change proposed
+- **Status:** Issue #248 (was register row B-48). Investigated — decision needed, no code change proposed
 - **Created:** 2026-09-01
 - **Owner:** unassigned
 

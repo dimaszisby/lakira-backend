@@ -1,6 +1,6 @@
 # Todo — one job queue serves every organization, with no per-organization budget
 
-- **Status:** Open. Register row B-97; waits on the owner's decision
+- **Status:** Open. Issue #242 (was register row B-97); waits on the owner's decision
 - **Created:** 2026-10-27
 - **Owner:** unassigned
 - **Origin:** N6 (P2) of `docs/internal/audits/saas-readiness/audit-2026-06-05.md` § 6.3, re-read

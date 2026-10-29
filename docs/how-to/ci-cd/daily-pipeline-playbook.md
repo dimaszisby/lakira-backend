@@ -115,7 +115,7 @@ Always push fixes to the same branch; reruns are automatic once CI detects new c
 - Branch from `dev` (or the branch the team specifies), named `<type>/<slug>` — see `.claude/rules/workflow.md`.
 - Align commit messages with the issue/ticket ID when possible.
 - Keep PRs small and focused; describe changes + commands you ran.
-- If you skip a test due to timeline pressure, note it in the PR and create a TODO in `docs/internal/todos/`.
+- If you skip a test due to timeline pressure, note it in the PR and file an issue for it.
 
 ## 6. Useful Scripts Reference
 

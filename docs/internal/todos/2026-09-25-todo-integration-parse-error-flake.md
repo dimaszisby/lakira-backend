@@ -1,6 +1,6 @@
 # Todo — intermittent `Parse Error: Expected HTTP/` in the integration suite
 
-- **Status:** Open — the parse error is still unexplained. The `TRUNCATE` failure was explained
+- **Status:** Issue #243 (was register row B-11). Open — the parse error is still unexplained. The `TRUNCATE` failure was explained
   on 2026-09-29 (a deadlock with a fire-and-forget write) and fixed on 2026-10-02 (see the last
   section). A third failure was explained and fixed on 2026-09-27
 - **Created:** 2026-09-25

@@ -32,17 +32,18 @@ Ask (or infer from context):
 
 Ask what the reader is doing, then place it. Never place by artifact name.
 
-| The document…                                        | Goes to                                          |
-| ---------------------------------------------------- | ------------------------------------------------ |
-| teaches a newcomer a skill, followed start to finish | `docs/tutorials/`                                |
-| gets an experienced reader through one task          | `docs/how-to/<area>/`                            |
-| is looked up, not read through                       | `docs/reference/`                                |
-| explains a concept, a trade-off, or why something is | `docs/explanation/`                              |
-| records an architectural decision                    | `docs/explanation/decisions/adr-NNNN-<slug>.md`  |
-| tracks a piece of work — plan, checklist, tracker    | `docs/internal/initiatives/<topic>/`             |
-| is a dated one-off note or session TODO              | `docs/internal/todos/`, `docs/internal/dev-log/` |
-| is an audit run                                      | `docs/internal/audits/<program>/`                |
-| is a postmortem                                      | `docs/internal/incidents/`                       |
+| The document…                                        | Goes to                                         |
+| ---------------------------------------------------- | ----------------------------------------------- |
+| teaches a newcomer a skill, followed start to finish | `docs/tutorials/`                               |
+| gets an experienced reader through one task          | `docs/how-to/<area>/`                           |
+| is looked up, not read through                       | `docs/reference/`                               |
+| explains a concept, a trade-off, or why something is | `docs/explanation/`                             |
+| records an architectural decision                    | `docs/explanation/decisions/adr-NNNN-<slug>.md` |
+| tracks a piece of work — plan, checklist, tracker    | `docs/internal/initiatives/<topic>/`            |
+| is work to do, however small                         | a GitHub issue, not a file (ADR-0085)           |
+| is a dated one-off note                              | `docs/internal/dev-log/`                        |
+| is an audit run                                      | `docs/internal/audits/<program>/`               |
+| is a postmortem                                      | `docs/internal/incidents/`                      |
 
 Two rules keep the tree honest:
 

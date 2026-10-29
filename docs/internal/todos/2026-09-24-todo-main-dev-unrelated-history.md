@@ -1,6 +1,6 @@
 # Todo — `main` shares no history with `dev` or `staging`
 
-- **Status:** Open
+- **Status:** Issue #254 (was register row B-57). Open
 - **Created:** 2026-09-24
 - **Owner:** unassigned
 - **Origin:** raised in the 2026-09-24 handoff and filed by the `saas-audit-closeout` kit; see its

@@ -241,3 +241,24 @@ of":_ misses a todo filed with an older date, and passes one with no row once "A
 it.
 **Consequences.** Filing a todo without a row, or closing one without saying so in its status,
 fails the unit suite. The manual scan in `workflow.md` is gone.
+
+---
+
+## D-12 — After the freeze, rank by labels: state, tier, severity, number
+
+- **Status:** Accepted
+- **Date:** 2026-10-29
+
+**Context.** The register ranked by D-01: tiers, then within a tier the smaller item first, written
+into table order. With open work in GitHub Issues (ADR-0085), the order is no longer a file; the
+labels carry the tier (`tier:1` to `tier:5`), the severity (`sev:P1` to `sev:P3`) and the state
+(`state:*`), and nothing carries the size.
+**Decision.** "What's next" is the open issue labelled `state:ready` with the lowest `tier:`, then
+the lowest `sev:` (none sorts after P3), then the lower number. An issue that outranks it but waits
+on someone is reported as a gap, with whom it waits on; `type:decision` issues are the owner's open
+questions. The same rule as lakira-frontend's `open-work-to-issues` D-02.
+**Options considered.** _Keep "smaller first" inside a tier:_ no label holds the size, and a size
+label would be one more thing to keep true. _A Project board's order:_ it belongs to an account,
+not the repository, so a fork does not get it (ADR-0084).
+**Consequences.** Re-ranking is relabelling an issue, not editing a file. The tier rules of D-01
+still decide which `tier:` a new issue gets.

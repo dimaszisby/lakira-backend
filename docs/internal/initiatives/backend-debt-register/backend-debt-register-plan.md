@@ -76,8 +76,8 @@ analytics defects.
 ## Risks and trade-offs
 
 - **It goes stale.** A register nobody updates is worse than none. The rule makes a row part of
-  filing a todo and part of closing one; `__tests__/unit/debt-register-todos.test.ts` fails when an
-  open todo has no open row, or an open row names a finished todo (B-60, D-11).
+  filing a todo and part of closing one. Since 2026-10-29 the register is frozen and open work is in
+  GitHub Issues (ADR-0085); `__tests__/unit/open-work-records.test.ts` keeps the record honest.
 - **Severities are inherited.** The register ranks by what each source recorded. Seventeen rows have no
   recorded severity and sit in tier 5 until an audit grades them.
 - **The analyses are one reader's.** They were written by the session that wrote most of the code

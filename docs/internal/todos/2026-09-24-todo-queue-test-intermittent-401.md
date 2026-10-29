@@ -1,6 +1,6 @@
 # Todo — intermittent 401 on register inside the RabbitMQ queue integration test
 
-- **Status:** Open — seen once, not reproduced
+- **Status:** Issue #252 (was register row B-54). Open — seen once, not reproduced
 - **Created:** 2026-09-24
 - **Owner:** unassigned
 - **Origin:** a gate run in the `docs-sweep` kit (a docs-only change, so not caused by it)

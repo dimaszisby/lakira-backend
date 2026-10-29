@@ -44,6 +44,7 @@ verbatim from a clean clone.
 | [`branch-protection.md`](./reference/branch-protection.md) | Branch ruleset                                                             |
 | [`frontend-handoff.md`](./reference/frontend-handoff.md)   | Backend→frontend CI/CD contract                                            |
 | [`issue-tracker.md`](./reference/issue-tracker.md)         | The GitHub labels and issue forms, and how a fork gets them                |
+| [`known-gaps.md`](./reference/known-gaps.md)               | Gaps kept on purpose, so a fork inherits them knowingly                    |
 
 ## Explanation — understanding-oriented
 

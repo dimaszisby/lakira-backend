@@ -1,6 +1,6 @@
 # Todo — the database pool is Sequelize's default, and no variable tunes it
 
-- **Status:** Open. Register row B-94
+- **Status:** Open. Issue #239 (was register row B-94)
 - **Created:** 2026-10-27
 - **Owner:** unassigned
 - **Origin:** N8 (P2) of `docs/internal/audits/saas-readiness/audit-2026-06-05.md` § 6.3, re-read

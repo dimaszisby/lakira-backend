@@ -1,6 +1,6 @@
 # Todo — one Redis client serves the cache, the limiters and the pattern deletes
 
-- **Status:** Open. Register row B-95
+- **Status:** Open. Issue #240 (was register row B-95)
 - **Created:** 2026-10-27
 - **Owner:** unassigned
 - **Origin:** N9 (P2) of `docs/internal/audits/saas-readiness/audit-2026-06-05.md` § 6.3, re-read

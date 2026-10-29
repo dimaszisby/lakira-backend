@@ -1,6 +1,6 @@
 # Todo — The dashboard item's category fields are snake_case
 
-- **Status:** Open
+- **Status:** Issue #250 (was register row B-87). Open
 - **Created:** 2026-10-22
 - **Owner:** unassigned
 - **Origin:** [`v6-small-items`](../initiatives/v6-small-items/README.md), found while renaming the

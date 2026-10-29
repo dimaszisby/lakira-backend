@@ -1,6 +1,6 @@
 # Todo — the metrics list answers `logCount: 0` for a metric that has logs
 
-- **Status:** Open. Register row B-100
+- **Status:** Open. Issue #251 (was register row B-100)
 - **Created:** 2026-10-28
 - **Owner:** unassigned
 - **Origin:** the Notion record "The metrics list reports logCount 0 for a metric that has logs"
