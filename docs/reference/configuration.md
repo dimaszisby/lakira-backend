@@ -56,18 +56,20 @@ secrets to end in one of the suffix words, or add a term to that module.
 Give **either** a connection URL **or** the discrete parts. URLs win when both are present, and
 the per-environment URL is selected by `NODE_ENV`.
 
-| Variable                                                                                              | Type    | Default                                        |
-| ----------------------------------------------------------------------------------------------------- | ------- | ---------------------------------------------- |
-| `DATABASE_URL`                                                                                        | string  | optional                                       |
-| `DEVELOPMENT_DATABASE_URL` / `TEST_DATABASE_URL` / `STAGING_DATABASE_URL` / `PRODUCTION_DATABASE_URL` | string  | optional                                       |
-| `DB_HOST`                                                                                             | string  | `db` under `NODE_ENV=test`, else `127.0.0.1`   |
-| `DB_PORT`                                                                                             | number  | `5432`                                         |
-| `DB_USER` / `DB_PASSWORD` / `DB_NAME`                                                                 | string  | optional                                       |
-| `DB_LOGGING`                                                                                          | boolean | `false`                                        |
-| `LOG_LEVEL`                                                                                           | enum    | `http` in production, else `debug`             |
-| `SKIP_DB_LIFECYCLE`                                                                                   | boolean | `false`                                        |
-| `DB_SSL_REJECT_UNAUTHORIZED`                                                                          | boolean | `true` in production and staging, else `false` |
-| `DB_SSL_CA`                                                                                           | string  | optional: a PEM CA certificate                 |
+| Variable                                                                                              | Type    | Default                                         |
+| ----------------------------------------------------------------------------------------------------- | ------- | ----------------------------------------------- |
+| `DATABASE_URL`                                                                                        | string  | optional                                        |
+| `DEVELOPMENT_DATABASE_URL` / `TEST_DATABASE_URL` / `STAGING_DATABASE_URL` / `PRODUCTION_DATABASE_URL` | string  | optional                                        |
+| `DB_HOST`                                                                                             | string  | `db` under `NODE_ENV=test`, else `127.0.0.1`    |
+| `DB_PORT`                                                                                             | number  | `5432`                                          |
+| `DB_USER` / `DB_PASSWORD` / `DB_NAME`                                                                 | string  | optional                                        |
+| `DB_LOGGING`                                                                                          | boolean | `false`                                         |
+| `DB_POOL_MAX`                                                                                         | number  | `5`: connections in each process's pool         |
+| `DB_POOL_MIN`                                                                                         | number  | `0`: connections the pool keeps open while idle |
+| `LOG_LEVEL`                                                                                           | enum    | `http` in production, else `debug`              |
+| `SKIP_DB_LIFECYCLE`                                                                                   | boolean | `false`                                         |
+| `DB_SSL_REJECT_UNAUTHORIZED`                                                                          | boolean | `true` in production and staging, else `false`  |
+| `DB_SSL_CA`                                                                                           | string  | optional: a PEM CA certificate                  |
 
 > `DB_SSL_REJECT_UNAUTHORIZED=false` turns off verification of the database's certificate. Startup
 > refuses it when `NODE_ENV=production`, and so do the migrations (`config.cjs`). Staging defaults
@@ -89,6 +91,16 @@ the per-environment URL is selected by `NODE_ENV`.
 > request path with the query string stripped — redaction covers log metadata, not URL strings or
 > message text, so no message carries an email address (a limiter names a user id, an IP or a hash).
 > See [`../how-to/development/read-application-logs.md`](../how-to/development/read-application-logs.md).
+
+> `DB_POOL_MAX` and `DB_POOL_MIN` size the pool **each process** opens: every server instance and
+> every worker holds its own (ADR-0086). Two rules size it. (1) The pools together must stay under
+> the database's connection limit: (server instances + worker instances) × `DB_POOL_MAX`, with room
+> left for migrations and an admin session. (2) A worker job holds one connection for its whole run,
+> so a worker's `DB_POOL_MAX` should be at least the number of jobs it runs at once, which
+> `RABBITMQ_PREFETCH` decides per queue; a job that finds the pool full waits up to 60 s and then
+> fails. Both must be whole numbers, `DB_POOL_MAX` 1 or more, and `DB_POOL_MIN` cannot be more than
+> `DB_POOL_MAX`; startup refuses otherwise. The migrations (`config.cjs`) open one connection and
+> do not read them.
 
 > `DB_HOST` defaulting to `db` in test targets the Docker Compose service name. Running tests on
 > the host instead requires `DB_HOST=127.0.0.1`.
