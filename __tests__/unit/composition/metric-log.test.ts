@@ -17,21 +17,14 @@ const globToRegExp = (pattern: string) =>
   );
 
 jest.mock("@/utils/redis-client.js", () => ({
-  redisClient: {
-    isOpen: true,
-    scanIterator: ({ MATCH }: { MATCH: string }) => {
-      const matcher = globToRegExp(MATCH);
-      const keys = [...store].filter((key) => matcher.test(key));
-      return (async function* () {
-        for (const key of keys) yield key;
-      })();
-    },
-    del: async (key: string) => {
-      store.delete(key);
-    },
-  },
+  redisClient: { isOpen: true },
   invalidateCache: jest.fn(async () => undefined),
-  invalidateCacheByPattern: jest.fn(async () => undefined),
+  invalidateCacheByPattern: async (pattern: string) => {
+    const matcher = globToRegExp(pattern);
+    for (const key of [...store]) {
+      if (matcher.test(key)) store.delete(key);
+    }
+  },
 }));
 
 // UUIDs, as GenerateDummyMetricLogs publishes them: the handler refuses anything else

@@ -71,6 +71,22 @@ describe("MetricCacheRedis", () => {
     });
   });
 
+  it("starts both walks before either finishes (#240)", async () => {
+    let finish: () => void = () => {};
+    invalidateCacheByPattern.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+
+    const done = cache.invalidateMetrics("user-9", "org-9", "metric-5");
+    await Promise.resolve();
+
+    expect(invalidateCacheByPattern).toHaveBeenCalledTimes(2);
+    finish();
+    await done;
+  });
+
   it("logs error payloads when invalidation fails", async () => {
     const boom = new Error("boom");
     invalidateCacheByPattern.mockRejectedValueOnce(boom);
