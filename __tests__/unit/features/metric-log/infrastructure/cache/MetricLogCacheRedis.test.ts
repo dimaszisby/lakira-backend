@@ -63,9 +63,8 @@ describe("MetricLogCacheRedis", () => {
   it("invalidates all metric log scopes and linked visualizations", async () => {
     await cache.invalidate("user-1", "org-1", "metric-2", "log-3");
 
-    expect(invalidateCacheByPattern).toHaveBeenCalledWith(
-      `${ALL_CURSOR_NS}:user-1:org:org-1:*fm:metric-2*`,
-    );
+    // Every list page of the user's logs, whatever metric it filtered by. A
+    // walk of `...:*fm:<metricId>*` too only repeated part of this one (#240).
     expect(invalidateCacheByPattern).toHaveBeenCalledWith(
       `${ALL_CURSOR_NS}:user-1:org:org-1:*`,
     );
@@ -81,6 +80,7 @@ describe("MetricLogCacheRedis", () => {
     expect(invalidateCacheByPattern).toHaveBeenCalledWith(
       "log:org-1:user-1:log-3:*",
     );
+    expect(invalidateCacheByPattern).toHaveBeenCalledTimes(4);
     expect(vizInvalidator.invalidateByMetric).toHaveBeenCalledWith(
       "user-1",
       "org-1",
@@ -116,6 +116,25 @@ describe("MetricLogCacheRedis", () => {
       metricId: "metric-7",
       logId: "-",
     });
+  });
+
+  // Each walk steps through the whole keyspace, so walking one after another
+  // made a log write wait for all of them in turn (#240, ADR-0087).
+  it("starts every walk before any finishes", async () => {
+    let finish: () => void = () => {};
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    invalidateCacheByPattern.mockReturnValue(pending);
+    invalidateByMetricMock.mockReturnValueOnce(pending);
+
+    const done = cache.invalidate("user-1", "org-1", "metric-2", "log-3");
+    await Promise.resolve();
+
+    expect(invalidateCacheByPattern).toHaveBeenCalledTimes(4);
+    expect(vizInvalidator.invalidateByMetric).toHaveBeenCalledTimes(1);
+    finish();
+    await done;
   });
 
   it("logs and rethrows when invalidation fails", async () => {

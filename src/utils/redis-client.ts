@@ -147,8 +147,18 @@ const invalidateCache = async (key: string) => {
 };
 
 /**
+ * Keys SCAN examines per call. SCAN steps through the whole keyspace whatever
+ * MATCH says, so a walk costs (all keys / this) round trips however few keys
+ * match: at 100 a log write waited on about 6,000 of them with 100k keys in
+ * Redis (#240, ADR-0087).
+ */
+const SCAN_PAGE_SIZE = 1000;
+
+/**
  * Invalidates Redis cache keys matching a given pattern.
- * Uses SCAN to avoid blocking the server on large datasets.
+ * Uses SCAN to avoid blocking the server on large datasets. A caller with
+ * several patterns starts every walk at once (`Promise.all`): they pipeline on
+ * the one connection, rather than each waiting for the one before.
  * @param pattern - The pattern to match cache keys (e.g., 'metrics:user123:*').
  */
 const invalidateCacheByPattern = async (pattern: string) => {
@@ -160,7 +170,7 @@ const invalidateCacheByPattern = async (pattern: string) => {
     do {
       const scanResult = await redisClient.scan(cursor, {
         MATCH: pattern,
-        COUNT: 100, // Process 100 keys at a time
+        COUNT: SCAN_PAGE_SIZE,
       });
       cursor = Number(scanResult.cursor);
       const keys = scanResult.keys;

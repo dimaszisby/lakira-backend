@@ -149,11 +149,11 @@ describe("redis-client utils", () => {
 
       expect(mockRedisClient.scan).toHaveBeenNthCalledWith(1, 0, {
         MATCH: "metrics:user-1:*",
-        COUNT: 100,
+        COUNT: 1000,
       });
       expect(mockRedisClient.scan).toHaveBeenNthCalledWith(2, 1, {
         MATCH: "metrics:user-1:*",
-        COUNT: 100,
+        COUNT: 1000,
       });
       expect(mockRedisClient.del).toHaveBeenCalledWith(["k1", "k2"]);
       // Kit v6-small-items (audit V6): one line for the whole scan, not one

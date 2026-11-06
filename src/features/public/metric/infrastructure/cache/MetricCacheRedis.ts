@@ -27,14 +27,19 @@ export class MetricCacheRedis implements CachePort {
   ): Promise<void> {
     if (!this.isEnabled()) return;
     try {
-      await invalidateCacheByPattern(
-        `${METRIC_CURSOR_NAMESPACE_ALL}:${userId}:org:${organizationId}:*`,
-      );
-      if (metricId) {
-        await invalidateCacheByPattern(
-          metricEntryPattern(organizationId, userId, metricId),
-        );
-      }
+      // Started together: each walk steps through the whole keyspace (ADR-0087).
+      await Promise.all([
+        invalidateCacheByPattern(
+          `${METRIC_CURSOR_NAMESPACE_ALL}:${userId}:org:${organizationId}:*`,
+        ),
+        ...(metricId
+          ? [
+              invalidateCacheByPattern(
+                metricEntryPattern(organizationId, userId, metricId),
+              ),
+            ]
+          : []),
+      ]);
       logCacheInvalidation("metric-cache", {
         userId,
         organizationId,
