@@ -13,6 +13,18 @@ export const sslOptions = (rejectUnauthorized: boolean, ca?: string) => ({
   ...(ca ? { ca } : {}),
 });
 
+/**
+ * The pool each process opens (issue #239, ADR-0086): its size from
+ * `DB_POOL_MAX` and `DB_POOL_MIN`, and Sequelize's own idle and acquire
+ * timeouts, written out so the whole pool reads in one place.
+ */
+export const poolOptions = (max: number, min: number) => ({
+  max,
+  min,
+  idle: 10_000,
+  acquire: 60_000,
+});
+
 const dbConfig = {
   development: {
     dialect: "postgres",
@@ -102,6 +114,7 @@ const sequelize = new Sequelize(
     port: config.port,
     logging: config.logging,
     dialectOptions: config.dialectOptions,
+    pool: poolOptions(env.DB_POOL_MAX, env.DB_POOL_MIN),
     define: {
       freezeTableName: false,
       underscored: true,

@@ -108,6 +108,26 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
         .transform((val) => parseInt(val, 10))
         .prefault("5432"),
       DB_LOGGING: z.string().default("false"), // Allows enabling/disabling logging
+      // The pool each process opens: the server, the worker and every instance each
+      // hold their own (issue #239, ADR-0086). The defaults are Sequelize's own.
+      DB_POOL_MAX: z
+        .string()
+        .trim()
+        .regex(/^[1-9]\d*$/, {
+          message:
+            "DB_POOL_MAX must be a whole number of connections, 1 or more, or be removed to use 5",
+        })
+        .default("5")
+        .transform(Number),
+      DB_POOL_MIN: z
+        .string()
+        .trim()
+        .regex(/^\d+$/, {
+          message:
+            "DB_POOL_MIN must be a whole number of connections, 0 or more, or be removed to use 0",
+        })
+        .default("0")
+        .transform(Number),
 
       // Winston log level. Declared here as the fail-fast contract and the documentation;
       // src/utils/logger.ts re-reads process.env.LOG_LEVEL directly rather than import
@@ -518,6 +538,14 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
       // `NODE_ENV=Production` is caught too (the schema lowercases it on the way in).
       const refuse = (path: string, message: string) =>
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+
+      // A pool cannot keep more connections open than it may hold (ADR-0086).
+      if (data.DB_POOL_MIN > data.DB_POOL_MAX) {
+        refuse(
+          "DB_POOL_MIN",
+          `DB_POOL_MIN (${data.DB_POOL_MIN}) cannot be more than DB_POOL_MAX (${data.DB_POOL_MAX}).`,
+        );
+      }
 
       // Never quoted: the message names the variable only.
       if (
