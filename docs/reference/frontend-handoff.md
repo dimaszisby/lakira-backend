@@ -71,17 +71,19 @@ Secret naming already used in docs:
 ### CORS behavior
 
 - CORS origin is controlled by backend env var `CORS_ORIGIN`: a comma-separated allowlist of exact
-  origins (ADR-0034). Unset, it defaults to `http://localhost:3000`.
+  origins (ADR-0034). Each entry is kept as its origin, lowercase with no trailing slash, and one
+  with a path, query or credentials is refused at startup (ADR-0088). Unset, it defaults to
+  `http://localhost:3000`.
 - Backend has `credentials: true` — required for the refresh cookie.
 - Allowed methods: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`.
 
 Guidance for FE deployment surfaces (documentation-only, no backend code change in this task):
 
-| FE surface    | CORS expectation                                                                                                                  |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Local FE      | `CORS_ORIGIN=http://localhost:3000`                                                                                               |
-| Preview FE    | List each preview origin in `CORS_ORIGIN` (comma-separated). Matching is exact — no wildcards, and case and trailing slash matter |
-| Production FE | `TBD` until FE production domain is finalized                                                                                     |
+| FE surface    | CORS expectation                                                                                                              |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Local FE      | `CORS_ORIGIN=http://localhost:3000`                                                                                           |
+| Preview FE    | List each preview origin in `CORS_ORIGIN` (comma-separated). No wildcards; case and a trailing slash do not matter (ADR-0088) |
+| Production FE | `TBD` until FE production domain is finalized                                                                                 |
 
 ### CSRF and cookies
 

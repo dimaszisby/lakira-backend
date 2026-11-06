@@ -125,10 +125,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0085](./adr-0085-every-task-starts-from-an-issue.md)                          | Every task starts from an issue; a kit only for two days or more                                                 | Accepted                                            | 2026-10-29 | open-work-to-issues D-01                          |
 | [ADR-0086](./adr-0086-the-database-pool-is-a-setting.md)                           | The database pool is a setting, sized per process                                                                | Accepted                                            | 2026-10-29 | issue #239                                        |
 | [ADR-0087](./adr-0087-cache-pattern-deletes-walk-together-in-large-pages.md)       | Cache pattern deletes walk together, in pages of 1000                                                            | Accepted                                            | 2026-11-06 | issue #240                                        |
+| [ADR-0088](./adr-0088-cors-origins-are-kept-as-origins.md)                         | CORS origins are kept as origins; anything else is refused at startup                                            | Accepted                                            | 2026-11-06 | issue #245                                        |
 
 ## Adding one
 
-Take the next free number — **ADR-0088** as of 2026-11-06 — copy the shape of an existing record, and write `Status: Accepted` in the pull request that
+Take the next free number — **ADR-0089** as of 2026-11-06 — copy the shape of an existing record, and write `Status: Accepted` in the pull request that
 makes it, once the owner has approved it; `Proposed` only while it waits for that (ADR-0085).
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.

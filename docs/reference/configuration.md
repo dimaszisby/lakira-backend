@@ -36,17 +36,17 @@ secrets to end in one of the suffix words, or add a term to that module.
 
 ## Core
 
-| Variable                 | Type                                                           | Default                                                          |
-| ------------------------ | -------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `NODE_ENV`               | `development` \| `test` \| `staging` \| `production`, any case | `development`; the production image sets `production` (ADR-0050) |
-| `PORT`                   | number                                                         | `5000`                                                           |
-| `JWT_SECRET`             | string, 32+ characters in staging and production               | **required**                                                     |
-| `ACCESS_TOKEN_TTL_SEC`   | number                                                         | `900` (15 min)                                                   |
-| `REFRESH_TOKEN_TTL_DAYS` | number                                                         | `30`                                                             |
-| `CORS_ORIGIN`            | string                                                         | optional — comma-separated allowlist                             |
-| `TRUST_PROXY`            | whole number, 0 or more; blank refused                         | `1` — proxy hops in front of the app                             |
-| `REQUEST_BODY_LIMIT`     | string                                                         | `1mb`                                                            |
-| `DEFAULT_TZ`             | IANA time zone name or `UTC`; an offset is refused             | `Asia/Jakarta`                                                   |
+| Variable                 | Type                                                             | Default                                                          |
+| ------------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `NODE_ENV`               | `development` \| `test` \| `staging` \| `production`, any case   | `development`; the production image sets `production` (ADR-0050) |
+| `PORT`                   | number                                                           | `5000`                                                           |
+| `JWT_SECRET`             | string, 32+ characters in staging and production                 | **required**                                                     |
+| `ACCESS_TOKEN_TTL_SEC`   | number                                                           | `900` (15 min)                                                   |
+| `REFRESH_TOKEN_TTL_DAYS` | number                                                           | `30`                                                             |
+| `CORS_ORIGIN`            | comma-separated origins; each kept as its origin, a path refused | optional — comma-separated allowlist (ADR-0088)                  |
+| `TRUST_PROXY`            | whole number, 0 or more; blank refused                           | `1` — proxy hops in front of the app                             |
+| `REQUEST_BODY_LIMIT`     | string                                                           | `1mb`                                                            |
+| `DEFAULT_TZ`             | IANA time zone name or `UTC`; an offset is refused               | `Asia/Jakarta`                                                   |
 
 > `NODE_ENV` is read in any case: `Production` runs as `production`, and every default that
 > depends on it, such as `DB_SSL_REJECT_UNAUTHORIZED`, follows the lowercase name.

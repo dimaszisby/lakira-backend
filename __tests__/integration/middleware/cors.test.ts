@@ -100,4 +100,22 @@ describe("CORS middleware — multi-origin support", () => {
       },
     );
   });
+
+  // Issue #245, ADR-0088: the browser's spelling is lowercase with no path.
+  it("matches a browser's origin however the entry is spelled", async () => {
+    await withTestEnv(
+      async () => {
+        const app = buildAppWithCors();
+        const res = await request(app)
+          .get("/ping")
+          .set("Origin", "https://app.example.com");
+
+        expect(res.status).toBe(200);
+        expect(res.headers["access-control-allow-origin"]).toBe(
+          "https://app.example.com",
+        );
+      },
+      { overrides: { CORS_ORIGIN: "https://App.example.com/" } },
+    );
+  });
 });

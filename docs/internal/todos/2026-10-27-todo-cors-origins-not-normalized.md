@@ -1,6 +1,7 @@
 # Todo — a configured CORS origin must match the browser's spelling exactly
 
-- **Status:** Open. Issue #245 (was register row B-98)
+- **Status:** Closed (2026-11-06) by issue #245 (was register row B-98): each entry is kept as its
+  origin, and one that is not an origin is refused at startup (ADR-0088)
 - **Created:** 2026-10-27
 - **Owner:** unassigned
 - **Origin:** F6 (P3) of `docs/internal/audits/saas-readiness/audit-2026-06-05.md` § 6.4, re-read
