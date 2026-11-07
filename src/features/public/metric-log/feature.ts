@@ -17,11 +17,14 @@ import { NoopMessageQueue } from "@/shared/infrastructure/queue/NoopMessageQueue
 import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import { SequelizeMessageIdempotency } from "@/shared/infrastructure/queue/SequelizeMessageIdempotency.js";
 import type { MetricAccessPort } from "./application/ports/MetricAccessPort.js";
+import type { MetricCacheInvalidationPort } from "./application/ports/MetricCacheInvalidationPort.js";
 import type { MetricLogStatsPort } from "./application/ports/MetricLogStatsPort.js";
 
-/** What src/composition/ supplies: another feature's adapter (metric-access-wiring D-01, D-03). */
+/** What src/composition/ supplies: other features' adapters (metric-access-wiring D-01, D-03). */
 export type MetricLogFeatureDeps = {
   metricAccess: MetricAccessPort;
+  // A log write clears the metric's cached list and entry (#251).
+  metricCache: MetricCacheInvalidationPort;
 };
 
 export type MetricLogFeatureOverrides = {
@@ -32,13 +35,13 @@ export type MetricLogFeatureOverrides = {
 };
 
 export const buildMetricLogFeature = (
-  { metricAccess: access }: MetricLogFeatureDeps,
+  { metricAccess: access, metricCache }: MetricLogFeatureDeps,
   overrides: MetricLogFeatureOverrides = {},
 ) => {
   const repo = new MetricLogRepoSequelize();
   const visualizationInvalidator =
     overrides.visualizationInvalidator ?? new NoopVisualizationInvalidation();
-  const cache = new MetricLogCacheRedis(visualizationInvalidator);
+  const cache = new MetricLogCacheRedis(visualizationInvalidator, metricCache);
   const queue = overrides.messageQueue ?? new NoopMessageQueue();
   const queryRepo = new MetricLogQueryRepoSequelize();
   const statsRepo = overrides.statsRepo ?? new MetricLogStatsRepoSequelize();

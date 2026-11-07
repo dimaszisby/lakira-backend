@@ -224,6 +224,35 @@ describe("MetricReadRepoSequelize (integration)", () => {
     expect(byLogCount.items[0].id).toBe(metricTwo.id);
   });
 
+  // Issue #251. The count is a computed column, which a Sequelize row holds only
+  // in its dataValues, and the mapper read it as a property: every metric listed
+  // with logCount 0. The sort above passed all along, since it orders in SQL.
+  it("lists each metric with the number of its logs", async () => {
+    const user = await createUserRow();
+    const logged = await createMetricRow({ userId: user.id, name: "Logged" });
+    const empty = await createMetricRow({ userId: user.id, name: "Empty" });
+    await createMetricLogRow({
+      metricId: logged.id,
+      loggedAt: new Date("2024-01-01T00:00:00Z"),
+    });
+    await createMetricLogRow({
+      metricId: logged.id,
+      loggedAt: new Date("2024-01-02T00:00:00Z"),
+    });
+
+    const result = await repo.listMetrics({
+      userId: user.id,
+      organizationId: TEST_ORG_ID,
+      limit: 10,
+      sort: "name",
+    });
+
+    expect(result.items.map(({ id, logCount }) => ({ id, logCount }))).toEqual([
+      { id: empty.id, logCount: 0 },
+      { id: logged.id, logCount: 2 },
+    ]);
+  });
+
   // Kit deterministic-query-ordering, D-02. This test used to insert three logs
   // back to back and rely on `createdAt` order, which ties within a millisecond
   // and failed CI once (#124, Fork Smoke run 36695083548). It now inserts the
