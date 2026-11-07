@@ -205,12 +205,30 @@ Recommended FE alignment guidance:
 | FE preview (Vercel) | Preview domain(s) for active branches | List each origin in `CORS_ORIGIN`, comma-separated. No wildcards. Each entry is kept as its origin, so case and a trailing slash do not matter (ADR-0088) |
 | FE production       | Final FE production domain            | `TBD` until FE production domain is finalized                                                                                                             |
 
+How staging is deployed (ADR-0090): only by CI. A push to `staging` runs the tests, then
+`npm run migrate:staging:ci`, then the deploy hook, then the smoke tests. Nothing else deploys it,
+and nothing else migrates it.
+
+Render settings on the staging web service:
+
+- **Auto-Deploy: off.** With it on, Render deploys every push before CI has tested it.
+- **Start Command:** `npm run start:staging`, which starts the server and runs no migration.
+- **`NODE_VERSION`:** `24`, or unset so Render reads `.nvmrc`.
+- **Database URL:** Render's **internal** URL for the staging Postgres.
+
 GitHub secrets for staging deploy:
 
+- `STAGING_DATABASE_URL` – the staging Postgres's **external** URL. CI migrates from GitHub's
+  runners, which cannot reach the internal one.
 - `RENDER_STAGING_DEPLOY_HOOK_URL` – Render deploy hook URL.
 - `STAGING_BASE_URL` – e.g. `https://lakira-backend-staging.onrender.com/api/v1`
 - `STAGING_HEALTH_URL` – e.g. `https://lakira-backend-staging.onrender.com/api/v1/health`
 - (Optional) `RENDER_API_KEY` / `RENDER_SERVICE_ID` – if you move from deploy hooks to Render API/CLI deployments.
+
+When the free Postgres expires (it did on 2026-08-23 and again by 2026-11-07), the migration step
+fails with `Connection terminated unexpectedly`. Create a new instance, put its internal URL on the
+web service and its external URL in `STAGING_DATABASE_URL` (`gh secret set STAGING_DATABASE_URL`
+prompts for it), then re-run the failed job. CI applies every migration to the empty database.
 
 Staging verification:
 
