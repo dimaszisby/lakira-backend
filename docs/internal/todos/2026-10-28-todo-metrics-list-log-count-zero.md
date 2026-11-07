@@ -1,6 +1,9 @@
 # Todo — the metrics list answers `logCount: 0` for a metric that has logs
 
-- **Status:** Open. Issue #251 (was register row B-100)
+- **Status:** Closed (2026-11-08) by issue #251 (was register row B-100). Two causes: the mapper
+  read the computed `logCount` as a property, which a Sequelize row does not have, so every metric
+  listed with 0 with or without a cache; and a log write did not clear the metric's cached list
+  and entry
 - **Created:** 2026-10-28
 - **Owner:** unassigned
 - **Origin:** the Notion record "The metrics list reports logCount 0 for a metric that has logs"

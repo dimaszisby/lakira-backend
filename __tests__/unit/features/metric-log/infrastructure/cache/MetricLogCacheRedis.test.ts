@@ -2,12 +2,19 @@ import { describe, beforeEach, it, expect, jest } from "@jest/globals";
 import { cursorCacheNamespace } from "@/shared/cache/keys.js";
 import { MetricLogCacheRedis } from "@/features/metric-log/infrastructure/cache/MetricLogCacheRedis.js";
 import type { VisualizationInvalidationPort } from "@/shared/application/ports/VisualizationInvalidationPort.js";
+import type { MetricCacheInvalidationPort } from "@/features/metric-log/application/ports/MetricCacheInvalidationPort.js";
 
 const invalidateByMetricMock: jest.MockedFunction<
   VisualizationInvalidationPort["invalidateByMetric"]
 > = jest.fn(async () => {});
 const vizInvalidator: VisualizationInvalidationPort = {
   invalidateByMetric: invalidateByMetricMock,
+};
+const invalidateMetricsMock: jest.MockedFunction<
+  MetricCacheInvalidationPort["invalidateMetrics"]
+> = jest.fn(async () => {});
+const metricCache: MetricCacheInvalidationPort = {
+  invalidateMetrics: invalidateMetricsMock,
 };
 
 jest.mock("@/utils/redis-client.js", () => ({
@@ -42,7 +49,7 @@ const { logCacheInvalidation, logCacheInvalidationError } = jest.requireMock(
 const ALL_CURSOR_NS = cursorCacheNamespace("metric-logs", "*");
 
 describe("MetricLogCacheRedis", () => {
-  const cache = new MetricLogCacheRedis(vizInvalidator);
+  const cache = new MetricLogCacheRedis(vizInvalidator, metricCache);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -58,6 +65,7 @@ describe("MetricLogCacheRedis", () => {
 
     expect(invalidateCacheByPattern).not.toHaveBeenCalled();
     expect(vizInvalidator.invalidateByMetric).not.toHaveBeenCalled();
+    expect(metricCache.invalidateMetrics).not.toHaveBeenCalled();
   });
 
   it("invalidates all metric log scopes and linked visualizations", async () => {
@@ -82,6 +90,13 @@ describe("MetricLogCacheRedis", () => {
     );
     expect(invalidateCacheByPattern).toHaveBeenCalledTimes(4);
     expect(vizInvalidator.invalidateByMetric).toHaveBeenCalledWith(
+      "user-1",
+      "org-1",
+      "metric-2",
+    );
+    // The metric's list pages and its own entry carry its logs and their count,
+    // and were served stale for their 60 s after a log write (#251).
+    expect(metricCache.invalidateMetrics).toHaveBeenCalledWith(
       "user-1",
       "org-1",
       "metric-2",
@@ -127,12 +142,14 @@ describe("MetricLogCacheRedis", () => {
     });
     invalidateCacheByPattern.mockReturnValue(pending);
     invalidateByMetricMock.mockReturnValueOnce(pending);
+    invalidateMetricsMock.mockReturnValueOnce(pending);
 
     const done = cache.invalidate("user-1", "org-1", "metric-2", "log-3");
     await Promise.resolve();
 
     expect(invalidateCacheByPattern).toHaveBeenCalledTimes(4);
     expect(vizInvalidator.invalidateByMetric).toHaveBeenCalledTimes(1);
+    expect(metricCache.invalidateMetrics).toHaveBeenCalledTimes(1);
     finish();
     await done;
   });

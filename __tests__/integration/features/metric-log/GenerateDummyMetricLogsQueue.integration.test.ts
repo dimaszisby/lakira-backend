@@ -12,6 +12,7 @@ import { models } from "@/infrastructure/db/models.js";
 import { buildMetricLogFeature } from "@/features/metric-log/feature.js";
 import { buildWiredMetricLogFeature } from "@/composition/metric-log.js";
 import { MetricAccessSequelize } from "@/features/metric/infrastructure/providers/MetricAccessSequelize.js";
+import { MetricCacheRedis } from "@/features/metric/infrastructure/cache/MetricCacheRedis.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import {
   connectRabbitMQ,
@@ -208,7 +209,10 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
     };
     api = appWith({
       metricLog: buildMetricLogFeature(
-        { metricAccess: new MetricAccessSequelize() },
+        {
+          metricAccess: new MetricAccessSequelize(),
+          metricCache: new MetricCacheRedis(),
+        },
         { messageQueue: queue },
       ),
     });

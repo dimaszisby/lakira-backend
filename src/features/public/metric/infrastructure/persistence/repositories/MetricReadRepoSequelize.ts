@@ -13,6 +13,7 @@ import {
   Dir,
 } from "../../../application/ports/MetricReadRepository.js";
 import {
+  logCountOf,
   toDomainMetricLibrary,
   toExtendedMetricDomain,
 } from "../mappers/MetricReadMapper.js";
@@ -81,20 +82,13 @@ export class MetricReadRepoSequelize implements MetricReadRepository {
     let nextCursor: string | undefined;
     if (hasMore && slice.length) {
       const last = slice[slice.length - 1];
-      const logCountValue =
-        typeof (last as { get?: unknown }).get === "function"
-          ? (last as MetricModel & { get: (k: string) => unknown }).get(
-              "logCount",
-            )
-          : (last as MetricModel & { logCount?: unknown }).logCount;
       const payload: CursorPayload = {
         sort,
         id: last.id,
         createdAt: last.createdAt?.toISOString(),
         updatedAt: last.updatedAt?.toISOString(),
         nameLower: last.name?.toLowerCase(),
-        // Access literal value when rows are plain objects (unit tests) or Sequelize instances.
-        logCount: Number((logCountValue as number | string | undefined) ?? 0),
+        logCount: logCountOf(last),
       };
       nextCursor = encodeCursor(payload);
     }

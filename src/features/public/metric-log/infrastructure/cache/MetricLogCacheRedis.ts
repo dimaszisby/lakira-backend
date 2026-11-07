@@ -1,6 +1,7 @@
 import { invalidateCacheByPattern, redisClient } from "@/utils/redis-client.js";
 import { CachePort } from "../../application/ports/CachePort.js";
 import type { VisualizationInvalidationPort } from "@/shared/application/ports/VisualizationInvalidationPort.js";
+import type { MetricCacheInvalidationPort } from "../../application/ports/MetricCacheInvalidationPort.js";
 import { cursorCacheNamespace } from "@/shared/cache/keys.js";
 import {
   logCacheInvalidation,
@@ -15,6 +16,7 @@ const METRIC_LOG_CURSOR_NAMESPACE_ALL = cursorCacheNamespace(
 export class MetricLogCacheRedis implements CachePort {
   constructor(
     private visualizationInvalidation: VisualizationInvalidationPort,
+    private metricCache: MetricCacheInvalidationPort,
   ) {}
 
   isEnabled(): boolean {
@@ -52,6 +54,9 @@ export class MetricLogCacheRedis implements CachePort {
           organizationId,
           metricId,
         ),
+        // The metric's list pages and its own entry carry its logs and their
+        // count (#251).
+        this.metricCache.invalidateMetrics(userId, organizationId, metricId),
       ]);
 
       logCacheInvalidation("metric-log-cache", {
