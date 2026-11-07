@@ -64,6 +64,9 @@ describe("buildWiredMetricLogFeature", () => {
     store.add(`vizdash:${ORG}:${USER}:overview`);
     store.add(`viz:${ORG}:${USER}:other-metric:line:7d`);
     store.add(`viz:other-org:${USER}:${METRIC}:line:7d`);
+    store.add(`cursor:metrics:v4:${USER}:org:${ORG}:l:20:s:-createdAt`);
+    store.add(`metric:${ORG}:${USER}:${METRIC}:inc:logs:ll:20`);
+    store.add(`metric:${ORG}:${USER}:other-metric:inc:logs:ll:20`);
   });
 
   it("the queue handler clears the analytics caches for the job's metric", async () => {
@@ -75,6 +78,26 @@ describe("buildWiredMetricLogFeature", () => {
 
     expect(store.has(`viz:${ORG}:${USER}:${METRIC}:line:7d`)).toBe(false);
     expect(store.has(`vizdash:${ORG}:${USER}:overview`)).toBe(false);
+  });
+
+  // Issue #251: the metric's list pages and its own entry carry its logs and
+  // their count, and a log write left them for their 60 s.
+  it("the queue handler clears the metric's list and entry too", async () => {
+    const { dummyLogsHandler } = build();
+
+    await dummyLogsHandler.handle(jobMessage(), {
+      queue: "metric-log.generate-dummy",
+    } as never);
+
+    expect(
+      store.has(`cursor:metrics:v4:${USER}:org:${ORG}:l:20:s:-createdAt`),
+    ).toBe(false);
+    expect(store.has(`metric:${ORG}:${USER}:${METRIC}:inc:logs:ll:20`)).toBe(
+      false,
+    );
+    expect(store.has(`metric:${ORG}:${USER}:other-metric:inc:logs:ll:20`)).toBe(
+      true,
+    );
   });
 
   it("leaves other metrics' and other organizations' caches alone", async () => {

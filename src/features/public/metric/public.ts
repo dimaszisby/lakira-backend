@@ -8,3 +8,5 @@
  * See ADR-0045.
  */
 export { MetricAccessSequelize } from "./infrastructure/providers/MetricAccessSequelize.js";
+// Metric-log clears a metric's cached list and entry with it (#251).
+export { MetricCacheRedis } from "./infrastructure/cache/MetricCacheRedis.js";
