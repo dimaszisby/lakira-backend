@@ -132,7 +132,7 @@ Less common, but real — several are what CI or deployment calls.
 | Command                                                                           | Does                                                                       |
 | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | `npm run start:test`                                                              | Run the built server for tests (`ALLOW_TEST_HTTP_SERVER=true`); used by CI |
-| `npm run start:staging`                                                           | Migrate, then run the built server with `NODE_ENV=staging`                 |
+| `npm run start:staging`                                                           | Run the built server with `NODE_ENV=staging`; CI migrates first (ADR-0090) |
 | `npm run test:dev`                                                                | Jest in watch mode against local Postgres                                  |
 | `npm run test:unit:coverage` / `npm run test:integration:coverage`                | One project with coverage thresholds; used by CI                           |
 | `npm run lint:tests`                                                              | ESLint over `__tests__/` only                                              |
