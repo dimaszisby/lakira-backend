@@ -376,13 +376,18 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
             "SENTRY_DSN is not a DSN Sentry can read; copy it again from the project's Client Keys, or remove it to turn Sentry off",
         })
         .optional(),
+      // A fraction from 0 to 1. It was `parseFloat` of the value, so 5, -1 and
+      // "0.5abc" started the app (#247, ADR-0089). Blank means 0, as unset does,
+      // like SENTRY_DSN beside it.
       SENTRY_TRACES_SAMPLE_RATE: z
         .string()
-        .transform((val) => {
-          const parsed = parseFloat(val);
-          return isNaN(parsed) ? 0 : parsed;
+        .trim()
+        .regex(/^(?:|0(?:\.\d+)?|1(?:\.0+)?)$/, {
+          message:
+            "SENTRY_TRACES_SAMPLE_RATE must be a number from 0 to 1, or be removed to use 0",
         })
-        .prefault("0"),
+        .default("0")
+        .transform((val) => (val === "" ? 0 : Number(val))),
       // Release identity (ADR-0039 Part 1). CI/platform supplies the commit SHA via
       // APP_RELEASE; Render also auto-sets RENDER_GIT_COMMIT from the branch tip it builds,
       // used as a fallback when APP_RELEASE is unset — APP_RELEASE always wins when both are
