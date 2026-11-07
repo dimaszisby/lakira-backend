@@ -1,6 +1,7 @@
 # Todo — `SENTRY_TRACES_SAMPLE_RATE` takes any number
 
-- **Status:** Open. Issue #247 (was register row B-99)
+- **Status:** Closed (2026-11-07) by issue #247 (was register row B-99): a value outside 0 to 1
+  is refused at startup (ADR-0089)
 - **Created:** 2026-10-27
 - **Owner:** unassigned
 - **Origin:** § 4.4 and § 6.4 (P3, "LOW") of

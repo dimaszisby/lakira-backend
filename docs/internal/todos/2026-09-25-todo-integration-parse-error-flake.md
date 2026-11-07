@@ -253,3 +253,12 @@ dashboard visualization data`. Both are `GET` requests with no body, which `body
 read. The two files alone passed three times in a row, and the next full run, on fresh
 containers, passed (316 passed, 6 skipped). `analytics-caching.test.ts` is the suite of the first
 2026-10-21 sighting.
+
+## 2026-11-07 — a `Parse Error` in the JSON body guard
+
+On `fix/247-sentry-sample-rate-range`, which changes one environment variable's schema, one
+`npm run test:integration:coverage` on Node 24.22.1 failed one test with `Parse Error: Expected
+HTTP/, RTSP/ or ICE/`: `JSON body guard › rejects scalar payloads for POST /api/v1/metrics`
+(`json-body-guard.test.ts`), a `POST` with a scalar body (316 passed, 6 skipped, 1 failed). The file
+alone, on fresh containers, passed three times in a row (13/13 each), and the next full run, on
+fresh containers, passed (317 passed, 6 skipped). The same shape as the sightings above.
