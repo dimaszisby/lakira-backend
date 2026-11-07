@@ -253,15 +253,15 @@ like every other URL.
 
 ## Observability & operations
 
-| Variable                    | Type                            | Default                                         |
-| --------------------------- | ------------------------------- | ----------------------------------------------- |
-| `SENTRY_DSN`                | DSN; a malformed one is refused | optional — Sentry is off when unset or blank    |
-| `SENTRY_TRACES_SAMPLE_RATE` | number                          | `0`                                             |
-| `APP_RELEASE`               | string                          | `"unknown"` (falls back to `RENDER_GIT_COMMIT`) |
-| `SWAGGER_REQUIRE_AUTH`      | boolean                         | `true`                                          |
-| `ENABLE_DUMMY_ENDPOINTS`    | boolean                         | `true` in development/test, else `false`        |
-| `ALLOW_TEST_HTTP_SERVER`    | boolean                         | `false`                                         |
-| `JEST_TIMEOUT`              | number                          | `30000`                                         |
+| Variable                    | Type                                                 | Default                                         |
+| --------------------------- | ---------------------------------------------------- | ----------------------------------------------- |
+| `SENTRY_DSN`                | DSN; a malformed one is refused                      | optional — Sentry is off when unset or blank    |
+| `SENTRY_TRACES_SAMPLE_RATE` | number from 0 to 1; anything else refused (ADR-0089) | `0`                                             |
+| `APP_RELEASE`               | string                                               | `"unknown"` (falls back to `RENDER_GIT_COMMIT`) |
+| `SWAGGER_REQUIRE_AUTH`      | boolean                                              | `true`                                          |
+| `ENABLE_DUMMY_ENDPOINTS`    | boolean                                              | `true` in development/test, else `false`        |
+| `ALLOW_TEST_HTTP_SERVER`    | boolean                                              | `false`                                         |
+| `JEST_TIMEOUT`              | number                                               | `30000`                                         |
 
 `APP_RELEASE` is the commit `/api/v1/health` reports as `release`, and the release Sentry and the
 logs carry (ADR-0039). An empty value counts as unset. The Compose `app` and `worker` images bake
