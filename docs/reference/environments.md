@@ -192,17 +192,18 @@ Contract fixtures in CI:
 Current backend behavior in `src/server.ts`:
 
 - `origin`: the `CORS_ORIGIN` allowlist — a comma-separated list of origins, trimmed
-  (ADR-0034); defaults to `http://localhost:3000` when unset.
+  (ADR-0034), each kept as its origin and refused at startup if it is not one (ADR-0088);
+  defaults to `http://localhost:3000` when unset.
 - `credentials: true`.
 - `methods`: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`.
 
 Recommended FE alignment guidance:
 
-| FE surface          | Expected CORS origin to allow         | Notes                                                                                                                                     |
-| ------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Local FE dev        | `http://localhost:3000`               | Matches backend default today                                                                                                             |
-| FE preview (Vercel) | Preview domain(s) for active branches | List each origin in `CORS_ORIGIN`, comma-separated. Matching is exact: no wildcards, and case and trailing slash matter (open finding F6) |
-| FE production       | Final FE production domain            | `TBD` until FE production domain is finalized                                                                                             |
+| FE surface          | Expected CORS origin to allow         | Notes                                                                                                                                                     |
+| ------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local FE dev        | `http://localhost:3000`               | Matches backend default today                                                                                                                             |
+| FE preview (Vercel) | Preview domain(s) for active branches | List each origin in `CORS_ORIGIN`, comma-separated. No wildcards. Each entry is kept as its origin, so case and a trailing slash do not matter (ADR-0088) |
+| FE production       | Final FE production domain            | `TBD` until FE production domain is finalized                                                                                                             |
 
 GitHub secrets for staging deploy:
 
