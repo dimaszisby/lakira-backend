@@ -1,1 +1,1 @@
-documents/openapi/*.json text eol=lf
+docs/reference/api/*.json text eol=lf

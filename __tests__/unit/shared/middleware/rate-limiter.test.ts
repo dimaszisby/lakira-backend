@@ -1,12 +1,18 @@
 import { describe, beforeEach, it, expect, jest } from "@jest/globals";
 import type { AuthRequest } from "@/types/request.context.js";
 import type { Response } from "express";
+import { hashEmail } from "@/utils/email-hash.js";
 import {
+  clientIpKey,
   createGlobalRateLimiter,
   createUserRateLimiter,
   createAnalyticsRateLimiter,
+  createSwitchOrgRateLimiter,
+  createPasswordResetEmailRateLimiter,
+  createPasswordResetIpRateLimiter,
   createEmailVerificationEmailRateLimiter,
   createEmailVerificationIpRateLimiter,
+  createRegisterIpRateLimiter,
 } from "@/shared/middleware/rate-limiter.js";
 
 // Replace the real middleware factories with simple stubs so we can assert on the config that's passed in.
@@ -43,6 +49,7 @@ jest.mock("@/config/envManager.js", () => ({
     RATE_LIMIT_ANALYTICS_MAX: 25,
     RATE_LIMIT_EMAIL_VERIFICATION_EMAIL_MAX: 3,
     RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX: 10,
+    RATE_LIMIT_REGISTER_IP_MAX: 7,
     DISABLE_RATE_LIMITING: false,
   },
 }));
@@ -56,6 +63,7 @@ const { env: envMock } = jest.requireMock("@/config/envManager.js") as {
     RATE_LIMIT_ANALYTICS_MAX: number;
     RATE_LIMIT_EMAIL_VERIFICATION_EMAIL_MAX: number;
     RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX: number;
+    RATE_LIMIT_REGISTER_IP_MAX: number;
     DISABLE_RATE_LIMITING: boolean;
   };
 };
@@ -135,6 +143,34 @@ describe("rate limiter middleware", () => {
     expect(redisClient.sendCommand).toHaveBeenCalledWith(commandArgs);
   });
 
+  // Kit register-rate-limiter, D-07. With the library's default prefix every
+  // store wrote under "rl:", and the global limiter and the user limiter's IP
+  // fallback counted the same key, rl:<ip>.
+  it("gives each limiter's Redis store a prefix of its own", () => {
+    redisClient.isOpen = true;
+    const factories = [
+      createGlobalRateLimiter,
+      createUserRateLimiter,
+      createAnalyticsRateLimiter,
+      createSwitchOrgRateLimiter,
+      createPasswordResetEmailRateLimiter,
+      createPasswordResetIpRateLimiter,
+      createEmailVerificationEmailRateLimiter,
+      createEmailVerificationIpRateLimiter,
+      createRegisterIpRateLimiter,
+    ];
+
+    const prefixes = factories.map(
+      (create) => unwrapLimiter(create()).store.storeOptions.prefix,
+    );
+
+    expect(prefixes).toHaveLength(9);
+    for (const prefix of prefixes) {
+      expect(prefix).toMatch(/^rl:[a-z-]+:$/);
+    }
+    expect(new Set(prefixes).size).toBe(prefixes.length);
+  });
+
   it("logs offender identity for user rate limiter", () => {
     redisClient.isOpen = true;
     const limiter = unwrapLimiter(createUserRateLimiter());
@@ -146,7 +182,7 @@ describe("rate limiter middleware", () => {
     expect(limiter.keyGenerator(userReq)).toBe("user:user-7");
     expect(limiter.keyGenerator(anonymousReq)).toBe("127.0.0.1");
 
-    const options = { statusCode: 429, message: { status: 429 } };
+    const options = { statusCode: 429, message: "Slow down." };
     limiter.handler(userReq, res, jest.fn(), options);
     limiter.handler(anonymousReq, res, jest.fn(), options);
 
@@ -157,7 +193,10 @@ describe("rate limiter middleware", () => {
       "Rate limit exceeded for IP: 127.0.0.1",
     );
     expect(res.status).toHaveBeenCalledWith(429);
-    expect(res.json).toHaveBeenCalledWith(options.message);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "fail",
+      message: limiter.message,
+    });
   });
 
   it("uses analytics-specific key and message", () => {
@@ -167,10 +206,7 @@ describe("rate limiter middleware", () => {
     const req = { user: { id: "abc" }, ip: "1.1.1.1" } as AuthRequest;
     const options = {
       statusCode: 429,
-      message: {
-        status: 429,
-        message: "Too many visualization requests, slow down.",
-      },
+      message: "Too many visualization requests, slow down.",
     };
 
     expect(limiter.keyGenerator(req)).toBe("analytics:abc");
@@ -181,7 +217,10 @@ describe("rate limiter middleware", () => {
       "Analytics rate limit exceeded for abc",
     );
     expect(res.status).toHaveBeenCalledWith(429);
-    expect(res.json).toHaveBeenCalledWith(options.message);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "fail",
+      message: limiter.message,
+    });
   });
 
   it("falls back to IP for analytics key when user missing", () => {
@@ -192,38 +231,62 @@ describe("rate limiter middleware", () => {
     expect(limiter.keyGenerator(req)).toBe("9.9.9.9");
   });
 
+  it("keys the password reset email limiter on the address's hash", () => {
+    redisClient.isOpen = true;
+    const limiter = unwrapLimiter(createPasswordResetEmailRateLimiter());
+    const keyFor = (email: unknown) =>
+      limiter.keyGenerator({ body: { email }, ip: "1.2.3.4" } as AuthRequest);
+
+    // log-redaction-coverage D-15: never the address itself in a store key.
+    expect(keyFor("test@example.com")).toBe(
+      `password-reset:email:${hashEmail("test@example.com")}`,
+    );
+    expect(keyFor(" Test@Example.com ")).toBe(keyFor("test@example.com"));
+    expect(keyFor("test@example.com")).not.toContain("example.com");
+    expect(keyFor("   ")).toBe("password-reset:ip:1.2.3.4");
+  });
+
   it("uses per-email key and configured max for email verification email limiter", () => {
     redisClient.isOpen = true;
     const limiter = unwrapLimiter(createEmailVerificationEmailRateLimiter());
     const res = createResponse();
 
     const authedReq = {
-      user: { email: "test@example.com" },
+      user: { id: "user-1", email: "test@example.com" },
       ip: "1.2.3.4",
     } as AuthRequest;
     const anonReq = { ip: "1.2.3.4" } as AuthRequest;
 
+    // log-redaction-coverage D-15: the store key names the address by its hash.
     expect(limiter.keyGenerator(authedReq)).toBe(
-      "email-verification:email:test@example.com",
+      `email-verification:email:${hashEmail("test@example.com")}`,
     );
+    expect(limiter.keyGenerator(authedReq)).toMatch(
+      /^email-verification:email:[a-f0-9]{64}$/,
+    );
+    expect(
+      limiter.keyGenerator({
+        user: { id: "user-1", email: "Test@Example.com" },
+        ip: "1.2.3.4",
+      } as AuthRequest),
+    ).toBe(limiter.keyGenerator(authedReq));
     expect(limiter.keyGenerator(anonReq)).toBe("email-verification:ip:1.2.3.4");
     expect(limiter.max).toBe(envMock.RATE_LIMIT_EMAIL_VERIFICATION_EMAIL_MAX);
 
     const options = {
       statusCode: 429,
-      message: {
-        status: 429,
-        message:
-          "Too many verification email requests, please try again later.",
-      },
+      message: "Too many verification email requests, please try again later.",
     };
     limiter.handler(authedReq, res, jest.fn(), options);
 
     expect(loggerMock.warn).toHaveBeenCalledWith(
-      "Email verification email rate limit hit for test@example.com",
+      "Email verification email rate limit hit for user user-1",
     );
     expect(res.status).toHaveBeenCalledWith(429);
-    expect(res.json).toHaveBeenCalledWith(options.message);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "fail",
+      message: limiter.message,
+    });
   });
 
   it("uses per-IP key and configured max for email verification IP limiter", () => {
@@ -238,11 +301,7 @@ describe("rate limiter middleware", () => {
 
     const options = {
       statusCode: 429,
-      message: {
-        status: 429,
-        message:
-          "Too many verification email requests, please try again later.",
-      },
+      message: "Too many verification email requests, please try again later.",
     };
     limiter.handler(req, res, jest.fn(), options);
 
@@ -250,7 +309,42 @@ describe("rate limiter middleware", () => {
       "Email verification IP rate limit hit for 5.6.7.8",
     );
     expect(res.status).toHaveBeenCalledWith(429);
-    expect(res.json).toHaveBeenCalledWith(options.message);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "fail",
+      message: limiter.message,
+    });
+  });
+
+  // Audit R1 (kit register-rate-limiter, D-01): registration emails the address
+  // it is given, so it gets an hourly per-IP budget of its own.
+  it("uses per-IP key, hourly window and configured max for the register limiter", () => {
+    redisClient.isOpen = true;
+    const limiter = unwrapLimiter(createRegisterIpRateLimiter());
+    const res = createResponse();
+    const req = { ip: "9.9.9.9" } as AuthRequest;
+
+    expect(limiter.keyGenerator(req)).toBe("register-ip:9.9.9.9");
+    expect(limiter.max).toBe(envMock.RATE_LIMIT_REGISTER_IP_MAX);
+    expect(limiter.windowMs).toBe(60 * 60 * 1000);
+    expect(limiter.store).toEqual(
+      expect.objectContaining({ storeOptions: expect.anything() }),
+    );
+
+    const options = {
+      statusCode: 429,
+      message: "Too many registration attempts, please try again later.",
+    };
+    expect(limiter.message).toEqual(options.message);
+    limiter.handler(req, res, jest.fn(), options);
+
+    expect(loggerMock.warn).toHaveBeenCalledWith(
+      "Registration IP rate limit hit for 9.9.9.9",
+    );
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "fail",
+      message: limiter.message,
+    });
   });
 
   it("returns a no-op middleware when DISABLE_RATE_LIMITING is true", () => {
@@ -259,17 +353,96 @@ describe("rate limiter middleware", () => {
     const globalLimiter = createGlobalRateLimiter();
     const userLimiter = createUserRateLimiter();
     const analyticsLimiter = createAnalyticsRateLimiter();
+    const registerLimiter = createRegisterIpRateLimiter();
     const next = jest.fn();
     const res = createResponse();
 
     globalLimiter({} as AuthRequest, res, next);
     userLimiter({} as AuthRequest, res, next);
     analyticsLimiter({} as AuthRequest, res, next);
+    registerLimiter({} as AuthRequest, res, next);
 
-    expect(next).toHaveBeenCalledTimes(3);
+    expect(next).toHaveBeenCalledTimes(4);
     expect(rateLimitFactory).not.toHaveBeenCalled();
     expect(loggerMock.info).toHaveBeenCalledWith(
       "[RATE LIMITER] DISABLE_RATE_LIMITING=true — skipping throttling (contract tests / fuzzing runs).",
     );
+  });
+});
+
+// ADR-0063: an IPv6 client is keyed by its /64, an IPv4 client as before.
+describe("clientIpKey", () => {
+  it.each([
+    ["no address", undefined, "anonymous"],
+    ["an empty address", "", "anonymous"],
+    ["IPv4", "203.0.113.9", "203.0.113.9"],
+    ["IPv4-mapped IPv6, dotted", "::ffff:203.0.113.9", "203.0.113.9"],
+    ["IPv4-mapped IPv6, in hex", "::ffff:cb00:7109", "203.0.113.9"],
+    ["IPv4-mapped IPv6, upper case", "::FFFF:203.0.113.9", "203.0.113.9"],
+    ["an IPv6 address", "2001:db8:0:1::a", "2001:db8:0:1::/64"],
+    [
+      "the full spelling of one",
+      "2001:0DB8:0000:0001:ffff:0001:0002:0003",
+      "2001:db8:0:1::/64",
+    ],
+    ["a zone id", "fe80::1%eth0", "fe80:0:0:0::/64"],
+    ["a dotted IPv4 tail", "64:ff9b::192.0.2.1", "64:ff9b:0:0::/64"],
+    ["loopback", "::1", "0:0:0:0::/64"],
+    ["the unspecified address", "::", "0:0:0:0::/64"],
+    ["something that is not an address", "not-an-ip", "not-an-ip"],
+  ])("keys %s", (_name, ip, expected) => {
+    expect(clientIpKey(ip)).toBe(expected);
+  });
+
+  it("gives neighbouring /64s different keys", () => {
+    expect(clientIpKey("2001:db8:0:1::1")).not.toBe(
+      clientIpKey("2001:db8:0:2::1"),
+    );
+  });
+});
+
+describe("every per-IP key groups an IPv6 /64 (ADR-0063)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    envMock.DISABLE_RATE_LIMITING = false;
+  });
+
+  // A keyGenerator the library's default would apply when a limiter sets none.
+  const defaultKey = (req: AuthRequest) => req.ip;
+
+  it.each([
+    ["global", createGlobalRateLimiter, ""],
+    ["user", createUserRateLimiter, ""],
+    ["analytics", createAnalyticsRateLimiter, ""],
+    ["switch-org", createSwitchOrgRateLimiter, ""],
+    [
+      "password reset email",
+      createPasswordResetEmailRateLimiter,
+      "password-reset:ip:",
+    ],
+    [
+      "password reset IP",
+      createPasswordResetIpRateLimiter,
+      "password-reset-ip:",
+    ],
+    [
+      "email verification email",
+      createEmailVerificationEmailRateLimiter,
+      "email-verification:ip:",
+    ],
+    [
+      "email verification IP",
+      createEmailVerificationIpRateLimiter,
+      "email-verification-ip:",
+    ],
+    ["register", createRegisterIpRateLimiter, "register-ip:"],
+  ])("the %s limiter", (_name, create, prefix) => {
+    const limiter = unwrapLimiter(create());
+    const keyOf = (ip: string) =>
+      (limiter.keyGenerator ?? defaultKey)({ ip, body: {} } as AuthRequest);
+
+    expect(keyOf("2001:db8:0:1::a")).toBe(`${prefix}2001:db8:0:1::/64`);
+    expect(keyOf("2001:db8:0:1:ffff:1:2:3")).toBe(`${prefix}2001:db8:0:1::/64`);
+    expect(keyOf("::ffff:203.0.113.9")).toBe(`${prefix}203.0.113.9`);
   });
 });

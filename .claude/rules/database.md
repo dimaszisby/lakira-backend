@@ -47,7 +47,9 @@ module.exports = {
 ## Model Registration
 
 - Models defined in feature's `infrastructure/persistence/models/`
-- Each model file exports `registerXModels(sequelize)` and `associateXModels(models)`
+- Each feature exports `registerXModels(sequelize)` and `associateXModels(models)` from one of its
+  model files (e.g. `registerAuthModels` in `shared/auth/.../models/user.sequelize.ts`); individual
+  model files export their own `associateX` helpers
 - All models registered in `src/infrastructure/db/models.ts` (cached singleton)
 - DB column names use `snake_case`; domain properties use `camelCase`
 
@@ -63,8 +65,31 @@ Mapper:          XMapper.toDomain(sequelizeModel) / XMapper.toPersistence(domain
 - Mappers handle the `snake_case` ↔ `camelCase` translation
 - Repository methods: `create()`, `findById()`, `save()`, `findByX()`, `existsX()`
 
+## Query ordering
+
+ADR-0052. Two rules, both about getting the same rows back in the same order every time.
+
+- **An order that feeds `limit`, pagination, or a "first"/"latest" pick ends with `id`**, in the
+  same direction as the key before it. Postgres returns rows that tie on every sort key in any
+  order, and at a `limit` boundary a tie changes _which_ rows come back. Add `id` even where a
+  unique constraint already makes the leading key unique.
+- **Metric logs are ordered, filtered and dated by `loggedAt`**, never `createdAt`. `loggedAt` is
+  when the value was measured; `createdAt` is when the row was inserted, and they differ for every
+  backfilled log.
+
+```ts
+order: [
+  ["loggedAt", "DESC"],
+  ["id", "DESC"],
+],
+```
+
+The list endpoints' `buildOrder` helpers follow the same shape for every sort field. Raw SQL does
+too: `ORDER BY priority NULLS LAST, ms.created_at DESC, ms.id DESC`.
+
 ## Sequelize CLI Config
 
-- `.sequelizerc` points CLI to `src/config/config.cjs` and `src/migrations/`
+- There is no `.sequelizerc`: every `migrate:*` script passes `--config src/config/config.cjs` and
+  `--migrations-path src/migrations` explicitly. Running `npx sequelize-cli` by hand needs both flags
 - Environment-specific connection strings: `DEVELOPMENT_DATABASE_URL`, `TEST_DATABASE_URL`, etc.
 - SSL enabled for staging/production (`dialectOptions.ssl`)

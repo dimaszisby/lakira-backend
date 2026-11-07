@@ -1,0 +1,311 @@
+# Configuration
+
+Every environment variable is declared in the Zod schema in `src/config/zodEnv.ts` and read
+through `loadEnvOrExit()` in `src/config/envManager.ts`.
+
+Three properties follow from that:
+
+- **Validated at boot.** An invalid or missing required variable crashes the process
+  immediately with a field-level error, rather than failing later at first use.
+- **Read once.** The parsed object is cached; changing `process.env` after boot has no effect.
+  Tests call `resetEnvCacheForTesting()` to clear it.
+- **Never read directly.** Application code uses `env.X`, never `process.env.X`. This is a
+  convention, not a lint rule: ESLint bans `process.env` only in `__tests__/**` (use `withTestEnv`
+  there). The known exceptions in `src/` are `src/config/app-name.ts` and `src/utils/logger.ts`,
+  which load before `envManager` and so cannot use it.
+
+**Two things have no default: `JWT_SECRET`, and a database connection.** The database needs
+either a `DATABASE_URL` (or its per-environment variant) or all of `DB_USER`, `DB_PASSWORD` and
+`DB_NAME`; startup throws otherwise. Everything else boots on its default.
+
+Copy `.env.example` to `.env` to begin. Adding a variable means adding it to `zodEnv.ts` first —
+the schema is the source of truth, and this page is derived from it.
+
+## Secret redaction
+
+Any variable whose name matches `SENSITIVE_KEY_PATTERN` (`src/config/sensitive-keys.ts`) is written
+to logs as `***REDACTED***`. That module is the single source of truth — read it rather than
+trusting a copy, because every restatement of this pattern has drifted.
+
+Two matching styles: `password`, `secret`, `authorization`, `cookie` and `bearer` match **anywhere**
+in the name, while `token`, `key`, `certificate`, `url` and `dsn` must be the **suffix**. So
+`RESEND_API_KEY`, `DATABASE_URL` and `SENTRY_DSN` are masked while `EMAIL_FROM` is not. Name new
+secrets to end in one of the suffix words, or add a term to that module.
+
+---
+
+## Core
+
+| Variable                 | Type                                                           | Default                                                          |
+| ------------------------ | -------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `NODE_ENV`               | `development` \| `test` \| `staging` \| `production`, any case | `development`; the production image sets `production` (ADR-0050) |
+| `PORT`                   | number                                                         | `5000`                                                           |
+| `JWT_SECRET`             | string, 32+ characters in staging and production               | **required**                                                     |
+| `ACCESS_TOKEN_TTL_SEC`   | number                                                         | `900` (15 min)                                                   |
+| `REFRESH_TOKEN_TTL_DAYS` | number                                                         | `30`                                                             |
+| `CORS_ORIGIN`            | string                                                         | optional — comma-separated allowlist                             |
+| `TRUST_PROXY`            | whole number, 0 or more; blank refused                         | `1` — proxy hops in front of the app                             |
+| `REQUEST_BODY_LIMIT`     | string                                                         | `1mb`                                                            |
+| `DEFAULT_TZ`             | IANA time zone name or `UTC`; an offset is refused             | `Asia/Jakarta`                                                   |
+
+> `NODE_ENV` is read in any case: `Production` runs as `production`, and every default that
+> depends on it, such as `DB_SSL_REJECT_UNAUTHORIZED`, follows the lowercase name.
+
+## Database
+
+Give **either** a connection URL **or** the discrete parts. URLs win when both are present, and
+the per-environment URL is selected by `NODE_ENV`.
+
+| Variable                                                                                              | Type    | Default                                         |
+| ----------------------------------------------------------------------------------------------------- | ------- | ----------------------------------------------- |
+| `DATABASE_URL`                                                                                        | string  | optional                                        |
+| `DEVELOPMENT_DATABASE_URL` / `TEST_DATABASE_URL` / `STAGING_DATABASE_URL` / `PRODUCTION_DATABASE_URL` | string  | optional                                        |
+| `DB_HOST`                                                                                             | string  | `db` under `NODE_ENV=test`, else `127.0.0.1`    |
+| `DB_PORT`                                                                                             | number  | `5432`                                          |
+| `DB_USER` / `DB_PASSWORD` / `DB_NAME`                                                                 | string  | optional                                        |
+| `DB_LOGGING`                                                                                          | boolean | `false`                                         |
+| `DB_POOL_MAX`                                                                                         | number  | `5`: connections in each process's pool         |
+| `DB_POOL_MIN`                                                                                         | number  | `0`: connections the pool keeps open while idle |
+| `LOG_LEVEL`                                                                                           | enum    | `http` in production, else `debug`              |
+| `SKIP_DB_LIFECYCLE`                                                                                   | boolean | `false`                                         |
+| `DB_SSL_REJECT_UNAUTHORIZED`                                                                          | boolean | `true` in production and staging, else `false`  |
+| `DB_SSL_CA`                                                                                           | string  | optional: a PEM CA certificate                  |
+
+> `DB_SSL_REJECT_UNAUTHORIZED=false` turns off verification of the database's certificate. Startup
+> refuses it when `NODE_ENV=production`, and so do the migrations (`config.cjs`). Staging defaults
+> to `true` and may set `false`, with a warning at every start. `DB_SSL_CA` is the CA a verified
+> connection trusts, beside Node's default bundle: the PEM text of the certificate, a literal `\n`
+> read as a newline. Set it when the database is signed by a private CA, as Render's Postgres is;
+> a value that holds no certificate is refused at startup (ADR-0036, 2026-10-21 note).
+
+> `LOG_LEVEL` is one of `error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`; each level
+> includes the ones above it. Production defaults to `http` rather than `info` so the HTTP
+> access-log lines are included — at `info` they would be silently dropped. `silly` is **refused**
+> in production (ADR-0036). `DB_LOGGING=true` routes SQL through `logger.debug`, so it only
+> produces output when `LOG_LEVEL` is `debug` or lower. It is a development tool: the statement
+> text carries the values of its `WHERE` clause, so it is **refused** in production (ADR-0036) and
+> has no effect in staging or test. It also decides whether development migrations print their SQL
+> (`src/config/config.cjs`); they do not by default.
+>
+> Logs go to **stdout only**; the app writes no log files (ADR-0041). Access-log lines carry the
+> request path with the query string stripped — redaction covers log metadata, not URL strings or
+> message text, so no message carries an email address (a limiter names a user id, an IP or a hash).
+> See [`../how-to/development/read-application-logs.md`](../how-to/development/read-application-logs.md).
+
+> `DB_POOL_MAX` and `DB_POOL_MIN` size the pool **each process** opens: every server instance and
+> every worker holds its own (ADR-0086). Two rules size it. (1) The pools together must stay under
+> the database's connection limit: (server instances + worker instances) × `DB_POOL_MAX`, with room
+> left for migrations and an admin session. (2) A worker job holds one connection for its whole run,
+> so a worker's `DB_POOL_MAX` should be at least the number of jobs it runs at once, which
+> `RABBITMQ_PREFETCH` decides per queue; a job that finds the pool full waits up to 60 s and then
+> fails. Both must be whole numbers, `DB_POOL_MAX` 1 or more, and `DB_POOL_MIN` cannot be more than
+> `DB_POOL_MAX`; startup refuses otherwise. The migrations (`config.cjs`) open one connection and
+> do not read them.
+
+> `DB_HOST` defaulting to `db` in test targets the Docker Compose service name. Running tests on
+> the host instead requires `DB_HOST=127.0.0.1`.
+
+## Redis
+
+| Variable                   | Type    | Default                                         |
+| -------------------------- | ------- | ----------------------------------------------- |
+| `REDIS_URL`                | string  | optional                                        |
+| `REDIS_HOST`               | string  | `redis` under `NODE_ENV=test`, else `127.0.0.1` |
+| `REDIS_PORT`               | number  | `6379`                                          |
+| `REDIS_PASSWORD`           | string  | optional                                        |
+| `REDIS_REQUIRED`           | boolean | `false` in test, else `true`                    |
+| `ENABLE_REDIS_INTEGRATION` | boolean | `false`                                         |
+
+`REDIS_REQUIRED=true` means "the app cannot serve correctly without Redis", **not** "exit on the
+first error". A lost connection is retried with backoff for about **30 seconds** (35 attempts,
+`min(retries * 50, 2000)` ms apart); only if that budget is exhausted does the process log the
+reason and exit `1`, so the platform restarts it. A Redis restart or a cold start reconnects
+without dropping the process.
+
+With `REDIS_REQUIRED=false` the app degrades instead: it logs and continues after the same retry
+budget, caching is skipped, and rate limiting falls back to an **in-memory, per-instance** store —
+which is weaker than it sounds in a multi-instance deployment, so treat `false` as a temporary
+measure rather than a setting.
+
+## RabbitMQ
+
+Disabled by default; the app substitutes a no-op queue so nothing else has to change.
+
+| Variable                              | Type    | Default                                 |
+| ------------------------------------- | ------- | --------------------------------------- |
+| `RABBITMQ_ENABLED`                    | boolean | `false`                                 |
+| `RABBITMQ_URL`                        | string  | optional (overrides the discrete parts) |
+| `RABBITMQ_HOST`                       | string  | `127.0.0.1`                             |
+| `RABBITMQ_PORT`                       | number  | `5672`                                  |
+| `RABBITMQ_USER` / `RABBITMQ_PASSWORD` | string  | `guest` / `guest`                       |
+| `RABBITMQ_VHOST`                      | string  | `/`                                     |
+| `RABBITMQ_PREFETCH`                   | number  | `10`                                    |
+| `RABBITMQ_MAX_RETRIES`                | number  | `5`                                     |
+| `RABBITMQ_RETRY_BASE_DELAY_MS`        | number  | `2000`                                  |
+
+With `RABBITMQ_URL` set, the connection uses it as given and ignores `RABBITMQ_USER` and
+`RABBITMQ_PASSWORD`. A URL that names no user and password logs in as `guest`. In production with
+`RABBITMQ_ENABLED=true`, startup refuses a `guest` user or password in whichever of the two the
+connection will use (ADR-0036).
+
+A failed job is retried up to `RABBITMQ_MAX_RETRIES` times, waiting `RABBITMQ_RETRY_BASE_DELAY_MS`
+before the first retry and doubling each time (capped at 5 minutes), then parked. `0` parks on the
+first failure. See [ADR-0005](../explanation/decisions/adr-0005-topic-exchange-with-parking-lot-dlx.md).
+
+`src/worker.ts` consumes the queue and exits at startup unless `RABBITMQ_ENABLED=true`. Locally
+it is an opt-in Compose service (`docker compose --profile worker up -d`) that sets the flag in its
+own `environment:`, so the `app` service keeps the synchronous fallback. Only the worker enables
+the queue.
+
+**Do not set `RABBITMQ_ENABLED=true` on the server where no worker runs.** The server then queues
+the verification, password-reset and invite emails for the worker to send (ADR-0067, ADR-0069,
+ADR-0070), and without a consumer nobody receives them. The worker sends them with the email
+settings above, so it needs the same `EMAIL_PROVIDER`, its key, `EMAIL_FROM`, `FRONTEND_VERIFY_URL`,
+`FRONTEND_RESET_URL`, `FRONTEND_INVITE_URL`, `EMAIL_VERIFICATION_TTL_SEC` and
+`INVITE_TOKEN_TTL_DAYS` as the server. Every publish gives up after 3 seconds; register and resend
+then send the email in process, and forgot-password and the invite send it in the request, as with
+the queue off.
+
+The integration suite needs a reachable broker at the default address even though
+`RABBITMQ_ENABLED` stays `false`. The queued-path test runs the consumer in-process and turns
+the queue on for itself. CI supplies RabbitMQ as a service container. Locally, stop the Compose
+worker before `npm test`, because it would consume the test's messages.
+
+## Rate limiting
+
+| Variable                                  | Type    | Default | Window           |
+| ----------------------------------------- | ------- | ------- | ---------------- |
+| `RATE_LIMIT_GLOBAL_MAX`                   | number  | `100`   | 15 min, per IP   |
+| `RATE_LIMIT_USER_MAX`                     | number  | `50`    | 15 min, per user |
+| `RATE_LIMIT_ANALYTICS_MAX`                | number  | `30`    | 1 min            |
+| `RATE_LIMIT_SWITCH_ORG_MAX`               | number  | `10`    | 15 min           |
+| `RATE_LIMIT_EMAIL_VERIFICATION_EMAIL_MAX` | number  | `3`     | per email        |
+| `RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX`    | number  | `10`    | per IP           |
+| `RATE_LIMIT_PASSWORD_RESET_EMAIL_MAX`     | number  | `3`     | per email        |
+| `RATE_LIMIT_PASSWORD_RESET_IP_MAX`        | number  | `10`    | per IP           |
+| `RATE_LIMIT_REGISTER_IP_MAX`              | number  | `10`    | 1 h, per IP      |
+| `RATE_LIMIT_LOGIN_MAX`                    | number  | `50`    | 15 min, per IP   |
+| `RATE_LIMIT_AUTH_SESSION_MAX`             | number  | `50`    | 15 min, per IP   |
+| `DISABLE_RATE_LIMITING`                   | boolean | `false` |                  |
+
+> `RATE_LIMIT_LOGIN_MAX` bounds `POST /auth/login`, and `RATE_LIMIT_AUTH_SESSION_MAX` bounds
+> `POST /auth/refresh` and `POST /auth/logout` together, each per client IP in a bucket of its own:
+> none of the three has a user to count by (`api-tooling-residuals` D-08).
+>
+> `RATE_LIMIT_REGISTER_IP_MAX` bounds `POST /auth/register` per client IP (ADR-0053). Every per-IP
+> limit is only as good as `req.ip`, which depends on `TRUST_PROXY` matching the real number of
+> proxies in front of the app; see the ADR's consequences. Startup refuses a blank, negative or
+> fractional `TRUST_PROXY`, and once listening it logs `[SERVER] Trusting N proxy hop(s)` with the
+> value in use (`register-rate-limiter` D-05).
+
+> `DISABLE_RATE_LIMITING=true` turns off **every** limiter. It exists for test and fuzzing
+> runs. Startup **refuses** it when `NODE_ENV` is `production` or `staging`, along with the other
+> production-unsafe switches listed in
+> [ADR-0036](../explanation/decisions/adr-0036-refuse-production-unsafe-env-switches.md):
+> `ALLOW_TEST_HTTP_SERVER=true`, `SWAGGER_REQUIRE_AUTH=false`, `SKIP_DB_LIFECYCLE=true`,
+> `LOG_LEVEL=silly`, `DB_LOGGING=true`, `DB_SSL_REJECT_UNAUTHORIZED=false` (production only), `EMAIL_PROVIDER=mailpit` (ADR-0048; production only), `EMAIL_PROVIDER=console` (ADR-0049), and default `guest` RabbitMQ credentials when `RABBITMQ_ENABLED=true`. Every one of them is refused in staging too, except the two marked production only. The process exits before binding a
+> listener and logs a structured `[ENV_ERROR]` line naming the offending variable.
+>
+> `JWT_SECRET` is on the same list for its strength: when `NODE_ENV` is `production` or `staging`,
+> startup refuses one shorter than 32 characters, and refuses the placeholder `.env.example`
+> ships. Tokens are HS256, so the secret is the whole of the signature's strength. Generate one
+> with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Replacing a
+> deployed secret logs every user out once.
+
+## Email
+
+| Variable                     | Type                               | Default                                                   |
+| ---------------------------- | ---------------------------------- | --------------------------------------------------------- |
+| `EMAIL_PROVIDER`             | `console` \| `resend` \| `mailpit` | `console` in development/test, else `resend`              |
+| `RESEND_API_KEY`             | string                             | optional — required when provider is `resend`             |
+| `MAILPIT_URL`                | URL                                | `http://localhost:8025` — used when provider is `mailpit` |
+| `EMAIL_FROM`                 | string                             | `onboarding@resend.dev`                                   |
+| `FRONTEND_RESET_URL`         | string                             | `http://localhost:3000/reset-password`                    |
+| `FRONTEND_VERIFY_URL`        | string                             | `http://localhost:3000/verify-email`                      |
+| `FRONTEND_INVITE_URL`        | string                             | `http://localhost:3000/invites/accept`                    |
+| `EMAIL_VERIFICATION_TTL_SEC` | number                             | `86400` (24 h)                                            |
+| `INVITE_TOKEN_TTL_DAYS`      | number                             | `7`                                                       |
+
+The provider is chosen by `EMAIL_PROVIDER`, not by `NODE_ENV`, so a staging environment can send
+real mail without pretending to be production. The `console` adapter logs the message, body and
+recipient included, instead of sending it. Because the body carries verify, reset and invite
+tokens, `console` is **refused unless `NODE_ENV` is `development` or `test`**
+([ADR-0049](../explanation/decisions/adr-0049-console-email-adapter-confined-to-dev-and-test.md)).
+The development log format drops the body anyway, so use `mailpit` to read tokens. The Resend
+adapter logs only the subject and error when a send fails, never the recipient.
+
+`mailpit` delivers every email to a local [Mailpit](https://mailpit.axllent.org) catcher through
+its HTTP API, so tokens can be read in its inbox or from a test
+([`../how-to/development/read-outbound-email.md`](../how-to/development/read-outbound-email.md)).
+It is refused when `NODE_ENV=production` and allowed in staging for the VPS stack
+([ADR-0048](../explanation/decisions/adr-0048-mailpit-for-local-outbound-email.md)). The Compose
+`app` service always uses it. `MAILPIT_URL` ends in `url`, so it is masked in environment dumps
+like every other URL.
+
+## Analytics & visualization
+
+| Variable                     | Type   | Default |
+| ---------------------------- | ------ | ------- |
+| `VIZ_MAX_BUCKETS`            | number | `400`   |
+| `VIZ_DASH_MAX_METRICS`       | number | `24`    |
+| `VIZ_DEFAULT_TTL_SEC`        | number | `120`   |
+| `VIZ_FALLBACK_GUARD_BUCKETS` | number | `96`    |
+
+## Observability & operations
+
+| Variable                    | Type                            | Default                                         |
+| --------------------------- | ------------------------------- | ----------------------------------------------- |
+| `SENTRY_DSN`                | DSN; a malformed one is refused | optional — Sentry is off when unset or blank    |
+| `SENTRY_TRACES_SAMPLE_RATE` | number                          | `0`                                             |
+| `APP_RELEASE`               | string                          | `"unknown"` (falls back to `RENDER_GIT_COMMIT`) |
+| `SWAGGER_REQUIRE_AUTH`      | boolean                         | `true`                                          |
+| `ENABLE_DUMMY_ENDPOINTS`    | boolean                         | `true` in development/test, else `false`        |
+| `ALLOW_TEST_HTTP_SERVER`    | boolean                         | `false`                                         |
+| `JEST_TIMEOUT`              | number                          | `30000`                                         |
+
+`APP_RELEASE` is the commit `/api/v1/health` reports as `release`, and the release Sentry and the
+logs carry (ADR-0039). An empty value counts as unset. The Compose `app` and `worker` images bake
+it in at build time, so a local image reports the commit it was built from:
+`APP_RELEASE=$(git rev-parse HEAD) docker compose up -d --build app`. It names the checkout's
+`HEAD`, so uncommitted changes are not reflected. Leave it out of `.env`: inside Compose a line
+there, even an empty one, overrides the image's (`release-and-retry-after` D-03, #190).
+
+## Branding
+
+| Variable   | Type   | Default                              |
+| ---------- | ------ | ------------------------------------ |
+| `APP_NAME` | string | the `name` in the app's package.json |
+
+`APP_NAME` drives the API title, the refresh cookie's name, email copy, log service name, and
+queue names. You do not have to set it: with the variable unset or blank, the app is named after
+its own package, which `scripts/bootstrap-fork.sh` renames for a fork
+([ADR-0060](../explanation/decisions/adr-0060-the-app-takes-its-name-from-its-package.md)). The
+image carries `package.json`, so a deployed fork is named after the fork with no platform variable.
+Set `APP_NAME` only to run under a different name than the package's. A set value always wins;
+when it differs from the package's name, the server and the worker log a warning at startup, since
+a value copied from another app's platform otherwise goes unnoticed.
+
+The name must match `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`: lowercase letters and digits, with single
+hyphens between them, starting with a letter. It is the rule `scripts/bootstrap-fork.sh` applies to
+`--name`. The app refuses to start with any other name, from the variable or from the package,
+because the name becomes the refresh cookie's name and the queue names. A scoped package name such
+as `@acme/shop-backend` is used without its scope, here and in the OpenAPI spec.
+
+The package it reads is the nearest `package.json` at or above the entry script (`dist/server.js`,
+`dist/worker.js`), or the one in the working directory when there is no entry script outside
+`node_modules`, as under test. With no variable and no package name to read, the app refuses to
+start and the error says where it looked.
+
+The **committed** OpenAPI spec file always takes its names from the package name, whatever the
+variable says, so that the drift gate cannot depend on a shell or an `.env`
+(`scripts/openapi-app-name.js`). The spec served at `/api/v1/docs/openapi.json` follows the runtime
+name. If you set `APP_NAME` to something other than the package name, the served spec and the
+committed file describe different names.
+
+**This is the one variable not in the Zod schema.** `src/config/app-name.ts` reads
+`process.env.APP_NAME` directly, because `logger.ts` imports it at module load, and going through
+the validated env object would make every import of the logger validate the whole environment. The
+server and the worker load `.env` before that module runs, so a value set there takes effect. The
+bypass is deliberate and commented at the source. Two names
+are derived from it: `APP_SHORT_NAME` (strips a trailing `-backend`) and `APP_DISPLAY_NAME`
+(title-cased).

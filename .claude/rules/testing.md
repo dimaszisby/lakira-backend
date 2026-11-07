@@ -17,10 +17,20 @@ Three separate projects in `jest.config.mjs`:
 
 Run a single test: `npx jest --runInBand --selectProjects unit -- path/to/test`
 
-## Coverage Thresholds (CI-enforced)
+## Coverage Thresholds
+
+`npm run test:unit:coverage` and `npm run test:integration:coverage` exit non-zero when coverage
+falls below these (`COVERAGE_THRESHOLDS` in `jest.config.mjs`); CI runs both:
 
 - Unit: 60% statements, 40% branches, 55% functions, 60% lines
 - Integration: 70% statements, 45% branches, 70% functions, 70% lines
+
+Jest reads `coverageThreshold` only from the root config, never from a project, so the root picks
+one project's set by `JEST_COVERAGE_PROJECT`, which each script sets (`coverage-thresholds-enforced`
+D-01). Do not move thresholds back into a project: Jest ignores them there, and they went
+unenforced that way until B-69. `__tests__/unit/jest-coverage-thresholds.test.ts` fails if one is.
+A coverage run of one file is far below any threshold, so run it with `npx jest ... --coverage`
+and no `JEST_COVERAGE_PROJECT`.
 
 ## Environment Access in Tests
 
@@ -57,10 +67,19 @@ describe("MyUseCase", () => {
 ## Integration Test Setup
 
 - Server auto-starts on `jest.setup.ts` (port 4000+workerId)
-- All tables truncated before each test (except SequelizeMeta)
+- All tables truncated before each test (except `SequelizeMeta` and `SequelizeData`)
+- The setup drains background work before truncating and before closing the database (ADR-0054).
+  A test that needs work a handler started after responding — the verification email — awaits
+  `drainBackgroundTasks()` from `@/utils/background-tasks.js`. Never a sleep or a polling loop
 - Use `supertest` for HTTP assertions
-- DB fixtures available in `__tests__/helpers/db-fixtures.js`
-- Domain factories: `makeUser()`, `makeMetric()` for test data
+- DB fixtures in `__tests__/integration/helpers/db-fixtures.ts` (`createUserRow`, `createMetricRow`,
+  `truncateAllTables`, …)
+- A test of an ordered query forces the case it checks: explicit ids and timestamps, arranged so
+  insertion order and index order both disagree with the expected order. Never rely on rows
+  inserted back to back getting distinct timestamps — that passes by luck and fails at random
+  (ADR-0052)
+- There are no shared domain factories: unit tests build entities locally (e.g. `makeUser` inside
+  each auth test); `__tests__/unit/factories/` holds only `metric-settings.ts`
 
 ## Test File Relaxations
 

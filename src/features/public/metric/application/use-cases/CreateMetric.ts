@@ -1,4 +1,7 @@
-import AppError from "@/utils/AppError.js";
+import {
+  ConflictError,
+  NotFoundError,
+} from "@/shared/domain/errors/DomainError.js";
 import { Metric } from "../../domain/entities/Metric.js";
 import {
   CreateMetricDTO,
@@ -6,7 +9,7 @@ import {
 } from "../../domain/repositories/MetricRepository.js";
 import { CachePort } from "../ports/CachePort.js";
 import { MetricSettingsPort } from "../ports/MetricSettingsPort.js";
-import { TransactionPort } from "../ports/TransactionPort.js";
+import { TransactionPort } from "@/shared/application/ports/TransactionPort.js";
 
 type Input = CreateMetricDTO;
 
@@ -26,7 +29,7 @@ export class CreateMetric {
         input.name,
       )
     ) {
-      throw new AppError("Metric already exists", 409);
+      throw new ConflictError("Metric already exists");
     }
 
     if (input.categoryId) {
@@ -35,7 +38,7 @@ export class CreateMetric {
         input.organizationId,
         input.categoryId,
       );
-      if (!exists) throw new AppError("Category not found", 404);
+      if (!exists) throw new NotFoundError("Category not found");
     }
 
     if (input.originalMetricId) {
@@ -43,7 +46,7 @@ export class CreateMetric {
         input.userId,
         input.originalMetricId,
       );
-      if (!exists) throw new AppError("Original metric not found", 404);
+      if (!exists) throw new NotFoundError("Original metric not found");
     }
 
     return this.tx.runInTransaction(async (t) => {
@@ -52,7 +55,11 @@ export class CreateMetric {
       await this.settings.createDefault(metric.id, input.organizationId, t);
 
       if (this.cache.isEnabled()) {
-        await this.cache.invalidateMetrics(metric.userId, metric.id);
+        await this.cache.invalidateMetrics(
+          metric.userId,
+          input.organizationId,
+          metric.id,
+        );
       }
 
       return metric;

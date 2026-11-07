@@ -1,7 +1,13 @@
-import AppError from "@/utils/AppError.js";
+import {
+  ConflictError,
+  NotFoundError,
+} from "@/shared/domain/errors/DomainError.js";
 import { MetricCategoryRepository } from "../../domain/repositories/MetricCategoryRepository.js";
 import { CachePort } from "../ports/CachePort.js";
-import { METRIC_CATEGORY_CURSOR_NAMESPACE_ALL } from "../cache.constants.js";
+import {
+  categoryEntryKey,
+  METRIC_CATEGORY_CURSOR_NAMESPACE_ALL,
+} from "../cache.constants.js";
 
 type Input = {
   userId: string;
@@ -32,13 +38,13 @@ export class UpdateCategory {
       categoryId,
     );
     if (!current) {
-      throw new AppError("Metric Category not found", 404);
+      throw new NotFoundError("Metric Category not found");
     }
 
     if (name && name !== current.name) {
       const exists = await this.repo.existsByName(userId, organizationId, name);
       if (exists) {
-        throw new AppError("Metric Category name already exists", 409);
+        throw new ConflictError("Metric Category name already exists");
       }
     }
 
@@ -52,7 +58,11 @@ export class UpdateCategory {
       await this.cache.delByPattern(
         `${METRIC_CATEGORY_CURSOR_NAMESPACE_ALL}:${userId}:*`,
       );
-      await this.cache.delByPattern(`category:${userId}:${categoryId}`);
+      // The key its GET writes; this once left out the organization, so nothing
+      // matched (api-tooling-residuals D-03, register row B-90).
+      await this.cache.delete(
+        categoryEntryKey(organizationId, userId, categoryId),
+      );
     }
 
     return updated;

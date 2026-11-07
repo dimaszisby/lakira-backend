@@ -1,11 +1,6 @@
 import { Router } from "express";
-import {
-  createInvite,
-  acceptInvite,
-  removeMembership,
-  changeMemberRole,
-  listMembers,
-} from "./organization.controller.js";
+import { createOrganizationController } from "./organization.controller.js";
+import type { AuthFeature } from "../../feature.js";
 import { authMiddleware } from "./authMiddleware.js";
 import { userRateLimiter } from "@/shared/middleware/rate-limiter.js";
 import { validate } from "@/shared/middleware/validation.js";
@@ -15,46 +10,58 @@ import {
   changeMemberRoleSchema,
   removeMembershipSchema,
   listMembersSchema,
+  listMyOrganizationsSchema,
 } from "./organization.schema.zod.js";
 import { methodNotAllowed } from "@/shared/middleware/method-guard.js";
 import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.js";
 
-export const createOrganizationRouter = () => {
+export const createOrganizationRouter = (feature: AuthFeature) => {
+  const controller = createOrganizationController(feature);
   const router = Router();
+
+  router.get(
+    "/",
+    authMiddleware,
+    userRateLimiter,
+    validate(listMyOrganizationsSchema),
+    controller.listMyOrganizations,
+  );
 
   router.post(
     "/:id/invites",
-    userRateLimiter,
     authMiddleware,
+    userRateLimiter,
     requireJsonObjectBody(),
     validate(createInviteSchema),
-    createInvite,
+    controller.createInvite,
   );
 
   router.get(
     "/:id/members",
-    userRateLimiter,
     authMiddleware,
+    userRateLimiter,
     validate(listMembersSchema),
-    listMembers,
+    controller.listMembers,
   );
 
+  router.all("/", methodNotAllowed(["GET"]));
   router.all("/:id/invites", methodNotAllowed(["POST"]));
   router.all("/:id/members", methodNotAllowed(["GET"]));
 
   return router;
 };
 
-export const createInviteRouter = () => {
+export const createInviteRouter = (feature: AuthFeature) => {
+  const controller = createOrganizationController(feature);
   const router = Router();
 
   router.post(
     "/accept",
-    userRateLimiter,
     authMiddleware,
+    userRateLimiter,
     requireJsonObjectBody(),
     validate(acceptInviteSchema),
-    acceptInvite,
+    controller.acceptInvite,
   );
 
   router.all("/accept", methodNotAllowed(["POST"]));
@@ -62,31 +69,28 @@ export const createInviteRouter = () => {
   return router;
 };
 
-export const createMembershipRouter = () => {
+export const createMembershipRouter = (feature: AuthFeature) => {
+  const controller = createOrganizationController(feature);
   const router = Router();
 
   router.delete(
     "/:id",
-    userRateLimiter,
     authMiddleware,
+    userRateLimiter,
     validate(removeMembershipSchema),
-    removeMembership,
+    controller.removeMembership,
   );
 
   router.patch(
     "/:id",
-    userRateLimiter,
     authMiddleware,
+    userRateLimiter,
     requireJsonObjectBody(),
     validate(changeMemberRoleSchema),
-    changeMemberRole,
+    controller.changeMemberRole,
   );
 
   router.all("/:id", methodNotAllowed(["DELETE", "PATCH"]));
 
   return router;
 };
-
-export const organizationRouter = createOrganizationRouter();
-export const inviteRouter = createInviteRouter();
-export const membershipRouter = createMembershipRouter();

@@ -1,0 +1,41 @@
+name: Task
+description: A piece of work with a reason and acceptance criteria
+labels: ["type:task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Add the tier, severity and state labels after filing; their meanings are in
+        `docs/reference/issue-tracker.md`. A security problem goes to private vulnerability
+        reporting instead, as `SECURITY.md` says.
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What is wrong or missing today, and who it affects.
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Source
+      description: Where it was found, such as an audit section, a register row, a todo or a Notion record.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checkable statements the pull request itself can meet.
+      placeholder: "- GET /metrics answers each metric's number of logs."
+    validations:
+      required: true
+  - type: dropdown
+    id: size
+    attributes:
+      label: Size
+      options:
+        - Single commit
+        - Small sweep
+        - 2 to 5 days
+        - Multi-week
+        - Not sized yet
+      default: 4

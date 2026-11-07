@@ -1,5 +1,8 @@
 import { jest } from "@jest/globals";
-import AppError from "@/utils/AppError.js";
+import {
+  NotFoundError,
+  UnauthorizedError,
+} from "@/shared/domain/errors/DomainError.js";
 import { UpdateMetricSettings } from "@/features/metric-settings/application/use-cases/UpdateMetricSettings.js";
 import { MetricSettingsRepository } from "@/features/metric-settings/domain/repositories/MetricSettingsRepository.js";
 import { CacheInvalidationPort } from "@/features/metric-settings/application/ports/CacheInvalidationPort.js";
@@ -33,7 +36,7 @@ describe("UpdateMetricSettings", () => {
     const { sut } = setup();
     await expect(
       sut.execute("", TEST_ORG_ID, "settings-1", { goalEnabled: false }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(UnauthorizedError);
   });
 
   it("throws when settings cannot be found", async () => {
@@ -42,9 +45,26 @@ describe("UpdateMetricSettings", () => {
 
     await expect(
       sut.execute("user-1", TEST_ORG_ID, "settings-unknown", {}),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(NotFoundError);
 
     expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  // dto-and-display-options-polish D-03 (audit T6): no request can carry isActive, and
+  // execute never copied it, so the input does not admit it either.
+  it("takes no isActive", async () => {
+    const { sut, repo, cache } = setup();
+    const entity = buildMetricSettings({ id: "settings-6", isActive: true });
+    repo.findById.mockResolvedValue(entity);
+    repo.save.mockResolvedValue(entity);
+    cache.invalidate.mockResolvedValue();
+
+    await sut.execute("user-1", TEST_ORG_ID, "settings-6", {
+      // @ts-expect-error isActive is not an update field
+      isActive: false,
+    });
+
+    expect(entity.snapshot().isActive).toBe(true);
   });
 
   it("updates settings, persists, and invalidates cache", async () => {
@@ -100,6 +120,7 @@ describe("UpdateMetricSettings", () => {
     expect(repo.save).toHaveBeenCalledWith(TEST_ORG_ID, entity);
     expect(cache.invalidate).toHaveBeenCalledWith(
       "user-1",
+      TEST_ORG_ID,
       "metric-9",
       "settings-5",
     );

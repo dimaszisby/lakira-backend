@@ -6,7 +6,10 @@ import {
   BelongsToGetAssociationMixin,
   NonAttribute,
 } from "sequelize";
-import { MetricSettingsAttributesBase } from "@/types/db/metric-settings.types.js";
+import {
+  MetricDisplayOptions,
+  MetricSettingsAttributesBase,
+} from "@/types/db/metric-settings.types.js";
 import type { Metric } from "@/features/metric/infrastructure/persistence/models/metric.sequelize.js";
 import type { DbModels } from "@/infrastructure/db/types.js";
 
@@ -45,12 +48,7 @@ export class MetricSettings
 
   declare isAchieved: boolean;
 
-  declare displayOptions: {
-    showOnDashboard: boolean;
-    priority: number | null;
-    chartType: string | null;
-    color: string | null;
-  };
+  declare displayOptions: MetricDisplayOptions;
   declare createdAt?: Date;
   declare updatedAt?: Date;
 

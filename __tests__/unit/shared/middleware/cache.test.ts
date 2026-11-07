@@ -1,6 +1,10 @@
 import { describe, beforeEach, it, expect, jest } from "@jest/globals";
-import type { Response } from "express";
+import express, { type Response } from "express";
+import request from "supertest";
 import { cacheMiddleware } from "@/shared/middleware/cache.js";
+import { sendError } from "@/shared/utils/error-envelope.js";
+import { drainBackgroundTasks } from "@/utils/background-tasks.js";
+import { cacheEntryName } from "@/utils/cache-entry-name.js";
 import type { AuthRequest } from "@/types/request.context.js";
 
 // Stub env + redis + logger so cache middleware behavior can be driven entirely by the test.
@@ -32,6 +36,11 @@ jest.mock("@/utils/logger.js", () => ({
   info: jest.fn(),
   error: jest.fn(),
   warn: jest.fn(),
+  // The message and stack helpers, as the real logger has them, unmasked: no database error here.
+  loggableErrorMessage: (e: unknown) =>
+    e instanceof Error ? e.message : String(e),
+  loggableErrorStack: (e: unknown) =>
+    e instanceof Error ? e.stack : undefined,
 }));
 
 const loggerMock = jest.requireMock("@/utils/logger.js") as Record<
@@ -40,6 +49,7 @@ const loggerMock = jest.requireMock("@/utils/logger.js") as Record<
 >;
 
 type MockResponse = Response & {
+  statusCode: number;
   status: jest.Mock;
   json: jest.Mock;
   originalJson: jest.Mock;
@@ -48,18 +58,22 @@ type MockResponse = Response & {
 // Minimal Express response mock that lets us intercept the patched json() method.
 const createResponse = (): MockResponse => {
   const res = {
+    statusCode: 200,
     status: jest.fn(),
     json: jest.fn(),
     originalJson: jest.fn(),
   } as unknown as MockResponse;
   res.originalJson = res.json;
-  res.status.mockReturnValue(res);
+  res.status.mockImplementation((code) => {
+    res.statusCode = code as number;
+    return res;
+  });
   return res;
 };
 
 describe("cacheMiddleware", () => {
   const ttl = 60;
-  const request = { user: { id: "user-42" } } as Partial<AuthRequest>;
+  const authRequest = { user: { id: "user-42" } } as Partial<AuthRequest>;
   const keyGenerator = jest
     .fn<(req: AuthRequest) => string>()
     .mockImplementation((req) => `cache:${req.user?.id}`);
@@ -78,7 +92,11 @@ describe("cacheMiddleware", () => {
     const next = jest.fn();
     const res = createResponse();
 
-    await cacheMiddleware(keyGenerator, ttl)(request as AuthRequest, res, next);
+    await cacheMiddleware(keyGenerator, ttl)(
+      authRequest as AuthRequest,
+      res,
+      next,
+    );
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(redisClient.get).not.toHaveBeenCalled();
@@ -90,11 +108,11 @@ describe("cacheMiddleware", () => {
     const payload = { hello: "cached" };
     redisClient.get.mockResolvedValueOnce(JSON.stringify(payload));
 
-    await createCachingMiddleware()(request as AuthRequest, res, next);
+    await createCachingMiddleware()(authRequest as AuthRequest, res, next);
 
     expect(redisClient.get).toHaveBeenCalledWith("cache:user-42");
     expect(loggerMock.info).toHaveBeenCalledWith(
-      "[CACHE PROCESS] Cache HIT: cache:user-42",
+      `[CACHE] hit ${cacheEntryName("cache:user-42")}`,
     );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(payload);
@@ -107,10 +125,10 @@ describe("cacheMiddleware", () => {
     const middleware = createCachingMiddleware();
     const responseBody = { data: "fresh" };
 
-    await middleware(request as AuthRequest, res, next);
+    await middleware(authRequest as AuthRequest, res, next);
 
     expect(loggerMock.info).toHaveBeenCalledWith(
-      "[CACHE PROCESS] Cache miss for key: cache:user-42",
+      `[CACHE] miss ${cacheEntryName("cache:user-42")}`,
     );
     expect(next).toHaveBeenCalledTimes(1);
 
@@ -124,7 +142,7 @@ describe("cacheMiddleware", () => {
     );
     expect(res.originalJson).toHaveBeenCalledWith(responseBody);
     expect(loggerMock.info).toHaveBeenCalledWith(
-      "[CACHE] Cached response: cache:user-42 (TTL: 60s)",
+      `[CACHE] stored ${cacheEntryName("cache:user-42")} (TTL: 60s)`,
     );
   });
 
@@ -134,13 +152,17 @@ describe("cacheMiddleware", () => {
     const writeError = new Error("boom");
     redisClient.setEx.mockRejectedValueOnce(writeError);
 
-    await createCachingMiddleware()(request as AuthRequest, res, next);
+    await createCachingMiddleware()(authRequest as AuthRequest, res, next);
     await res.json({ data: "value" });
-    await Promise.resolve();
+    await drainBackgroundTasks();
 
     expect(loggerMock.error).toHaveBeenCalledWith(
-      "[CACHE ERROR] Cache write failed: cache:user-42",
-      writeError,
+      "[BACKGROUND] Task failed: cache-write: boom",
+      expect.objectContaining({
+        cache: cacheEntryName("cache:user-42"),
+        error: writeError,
+        stack: writeError.stack,
+      }),
     );
     expect(res.originalJson).toHaveBeenCalledWith({ data: "value" });
   });
@@ -151,12 +173,93 @@ describe("cacheMiddleware", () => {
     const readError = new Error("redis down");
     redisClient.get.mockRejectedValueOnce(readError);
 
-    await createCachingMiddleware()(request as AuthRequest, res, next);
+    await createCachingMiddleware()(authRequest as AuthRequest, res, next);
 
     expect(loggerMock.error).toHaveBeenCalledWith(
       "[CACHE ERROR] Cache middleware error:",
       readError,
     );
     expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  // Audit S1 (2026-10-03): the wrapper stored whatever reached res.json, and
+  // sendError writes error bodies through the same res.json. A 404 was stored
+  // and then replayed as a 200 until the key expired.
+  it.each([201, 204, 304, 400, 403, 404, 429, 500, 503])(
+    "does not store a %i response",
+    async (statusCode) => {
+      const res = createResponse();
+
+      await createCachingMiddleware()(
+        authRequest as AuthRequest,
+        res,
+        jest.fn(),
+      );
+      res.status(statusCode).json({ status: "fail", message: "nope" });
+      await drainBackgroundTasks();
+
+      expect(redisClient.setEx).not.toHaveBeenCalled();
+      expect(res.originalJson).toHaveBeenCalledWith({
+        status: "fail",
+        message: "nope",
+      });
+    },
+  );
+
+  describe("through a real Express app", () => {
+    const store = new Map<string, string>();
+    const buildApp = (handler: express.RequestHandler) => {
+      const app = express();
+      app.get(
+        "/thing",
+        cacheMiddleware(() => "cache:thing", ttl),
+        handler,
+      );
+      return app;
+    };
+
+    beforeEach(() => {
+      store.clear();
+      redisClient.get.mockImplementation(async (key) => store.get(key) ?? null);
+      redisClient.setEx.mockImplementation(async (key, _ttl, payload) => {
+        store.set(key, payload);
+      });
+    });
+
+    it("answers an error the same way every time", async () => {
+      const handler = jest.fn<express.RequestHandler>((_req, res) => {
+        sendError(res, 404, "Metric not found");
+      });
+      const app = buildApp(handler);
+
+      for (const _attempt of [1, 2, 3]) {
+        const response = await request(app).get("/thing");
+        await drainBackgroundTasks();
+
+        expect(response.status).toBe(404);
+        expect(response.body).toStrictEqual({
+          status: "fail",
+          message: "Metric not found",
+        });
+      }
+      expect(handler).toHaveBeenCalledTimes(3);
+      expect(store.size).toBe(0);
+    });
+
+    it("stops answering from the handler once a 200 is stored", async () => {
+      const handler = jest.fn<express.RequestHandler>((_req, res) => {
+        res.status(200).json({ status: "success", data: { id: 1 } });
+      });
+      const app = buildApp(handler);
+
+      const first = await request(app).get("/thing");
+      await drainBackgroundTasks();
+      const second = await request(app).get("/thing");
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect(second.body).toStrictEqual(first.body);
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
   });
 });

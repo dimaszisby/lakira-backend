@@ -8,7 +8,18 @@ on:
       - main
       - dev
       - staging
-      - "feature/**"
+      # Every working-branch prefix the team uses, per the Conventional Commits types named
+      # in .claude/rules/workflow.md. Without these, a fix/ or chore/ branch gets no CI until
+      # a PR is opened — the pull_request trigger below is the real gate, but there is no
+      # early signal. Keep this list in step with that rule. concurrency (below) cancels
+      # superseded pushes.
+      - "feat/**"
+      - "feature/**" # retired in favour of feat/; kept so pre-existing branches still build
+      - "fix/**"
+      - "chore/**"
+      - "ci/**"
+      - "docs/**"
+      - "refactor/**"
   pull_request:
     branches:
       - main
@@ -16,12 +27,15 @@ on:
       - staging
   workflow_dispatch:
 
+# The GITHUB_TOKEN reads the repository and nothing more: no job writes to it or to a pull
+# request, and artifacts upload with the runner's own token (log-and-ci-leaks D-03; audit
+# 2026-10-20 X6). A job that needs more declares it for itself.
+permissions:
+  contents: read
+
 concurrency:
   group: backend-ci-${{ github.ref }}
   cancel-in-progress: true
-
-env:
-  NODE_VERSION: 20
 
 defaults:
   run:
@@ -41,7 +55,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: .nvmrc
+          check-latest: true
           cache: npm
 
       - name: Install dependencies
@@ -55,6 +70,11 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      # Here rather than in a test job: nothing in the tests reads dist/, and this job
+      # already has the dependencies installed (tests-in-parallel D-02).
+      - name: Build
+        run: npm run build
 
       - name: OpenAPI spec consistency
         run: npm run docs:openapi:check
@@ -83,7 +103,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: .nvmrc
+          check-latest: true
           cache: npm
 
       - name: Install dependencies
@@ -98,7 +119,7 @@ jobs:
       - name: Evaluate soft gate policy
         id: security_gate
         continue-on-error: true
-        run: npm run security:gate:evaluate -- --input tmp/security/security-delta-report.json --policy documents/security/framework/ci-gate-policy.json --output tmp/security/security-gate-result.json
+        run: npm run security:gate:evaluate -- --input tmp/security/security-delta-report.json --policy docs/reference/security/ci-gate-policy.json --output tmp/security/security-gate-result.json
 
       - name: Upload security artifacts
         if: always()
@@ -111,36 +132,16 @@ jobs:
         if: steps.security_gate.outcome == 'failure'
         run: exit 1
 
-  tests:
-    name: Unit & Integration Tests
+  # The unit and integration suites run as two jobs, side by side, each once, with coverage
+  # (tests-in-parallel, ADR-0081). They used to share one job and run twice, plain then with
+  # coverage: 10 of the pipeline's 12 minutes. Both still wait for the security gate, as
+  # .claude/rules/security.md requires, but not for lint: the rulesets gate merging on it.
+  unit:
+    name: Unit Tests
     runs-on: ubuntu-latest
-    needs: [checks, security_delta]
-    timeout-minutes: 20
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD_TEST }}
-          POSTGRES_DB: lakira_ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
+    needs: security_delta
+    timeout-minutes: 15
+    # No service containers: the unit project runs with SKIP_DB_LIFECYCLE=true.
 
     env:
       NODE_ENV: test
@@ -161,60 +162,33 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: .nvmrc
+          check-latest: true
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
-
-      - name: Run DB migrations (test)
-        run: npm run db:migrate:test
-        # If you only have `db:migrate`, use that instead:
-        # run: npm run db:migrate
-
-      - name: Run unit tests
-        run: npm run test:unit
-
-      - name: Run integration tests
-        run: npm run test:integration
-
+      # Enforces the unit thresholds and writes the JUnit report (ADR-0066).
       - name: Run unit tests with coverage
         run: npm run test:unit:coverage
 
-      - name: Archive unit coverage output
-        run: mv coverage/jest coverage/jest-unit
-
-      - name: Run integration tests with coverage
-        run: npm run test:integration:coverage
-
-      - name: Archive integration coverage output
-        run: mv coverage/jest coverage/jest-integration
-
-      - name: Upload coverage artifacts
+      - name: Upload unit coverage
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-coverage
+          name: backend-coverage-unit
           path: coverage
 
-      # Optional: upload Jest JUnit reports if you configure them
-      # - name: Upload Jest test reports
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: backend-jest-reports
-      #     path: reports/jest
-
-  contract_local:
-    name: contract_local
+  integration:
+    name: Integration Tests
     runs-on: ubuntu-latest
-    needs: tests
-    timeout-minutes: 30
+    needs: security_delta
+    timeout-minutes: 15
 
     services:
       postgres:
-        image: postgres:15
+        image: postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD_TEST }}
@@ -228,7 +202,114 @@ jobs:
           --health-retries=5
 
       redis:
-        image: redis:7
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      # For the queue integration test, which runs RabbitMQConsumer in-process. The
+      # RABBITMQ_* defaults (127.0.0.1:5672, guest/guest, vhost /) already match, and this
+      # image allows guest from non-loopback addresses. RABBITMQ_ENABLED stays false: the
+      # API keeps its synchronous fallback, and the test enables the queue path itself.
+      rabbitmq:
+        image: rabbitmq:3.13-management-alpine # match docker-compose.yml
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd="rabbitmq-diagnostics -q ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+          --health-start-period=20s
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://postgres:${{ secrets.POSTGRES_PASSWORD_TEST }}@localhost:5432/lakira_ci
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: ${{ secrets.POSTGRES_PASSWORD_TEST }}
+      DB_NAME: lakira_ci
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
+      DISABLE_RATE_LIMITING: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          check-latest: true
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run DB migrations (test)
+        run: npm run db:migrate:test
+
+      # Enforces the integration thresholds and writes the JUnit report (ADR-0066).
+      - name: Run integration tests with coverage
+        run: npm run test:integration:coverage
+
+      - name: Upload integration coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-integration
+          path: coverage
+
+  # The check the rulesets for dev, staging and main require by this name. It passes only
+  # when both suites passed. `if: always()` is what makes it a gate: without it a failed
+  # suite leaves this job skipped, and GitHub counts a skipped required check as passed.
+  tests:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    needs: [unit, integration]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Both suites passed
+        env:
+          UNIT: ${{ needs.unit.result }}
+          INTEGRATION: ${{ needs.integration.result }}
+        run: |
+          echo "unit: $UNIT, integration: $INTEGRATION"
+          test "$UNIT" = success && test "$INTEGRATION" = success
+
+  # Starts its own server on its own database, so it does not wait for the test suites
+  # (tests-in-parallel D-02). It still waits for the security gate.
+  contract_local:
+    name: contract_local
+    runs-on: ubuntu-latest
+    needs: security_delta
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD_TEST }}
+          POSTGRES_DB: lakira_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
         ports:
           - 6379:6379
         options: >-
@@ -257,7 +338,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: .nvmrc
+          check-latest: true
           cache: npm
 
       - name: Install dependencies
@@ -273,6 +355,13 @@ jobs:
         run: npm run db:migrate:test
         # Or a dedicated contract DB migration script if you add one
         # run: npm run db:migrate:contract
+
+      # Explicit, because Schemathesis depends on it. tmp/contract-seed.json used to
+      # be a side effect of the newman runner; the token step below and the seeded-ID
+      # hook in tests/contract/hooks/seeded_ids.py both read it, and the hook fails
+      # *silently* when it is absent (empty dict, every injection no-ops).
+      - name: Seed contract fixtures
+        run: npm run seed:contract-tests
 
       - name: Start backend (test server)
         run: |
@@ -295,9 +384,6 @@ jobs:
           wait_with_logs npx wait-on tcp:4000 --timeout 180000
           wait_with_logs npx wait-on http://localhost:4000/api/v1/health --timeout 180000
 
-      - name: Run contract tests (local)
-        run: npm run test:contract:local
-
       - name: Setup Python for Schemathesis
         uses: actions/setup-python@v5
         with:
@@ -306,7 +392,7 @@ jobs:
       - name: Install Schemathesis CLI
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r documents/tests/4-contract-tests/schemathesis/requirements.txt
+          python -m pip install -r tests/contract/schemathesis/requirements.txt
 
       - name: Extract Schemathesis token
         id: schemathesis-token
@@ -346,22 +432,17 @@ jobs:
             rm -f /tmp/backend.pid
           fi
 
-      - name: Upload Newman contract reports (local)
-        uses: actions/upload-artifact@v4
-        with:
-          name: newman-contract-local
-          path: documents/tests/4-contract-tests/postman-newman/reports/local
-
       - name: Upload Schemathesis contract reports (local)
         uses: actions/upload-artifact@v4
         with:
           name: schemathesis-contract-local
-          path: documents/tests/4-contract-tests/schemathesis/reports/local
+          path: tests/contract/schemathesis/reports/local
 
   deploy_staging:
     name: Deploy Backend to Staging
     runs-on: ubuntu-latest
-    needs: contract_local
+    # Both, by name: contract_local no longer waits for the tests.
+    needs: [tests, contract_local]
     if: github.ref == 'refs/heads/staging'
     timeout-minutes: 15
     env:
@@ -377,7 +458,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: .nvmrc
+          check-latest: true
           cache: npm
 
       - name: Install dependencies
@@ -397,8 +479,8 @@ jobs:
           fi                                                                                                                               
           curl -X POST "$RENDER_STAGING_DEPLOY_HOOK_URL"
 
-  contract_staging:
-    name: Contract Tests (Staging Backend)
+  smoke_staging:
+    name: Smoke Tests (Staging Backend)
     runs-on: ubuntu-latest
     needs: deploy_staging
     if: github.ref == 'refs/heads/staging'
@@ -414,38 +496,44 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: .nvmrc
+          check-latest: true
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run contract tests (staging)
+      # Fixture-free by design: the contract suite this replaces required twelve
+      # environment variables (CI supplied one), and one of them was an auth token that
+      # cannot outlive a 900s TTL. The smoke suite needs only a base URL, and waits for
+      # the deploy to become reachable before asserting — deploy_staging fires the Render
+      # hook and returns immediately, so this job can start mid-rollout.
+      - name: Run smoke tests (staging)
         env:
-          STAGING_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
-        run: npm run test:contract:staging
-
-      - name: Upload Newman contract reports (staging)
-        uses: actions/upload-artifact@v4
-        with:
-          name: newman-contract-staging
-          path: documents/tests/4-contract-tests/postman-newman/reports/staging
+          SMOKE_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+          SMOKE_EXPECTED_RELEASE: ${{ github.sha }}
+        run: npm run test:smoke
 
   deploy_production:
     name: Deploy Backend to Production
     runs-on: ubuntu-latest
-    needs: contract_local
+    # Both, by name: contract_local no longer waits for the tests.
+    needs: [tests, contract_local]
     if: github.ref == 'refs/heads/main'
     environment: production # Manual approval gate via GitHub environment protection rules
     timeout-minutes: 20
     # NOTE: RENDER_PRODUCTION_DEPLOY_HOOK_URL must be configured in GitHub repo secrets
     # before this job is usable. Without it, the deploy step will fail fast.
     #
-    # Gate model: contract_staging runs only on `refs/heads/staging`, so this job
-    # cannot list it under `needs:`. Instead we re-run the staging contract suite
-    # against STAGING_BASE_URL as a pre-deploy probe — if staging is unhealthy or
-    # the commit being promoted to main has drifted from what staging validated,
-    # the production deploy aborts before migrations run.
+    # Gate model: smoke_staging runs only on `refs/heads/staging`, so this job cannot
+    # list it under `needs:`. Instead we re-run the smoke suite against
+    # STAGING_BASE_URL as a pre-deploy probe — if staging is unhealthy, the production
+    # deploy aborts before migrations run.
+    #
+    # SMOKE_EXPECTED_RELEASE (below) asserts staging's own /health reports this exact
+    # commit before promotion proceeds (ADR-0039 Part 1) — this gate now fails if
+    # staging is healthy but running a different commit than the one about to reach
+    # production, e.g. an out-of-band push to staging after the last promotion.
     env:
       RENDER_PRODUCTION_DEPLOY_HOOK_URL: ${{ secrets.RENDER_PRODUCTION_DEPLOY_HOOK_URL }}
       PRODUCTION_HEALTH_URL: ${{ secrets.PRODUCTION_HEALTH_URL }}
@@ -460,26 +548,23 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: .nvmrc
+          check-latest: true
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify staging is healthy (contract test gate)
+      - name: Verify staging is healthy (smoke gate)
+        env:
+          SMOKE_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+          SMOKE_EXPECTED_RELEASE: ${{ github.sha }}
         run: |
-          if [ -z "$STAGING_BASE_URL" ]; then
+          if [ -z "$SMOKE_BASE_URL" ]; then
             echo "STAGING_BASE_URL secret is not configured — cannot gate production deploy on staging health."
             exit 1
           fi
-          npm run test:contract:staging
-
-      - name: Upload pre-deploy contract reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: newman-contract-pre-production
-          path: documents/tests/4-contract-tests/postman-newman/reports/staging
+          npm run test:smoke
 
       - name: Build
         run: npm run build

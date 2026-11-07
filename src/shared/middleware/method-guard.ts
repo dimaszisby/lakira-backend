@@ -1,4 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
+import { sendError } from "@/shared/utils/error-envelope.js";
+
+const METHOD_NOT_ALLOWED_MESSAGE = "Method Not Allowed";
 
 /**
  * Blocks unsupported HTTP methods that should consistently return 405
@@ -11,10 +14,7 @@ export function disallowTraceMethod(
 ) {
   if (req.method === "TRACE") {
     res.setHeader("Allow", "GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS");
-    res.status(405).json({
-      status: "fail",
-      message: "Method Not Allowed",
-    });
+    sendError(res, 405, METHOD_NOT_ALLOWED_MESSAGE);
     return;
   }
 
@@ -28,9 +28,6 @@ export function methodNotAllowed(allowed: string[]) {
 
   return (req: Request, res: Response) => {
     res.setHeader("Allow", allowHeader);
-    res.status(405).json({
-      status: "fail",
-      message: "Method Not Allowed",
-    });
+    sendError(res, 405, METHOD_NOT_ALLOWED_MESSAGE);
   };
 }

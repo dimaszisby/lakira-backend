@@ -1,12 +1,12 @@
 import { randomUUID } from "crypto";
-import { models } from "@/infrastructure/db/models.js";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "../ports/MetricAccessPort.js";
+import type { MetricLogRepository } from "../../domain/repositories/MetricLogRepository.js";
 import { CachePort } from "../ports/CachePort.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import {
   EXCHANGES,
   ROUTING_KEYS,
-} from "@/shared/infrastructure/queue/topology.js";
+} from "@/shared/application/messaging/job-routes.js";
 
 type Input = {
   userId: string;
@@ -21,11 +21,19 @@ type Output = {
 
 const TYPES: Array<"manual" | "automatic"> = ["manual", "automatic"];
 
+/**
+ * The most dummy logs one request or one queued job may write. The HTTP schema caps the
+ * request with it and the queue handler the job, so the two cannot drift
+ * (queue-design-hardening D-03).
+ */
+export const MAX_DUMMY_METRIC_LOGS = 1000;
+
 export class GenerateDummyMetricLogs {
   constructor(
     private access: MetricAccessPort,
     private cache: CachePort,
     private queue: MessageQueuePort,
+    private repo: MetricLogRepository,
   ) {}
 
   async execute({
@@ -52,7 +60,7 @@ export class GenerateDummyMetricLogs {
 
     // Sync fallback when queue is disabled (development / tests)
     for (let i = 0; i < count; i++) {
-      await models.MetricLog.create({
+      await this.repo.create({
         metricId,
         organizationId,
         logValue: Number((Math.random() * 100).toFixed(2)),
@@ -64,7 +72,7 @@ export class GenerateDummyMetricLogs {
     }
 
     if (this.cache.isEnabled()) {
-      await this.cache.invalidate(userId, metricId);
+      await this.cache.invalidate(userId, organizationId, metricId);
     }
 
     return { jobId };

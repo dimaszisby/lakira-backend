@@ -39,8 +39,11 @@ export function buildDashboardSQL(spec: BucketSpec) {
       FROM logs l
       GROUP BY 1,2
     )
+    -- A label is the bucket's wall time in :tz, sent with a Z (ADR-0062). As a
+    -- timestamptz read in UTC, the driver reads it the same in every process zone
+    -- (analytics-leftovers D-03).
     SELECT cm.metric_id,
-           s.bucket_start,
+           timezone('UTC', s.bucket_start) AS bucket_start,
            b.avg_value, b.min_value, b.max_value, b.cnt
     FROM covered_metrics cm
     CROSS JOIN series s
@@ -57,23 +60,33 @@ export function buildDashboardLifecycleSQL(spec: BucketSpec) {
       SELECT unnest(:metricIds::uuid[]) AS metric_id
     ),
     logs AS (
-      SELECT ml.metric_id,
+      SELECT ml.id,
+             ml.metric_id,
+             ml.logged_at,
              timezone(:tz, ml.logged_at) AS ts_tz,
              ml.log_value
       FROM metric_logs ml
       JOIN covered_metrics cm ON cm.metric_id = ml.metric_id
     ),
+    -- Ranked by the instant, not by ts_tz. Two instants share a local time
+    -- when a zone leaves daylight saving time (ADR-0052).
     ranked AS (
       SELECT l.metric_id,
+             l.logged_at,
              l.ts_tz,
              l.log_value,
-             row_number() OVER (PARTITION BY l.metric_id ORDER BY l.ts_tz DESC) AS rn
+             row_number() OVER (
+               PARTITION BY l.metric_id
+               ORDER BY l.logged_at DESC, l.id DESC
+             ) AS rn
       FROM logs l
     ),
+    -- first_log_at and last_log_at are the stored instants. A local time would
+    -- be sent with a Z it does not mean (ADR-0062).
     aggregates AS (
       SELECT metric_id,
-             MIN(ts_tz) AS first_log_at,
-             MAX(ts_tz) AS last_log_at,
+             MIN(logged_at) AS first_log_at,
+             MAX(logged_at) AS last_log_at,
              COUNT(*)::bigint AS total_logs,
              MAX(log_value) FILTER (WHERE rn = 1) AS latest_value,
              MAX(date_trunc('${spec.trunc}', ts_tz)) FILTER (WHERE rn = 1) AS latest_bucket_start
@@ -85,7 +98,8 @@ export function buildDashboardLifecycleSQL(spec: BucketSpec) {
            ag.last_log_at,
            COALESCE(ag.total_logs, 0)::bigint AS total_logs,
            ag.latest_value,
-           ag.latest_bucket_start
+           -- A label, as bucket_start is above (analytics-leftovers D-03).
+           timezone('UTC', ag.latest_bucket_start) AS latest_bucket_start
     FROM covered_metrics cm
     LEFT JOIN aggregates ag ON ag.metric_id = cm.metric_id
     ORDER BY cm.metric_id;

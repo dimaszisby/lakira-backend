@@ -219,7 +219,11 @@ describeRedis("VisualizationCacheRedis (integration with Redis)", () => {
     expect(await cache.getSingleVisualization(singleKey)).not.toBeNull();
     expect(await cache.getDashboardVisualization(dashboardKey)).not.toBeNull();
 
-    await invalidator.invalidateByMetric(singleKey.userId, singleKey.metricId);
+    await invalidator.invalidateByMetric(
+      singleKey.userId,
+      singleKey.organizationId,
+      singleKey.metricId,
+    );
 
     expect(await cache.getSingleVisualization(singleKey)).toBeNull();
     expect(await cache.getDashboardVisualization(dashboardKey)).toBeNull();

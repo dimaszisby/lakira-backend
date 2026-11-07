@@ -227,11 +227,13 @@ const runStaticChecks = async (nowIso) => {
     );
   }
 
+  // `.prefault` is zod 4's spelling of a default that is parsed like a sent value, which
+  // a default followed by a transform needs (zod-4-migration D-04); either counts.
   const ruleSwaggerDefault = {
     id: "CFG-SWAGGER-001",
     passed: hasRegex(
       zodEnv.text,
-      /SWAGGER_REQUIRE_AUTH[\s\S]*?\.default\("true"\)/,
+      /SWAGGER_REQUIRE_AUTH[\s\S]*?\.(?:default|prefault)\("true"\)/,
     ),
   };
   rules.push(ruleSwaggerDefault);
@@ -255,7 +257,7 @@ const runStaticChecks = async (nowIso) => {
     id: "CFG-RATE-LIMIT-001",
     passed: hasRegex(
       zodEnv.text,
-      /DISABLE_RATE_LIMITING[\s\S]*?\.default\("false"\)/,
+      /DISABLE_RATE_LIMITING[\s\S]*?\.(?:default|prefault)\("false"\)/,
     ),
   };
   rules.push(ruleRateLimitDefault);

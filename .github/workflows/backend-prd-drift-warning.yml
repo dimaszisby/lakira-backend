@@ -11,7 +11,8 @@ on:
       - main
       - dev
       - staging
-      - "feature/**"
+      - "feat/**"
+      - "feature/**" # retired in favour of feat/; kept so pre-existing branches still build
   workflow_dispatch:
 
 permissions:
@@ -67,12 +68,12 @@ jobs:
           while IFS= read -r file; do
             [[ -z "$file" ]] && continue
 
-            if [[ "$file" == "documents/documentation/product/lakira-backend-prd.md" ]]; then
+            if [[ "$file" == "docs/explanation/product-requirements.md" ]]; then
               PRD_CHANGED=true
             fi
 
             if [[ "$file" == "src/server.ts" ]] ||
-               [[ "$file" == "documents/openapi/lakira-backend-openapi.json" ]] ||
+               [[ "$file" == "docs/reference/api/lakira-backend-openapi.json" ]] ||
                [[ "$file" == src/migrations/* ]] ||
                [[ "$file" == src/lib/openapi/* ]]; then
               CONTRACT_CHANGED=true
@@ -93,7 +94,7 @@ jobs:
       - name: Emit warning annotation
         if: steps.drift.outputs.contract_changed == 'true' && steps.drift.outputs.prd_changed != 'true'
         run: |
-          echo "::warning title=Backend PRD Drift Guard::Contract-related backend files changed without updating documents/documentation/product/lakira-backend-prd.md. Review cadence expects a PRD check."
+          echo "::warning title=Backend PRD Drift Guard::Contract-related backend files changed without updating docs/explanation/product-requirements.md. Review cadence expects a PRD check."
 
       - name: Job summary
         run: |

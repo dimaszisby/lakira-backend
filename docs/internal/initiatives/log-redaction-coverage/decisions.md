@@ -1,0 +1,619 @@
+# Log redaction coverage — Decisions Log
+
+`D-NN` entries scoped to this kit.
+
+---
+
+## D-01 — Some redaction terms become unanchored; `hash` deliberately does not
+
+- **Status:** Accepted
+- **Date:** 2026-09-21
+
+**Context.** `SENSITIVE_KEY_PATTERN` is `/(password|secret|token|key|certificate|url)$/i` — anchored
+to the **end** of the key. C6 reports that it therefore misses `authorization`, `cookie`, `bearer`
+and `passwordHash`. Verified: all four test `false`.
+
+**Decision.** Move `password` and `secret` to unanchored, add `authorization`, `cookie` and `bearer`
+as unanchored, and leave `token|key|certificate|url` suffix-anchored:
+
+```
+/password|secret|authorization|cookie|bearer|(token|key|certificate|url)$/i
+```
+
+**Options considered.**
+
+- _Add `hash` as a suffix term._ Rejected, and this is the one worth recording. It would catch
+  `passwordHash`, but it would also redact `etagHash`, `contentHash` and every other digest field.
+  This repo has live ETag logic (`makeEtag` / `deriveEtagSeed`), so redacting hash-suffixed keys
+  would actively destroy the information needed to debug the analytics conditional-request work.
+  Unanchoring `password` catches `passwordHash` without that cost.
+- _Make every term unanchored._ Rejected: `url` and `key` unanchored would match `keyword`,
+  `urls`, `sortKey`-style fields and quietly strip useful debugging context. Over-redaction is
+  safer than under-redaction but it is not free.
+- _Keep a second, separate pattern for HTTP header names._ Rejected as premature — one pattern with
+  two anchoring styles is already understood by both call sites (`logger.ts`, `envManager.ts`), and
+  a second pattern is a second thing to drift.
+
+**Consequences.** `passwordConfirmation` now redacts too, which is a genuine gain — it is a real
+field on `POST /auth/register`. `monkey` and similar keys ending in `key` were already redacted and
+remain so; that is pre-existing behaviour, not a regression. Both call sites change behaviour
+together, which is intended: an env var named `COOKIE_DOMAIN` masking its value is correct.
+
+---
+
+## D-02 — C5 is fixed **and** its severity claim corrected, not simply closed
+
+- **Status:** Accepted
+- **Date:** 2026-09-21
+
+**Context.** C5 reads "Sentry has no PII scrubbing — `Sentry.init()` lacks a `beforeSend` to strip
+`authorization`/`cookie`/body secrets before egress." A previous session doubted the premise on the
+grounds that modern `@sentry/node` defaults `sendDefaultPii: false`.
+
+Both halves check out, and they point in different directions. `Sentry.init()`
+(`src/server.ts:60-66`) genuinely has no `beforeSend`. But the installed version is **10.69.0**,
+where `sendDefaultPii` defaults to `false`, so headers, cookies and request bodies are **not**
+auto-attached. The row's severity is overstated: the main PII egress path it describes is already
+closed by the SDK default.
+
+**Decision.** Do both — add a `beforeSend` that strips request headers and cookies before egress,
+**and** correct the audit row to state what was actually true. Closing the row by argument alone
+would leave the next reader to re-derive the same doubt.
+
+**Options considered.**
+
+- _Close the row as overstated, write no code._ Rejected: `sendDefaultPii: false` governs what the
+  SDK attaches automatically. It does not govern what application code passes explicitly via
+  `captureException` context, or what rides along on an error object. `beforeSend` is the only
+  thing that covers those, and it is ten lines.
+- _Leave the row open and write the code without touching the wording._ Rejected: the row would
+  stay as evidence for a claim that is not accurate, and this is the second session to spend effort
+  doubting it. Audit rows that overstate cost real time — one has already misled a handoff here.
+
+**Consequences.** The audit's C5 row gains a dated note in the style of the existing C2 note,
+recording the version-default finding rather than silently rewriting history.
+
+---
+
+## D-03 — Broadening the pattern does not supersede ADR-0028
+
+- **Status:** Accepted
+- **Date:** 2026-09-21
+
+**Context.** [ADR-0028](../../../explanation/decisions/adr-0028-sensitive-key-pattern-out-of-envmanager.md)
+is `Accepted` and quotes the exact regex this kit changes. Records are immutable, so the question is
+whether broadening the terms supersedes it and needs a new numbered record.
+
+**Decision.** No. ADR-0028 decides **where** the pattern lives — one module, `sensitive-keys.ts`,
+imported by both call sites instead of inlined twice. That decision is untouched and is in fact what
+made this change a one-line edit. The regex appears in its Context section as a description of the
+then-current value, not as the decision itself.
+
+**Options considered.**
+
+- _Write a superseding ADR._ Rejected: it would claim ADR-0028 no longer holds, which is false, and
+  leave a reader thinking the single-source-of-truth rule had been revisited.
+- _Edit ADR-0028's quoted regex to match._ Rejected outright — records are immutable, and editing
+  one to stay current is precisely what the immutability rule exists to prevent.
+
+**Consequences.** ADR-0028 now quotes a regex that is one commit out of date in its Context section.
+That is correct and expected: it records what was true on 2026-05-06. The live value is in
+`src/config/sensitive-keys.ts`, which is what both the rule file and the how-to now point at rather
+than restating.
+
+---
+
+## D-04 — `dsn` added, and three docs that #104 missed
+
+- **Status:** Accepted
+- **Date:** 2026-09-21
+- **Size:** Micro — single commit, no separate kit. This is the same concern as D-01, so it is
+  logged here rather than spawning an initiative for a one-term regex change.
+
+**Context.** Two problems surfaced immediately after #104 merged.
+
+`SENTRY_DSN` matches no term in the pattern — it ends in "DSN" — so its value is written to logs in
+the clear. A Sentry DSN is a write credential: anyone holding it can post events into the project.
+`.claude/agent-memory/security-reviewer/project_scan_2026_06_05.md:20` flagged this on 2026-06-05
+and it was never actioned.
+
+Separately, #104 updated only two of the five live documents that quote the pattern. The search
+behind it was scoped to a file list rather than the repository, so
+`.claude/agents/security-reviewer.md`, `.claude/rules/environment.md` and
+`docs/reference/configuration.md` were left stating the pre-#104 regex — including a **live agent
+instruction**, which would have had the security-reviewer asserting something false.
+
+**Decision.** Add `dsn` as a suffix term. Update all three missed documents, and stop most of them
+restating the pattern at all — they now point at `src/config/sensitive-keys.ts`. The two that
+legitimately need the terms spelled out for a reader (`read-application-logs.md`,
+`configuration.md`) state them _and_ name the module as authoritative.
+
+**Options considered.**
+
+- _Unanchor `dsn`._ Rejected: no benefit, and it would match any key containing "dsn" as a
+  substring for no reason. `SENTRY_DSN` and any `*_DSN` are suffix matches.
+- _Leave the three docs and rely on the module being the source of truth._ Rejected: a live agent
+  instruction stating a wrong security control is worse than a stale prose doc, and the rules file
+  is loaded into context every session.
+- _Delete the terms from every doc and point only at the module._ Rejected for the how-to and the
+  reference — a reader learning how redaction works needs to see what matches without opening
+  source. Those two keep the list and cite the module.
+
+**Consequences.** Five documents now quote or cite one pattern. The three that merely mention the
+behaviour cite the module only, so there are two copies to keep current instead of five. Nothing
+gates this — the drift that produced this entry would not have been caught by CI, which is worth
+remembering if the pattern changes a third time.
+
+**Commit:** filled on merge — see the PR for this branch (`fix/redaction-doc-drift`).
+
+---
+
+## D-05 — Limiter log lines name a user id or an email hash, never the address
+
+- **Status:** Accepted
+- **Date:** 2026-10-05
+- **Size:** Micro — single commit, no separate kit. Audit finding S8 (P2). Commits carry
+  `refs: limiter-logs-email-address`.
+
+**Context.** Two limiter log lines put an email address in the message text: the password-reset
+email limiter logged the address from the request body, and the email-verification email limiter
+logged `req.user.email`. Redaction is by metadata key (D-01), so text inside a message is never
+masked, and `.claude/rules/security.md` says never to log PII. Both lines predate ADR-0057, which
+kept every limiter line as it was.
+
+**Decision.** The email-verification limiter runs behind authentication and logs the user id, as
+the switch-org limiter does. The password-reset limiter has no user, so it logs
+`hashEmail(address)`: SHA-256 of the trimmed, lower-cased address. That function moves out of
+`loginLockout.ts` into `src/utils/email-hash.ts` and both use it, so a limiter line and an
+`auth.lockout.triggered` line for one address carry the same hash. Each line still falls back to
+the IP.
+
+**Options considered.**
+
+- The IP only: rejected. The limiter is keyed on the address, so the line would no longer say
+  which key was hit, and one address tried from many IPs would look like unrelated events.
+- A masked address such as `s***@example.com`: rejected. It is still personal data, and it does
+  not identify one address.
+- The address as metadata under an `email` key: rejected. The key pattern has no `email` term, so
+  it would be written in the clear, and it would change `limitExceeded`, which ADR-0057 fixes as a
+  message and a line.
+- A second copy of the hash function in `rate-limiter.ts`: rejected. `src/shared/` may not import a
+  feature (ADR-0058), which is why the function moves, and two copies would drift apart and stop
+  matching.
+
+**Consequences.** The hash is unsalted, so someone who holds the logs and guesses an address can
+confirm it. That is pseudonymous, not anonymous; it is the trade `loginLockout` already makes, and
+it is what lets the two lines be matched. The limiter **store keys** still hold the address in
+Redis for the hour of the window; that is not a log line and is filed as
+`docs/internal/todos/2026-10-05-todo-limiter-keys-hold-email-address.md`.
+
+---
+
+## D-06 — An error passed to the logger is reduced to an allowlist of its fields
+
+- **Status:** Accepted
+- **Date:** 2026-10-05
+- **Size:** Micro — single commit, no separate kit. Audit finding T1 (P2), which reopened caveat
+  C6 in the dated run of 2026-10-05. Commits carry `refs: error-log-bound-values`.
+
+Promoted to the architecture decision registry as **[ADR-0059](../../../explanation/decisions/adr-0059-an-error-passed-to-the-logger-is-reduced-to-an-allowlist.md)**.
+That file is authoritative; this entry is a pointer.
+
+---
+
+## D-07 — Everything a log call is given is sanitised before any step that can print it
+
+- **Status:** Accepted
+- **Date:** 2026-10-06
+- **Size:** Micro — single commit, no separate kit. Audit finding U1 (P3), which kept caveat C6
+  open in the second dated run of 2026-10-05. Commits carry `refs: nested-error-payload-in-logs`.
+
+**Context.** ADR-0059 (D-06) reduces an error only when it is a top-level argument of a log call.
+The dated run reproduced four shapes that still wrote a database error's SQL, the email address and
+the password hash: an error inside a metadata object or an array, formatted by a `%j` or `%o`
+token, and an error five levels deep. There are two causes. `splat()` prints an argument whole
+through a token before key redaction runs, and `redactObject` returns an object at depth 5 as it
+is. Read against the whole of C6, the same two causes leak more than errors:
+`logger.info("x %j", { password })` writes the password into the message text, because with a
+token in the message Winston does not copy the metadata onto the record and key redaction never
+sees it; and a sensitive key five levels deep is written unredacted. Twice now a fix has closed its
+reproduction and a grader has kept C6 open on what the fix did not reach.
+
+**Decision.** The fix is aimed at the two causes and not at the four shapes.
+
+1. The format at the front of the chain sanitises every argument of the call, and every value
+   Winston has already copied onto the record, before `splat()` runs: errors are reduced to their
+   allowlisted view wherever they sit, and sensitive keys are masked. It writes copies; the
+   caller's objects are not changed.
+2. `redactObject` fails closed at its depth limit. An object or an array at depth 5 is replaced by
+   the string `[Truncated]` and not passed through.
+3. The redaction step at the end of the chain stays, as a second pass over anything a later step
+   adds.
+
+**Options considered.**
+
+- _Walk the arguments to any depth and replace only errors, with a visited set against cycles_ (the
+  todo's suggestion). Rejected: it closes the four shapes and leaves a sensitive key behind a token
+  or below the depth limit, which is C6's own text. An unbounded walk also has an unbounded cost on
+  a log call, where a bounded one that drops what it does not reach has neither problem, and the
+  depth bound already bounds a cycle.
+- _Raise the depth limit._ Rejected: any limit that passes the remainder through has the same gap
+  one level further down.
+- _Move `splat()` behind the redaction step._ Rejected: redaction works on the record's keys, and
+  with a token in the message the metadata is not on the record until `splat()` has run.
+- _Forbid format tokens in log messages, by lint._ Rejected as the mechanism for the same reason
+  ADR-0059 rejected a lint rule: a message can carry a token the caller never wrote.
+
+**Consequences.** A value nested deeper than five levels is no longer logged, nor sent to Sentry in
+`extra`, `contexts` or request data, since the scrubber shares `redactObject`; no call in `src/`
+logs metadata that deep. Each log call copies its metadata once more. ADR-0059 is corrected in the
+same change: its sentence that nothing after the first format holds an error object was not true as
+merged. This amends that record and takes no new number; the boundary and the mechanism are the
+same, and the reach is wider. Message text is still not scanned, and a plain object carrying `sql`
+or `parameters` keys is still metadata that no term matches.
+
+## D-08 — A cache entry is named in a log line by its namespace and a hash, never by its key
+
+- **Status:** Accepted
+- **Date:** 2026-10-08
+- **Size:** Micro — single commit, no separate kit. The reviewer of D-07 kept caveat C6 open on
+  it (P3). Commits carry `refs: cache-key-in-log-message`.
+
+**Context.** Redaction is by metadata key and does not scan message text, and D-07 left that as
+it was. `src/shared/middleware/cache.ts` writes the cache key into three `info` messages, and
+passes it as `{ cache: key }` to the background write, which logs it on failure under a name no
+term matches. The three cursor key builders (metric, metric-settings, metric-log) put the search
+text `q`, a name or value filter and the `after` cursor into the key, so a search for an email
+address is written to the production log. `src/utils/redis-client.ts` writes the key on
+invalidation, and on a pattern invalidation it passes the array of every deleted key to the
+logger. Two more lines of the same class were on file
+([todo](../../todos/2026-10-05-todo-log-lines-that-carry-row-or-body-text.md)): the metric
+controller passes a whole metric row to the logger when its mapper throws, and the error handler
+passes the body parser's error, whose message quotes the start of a malformed body and which
+Winston appends to the line.
+**Decision.** A log line names a cache entry by `cacheEntryName(key)`
+(`src/utils/cache-entry-name.ts`): the key's namespace, then `#`, then the first 12 hex characters
+of the SHA-256 of the whole key, for example `cursor:metrics:v3#3fa9c1d2e4b7`. The namespace is
+`cursor:<feature>:v<n>` for a cursor key and the first segment for any other, and is replaced by
+`unknown` unless it is a plain token. The name is in the message, since the development format
+prints no metadata. The pattern line reports how many entries it deleted and not which. The
+mapping failure logs the metric's id. The malformed-body line is a fixed message with the parser's
+error type and without the error. The keys read from and written to Redis do not change.
+**Options considered.**
+
+- _Rename the metadata key so the pattern masks it._ Rejected: it hides the entry altogether, and
+  the lines exist to follow one entry from miss to store to hit.
+- _Hash only the `q` and filter segments when the key is built._ Rejected: every key builder, and
+  every new one, would have to remember to, and the key in Redis would change with it.
+- _An HMAC with a secret._ Rejected: a new secret to provision and rotate for a P3, when
+  `hashEmail` already names an address by a plain SHA-256.
+- _Replace `Database error: <message>` with fixed text as well._ Not taken: the owner's scope
+  decision of 2026-10-08. ADR-0059 accepts that line and stands.
+
+**Consequences.** The hash is unsalted, as `hashEmail` is. Someone who holds the logs and a user's
+id and organization id can confirm a guessed search term by hashing the key it would produce; they
+cannot read the term from the line. One key keeps one name for its whole life, and two keys in one
+namespace differ only by hash, so a line no longer shows which user or which filter it was for; the
+request id on the same line does. `metric-log`'s router still logs `{ key }` at `debug`, which the
+pattern already masks. `Database error: <message>` and the Zod field messages are unchanged.
+
+## D-09 — The lines that echo a request are logged by field, code and type
+
+- **Status:** Accepted
+- **Date:** 2026-10-08
+- **Size:** Micro, in the same commit as D-08 (`refs: cache-key-in-log-message`). A fork found in
+  review, decided by the owner the same day.
+
+**Context.** A security reviewer, given the whole of C6 and not told what D-08 does, graded its
+five lines closed and C6 still open on one more that anything on the internet can reach: a failed
+validation is logged with Zod's messages, and Zod's default messages repeat the input.
+`?sortOrder=victim@example.com` gives `Invalid enum value. Expected 'ASC' | 'DESC', received
+'victim@example.com'`, and a `.strict()` schema names every unknown key it was sent (reproduced on
+Zod 3.25.76). It is the query string the access log drops, written back at `error`. The reviewer
+named three smaller lines of the same kind: the client-error line prints the raiser's message,
+which quotes an undecodable path segment or a charset header; the metric-settings repository logs
+the search term `q` at `debug`, the default level outside production; and a cache entry that does
+not parse is logged with `JSON.parse`'s message, which quotes the start of the stored response.
+**Decision.** All four are changed in this commit. A failed validation is logged as
+`{ issues: [{ field, code }] }`, Zod's issue code and not its message. The client-error line names
+the raiser's `type` when it is a plain token and the error's class name otherwise. The `q` line is
+removed. A cache entry that does not parse is logged by its name and treated as a miss, in the
+middleware and, after a second review, in the three other readers of a stored value
+(`readCachedJson` in `src/shared/cache/read.ts`; the two visualization reads and the category
+cache). The 400
+body the client receives is not changed: it still carries Zod's messages, which tell the caller
+what it sent.
+**Options considered.** A global Zod `errorMap` with messages that never repeat the input:
+rejected here, it changes every 400 body, which the frontend reads and the OpenAPI examples
+describe. Leaving them for a todo: rejected by the owner, since the next dated run would keep C6
+open on the validation line. Redacting credentials from the startup errors for a bad
+`DATABASE_URL`, `REDIS_URL` or `RABBITMQ_URL` in the same change: not taken, it is a credential on
+stderr at boot and not request text, and is filed as its own
+[todo](../../todos/2026-10-08-todo-startup-error-prints-connection-url.md).
+**Consequences.** A validation line no longer says what was wrong with the value, only which field
+and which rule; the request id on the line finds the response. A field path can still hold a key
+the client chose when the schema is a record; no schema in `src/` is one today. Left as they are,
+and named so a later reader does not take them for oversights: `Database error: <message>`
+(ADR-0059), `Error Occurred: <message>` for an `AppError` the application wrote, the email
+adapters' provider messages, and SQL text at `debug` under `DB_LOGGING`.
+
+## D-10 — A startup error for a bad connection URL names the variable, never the URL
+
+- **Status:** Accepted (merged in #151, `0e11dd4`)
+- **Date:** 2026-10-10
+
+Micro entry for finding V1 of `audit-2026-10-10.md`
+([todo](../../todos/2026-10-08-todo-startup-error-prints-connection-url.md)), one of the two routes
+caveat C6 closes on (ADR-012 of the audit folder). Commits carry
+`refs: c6-startup-url-db-logging`.
+
+**Context.** When `REDIS_URL`, `RABBITMQ_URL` or the environment's database URL failed validation,
+`src/config/zodEnv.ts` threw an error whose message held the whole URL. `envManager.ts` printed
+that message in its `[ENV_ERROR]` line with `console.error`, and Node printed it again when the
+module-level `loadEnvOrExit()` threw. A typo in a production URL put the database or broker
+password on stderr twice. The `envSample` in the same line was already masked. The database
+message also said `DATABASE_URL` whichever variable had been read.
+**Decision.** The message is `<VARIABLE> is invalid: <reason>`, with the variable actually read
+and no part of its value. The reason is this file's own fixed text or Node's `Invalid URL`, whose
+message does not carry the input.
+**Options considered.** Masking the password and keeping the rest of the URL: rejected, the user,
+host and database name are still deployment detail, and a URL that does not parse cannot be
+searched for its password. Routing the startup error through the logger: rejected, the logger
+imports the env manager, and message text is not redacted anyway. Masking in `logEnvFailure`
+alone: rejected, Node's own print of the thrown error would still carry it.
+**Consequences.** An operator sees which variable is wrong and why, and has to look at the value
+where it is set. Nothing else about startup changes.
+
+## D-11 — `DB_LOGGING` is refused in production
+
+- **Status:** Accepted (merged in #151, `0e11dd4`)
+- **Date:** 2026-10-10
+
+Micro entry for finding V2 of `audit-2026-10-10.md`
+([todo](../../todos/2026-10-10-todo-db-logging-writes-sql-values.md)), the other route caveat C6
+closes on. Commits carry `refs: c6-startup-url-db-logging`. D-09 named "SQL text at `debug` under
+`DB_LOGGING`" as left alone; this entry replaces that for production.
+
+**Context.** With `DB_LOGGING=true`, `src/config/db.ts` hands Sequelize's statement text to
+`logger.debug`. Sequelize inlines the values of a `WHERE` clause, so a login writes the address it
+looked up. The text is a message and is never redacted. Development and production honoured the
+switch; staging and test were already off. `src/config/config.cjs`, which sequelize-cli reads
+without running the schema, honoured it for production migrations.
+**Decision.** The schema refuses `DB_LOGGING=true` when `NODE_ENV=production`, beside the other
+refused switches (ADR-0036), and `config.cjs` sets production `logging: false`. Development keeps
+the switch.
+**Options considered.** Stripping values from the statement: rejected, Sequelize hands over a
+finished string and there is no reliable way to tell a value from SQL. Refusing it everywhere:
+rejected, it is the documented way to see statements locally. Logging placeholders only: not
+available for inlined `WHERE` values without replacing the query generator.
+**Consequences.** A production deployment that sets `DB_LOGGING=true` no longer starts, and says
+why. SQL cannot be read from production logs; a failing statement is reproduced locally. In
+development the log still holds statement values, which is the developer's own data.
+
+## D-12 — The Sentry scrubber cleans the URL, the user, breadcrumbs, exception text and spans
+
+- **Status:** Accepted (merged in #152, `7d12927`)
+- **Date:** 2026-10-10
+
+Micro entry for finding V3 of `audit-2026-10-10.md`
+([todo](../../todos/2026-10-10-todo-sentry-scrubber-leaves-url-user-breadcrumbs.md)), the one route
+caveat C5 closes on (ADR-012 of the audit folder). Commits carry `refs: c5-sentry-scrubber`. D-02
+first closed C5 on headers, cookies and the body.
+
+**Context.** `scrubSentryEvent` left five places alone: `request.url`, `request.query_string`,
+`user`, breadcrumbs and exception values. The SDK attaches the URL and the query string with
+`sendDefaultPii` off, so a list search that ended in a 5xx sent the user's search text to Sentry.
+Transactions do not pass through `beforeSend` at all. With tracing on they carry request URLs and
+database spans whose text is the SQL statement, which Sequelize writes with its values inlined.
+Tracing is off by default.
+**Decision.** An event leaves with its URL cut at the query string, no `query_string`, and a
+`user` reduced to its `id`. Free text (exception values, the event message, breadcrumb messages)
+is cleaned by three patterns: an email address becomes `[email]`, a JWT-shaped token `[token]`,
+and a URL inside the text loses its query string. Breadcrumb data takes the key-based mask and
+the same URL treatment. Transactions and spans get the same through `beforeSendTransaction` and
+`beforeSendSpan`; a database span keeps its operation name and loses its statement, in the
+description and in its attributes. The owner chose to scrub transactions on 2026-10-10.
+**Options considered.** Dropping exception values and breadcrumbs outright: rejected, an event
+with no message is not worth sending. Relying on `sendDefaultPii` or the SDK's data-collection
+options: rejected, the URL is attached whatever they say and they do not reach exception text.
+Refusing tracing in production: offered to the owner, not taken. Cleaning SQL by pattern:
+rejected, there is no reliable way to tell a value from SQL (D-11).
+**Consequences.** Pattern cleaning catches an address and a token. It does not catch a name or
+any other personal detail a message happens to hold; the logger has the same limit for message
+text, which ADR-0059 accepts. A database span no longer shows which statement was slow, only its
+operation. The scrubber's types stay structural, so it is checked against shapes read from the
+SDK's types and not against an event a Sentry project received.
+
+**Added in review, the same day.** A reviewer given C5 and V3 as claims kept V3 open-progressed on
+the first version. Fixed here, because each is one of V3's places: a console breadcrumb keeps its
+raw arguments in an array, which was masked by key and not cleaned as text, so data is now cleaned
+at every depth; the address pattern missed accented, quoted and apostrophe forms, and the query
+pattern missed an uppercase scheme, a quoted path and a host with no scheme; a `Bearer` or `Basic`
+token is now cleaned; every quantifier is bounded and text over 16 KB is cut first, since the first
+patterns cost quadratic time on a long run. Two things the reviewer listed as new findings were
+also fixed here, on the main thread's call and not under ADR-012's list, because each is one line
+in the same function and leaving a known route open beside its fix helps nobody: header values are
+cleaned as text, so a `Referer` loses its query string, and `http.client_ip` and `client.address`
+are dropped from span data. The second version has not been graded.
+
+## D-13 — A network address is judged by its value, in attributes and in text
+
+- **Status:** Accepted (merged in #160, `ebfce52`)
+- **Date:** 2026-10-13
+
+Micro entry for finding W1 of `audit-2026-10-12.md`
+([todo](../../todos/2026-10-12-todo-sentry-transaction-carries-peer-address.md)), register row
+B-01, which the grader counted under V3 and so keeps caveat C5 open. Commits carry
+`refs: sentry-peer-address`.
+
+**Context.** With tracing sampled, the SDK's HTTP server instrumentation sets `net.peer.ip` and
+`net.host.ip` on the root span, and both reached Sentry in a transaction's `contexts.trace.data`.
+D-12 dropped the client address by a list of two names, `http.client_ip` and `client.address`,
+taken from the documentation. The SDK at 10.69.0 uses other names as well, and a later release
+can add more.
+**Decision.** An attribute is dropped when its value is a network address, whatever its key: an
+IPv4 or IPv6 literal, with or without brackets or a port, or a comma-separated list of them.
+`isIP` from `node:net` decides. Inside a nested array, where there is no key to drop, the value is
+masked. The name list stays and gains the address keys the SDK sets at 10.69.0, so a value that
+is not a clean literal is still dropped under a known name. Host names are kept: `server.address`,
+`net.host.name` and `net.peer.name` are how a trace is read. A test reads the attribute names
+from the installed SDK's files and fails when an address-like name is neither dropped nor kept on
+purpose.
+
+Widened after the review, on the same day: the same value test is applied wherever else an address
+rides. In free text (an exception's message, a breadcrumb, a header value, a span's description)
+and in the host of a URL, an address becomes `[address]` and the rest is kept. Every string in a
+context or in `extra` gets the same, because a socket error's context holds the address it failed
+to reach. The name list is now a pattern (`.ip`, `.ip_address`, `.client_ip`, `.addr`, and the
+three `.address` keys that are addresses), checked against every name the SDK's conventions
+package defines.
+**Options considered.** Adding the two missing names: rejected, a list of names is what failed.
+A pattern on the key's suffix (`.ip`, `.address`): rejected, it drops `server.address`, a host
+name, and misses a key named some other way. An allowlist of span attributes: the right end
+state, and too wide for the change that unblocks the audit; filed as a register row. Masking in
+place of dropping: rejected, the scrubber already drops the client address, and a masked key
+still tells a reader an address was collected.
+**Consequences.** A trace no longer shows which address a request came from or which local
+address served it. An attribute whose value happens to be an address is dropped even when it is
+not one a person could be identified by, such as the server's own. A four-part version string such as `1.2.3.4` reads as an address and is treated as one.
+**From the review.** A reviewer given the claim "no transaction, span or error event carries a
+network address" graded it open-progressed. The named attributes were gone; an address still left
+by `contexts.node_system_error.address`, by the host of `url.full`, `http.url` and `request.url`,
+by `db.connection_string`, and in exception text. It also showed the test of the SDK's names read
+files the Node SDK does not use for server spans, and could not see names written as constants.
+All of that is fixed in this change, and the test now reads the conventions package. **These
+fixes were made after the review and have not been graded.** Left open and filed in the register:
+`event.server_name`, which is the host's own name and can embed an address; a hook that throws,
+after which the SDK sends its own event unscrubbed; and addresses written with leading zeros or
+separated by spaces alone.
+
+## D-14 — The scrubber cleans a URL's userinfo, three more event fields and Sentry logs
+
+- **Status:** Accepted (merged in #172, `6dc3c7f`)
+- **Date:** 2026-10-16
+
+Micro entry for finding W5 of `audit-2026-10-12.md` and the review leftovers of D-12
+([todo](../../todos/2026-10-10-todo-sentry-scrubber-review-leftovers.md)), register row B-16.
+Commits carry `refs: log-redaction-coverage`. Nothing here is C5's route; that is W1 (D-13).
+
+**Context.** Reproduced against the scrubber at `5960efd`. A connection URL in an error message
+kept its password: `postgres://app:pw@db:5432/lakira` left unchanged, and `amqp://guest:pw@10.0.0.5`
+lost only its address. A URL value (`request.url`, a span's `url.full`) kept its `user:password@`.
+Where userinfo was cleaned at all, it was by accident: `https://user:pw@api.example.com` became
+`https://user:[email]` because the password and the host looked like an email address. Three
+fields of an error event were not touched: `transaction`, `tags` and `logentry`. A quoted email
+local part with a space passed. No `beforeSendLog` hook existed, so turning Sentry logs on would
+have sent them unscrubbed. The SDK hooks were checked only by a throwaway script.
+**Decision.** The userinfo of a URL of any scheme becomes `[credentials]`, in free text and in a
+URL value, and in text that runs before the email pattern. A URL value keeps its path: no route
+takes a secret in its path (the path parameters are `:id` and `:metricId`). `transaction` is
+cleaned as text, `tags` as attribute data (an address-valued tag drops, a URL-keyed tag is cleaned
+as a URL), and `logentry` as text, its message and each parameter. The email pattern accepts a
+quoted local part with a space. A new `scrubSentryLog` cleans a log's message as text and its
+attributes as data, and is wired now, with logs still off. The four hooks are exported as one
+object, `SENTRY_SCRUB_HOOKS`, which `Sentry.init` spreads, and a test runs them through the real
+SDK.
+**Options considered.** Dropping a URL's path along with its query: rejected, the path is how an
+event is read and holds no value today. Adding the log hook only when logs are turned on:
+rejected, that is the change most likely to forget it. Matching a query string's tail across a
+space: rejected, nothing can tell where such a tail ends without eating the rest of the message.
+**Consequences.** Accepted and not fixed, each pinned by a test named for this entry so a change is
+deliberate:
+
+- a query string written with a raw space keeps the text after the space. Express keeps `%20`, so
+  only a message the app formats itself could hold one, and none does;
+- a name, a value Postgres quotes, and a key with no `Bearer` in front still pass (D-12's limit).
+  The remedy is the rule in `security.md`, or a server-side scrubbing rule in the Sentry project;
+- `alice@localhost` passes: a single-label domain is a development address;
+- `user-agent` and other headers that carry no credential still leave, cleaned as text;
+- `git@github.com:org/repo` becomes `[email]:org/repo`, and a comma right after a query string
+  goes with it: cosmetic, on the safe side.
+
+## D-15 — A rate-limiter store key names an email address by its hash
+
+- **Status:** Accepted (merged in #175, `1a8a127`)
+- **Date:** 2026-10-16
+
+Micro entry for register row B-19
+([todo](../../todos/2026-10-05-todo-limiter-keys-hold-email-address.md)), found under D-05.
+Branch `fix/limiter-keys-hash-email`; commits carry `refs: log-redaction-coverage`.
+
+**Context.** Two keys in `src/shared/middleware/rate-limiter.ts` held the address itself:
+`password-reset:email:<address>`, from the request body, trimmed and lower-cased, and
+`email-verification:email:<address>`, from `req.user.email` as stored. With the Redis store each
+address sat in a key for the hour of the window. Their log lines already named it by `hashEmail`,
+and the login lockout's key is `auth:lockout:<hashEmail(address)>`, the rule ADR-0032 set.
+**Decision.** Both keys are `<prefix>:email:${hashEmail(email)}`. `hashEmail` trims and
+lower-cases, so the verification key now normalizes too. The IP fallbacks and the log lines are
+unchanged. ADR-0032 gets a dated note extending its rule to these keys, and a test in
+`architecture.test.ts` fails on a limiter key that interpolates an email any other way.
+**Options considered.** A keyed hash (HMAC with a secret): rejected for this row. Plain SHA-256
+lets someone who can read Redis test a list of candidate addresses, but `hashEmail` is shared by
+the lockout keys and the log lines so that they can be matched; keying it changes all three and
+adds a secret, which is a decision of its own. A new ADR: not written, since ADR-0032 already
+holds the rule and is amended, as ADR-0036 was for B-07 and B-12.
+**Consequences.** Counters under the old keys are orphaned on deploy and expire within the hour,
+so every address gets one fresh window.
+
+## D-16 — A database error's message is logged with its quoted values masked
+
+- **Status:** Accepted (merged in #176, `6704344`)
+- **Date:** 2026-10-17
+
+Micro entry for register row B-20
+([todo](../../todos/2026-10-05-todo-log-lines-that-carry-row-or-body-text.md)). Two of its three
+lines were fixed by D-08 and D-09; this is the third. Branch `fix/db-error-quoted-values`; commits
+carry `refs: log-redaction-coverage`.
+
+**Context.** `src/shared/middleware/error.ts` logs `Database error: <message>` with the error.
+Postgres quotes a submitted value in some messages (`invalid input syntax for type uuid: "…"`).
+ADR-0059 accepted that as a residual. The owner chose on 2026-10-16 to close it by masking. The
+text reaches four places: the record's message (Winston appends the error's own message to the
+template, so it is there twice), the record's stack, a nested error's `message` in metadata, and
+Sentry, since a database error answers 500 and is captured.
+**Decision.** `maskQuotedValues` (`src/utils/mask-quoted-values.ts`) replaces everything from the
+first `"` to the last with `"[value]"`; a lone `"` masks to the end. The logger applies it to
+every database error, one whose `original` is an object: the error's raw message is replaced by
+the masked one wherever it appears in the record's message and stack, and in a nested error's
+`message`. The Sentry scrubber applies it to an exception whose type starts with `Sequelize`.
+Any other error is untouched.
+**Options considered.** Masking in `error.ts` only: rejected, it misses Winston's appended copy,
+the stack and Sentry. Pairing quotes one by one: rejected, Postgres does not escape a quote inside
+a value, so `"a"b"` would leak `b`. Masking quotes in every error: rejected, it hides third-party
+messages for no reason. Fixed text plus `db.code`: offered to the owner and not chosen; it loses
+the line of free text that makes a fault readable.
+**Consequences.** A message that quotes two identifiers loses the text between them:
+`insert or update on table "a" violates foreign key constraint "b"` becomes
+`insert or update on table "[value]"`. The SQLSTATE and the constraint, table and column names
+stay in `db`. ADR-0059 gets a dated note narrowing its residual.
+
+## D-17 — The env schema's defaults follow the normalized NODE_ENV; a malformed SENTRY_DSN is refused
+
+- **Status:** Accepted (merged in #177, `863c75b`)
+- **Date:** 2026-10-17
+
+Micro entry for register row B-21
+([todo](../../todos/2026-10-10-todo-startup-and-config-review-leftovers.md)), the leftovers of the
+review of D-10 and D-11. Branch `fix/startup-config-leftovers`; commits carry
+`refs: log-redaction-coverage`.
+
+**Context.** `zodEnv.ts` built its schema once, at module load, and seven defaults compared the raw
+`process.env.NODE_ENV` with a lowercase name. The schema lowercases `NODE_ENV` itself, so
+`NODE_ENV=Production` ran as production while `DB_SSL_REJECT_UNAUTHORIZED` took its
+non-production default, `false`, and `db.ts`'s production config stopped checking the database's
+certificate. Because the defaults were read at import, no test could set `NODE_ENV` and see them
+change. Separately, `@sentry/core` prints a `SENTRY_DSN` it cannot parse in full, with
+`console.error`; amqplib's connection errors quote no URL.
+**Decision.** The schema is built by `buildEnvSchema(nodeEnv)`. `buildEnv` parses `NODE_ENV` first,
+on its own path, and passes the normalized value in, so every default that depends on it, and the
+`APP_RELEASE` default, is read at parse time. A `SENTRY_DSN` that does not have the shape of
+Sentry's own DSN pattern is refused at startup, naming the variable and not the value; blank still
+means off. Development migrations log SQL only with `DB_LOGGING=true`. `buildAmqpUrl` encodes the
+user and password. The `PORT` error names `PORT`, three unreachable port checks go, and
+`withTestEnv` unsets a variable whose override is `undefined`.
+**Options considered.** Lowercasing `process.env.NODE_ENV` in each default: rejected, the defaults
+stay frozen at import and untestable. Optional fields filled after parsing: rejected, it widens
+every consumer's types. Leaving the DSN to Sentry: rejected, a malformed value is printed whole and
+Sentry silently stays off.
+**Consequences.** A `SENTRY_DSN` that Sentry could not parse, which left Sentry off without a word,
+now refuses startup. `NODE_ENV` in any case gets the defaults of its lowercase name.

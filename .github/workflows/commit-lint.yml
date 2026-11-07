@@ -1,0 +1,91 @@
+# .github/workflows/commit-lint.yml
+#
+# Validates the commit subject that will actually land on a protected branch.
+#
+# `commitlint` already runs locally from the `commit-msg` hook, but that hook is
+# bypassable (`git commit --no-verify`) and never runs in CI. More importantly it
+# validates the *feature branch* commits, which squash-merging then collapses away:
+# the repo's `squash_merge_commit_title` is `COMMIT_OR_PR_TITLE`, so the subject that
+# reaches `dev` comes from the PR title whenever a branch has more than one commit —
+# and nothing validated that. This job closes both gaps.
+#
+# Lives in its own workflow rather than `backend-ci.yml` because it needs the
+# `edited` pull_request type: without it, a rejected title could not be fixed by
+# retitling the PR. Adding `edited` to the main CI workflow would re-run the full
+# suite (including `contract_local`) on every title or description tweak.
+
+name: Commit Lint
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+      - staging
+    # `edited` fires on title changes, which is the whole point of this job.
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+
+permissions:
+  contents: read
+
+concurrency:
+  group: commit-lint-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  commit_lint:
+    name: Commit Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # `commitlint --from` walks back to the base branch, so the default
+          # shallow clone is not enough.
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          check-latest: true
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Multi-commit PRs take their squash subject from the PR title. Passed via
+      # env rather than interpolated into the script: `${{ }}` inside `run:` splices
+      # attacker-controlled text straight into the shell.
+      - name: Lint PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$PR_TITLE" | npx --no -- commitlint
+
+      # Single-commit PRs take their squash subject from the commit itself, so the
+      # branch commits are checked too. commitlint's default ignores cover merge
+      # commits, so pulling `dev` into a feature branch does not trip this.
+      #
+      # Scoped to `dev` deliberately. `dev` is where new commits enter; promotion
+      # PRs into `staging` and `main` only replay commits already gated here, and
+      # re-linting them does not work:
+      #
+      #   - `dev -> staging` fails on history that predates this job. The subject
+      #     "chore(dev-env): make local setup work from a fresh clone" starts with a
+      #     space (header-trim, subject-empty, type-empty) — the mangled commit from
+      #     the heredoc incident. It is immutable without rewriting a shared branch.
+      #   - `staging -> main` cannot run at all: the two branches have no common
+      #     ancestor, so commitlint aborts with "Cannot find merge-base".
+      #
+      # Both were verified by running commitlint over the real ranges.
+      - name: Lint branch commits
+        if: github.base_ref == 'dev'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: npx --no -- commitlint --from "origin/$BASE_REF" --to HEAD

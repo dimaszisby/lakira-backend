@@ -3,7 +3,7 @@ import {
   extendZodWithOpenApi,
 } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
-import { APP_DISPLAY_NAME } from "@/config/app-name.js";
+import { APP_DISPLAY_NAME, APP_SHORT_NAME } from "@/config/app-name.js";
 
 extendZodWithOpenApi(z);
 
@@ -55,8 +55,65 @@ export const openApiDocument = {
       name: "Analytics",
       description: "Visualization and dashboard analytics endpoints",
     },
+    {
+      name: "Health",
+      description:
+        "Liveness and readiness probes for the platform. They run ahead of the rate limiter and the HTTPS check, take no credentials, and are not fuzzed by the contract gate (openapi-contract-polish D-01).",
+    },
+    {
+      name: "Admin",
+      description:
+        "Organization admin/owner surface. Excluded from the default contract-test tag set — these routes require an elevated role the seeded fixtures do not hold.",
+    },
   ],
   components: {
+    // Response headers a client depends on, declared once and referenced by the
+    // routes that send them (kit error-envelope-residuals, D-09). Until 2026-10-14
+    // the spec declared no response header at all. Each is `required` because the
+    // route sends it on every response that names it; the contract gate's
+    // response_headers_conformance check holds the spec to that.
+    headers: {
+      RefreshCookie: {
+        description:
+          `Sets the \`${APP_SHORT_NAME}_refresh\` cookie to a new opaque refresh token. ` +
+          "The cookie is `HttpOnly` and `SameSite=Strict`, scoped to `Path=/api/v1/auth/refresh`, " +
+          "with `Max-Age` set to the refresh token's lifetime. `Secure` is added in staging and production. " +
+          "A browser sends it to `POST /auth/refresh` only; script cannot read it.",
+        required: true,
+        schema: { type: "string" },
+        example: `${APP_SHORT_NAME}_refresh=dGVzdC1yZWZyZXNoLXRva2Vu; Max-Age=604800; Path=/api/v1/auth/refresh; HttpOnly; SameSite=Strict`,
+      },
+      ClearedRefreshCookie: {
+        description:
+          `Clears the \`${APP_SHORT_NAME}_refresh\` cookie: an empty value with an expiry in the past, ` +
+          "on the same `Path=/api/v1/auth/refresh`, `HttpOnly` and `SameSite=Strict`.",
+        required: true,
+        schema: { type: "string" },
+        example: `${APP_SHORT_NAME}_refresh=; Path=/api/v1/auth/refresh; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Strict`,
+      },
+      ETag: {
+        description:
+          "A strong validator for the response body: a quoted digest that changes whenever the body does. " +
+          "Send it back in `If-None-Match` to get a 304 when nothing changed.",
+        required: true,
+        schema: { type: "string" },
+        example: '"mJ3k0sVw2xQ9uYtR1aBcDeFgHiJ"',
+      },
+      RetryAfter: {
+        description:
+          "How many seconds to wait before retrying. Every 429 carries it: each rate limiter sets it to the seconds left in its window, and a locked-out login to the lockout's length.",
+        required: true,
+        schema: { type: "integer", minimum: 0 },
+        example: 900,
+      },
+      VisualizationCacheControl: {
+        description:
+          "Always `private, no-cache`: a client may store the response and must revalidate it with `If-None-Match` before each reuse.",
+        required: true,
+        schema: { type: "string" },
+        example: "private, no-cache",
+      },
+    },
     securitySchemes: {
       BearerAuth: {
         type: "http",
@@ -65,6 +122,30 @@ export const openApiDocument = {
         description: "JWT authentication using a bearer token",
       },
     },
+    // Every error body the API emits comes from `src/shared/utils/error-envelope.ts`
+    // and has the shape `{ status, message, errors? }`. The components below
+    // describe exactly that.
+    //
+    // Each declares `required` — before the C3 error-envelope work none did, and a
+    // JSON Schema with no `required` and no `additionalProperties` validates `{}`
+    // and `{"anything":1}` alike. Schemathesis's `response_schema_conformance`
+    // check therefore passed trivially for all seven components across 46
+    // operations: a gate that could not fail. `additionalProperties: false` is
+    // deliberately *not* set — the handler appends `stack` in development, and
+    // closing the schemas would make an additive change a breaking one.
+    //
+    // 405 is emitted by `method-guard.ts` and is deliberately undocumented: it is
+    // only ever returned for a method/path pair that is not an operation in this
+    // spec (TRACE anywhere, or e.g. DELETE /auth/login), so there is no operation
+    // to hang the response on and Schemathesis never generates such a request. A
+    // `MethodNotAllowedError` component would be unreferenced here and would
+    // generate an unused type in lakira-frontend. The body it sends is the same
+    // envelope as everything else. The 404 `notFoundHandler` sends for a path no
+    // route matches is undocumented for the same reason
+    // (openapi-contract-polish D-04).
+    //
+    // `status` is an enum in each: `envelopeStatus` sends `fail` for a 4xx and
+    // `error` otherwise, and nothing else writes it (openapi-contract-polish D-02).
     responses: {
       UnauthorizedError: {
         description: "Authentication required or invalid token",
@@ -72,8 +153,9 @@ export const openApiDocument = {
           "application/json": {
             schema: {
               type: "object",
+              required: ["status", "message"],
               properties: {
-                status: { type: "string", example: "fail" },
+                status: { type: "string", enum: ["fail"], example: "fail" },
                 message: { type: "string", example: "Unauthorized" },
               },
             },
@@ -86,8 +168,9 @@ export const openApiDocument = {
           "application/json": {
             schema: {
               type: "object",
+              required: ["status", "message"],
               properties: {
-                status: { type: "string", example: "fail" },
+                status: { type: "string", enum: ["fail"], example: "fail" },
                 message: { type: "string", example: "Forbidden" },
               },
             },
@@ -100,8 +183,9 @@ export const openApiDocument = {
           "application/json": {
             schema: {
               type: "object",
+              required: ["status", "message"],
               properties: {
-                status: { type: "string", example: "fail" },
+                status: { type: "string", enum: ["fail"], example: "fail" },
                 message: { type: "string", example: "Resource not found" },
               },
             },
@@ -114,15 +198,25 @@ export const openApiDocument = {
           "application/json": {
             schema: {
               type: "object",
+              required: ["status", "message"],
               properties: {
-                status: { type: "string", example: "fail" },
-                message: { type: "string", example: "Bad Request" },
+                status: { type: "string", enum: ["fail"], example: "fail" },
+                message: { type: "string", example: "Validation failed" },
+                // `field` — not `path`. The emitter
+                // (`zod-error-formatter.ts`) produces a dotted string such as
+                // "body.name", which is what a form needs; this component used
+                // to declare `path: string[]`, a key no response has ever
+                // carried. lakira-frontend generated its types from that and
+                // typed a property that is always undefined.
                 errors: {
+                  description:
+                    "Field-level detail. Present only for validation and body-shape failures.",
                   type: "array",
                   items: {
                     type: "object",
+                    required: ["field", "message"],
                     properties: {
-                      path: { type: "array", items: { type: "string" } },
+                      field: { type: "string", example: "body.name" },
                       message: { type: "string" },
                     },
                   },
@@ -138,8 +232,9 @@ export const openApiDocument = {
           "application/json": {
             schema: {
               type: "object",
+              required: ["status", "message"],
               properties: {
-                status: { type: "string", example: "error" },
+                status: { type: "string", enum: ["error"], example: "error" },
                 message: { type: "string", example: "Internal Server Error" },
               },
             },
@@ -152,9 +247,76 @@ export const openApiDocument = {
           "application/json": {
             schema: {
               type: "object",
+              required: ["status", "message"],
               properties: {
-                status: { type: "string", example: "fail" },
+                status: { type: "string", enum: ["fail"], example: "fail" },
                 message: { type: "string", example: "Resource already exists" },
+              },
+            },
+          },
+        },
+      },
+      // `express.json` raises both on an operation that takes a body, and the
+      // error handler keeps them in the envelope (error-envelope-residuals
+      // D-02). The generator adds them to every operation with a request body
+      // (openapi-contract-polish D-03).
+      PayloadTooLargeError: {
+        description:
+          "The request body is larger than the server accepts (`REQUEST_BODY_LIMIT`, 1mb by default).",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["status", "message"],
+              properties: {
+                status: { type: "string", enum: ["fail"], example: "fail" },
+                message: {
+                  type: "string",
+                  example: "request entity too large",
+                },
+              },
+            },
+          },
+        },
+      },
+      UnsupportedMediaTypeError: {
+        description:
+          "The request body's charset or `Content-Encoding` is not supported. A JSON body's charset must be a UTF one (UTF-8 when none is given), and its encoding `identity`, `gzip` or `deflate`.",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["status", "message"],
+              properties: {
+                status: { type: "string", enum: ["fail"], example: "fail" },
+                message: {
+                  type: "string",
+                  example: 'unsupported charset "LATIN1"',
+                },
+              },
+            },
+          },
+        },
+      },
+      // Every limiter answers through the shared envelope (ADR-0057). Until
+      // 2026-10-03 this documented `status` as the number 429.
+      TooManyRequestsError: {
+        description:
+          "Rate limit exceeded. Any operation can return this: an app-wide limit applies to every request, and some operations have a stricter limit of their own.",
+        headers: {
+          "Retry-After": { $ref: "#/components/headers/RetryAfter" },
+        },
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["status", "message"],
+              properties: {
+                status: { type: "string", enum: ["fail"], example: "fail" },
+                message: {
+                  type: "string",
+                  example: "Too many requests, please try again later.",
+                },
               },
             },
           },

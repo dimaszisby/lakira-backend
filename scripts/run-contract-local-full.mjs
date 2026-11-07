@@ -111,10 +111,6 @@ async function main() {
       `${npxCmd} wait-on ${contractBaseUrl}/health --timeout 180000`,
     );
 
-    runStep("Run Postman Newman suite", `${npmCmd} run test:contract:local`, {
-      env: { SKIP_CONTRACT_SEED: "true" },
-    });
-
     const token = resolveContractToken();
     if (!token) {
       throw new Error(

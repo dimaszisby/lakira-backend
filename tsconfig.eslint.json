@@ -9,7 +9,8 @@
     "*.tsx",
     "src/**/*",
     "scripts/**/*",
-    "documents/**/*",
+    "docs/**/*",
+    "tests/**/*",
     "__tests__/**/*",
     "tmp/**/*"
   ],

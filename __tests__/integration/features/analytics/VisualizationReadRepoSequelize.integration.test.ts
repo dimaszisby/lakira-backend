@@ -10,6 +10,7 @@ import type {
   DashboardVizResponse,
   DashboardVizItem,
 } from "@/features/analytics/domain/types.js";
+import { sequelize } from "@/infrastructure/db/models.js";
 import {
   createUserRow,
   seedDashboardMetric,
@@ -208,4 +209,409 @@ describe("VisualizationReadRepoSequelize (integration)", () => {
     expect(second).toBe(first);
     expect(cache.dashboardHitsFromCache).toBe(1);
   });
+  // Kit deterministic-query-ordering, D-01. Two dashboard metrics tied on
+  // priority and settings created_at, with room for one: the one returned must
+  // be decided by settings id, not by whichever row Postgres read first. The
+  // smaller id is inserted first because the tie-breaker is DESC.
+  it("breaks a priority and created_at tie at the limit by settings id", async () => {
+    const lowSettingsId = "00000000-0000-4000-8000-0000000000c1";
+    const highSettingsId = "ffffffff-ffff-4fff-bfff-ffffffffffc1";
+    const displayOptions = {
+      showOnDashboard: true,
+      priority: 1,
+      chartType: "line" as const,
+      color: "#111111",
+    };
+    const {
+      user,
+      metrics: [, highSeed],
+    } = await seedDashboardWithMetrics({
+      metrics: [
+        {
+          metricOverrides: { name: "Low" },
+          settingsOverrides: { id: lowSettingsId, displayOptions },
+          logs: [{ logValue: 1, loggedAt: new Date("2025-04-10T00:00:00Z") }],
+        },
+        {
+          metricOverrides: { name: "High" },
+          settingsOverrides: { id: highSettingsId, displayOptions },
+          logs: [{ logValue: 2, loggedAt: new Date("2025-04-10T00:00:00Z") }],
+        },
+      ],
+    });
+    await sequelize.query(
+      "UPDATE metric_settings SET created_at = '2025-01-01T00:00:00Z' WHERE id IN (:ids)",
+      { replacements: { ids: [lowSettingsId, highSettingsId] } },
+    );
+
+    const result = await repo.fetchDashboardVisualization({
+      userId: user.id,
+      organizationId: TEST_ORG_ID,
+      startISO: "2025-04-09T00:00:00Z",
+      endISO: "2025-04-13T00:00:00Z",
+      bucket: "1d" as const,
+      bucketSpec,
+      tz: "UTC",
+      fill: "none" as const,
+      limit: 1,
+    });
+
+    expect(result.items.map((item: DashboardVizItem) => item.metricId)).toEqual(
+      [highSeed.metric.id],
+    );
+  });
+
+  // Kit deterministic-query-ordering, D-04. When New York leaves daylight
+  // saving time, 05:30Z and 06:30Z are both 01:30 local, so the two logs tie on
+  // local time. The latest value must be the later instant. The earlier log is
+  // inserted first and has the higher id, so neither insertion order nor an id
+  // tie-breaker on local time gives the right answer.
+  it("takes the latest value from the later instant when two logs share a local time", async () => {
+    const {
+      user,
+      metrics: [seed],
+    } = await seedDashboardWithMetrics({
+      metrics: [
+        {
+          metricOverrides: { name: "Weight" },
+          settingsOverrides: {
+            displayOptions: {
+              showOnDashboard: true,
+              priority: 1,
+              chartType: "line",
+              color: "#111111",
+            },
+          },
+          logs: [
+            {
+              id: "ffffffff-ffff-4fff-bfff-0000000000d4",
+              logValue: 10,
+              loggedAt: new Date("2025-11-02T05:30:00Z"),
+            },
+            {
+              id: "00000000-0000-4000-8000-0000000000d4",
+              logValue: 20,
+              loggedAt: new Date("2025-11-02T06:30:00Z"),
+            },
+          ],
+        },
+      ],
+    });
+
+    const result = await repo.fetchDashboardVisualization({
+      userId: user.id,
+      organizationId: TEST_ORG_ID,
+      startISO: "2025-11-01T04:00:00Z",
+      endISO: "2025-11-04T05:00:00Z",
+      bucket: "1d" as const,
+      bucketSpec,
+      tz: "America/New_York",
+      fill: "none" as const,
+      limit: 5,
+    });
+
+    expect(
+      result.items.map((item: DashboardVizItem) => [
+        item.metricId,
+        item.latestValue,
+      ]),
+    ).toEqual([[seed.metric.id, 20]]);
+    // Kit analytics-relative-range, D-02. Both logs are 01:30 local, so the
+    // local times cannot tell first from last; the stored instants can.
+    expect(result.items[0].firstLogAt).toBe("2025-11-02T05:30:00.000Z");
+    expect(result.items[0].lastLogAt).toBe("2025-11-02T06:30:00.000Z");
+  });
+
+  // Kit analytics-relative-range, D-02. The two timestamps were local times
+  // sent with a Z: in Jakarta, seven hours after the instant they named.
+  it("returns the first and last log's stored instants, whatever the zone", async () => {
+    const {
+      user,
+      metrics: [seed],
+    } = await seedDashboardWithMetrics({
+      metrics: [
+        {
+          metricOverrides: { name: "Sleep" },
+          settingsOverrides: {
+            displayOptions: {
+              showOnDashboard: true,
+              priority: 1,
+              chartType: "line",
+              color: "#111111",
+            },
+          },
+          logs: [
+            { logValue: 7, loggedAt: new Date("2025-04-10T16:37:00Z") },
+            { logValue: 8, loggedAt: new Date("2025-04-11T20:05:00Z") },
+          ],
+        },
+      ],
+    });
+
+    const result = await repo.fetchDashboardVisualization({
+      userId: user.id,
+      organizationId: TEST_ORG_ID,
+      startISO: "2025-04-09T17:00:00Z",
+      endISO: "2025-04-13T17:00:00Z",
+      bucket: "1d" as const,
+      bucketSpec,
+      tz: "Asia/Jakarta",
+      fill: "none" as const,
+      limit: 5,
+    });
+
+    expect(result.items.map((item: DashboardVizItem) => item.metricId)).toEqual(
+      [seed.metric.id],
+    );
+    expect(result.items[0].firstLogAt).toBe("2025-04-10T16:37:00.000Z");
+    expect(result.items[0].lastLogAt).toBe("2025-04-11T20:05:00.000Z");
+  });
+
+  // Kit analytics-relative-range, D-03. The requested range holds nothing, so
+  // the fallback is built from the newest log. It used to end at that log, and
+  // the query is half-open, so the log was outside it. The first-second case
+  // is the one a range ending a millisecond later would still lose: the
+  // series stops a second short of the end.
+  it.each([
+    ["at midday", "2025-06-10T12:00:00.000Z"],
+    ["in the first second of the day", "2025-06-10T00:00:00.500Z"],
+  ])(
+    "returns a metric's only log through the fallback range, a log %s",
+    async (_name, loggedAt) => {
+      const {
+        user,
+        metrics: [seed],
+      } = await seedDashboardWithMetrics({
+        metrics: [
+          {
+            metricOverrides: { name: "Mood" },
+            settingsOverrides: {
+              displayOptions: {
+                showOnDashboard: true,
+                priority: 1,
+                chartType: "line",
+                color: "#111111",
+              },
+            },
+            logs: [{ logValue: 7, loggedAt: new Date(loggedAt) }],
+          },
+        ],
+      });
+
+      const result = await repo.fetchDashboardVisualization({
+        userId: user.id,
+        organizationId: TEST_ORG_ID,
+        startISO: "2025-09-01T00:00:00Z",
+        endISO: "2025-09-08T00:00:00Z",
+        bucket: "1d" as const,
+        bucketSpec,
+        tz: "UTC",
+        fill: "none" as const,
+        limit: 5,
+      });
+
+      expect(result.items).toHaveLength(1);
+      const [item] = result.items;
+      expect(item.metricId).toBe(seed.metric.id);
+      expect(item.fallbackRangeUsed).toBe(true);
+      expect(item.actualRange.endISO).toBe("2025-06-11T00:00:00.000Z");
+      expect(item.stats).toEqual({ average: 7, min: 7, max: 7, count: 1 });
+      expect(item.series.filter((point) => point.value !== null)).toHaveLength(
+        1,
+      );
+    },
+  );
+
+  // Kit deterministic-query-ordering, D-05. The range's first bucket (04-09)
+  // is empty, and the two days that hold logs hold different numbers of them,
+  // so reading the first bucket, the last bucket, or an average of the bucket
+  // averages each gives a different wrong answer. Both endpoints must agree.
+  it("computes stats over the whole series, the same on both endpoints", async () => {
+    const {
+      user,
+      metrics: [seed],
+    } = await seedDashboardWithMetrics({
+      metrics: [
+        {
+          metricOverrides: { name: "Pace" },
+          settingsOverrides: {
+            displayOptions: {
+              showOnDashboard: true,
+              priority: 1,
+              chartType: "line",
+              color: "#111111",
+            },
+          },
+          logs: [
+            { logValue: 10, loggedAt: new Date("2025-04-10T08:00:00Z") },
+            { logValue: 20, loggedAt: new Date("2025-04-11T08:00:00Z") },
+            { logValue: 20, loggedAt: new Date("2025-04-11T12:00:00Z") },
+            { logValue: 20, loggedAt: new Date("2025-04-11T16:00:00Z") },
+          ],
+        },
+      ],
+    });
+
+    const range = {
+      userId: user.id,
+      organizationId: TEST_ORG_ID,
+      startISO: "2025-04-09T00:00:00Z",
+      endISO: "2025-04-13T00:00:00Z",
+      bucket: "1d" as const,
+      bucketSpec,
+      tz: "UTC",
+      fill: "none" as const,
+    };
+    const expected = { average: 17.5, min: 10, max: 20, count: 4 };
+
+    const dashboard = await repo.fetchDashboardVisualization({
+      ...range,
+      limit: 5,
+    });
+    expect(dashboard.items).toHaveLength(1);
+    expect(dashboard.items[0].fallbackRangeUsed).toBe(false);
+    expect(dashboard.items[0].stats).toEqual(expected);
+
+    const single = await repo.fetchVisualization({
+      ...range,
+      metricId: seed.metric.id,
+    });
+    expect(single.stats).toEqual(expected);
+  });
+
+  // Kit query-values-mean-what-they-say, D-01 (register row B-43). A log of 0 is valid,
+  // and the dashboard decided a bucket by the truth of its average: a bucket averaging 0
+  // came back null, the same as one with no logs, while the single-metric path kept it.
+  it.each([
+    ["none", 0, null],
+    ["zero", 0, 0],
+  ] as const)(
+    "with fill=%s, keeps a zero average as %p and gives an empty bucket %p",
+    async (fill, zeroBucket, emptyBucket) => {
+      const {
+        user,
+        metrics: [seed],
+      } = await seedDashboardWithMetrics({
+        metrics: [
+          {
+            metricOverrides: { name: "Rest days" },
+            settingsOverrides: {
+              displayOptions: {
+                showOnDashboard: true,
+                priority: 1,
+                chartType: "line",
+                color: "#222222",
+              },
+            },
+            logs: [
+              { logValue: 0, loggedAt: new Date("2025-04-10T08:00:00Z") },
+              { logValue: 0, loggedAt: new Date("2025-04-10T12:00:00Z") },
+              { logValue: 5, loggedAt: new Date("2025-04-12T08:00:00Z") },
+            ],
+          },
+        ],
+      });
+      const range = {
+        userId: user.id,
+        organizationId: TEST_ORG_ID,
+        startISO: "2025-04-10T00:00:00Z",
+        endISO: "2025-04-13T00:00:00Z",
+        bucket: "1d" as const,
+        bucketSpec,
+        tz: "UTC",
+        fill,
+      };
+      const dashboard = await repo.fetchDashboardVisualization({
+        ...range,
+        limit: 5,
+      });
+      const single = await repo.fetchVisualization({
+        ...range,
+        metricId: seed.metric.id,
+      });
+
+      // By position: the labels are checked by the D-03 test of analytics-leftovers.
+      const values = (series: { value: number | null }[]) =>
+        series.map((p) => p.value);
+      for (const series of [dashboard.items[0].series, single.series]) {
+        expect(values(series)).toEqual([zeroBucket, emptyBucket, 5]);
+      }
+    },
+  );
+
+  // Kit analytics-leftovers, D-03 (register row B-65). A bucket label is the bucket's wall
+  // time in the requested zone, written with a Z (ADR-0062). The SQL computed it as a
+  // timestamp without zone, which the driver reads in the server process's zone, so a
+  // process anywhere but UTC moved every label by its own offset. Jest gives a test its
+  // own process.env, so TZ cannot be changed here: the driver's parser for that type
+  // (oid 1114) is replaced by one reading it at a fixed offset, as such a process would.
+  it.each([
+    ["in UTC", "Z"],
+    ["7 hours east of UTC", "+07:00"],
+    ["4 hours west of UTC", "-04:00"],
+  ])(
+    "labels a bucket the same with the server process %s",
+    async (_name, offset) => {
+      const {
+        user,
+        metrics: [seed],
+      } = await seedDashboardWithMetrics({
+        metrics: [
+          {
+            metricOverrides: { name: "Water" },
+            settingsOverrides: {
+              displayOptions: {
+                showOnDashboard: true,
+                priority: 1,
+                chartType: "line",
+                color: "#333333",
+              },
+            },
+            // 19:00 on 2025-06-10 in Jakarta.
+            logs: [{ logValue: 3, loggedAt: new Date("2025-06-10T12:00:00Z") }],
+          },
+        ],
+      });
+      const range = {
+        userId: user.id,
+        organizationId: TEST_ORG_ID,
+        // One Jakarta day: 2025-06-10.
+        startISO: "2025-06-09T17:00:00Z",
+        endISO: "2025-06-10T17:00:00Z",
+        bucket: "1d" as const,
+        bucketSpec,
+        tz: "Asia/Jakarta",
+        fill: "none" as const,
+      };
+
+      const TIMESTAMP_WITHOUT_ZONE = 1114;
+      const pgTypes = (sequelize as any).connectionManager.lib.types;
+      const original = pgTypes.getTypeParser(TIMESTAMP_WITHOUT_ZONE);
+      pgTypes.setTypeParser(
+        TIMESTAMP_WITHOUT_ZONE,
+        (value: string) => new Date(`${value.replace(" ", "T")}${offset}`),
+      );
+      let dashboard: DashboardVizResponse;
+      let single: VizResponse;
+      try {
+        dashboard = await repo.fetchDashboardVisualization({
+          ...range,
+          limit: 5,
+        });
+        single = await repo.fetchVisualization({
+          ...range,
+          metricId: seed.metric.id,
+        });
+      } finally {
+        pgTypes.setTypeParser(TIMESTAMP_WITHOUT_ZONE, original);
+      }
+
+      const label = "2025-06-10T00:00:00.000Z";
+      expect(dashboard.items[0].series).toEqual([
+        { bucketStartISO: label, value: 3 },
+      ]);
+      expect(dashboard.items[0].latestBucketStart).toBe(label);
+      expect(single.series).toEqual([{ bucketStartISO: label, value: 3 }]);
+    },
+  );
 });

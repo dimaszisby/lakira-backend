@@ -34,7 +34,7 @@ Read every modified file top to bottom. Map which features, layers, and APIs wer
 - Auth routes use `authMiddleware` + `assertAuthenticated(req)` correctly
 - Sensitive fields (password, token, secret) never logged or returned in responses
 - Rate limiting applied to sensitive endpoints (auth, analytics)
-- `xss-clean` and `hpp` middleware in place on the global stack
+- `hpp` middleware in place on the global stack, and no middleware rewriting input (ADR-0082)
 
 ## Step 4: Code quality
 
@@ -54,7 +54,7 @@ Read every modified file top to bottom. Map which features, layers, and APIs wer
 - No mocked database in integration tests — must hit real DB
 - Tests cover happy path AND edge cases (invalid input, unauthorized, not found)
 - No `test.only` or `test.skip` left in merged code
-- Coverage thresholds respected (check `jest.config.ts`)
+- Coverage thresholds respected (check `jest.config.mjs`)
 
 ## Step 6: Performance
 

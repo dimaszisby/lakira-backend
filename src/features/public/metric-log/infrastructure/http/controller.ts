@@ -15,24 +15,17 @@ import {
 } from "./schema.zod.js";
 import { assertAuthenticated } from "@/utils/auth-guards.js";
 import logger from "@/utils/logger.js";
-import { buildMetricLogFeature } from "../../feature.js";
+import type { MetricLogFeature } from "../../feature.js";
 import { pickValidated } from "@/shared/middleware/validated.js";
 
-type MetricLogFeature = ReturnType<typeof buildMetricLogFeature>;
-let metricLogFeature: MetricLogFeature = buildMetricLogFeature();
-
-export const overrideMetricLogFeatureForTest = (feature: MetricLogFeature) => {
-  metricLogFeature = feature;
-};
-
-export const createMetricLog = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const createMetricLog = (feature: MetricLogFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
 
     const { body } = pickValidated(createMetricLogSchema)(req);
     const { metricId, type, logValue, loggedAt } = body;
 
-    const logDomain = await metricLogFeature.createLog.execute({
+    const logDomain = await feature.createLog.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId,
@@ -43,17 +36,16 @@ export const createMetricLog = catchAsync(
     const dto = toMetricLogResponseDTO(logDomain);
 
     successResponse(res, 201, dto, "Metric Log created successfully");
-  },
-);
+  });
 
-export const getUserLogLibrariesViaCursor = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const getUserLogLibrariesViaCursor = (feature: MetricLogFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
 
     const { query } = pickValidated(listMetricLogsViaCursorSchema)(req);
     const { limit, sort, q, after, includeTotal, filter } = query;
 
-    const page = await metricLogFeature.listLogs.execute({
+    const page = await feature.listLogs.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       limit,
@@ -75,17 +67,16 @@ export const getUserLogLibrariesViaCursor = catchAsync(
     };
 
     successResponse(res, 200, dto, "Metric Logs cursor fetched successfully");
-  },
-);
+  });
 
-export const getLogById = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const getLogById = (feature: MetricLogFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
 
     const { params, query } = pickValidated(getMetricLogByIdSchema)(req);
     const { metricId } = query;
 
-    const logDomain = await metricLogFeature.getLog.execute({
+    const logDomain = await feature.getLog.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       logId: params.id,
@@ -96,63 +87,65 @@ export const getLogById = catchAsync(
     }
 
     successResponse(res, 200, toMetricLogResponseDTO(logDomain));
-  },
-);
-
-export const updateLog = catchAsync(async (req: AuthRequest, res: Response) => {
-  assertAuthenticated(req);
-
-  const { body, params } = pickValidated(updateMetricLogSchema)(req);
-  const { logValue, type, loggedAt } = body;
-
-  const logDomain = await metricLogFeature.updateLog.execute({
-    userId: req.user.id,
-    organizationId: req.user.organizationId,
-    logId: params.id,
-    updates: { logValue, type, loggedAt },
   });
 
-  successResponse(
-    res,
-    200,
-    toMetricLogResponseDTO(logDomain),
-    "Log updated successfully",
-  );
-});
+const updateLog = (feature: MetricLogFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
+    assertAuthenticated(req);
 
-export const deleteLog = catchAsync(async (req: AuthRequest, res: Response) => {
-  assertAuthenticated(req);
+    const { body, params } = pickValidated(updateMetricLogSchema)(req);
+    const { logValue, type, loggedAt } = body;
 
-  const { params } = pickValidated(deleteMetricLogSchema)(req);
-  const logDomain = await metricLogFeature.deleteLog.execute({
-    userId: req.user.id,
-    organizationId: req.user.organizationId,
-    logId: params.id,
+    const logDomain = await feature.updateLog.execute({
+      userId: req.user.id,
+      organizationId: req.user.organizationId,
+      logId: params.id,
+      updates: { logValue, type, loggedAt },
+    });
+
+    successResponse(
+      res,
+      200,
+      toMetricLogResponseDTO(logDomain),
+      "Log updated successfully",
+    );
   });
 
-  successResponse(
-    res,
-    200,
-    toMetricLogResponseDTO(logDomain),
-    "Log deleted successfully",
-  );
-});
+const deleteLog = (feature: MetricLogFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
+    assertAuthenticated(req);
 
-export const getAggregatedStats = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+    const { params } = pickValidated(deleteMetricLogSchema)(req);
+    const logDomain = await feature.deleteLog.execute({
+      userId: req.user.id,
+      organizationId: req.user.organizationId,
+      logId: params.id,
+    });
+
+    successResponse(
+      res,
+      200,
+      toMetricLogResponseDTO(logDomain),
+      "Log deleted successfully",
+    );
+  });
+
+const getAggregatedStats = (feature: MetricLogFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const { query } = pickValidated(getAggregatedStatsSchema)(req);
-    const stats = await metricLogFeature.getStats.execute({
+    const stats = await feature.getStats.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId: query.metricId,
+      from: query.startDate ? new Date(query.startDate) : undefined,
+      to: query.endDate ? new Date(query.endDate) : undefined,
     });
     successResponse(res, 200, stats);
-  },
-);
+  });
 
-export const generateDummyMetricLogs = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const generateDummyMetricLogs = (feature: MetricLogFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
 
     const { body, params } = pickValidated(generateDummyMetricLogsSchema)(req);
@@ -165,7 +158,7 @@ export const generateDummyMetricLogs = catchAsync(
       userId: req.user.id,
     });
 
-    const result = await metricLogFeature.generateDummyLogs.execute({
+    const result = await feature.generateDummyLogs.execute({
       userId: req.user.id,
       organizationId: req.user.organizationId,
       metricId,
@@ -178,5 +171,15 @@ export const generateDummyMetricLogs = catchAsync(
       { jobId: result.jobId },
       `${count} dummy metric log generation accepted`,
     );
-  },
-);
+  });
+
+/** Every handler, closed over the feature the router hands it (ADR-0072). */
+export const createMetricLogController = (feature: MetricLogFeature) => ({
+  createMetricLog: createMetricLog(feature),
+  getUserLogLibrariesViaCursor: getUserLogLibrariesViaCursor(feature),
+  getLogById: getLogById(feature),
+  updateLog: updateLog(feature),
+  deleteLog: deleteLog(feature),
+  getAggregatedStats: getAggregatedStats(feature),
+  generateDummyMetricLogs: generateDummyMetricLogs(feature),
+});

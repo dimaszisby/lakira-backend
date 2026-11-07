@@ -85,6 +85,29 @@ describe("metric-settings schemas", () => {
     expect(result.success).toBe(false);
   });
 
+  // zod 4 applies a default inside .optional(): an update that left the options out reset
+  // them to the defaults (zod-4-migration D-05).
+  it("leaves displayOptions out of an update that does not send them", () => {
+    const parsed = settingsBodyPartial.parse({ alertEnabled: true });
+    expect(parsed).toEqual({ alertEnabled: true });
+  });
+
+  it("refuses an empty update, with no default to fill it", () => {
+    expect(settingsBodyPartial.safeParse({}).success).toBe(false);
+  });
+
+  it("fills the unsent fields of displayOptions an update sends", () => {
+    const parsed = settingsBodyPartial.parse({
+      displayOptions: { priority: 5 },
+    });
+    expect(parsed.displayOptions).toEqual({
+      showOnDashboard: true,
+      priority: 5,
+      chartType: "line",
+      color: "#E897A3",
+    });
+  });
+
   it("requires goal fields when enabling via partial update", () => {
     const result = settingsBodyPartial.safeParse({
       goalEnabled: true,
@@ -134,5 +157,36 @@ describe("metric-settings schemas", () => {
       displayOptions: "invalid",
     });
     expect(result.success).toBe(false);
+  });
+
+  // Kit query-values-mean-what-they-say, D-02 (register row B-44). z.coerce.boolean is
+  // Boolean(value), so "false" and "0" meant true and a client that asked for no total
+  // paid for the count. Now as strict as the other three lists.
+  describe("includeTotal", () => {
+    const includeTotal = (value?: string) =>
+      listMetricSettingsViaCursorSchema.shape.query.safeParse(
+        value === undefined ? {} : { includeTotal: value },
+      );
+
+    it.each([
+      ["false", false],
+      ["FALSE", false],
+      [" false ", false],
+      ["true", true],
+      ["True", true],
+    ])("reads %p as %p", (value, expected) => {
+      const parsed = includeTotal(value);
+      expect(parsed.success).toBe(true);
+      expect(parsed.success && parsed.data.includeTotal).toBe(expected);
+    });
+
+    it("is false when it is not sent", () => {
+      const parsed = includeTotal();
+      expect(parsed.success && parsed.data.includeTotal).toBe(false);
+    });
+
+    it.each(["0", "1", "yes", ""])("refuses %p", (value) => {
+      expect(includeTotal(value).success).toBe(false);
+    });
   });
 });

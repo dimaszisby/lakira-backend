@@ -4,18 +4,18 @@ REST API backend for Lakira, a personal metrics tracking platform. Built with Ex
 
 ## Tech Stack
 
-- **Runtime**: Node.js 20 (ESM)
+- **Runtime**: Node.js 24 (ESM)
 - **Framework**: Express.js + TypeScript
 - **ORM**: Sequelize (PostgreSQL)
-- **Auth**: JWT (RS256 via `jsonwebtoken`)
+- **Auth**: JWT (HS256 via `jsonwebtoken`) — short-lived access token plus a rotating refresh token in an httpOnly cookie
 - **Validation**: Zod
-- **Cache**: Redis (`ioredis`)
+- **Cache**: Redis (`redis`, node-redis v4)
 - **Queue**: RabbitMQ (`amqplib`)
 - **Docs**: OpenAPI 3 + Swagger UI
 
 ## Prerequisites
 
-- Node.js 20 (`nvm use` will pick the right version from `.nvmrc`)
+- Node.js 24 (`nvm use` will pick the right version from `.nvmrc`)
 - Docker & Docker Compose (for PostgreSQL, Redis, and RabbitMQ)
 
 ## Quick Start
@@ -25,13 +25,14 @@ REST API backend for Lakira, a personal metrics tracking platform. Built with Ex
 npm install
 
 # 2. Copy environment template and fill in values
+#    docker compose, the migrate scripts and bootstrap-fork.sh all read this one file
 cp .env.example .env
 
 # 3. Start infrastructure services
 docker compose up -d
 
 # 4. Run database migrations
-npm run migrate:dev
+npm run migrate:development
 
 # 5. Start the development server (port 5000)
 npm run dev
@@ -39,29 +40,30 @@ npm run dev
 
 ## Available Scripts
 
-| Script                          | Description                              |
-| ------------------------------- | ---------------------------------------- |
-| `npm run dev`                   | Start development server with hot-reload |
-| `npm test`                      | Run unit + integration tests             |
-| `npm run test:unit`             | Unit tests only                          |
-| `npm run test:integration`      | Integration tests (requires PostgreSQL)  |
-| `npm run test:e2e`              | End-to-end tests                         |
-| `npm run lint`                  | ESLint check                             |
-| `npm run lint:fix`              | ESLint autofix                           |
-| `npm run typecheck`             | TypeScript type check                    |
-| `npm run build`                 | Compile to `dist/`                       |
-| `npm run migrate:dev`           | Run pending migrations (development)     |
-| `npm run migrate:undo:dev`      | Undo last migration                      |
-| `npm run docs:openapi:generate` | Regenerate OpenAPI spec                  |
+| Script                             | Description                              |
+| ---------------------------------- | ---------------------------------------- |
+| `npm run dev`                      | Start development server with hot-reload |
+| `npm test`                         | Run unit + integration tests             |
+| `npm run test:unit`                | Unit tests only                          |
+| `npm run test:integration`         | Integration tests (requires PostgreSQL)  |
+| `npm run test:e2e`                 | End-to-end tests                         |
+| `npm run lint`                     | ESLint check                             |
+| `npm run lint:fix`                 | ESLint autofix                           |
+| `npm run typecheck`                | TypeScript type check                    |
+| `npm run build`                    | Compile to `dist/`                       |
+| `npm run migrate:development`      | Run pending migrations (development)     |
+| `npm run migrate:development:undo` | Undo last migration                      |
+| `npm run docs:openapi:generate`    | Regenerate OpenAPI spec                  |
 
 ## Project Structure
 
 ```
 src/
-├── server.ts                 # App entry point
+├── server.ts                 # API entry point
+├── worker.ts                 # RabbitMQ consumer entry point
 ├── config/                   # Env loading, DB config
 ├── features/
-│   ├── shared/auth/          # Authentication (JWT, register, login, password reset)
+│   ├── shared/auth/          # Auth, organizations, memberships, invites, refresh tokens
 │   ├── public/
 │   │   ├── metric/           # Metric CRUD
 │   │   ├── metric-log/       # Metric log entries
@@ -71,6 +73,9 @@ src/
 ├── shared/
 │   ├── middleware/           # Rate limiting, error handling, method guard
 │   └── infrastructure/       # Queue adapters (RabbitMQ)
+├── infrastructure/db/        # Model registry and its types (every feature's models)
+├── lib/openapi/              # OpenAPI spec generation from the Zod schemas
+├── migrations/               # Sequelize migrations
 └── utils/                    # Logger, Redis client, helpers
 ```
 
@@ -106,13 +111,18 @@ This repo is designed to be forked and rebranded. After cloning, run the bootstr
 
 The script:
 
-- Replaces `lakira-backend` → `my-app` in `package.json`, `package-lock.json`, `docker-compose.test.yml`, and CI workflow files.
-- Derives a short name (`my-app` → removes `-backend` / `-api` suffix) for queue topology and DB name prefixes.
-- Rotates `JWT_SECRET` in `.env.development` via `openssl rand -hex 32`.
-- Sets `APP_NAME=my-app` in `.env.development`.
+- Replaces `lakira-backend` → `my-app` in `package.json`, `package-lock.json`, `.env.example`, and CI workflow files.
+- Derives a short name (`my-app` → removes `-backend` / `-api` suffix) for DB name prefixes.
+- Rotates `JWT_SECRET` in `.env` via `openssl rand -hex 32`.
+- Sets `APP_NAME=my-app` in `.env`.
+- **Removes `docs/internal/`** — the upstream project's working material (doc kits, audit runs,
+  incidents, todos). Your fork keeps the four Diátaxis quadrants, which document the template.
+  Pass `--keep-internal` to retain it.
 - Drops a `FORKED-FROM.md` at the repo root recording the upstream commit SHA.
 
-Runtime branding (API title, email copy, log service name, queue names) is controlled by the `APP_NAME` environment variable — set it in your `.env` file. See `.env.example` for the full list.
+Runtime branding (API title, email copy, log service name, queue names) follows the package name, which the script renames, so a deployed fork needs no variable for it. Set `APP_NAME` only to run under a different name. See `.env.example` for the full list.
+
+Full walkthrough, including what the script _cannot_ reach: [`docs/tutorials/fork-and-rebrand.md`](docs/tutorials/fork-and-rebrand.md).
 
 ## License
 

@@ -6,14 +6,17 @@ import {
   EmailSender,
 } from "../../application/ports/EmailSender.js";
 
+type ResendClient = Pick<Resend, "emails">;
+
 export class ResendEmailSender implements EmailSender {
-  private client: Resend;
+  private client: ResendClient;
 
   constructor(
     apiKey: string,
     private from: string,
+    client?: ResendClient,
   ) {
-    this.client = new Resend(apiKey);
+    this.client = client ?? new Resend(apiKey);
   }
 
   async send(message: EmailMessage): Promise<void> {
@@ -26,8 +29,9 @@ export class ResendEmailSender implements EmailSender {
     });
 
     if (error) {
+      // No recipient: an email address is PII (ADR-0049). The request id on every log
+      // line ties the failure to its request.
       logger.error("[EMAIL:RESEND] failed to send email", {
-        to: message.to,
         subject: message.subject,
         error: error.message,
       });

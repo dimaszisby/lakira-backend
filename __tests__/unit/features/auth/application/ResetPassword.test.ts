@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { ValidationError } from "@/shared/domain/errors/DomainError.js";
 import { jest } from "@jest/globals";
 import { ResetPassword } from "@/features/auth/application/use-cases/ResetPassword.js";
 import { UserRepository } from "@/features/auth/domain/repositories/UserRepository.js";
@@ -6,7 +7,6 @@ import { PasswordResetTokenRepository } from "@/features/auth/domain/repositorie
 import { PasswordHasher } from "@/features/auth/application/ports/PasswordHasher.js";
 import { AuthUser } from "@/features/auth/domain/entities/AuthUser.js";
 import { PasswordResetToken } from "@/features/auth/domain/entities/PasswordResetToken.js";
-import AppError from "@/utils/AppError.js";
 
 const FROZEN_NOW = new Date("2026-04-24T10:00:00.000Z");
 const RAW_TOKEN = "raw-token-value";
@@ -104,7 +104,7 @@ describe("ResetPassword use case", () => {
       }),
     ).rejects.toMatchObject({
       message: "Passwords do not match",
-      statusCode: 400,
+      kind: "validation",
     });
     expect(tokenRepo.findByTokenHash).not.toHaveBeenCalled();
   });
@@ -148,7 +148,7 @@ describe("ResetPassword use case", () => {
         }),
       ).rejects.toMatchObject({
         message: "Invalid or expired reset token",
-        statusCode: 400,
+        kind: "validation",
       });
     },
   );
@@ -166,11 +166,11 @@ describe("ResetPassword use case", () => {
       }),
     ).rejects.toMatchObject({
       message: "Invalid or expired reset token",
-      statusCode: 400,
+      kind: "validation",
     });
   });
 
-  it("rejects with AppError type", async () => {
+  it("rejects with a ValidationError", async () => {
     const { sut } = build();
 
     await expect(
@@ -179,6 +179,6 @@ describe("ResetPassword use case", () => {
         password: "a",
         passwordConfirmation: "b",
       }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 });

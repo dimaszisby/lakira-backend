@@ -12,6 +12,10 @@ import {
   computeFallbackRange,
   type RangeDescriptor,
 } from "../../domain/fallback-range.js";
+import {
+  summarizeBuckets,
+  type BucketAggregate,
+} from "../../domain/series-stats.js";
 import type {
   VisualizationReadRepository,
   VisualizationQueryParams,
@@ -24,11 +28,12 @@ import type {
   SingleVizCacheKey,
   DashboardVizCacheKey,
 } from "../../application/ports/VisualizationCachePort.js";
-import type { VizResponse } from "../../domain/types.js";
+import type { FillMode, VizResponse } from "../../domain/types.js";
 import { createHash } from "node:crypto";
 
+// A bucket label is a timestamptz (analytics-leftovers D-03): the driver returns a Date.
 type VizRow = {
-  bucket_start: string;
+  bucket_start: Date | string;
   avg_value: number | null;
   min_value: number | null;
   max_value: number | null;
@@ -37,7 +42,7 @@ type VizRow = {
 
 type DashboardSeriesRow = {
   metric_id: string;
-  bucket_start: string;
+  bucket_start: Date | string;
   avg_value: number | string | null;
   min_value: number | string | null;
   max_value: number | string | null;
@@ -46,11 +51,12 @@ type DashboardSeriesRow = {
 
 type LifecycleRow = {
   metric_id: string;
-  first_log_at: string | null;
-  last_log_at: string | null;
+  // timestamptz: the driver returns a Date.
+  first_log_at: Date | string | null;
+  last_log_at: Date | string | null;
   total_logs: number | string | null;
   latest_value: number | string | null;
-  latest_bucket_start: string | null;
+  latest_bucket_start: Date | string | null;
 };
 
 type DashboardMetricRow = {
@@ -66,6 +72,32 @@ type DashboardMetricRow = {
   metric_settings_updated_at: string | null;
   category_updated_at: string | null;
 };
+
+/**
+ * A bucket's point on a chart, decided by whether it has logs, not by the truth of its
+ * average: a log of 0 is valid, and the dashboard returned a bucket averaging 0 as null,
+ * the same as an empty one (kit query-values-mean-what-they-say, D-01). Both endpoints
+ * use this, so they cannot disagree on a bucket again.
+ */
+const bucketValue = (
+  row: { avg_value: number | string | null; cnt: number | string | null },
+  fill: FillMode,
+): number | null => {
+  if (Number(row.cnt ?? 0) > 0 && row.avg_value !== null) {
+    return Number(row.avg_value);
+  }
+  return fill === "zero" ? 0 : null;
+};
+
+/** A bucket's SQL row in the domain's names (v6-small-items D-05). */
+const toBucketAggregate = (
+  row: VizRow | DashboardSeriesRow,
+): BucketAggregate => ({
+  average: row.avg_value,
+  min: row.min_value,
+  max: row.max_value,
+  count: row.cnt,
+});
 
 export class VisualizationReadRepoSequelize implements VisualizationReadRepository {
   constructor(private cache: VisualizationCachePort) {}
@@ -109,29 +141,10 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
 
     const series = rows.map((r: VizRow) => ({
       bucketStartISO: new Date(r.bucket_start).toISOString(),
-      value: fill === "zero" ? (r.avg_value ?? 0) : (r.avg_value ?? null),
+      value: bucketValue(r, fill),
     }));
 
-    const numeric = (x: number | null): x is number =>
-      typeof x === "number" && Number.isFinite(x);
-
-    const stats = {
-      average: null as number | null,
-      min: null as number | null,
-      max: null as number | null,
-      count: 0,
-    };
-    for (const row of rows) {
-      const avg = row.avg_value ?? null;
-      const min = row.min_value ?? null;
-      const max = row.max_value ?? null;
-      stats.count += Number(row.cnt ?? 0);
-      if (numeric(avg)) stats.average = avg;
-      if (numeric(min))
-        stats.min = stats.min == null ? min : Math.min(stats.min, min);
-      if (numeric(max))
-        stats.max = stats.max == null ? max : Math.max(stats.max, max);
-    }
+    const stats = summarizeBuckets(rows.map(toBucketAggregate));
 
     const result: VizResponse = {
       metricId,
@@ -288,9 +301,10 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
       LEFT JOIN metric_categories c ON m.category_id = c.id AND c.deleted_at IS NULL
       WHERE m.user_id = :userId
         AND m.organization_id = :organizationId
+        AND m.deleted_at IS NULL
         AND COALESCE((ms.display_options->>'showOnDashboard')::boolean, false) = true
         AND COALESCE(ms.is_active, true) = true
-      ORDER BY priority NULLS LAST, ms.created_at DESC
+      ORDER BY priority NULLS LAST, ms.created_at DESC, ms.id DESC
       LIMIT :limit
     `,
       {
@@ -332,6 +346,7 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
     const fallbackRange = computeFallbackRange({
       requested: baseRequestedRange,
       lastLogAt: lifecycle?.last_log_at ?? null,
+      tz: input.tz,
       guardBuckets: env.VIZ_FALLBACK_GUARD_BUCKETS,
     });
 
@@ -359,24 +374,10 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
 
     const series: DashboardVizItem["series"] = effectiveSeries.map((row) => ({
       bucketStartISO: new Date(row.bucket_start).toISOString(),
-      value:
-        input.fill === "zero"
-          ? Number(row.avg_value ?? 0)
-          : Number(row.avg_value ?? 0) || null,
+      value: bucketValue(row, input.fill),
     }));
 
-    const stats: DashboardVizItem["stats"] = {
-      average: effectiveSeries.length
-        ? numberFrom(effectiveSeries[0].avg_value, null)
-        : null,
-      min: effectiveSeries.length
-        ? numberFrom(effectiveSeries[0].min_value, null)
-        : null,
-      max: effectiveSeries.length
-        ? numberFrom(effectiveSeries[0].max_value, null)
-        : null,
-      count: effectiveSeries.length ? numberFrom(effectiveSeries[0].cnt, 0) : 0,
-    };
+    const stats = summarizeBuckets(effectiveSeries.map(toBucketAggregate));
 
     const item: DashboardVizItem = {
       metricId: metric.metric_id,
@@ -388,11 +389,11 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
       priority: metric.priority,
       series,
       stats,
-      lastLogAt: lifecycle?.last_log_at ?? null,
-      firstLogAt: lifecycle?.first_log_at ?? null,
+      lastLogAt: isoFrom(lifecycle?.last_log_at),
+      firstLogAt: isoFrom(lifecycle?.first_log_at),
       totalLogs: numberFrom(lifecycle?.total_logs, 0),
       latestValue: numberFrom(lifecycle?.latest_value, null),
-      latestBucketStart: lifecycle?.latest_bucket_start ?? null,
+      latestBucketStart: isoFrom(lifecycle?.latest_bucket_start),
       requestedRange: baseRequestedRange,
       actualRange,
       fallbackRangeUsed: fallbackApplied,
@@ -433,6 +434,12 @@ export class VisualizationReadRepoSequelize implements VisualizationReadReposito
       cnt: row.cnt,
     }));
   }
+}
+
+function isoFrom(value: Date | string | null | undefined): string | null {
+  if (value == null) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 function numberFrom<T>(

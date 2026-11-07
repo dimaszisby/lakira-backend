@@ -212,6 +212,15 @@ export type MetricLogRowOverrides = Partial<{
   loggedAt: Date;
 }>;
 
+// metric_logs is unique on (metric_id, logged_at) at millisecond precision. Defaulting
+// every row to `new Date()` let two back-to-back calls for one metric collide on a fast
+// runner. This default is strictly increasing within the test process instead.
+let lastDefaultLoggedAt = 0;
+const nextDefaultLoggedAt = () => {
+  lastDefaultLoggedAt = Math.max(Date.now(), lastDefaultLoggedAt + 1);
+  return new Date(lastDefaultLoggedAt);
+};
+
 export async function createMetricLogRow(
   overrides: MetricLogRowOverrides = {},
 ) {
@@ -221,7 +230,7 @@ export async function createMetricLogRow(
     organizationId: TEST_ORG_ID,
     logValue: overrides.logValue ?? 1,
     type: overrides.type ?? "manual",
-    loggedAt: overrides.loggedAt ?? new Date(),
+    loggedAt: overrides.loggedAt ?? nextDefaultLoggedAt(),
   });
 }
 

@@ -1,9 +1,3 @@
-import { z } from "zod";
-import {
-  createMetricSettingsSchema,
-  updateMetricSettingsSchema,
-} from "./schema.zod.js";
-
 export interface DisplayOptionsDTO {
   readonly showOnDashboard: boolean | null;
   readonly priority: number | null;
@@ -28,11 +22,3 @@ export interface MetricSettingsResponseDTO {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
-
-export type CreateMetricSettingsRequestDTO = z.infer<
-  typeof createMetricSettingsSchema.shape.body
->;
-
-export type UpdateMetricSettingsRequestDTO = z.infer<
-  typeof updateMetricSettingsSchema.shape.body
->;

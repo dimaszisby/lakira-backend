@@ -1,14 +1,8 @@
 import { Router } from "express";
 import { env } from "@/config/envManager.js";
-import {
-  createCategory,
-  listCategories,
-  getCategory,
-  updateCategory,
-  deleteCategory,
-  generateDummyCategories,
-} from "./controller.js";
-import { authMiddleware } from "@/features/auth/infrastructure/http/authMiddleware.js";
+import { createMetricCategoryController } from "./controller.js";
+import type { MetricCategoryFeature } from "../../feature.js";
+import { authMiddleware } from "@/features/auth/public.js";
 import { cacheMiddleware } from "@/shared/middleware/cache.js";
 import { userRateLimiter } from "@/shared/middleware/rate-limiter.js";
 import { validate } from "@/shared/middleware/validation.js";
@@ -20,46 +14,12 @@ import {
   deleteMetricCategorySchema,
   generateDummyMetricCategoriesSchema,
 } from "./schema.zod.js";
-import { AuthRequest } from "@/types/request.context.js";
-import { buildCursorCacheKey } from "@/shared/cache/keys.js";
-import {
-  METRIC_CATEGORY_CURSOR_FEATURE,
-  METRIC_CATEGORY_CURSOR_VERSION,
-} from "../../application/cache.constants.js";
 import { methodNotAllowed } from "@/shared/middleware/method-guard.js";
 import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.js";
+import { categoryCacheKey } from "./cache-keys.js";
 
-const getQueryString = (value: unknown): string | undefined =>
-  typeof value === "string" ? value : undefined;
-
-const categoriesCacheKey = (req: AuthRequest) => {
-  const limitParam = getQueryString(req.query.limit);
-  const sortParam = getQueryString(req.query.sort);
-  const qParam = getQueryString(req.query.q);
-  const afterParam = getQueryString(req.query.after);
-  const filterName = getQueryString(req.query["filter[name]"]);
-  const includeTotal = getQueryString(req.query.includeTotal) ?? "false";
-
-  return buildCursorCacheKey({
-    feature: METRIC_CATEGORY_CURSOR_FEATURE,
-    version: METRIC_CATEGORY_CURSOR_VERSION,
-    userId: req.user?.id,
-    segments: [
-      ["org", req.user?.organizationId],
-      ["l", Number(limitParam ?? 20)],
-      ["s", sortParam ?? "-createdAt"],
-      ["q", qParam ?? ""],
-      ["fn", filterName ?? ".js"],
-      ["after", afterParam ?? ""],
-      ["it", includeTotal],
-    ],
-  });
-};
-
-const categoryCacheKey = (req: AuthRequest) =>
-  `category:${req.user?.id}:${req.params.id}`;
-
-export const createMetricCategoryRouter = () => {
+export const createMetricCategoryRouter = (feature: MetricCategoryFeature) => {
+  const controller = createMetricCategoryController(feature);
   const router = Router();
   router.use(authMiddleware);
 
@@ -68,21 +28,23 @@ export const createMetricCategoryRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(createMetricCategorySchema),
-    createCategory,
+    controller.createCategory,
   );
 
   router.get(
     "/",
     validate(getAllMetricCategoriesSchema),
-    cacheMiddleware(categoriesCacheKey, 300),
-    listCategories,
+    // No cacheMiddleware: ListCategories caches this page itself under a key
+    // built from the normalized filter. A second, router-level layer keyed on
+    // raw req.query ignored the filter (kit list-cache-key-filters, D-02).
+    controller.listCategories,
   );
 
   router.get(
     "/:id",
     validate(getMetricCategorySchema),
     cacheMiddleware(categoryCacheKey, 600),
-    getCategory,
+    controller.getCategory,
   );
 
   router.put(
@@ -90,14 +52,14 @@ export const createMetricCategoryRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(updateMetricCategorySchema),
-    updateCategory,
+    controller.updateCategory,
   );
 
   router.delete(
     "/:id",
     userRateLimiter,
     validate(deleteMetricCategorySchema),
-    deleteCategory,
+    controller.deleteCategory,
   );
 
   if (env.ENABLE_DUMMY_ENDPOINTS) {
@@ -106,7 +68,7 @@ export const createMetricCategoryRouter = () => {
       userRateLimiter,
       requireJsonObjectBody(),
       validate(generateDummyMetricCategoriesSchema),
-      generateDummyCategories,
+      controller.generateDummyCategories,
     );
     router.all("/dummy", methodNotAllowed(["POST"]));
   }
@@ -116,5 +78,3 @@ export const createMetricCategoryRouter = () => {
 
   return router;
 };
-
-export const metricCategoryRouter = createMetricCategoryRouter();

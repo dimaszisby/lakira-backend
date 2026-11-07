@@ -2,39 +2,173 @@
 
 ## Global Middleware Stack
 
-Applied in order on every request:
+Applied in this order by `mountHttpPipeline` (`src/shared/middleware/http-pipeline.ts`), which
+`src/server.ts` calls once before it registers anything else (ADR-0061):
 
-1. `helmet()` — secure HTTP headers
-2. `xss-clean` — sanitize request payloads
-3. `hpp()` — prevent HTTP parameter pollution
+1. `requestIdMiddleware` — AsyncLocalStorage correlation id (ADR-0027). An incoming
+   `x-request-id` is used only when it is 1 to 64 characters of `[A-Za-z0-9._-]`; anything else
+   is replaced by a minted UUID
+2. `accessLogMiddleware` — one line per request
+3. `helmet()` — secure HTTP headers
 4. `disallowTraceMethod` — blocks TRACE requests
-5. Rate limiters (global, user, analytics)
+5. `cors` — `CORS_ORIGIN` allowlist; ahead of the limiter so a browser can read a 429
+6. `/api/v1/health` and `/api/v1/ready` — ahead of the limiter, so a platform probe is never
+   throttled, and ahead of the parsers, so a probe reads no body. `/ready` runs its database and
+   Redis checks at most once per 2 s window (`src/shared/utils/readiness-probe.ts`); a new check
+   added to it goes through that probe
+7. HTTPS required — production only. Plain HTTP gets `403`, never a redirect: a redirect built
+   from `Host` goes wherever the client says. Below the probes, so a platform health check without
+   `x-forwarded-proto` still passes (`error-envelope-residuals` D-10). The check is `req.secure`
+   alone: a forwarded protocol counts only from a hop `TRUST_PROXY` trusts, never from the header
+   as sent (`proxy-trust-and-xss-clean` D-01)
+8. `globalRateLimiter` — the only app-wide limiter; the rest are attached per route
+9. `express.json()` — body parsing. **Nothing above this line reads a request body**: a request
+   is counted before it is parsed
+10. `cookie-parser` — needed for the refresh-token cookie
+11. `hpp()` — prevent HTTP parameter pollution
+
+A new global middleware is added in `mountHttpPipeline` and nowhere else; one that reads the body
+goes below the limiter. No other file under `src/` imports a body or cookie parser, `helmet`,
+`hpp` or `cors`, and `architecture.test.ts` fails on one that does.
+
+No middleware rewrites input. Text is stored as sent and encoded where it is rendered: React in
+the frontend, `escapeHtml` in each email template. A field that must not hold markup says so in its
+Zod schema (ADR-0082, which removed `xss-clean`).
 
 ## Rate Limiting
 
-- **Global**: 100 req / 15 min (IP-based)
-- **User**: 50 req / 15 min (user ID or IP fallback)
-- **Analytics**: 30 req / 1 min (user ID or IP fallback)
-- Store: Redis in production, in-memory fallback in dev/test
-- `DISABLE_RATE_LIMITING=true` disables all limiters (test/fuzzing only)
+App-wide:
+
+- **Global**: 100 req / 15 min (IP-based), `RATE_LIMIT_GLOBAL_MAX`
+
+Per route (`src/shared/middleware/rate-limiter.ts`):
+
+- **User**: 50 req / 15 min (user ID or IP fallback), `RATE_LIMIT_USER_MAX`
+- **Analytics**: 30 req / 1 min (user ID or IP fallback), `RATE_LIMIT_ANALYTICS_MAX`
+- **Switch org**: per 15 min, `RATE_LIMIT_SWITCH_ORG_MAX`
+- **Registration**: per hour, per client IP, first in the `POST /auth/register` chain,
+  `RATE_LIMIT_REGISTER_IP_MAX` (ADR-0053)
+- **Login**: 50 req / 15 min per client IP, `RATE_LIMIT_LOGIN_MAX`; **refresh and logout**
+  together: 50 req / 15 min per client IP, `RATE_LIMIT_AUTH_SESSION_MAX`. Each is first in its
+  chain, apart from the other's budget (`api-tooling-residuals` D-08)
+- **Password reset** and **email verification**: per hour, each keyed both by email and by IP.
+  The token-submitting routes, `/reset-password` and `/verify-email`, go through the per-IP
+  limiter of the route that sent the token, first in their chain
+  (`RATE_LIMIT_PASSWORD_RESET_{EMAIL,IP}_MAX`, `RATE_LIMIT_EMAIL_VERIFICATION_{EMAIL,IP}_MAX`)
+
+A limiter keyed by user (`userRateLimiter`, `switchOrgRateLimiter`, `analyticsRateLimiter`) runs
+**after** `authMiddleware` on any route that has it: ahead of it there is no `req.user`, and the
+request is counted by IP (`register-rate-limiter` D-06). `architecture.test.ts` fails on a router
+call that puts one first, and on one in a route no `authMiddleware` covers: login, refresh and
+logout shared `userRateLimiter`'s IP fallback until `api-tooling-residuals` D-08. Under Redis, each limiter counts under its own prefix, `rl:<name>:`, set
+by `maybeCreateStore(name)`; with one shared prefix the global limiter and an IP fallback counted
+the same key (D-07). A new limiter passes a name of its own.
+
+Every key built from the client's address goes through `clientIpKey`: IPv4 whole, an IPv6 client
+by its /64, and `::ffff:a.b.c.d` as IPv4 (ADR-0063). `architecture.test.ts` fails on a limiter
+that keys on the raw `req.ip` or sets no `keyGenerator`. `req.ip` itself comes from `TRUST_PROXY`,
+a whole number of hops (default 1; blank, negative or fractional is refused at startup), and the
+server logs the value in use once it listens.
+
+Store: in-memory under `NODE_ENV=test`; everywhere else Redis. Outside tests the in-memory store is
+used only when `REDIS_REQUIRED=false` **and** Redis is not connected — it then logs a warning,
+and limits stop being shared across instances (twelve-factor TF-12).
+
+- `DISABLE_RATE_LIMITING=true` disables all limiters (test/fuzzing only). Startup refuses it
+  when `NODE_ENV` is `production` or `staging` — see ADR-0036 for the full refused set, which
+  covers staging too except `EMAIL_PROVIDER=mailpit` and `DB_SSL_REJECT_UNAUTHORIZED=false`.
+  Production refuses an unverified database certificate; staging may opt out, with a warning,
+  and `DB_SSL_CA` gives a private CA to trust
 
 ## Authentication Flow
 
-1. Client sends `Authorization: Bearer <JWT>` header
-2. `authMiddleware` validates token via `TokenProvider` port
-3. Loads user from `UserRepository`, sets `req.user`
-4. Protected routes use `assertAuthenticated(req)` to narrow type
+1. Client sends `Authorization: Bearer <JWT>` header (a short-lived access token; the refresh
+   token travels separately, as an httpOnly cookie scoped to `/api/v1/auth/refresh`)
+2. `authMiddleware` validates the token via the `TokenProvider` port
+3. The token must carry an organization claim, and the user must hold an active membership in
+   that organization — otherwise 401
+4. Sets `req.user`, `req.organizationId` and `req.membership`
+5. Protected routes use `assertAuthenticated(req)` to narrow the type; role checks use
+   `requireOrgRole` / `assertHasOrgRole`
 
 ## Sensitive Data Handling
 
-- Env vars matching `/(password|secret|token|key|certificate|url)$/i` are masked as `***REDACTED***` in logs
+- A `pre-commit` hook refuses any staged `.env*` path other than `*.example`. It inspects the
+  **staged set**, so it holds however the files were added. Bypass with `git commit --no-verify`
+  only when the file genuinely belongs in the repo.
+
+- Env vars and log metadata whose **key** matches
+  `/password|secret|authorization|cookie|bearer|(token|key|certificate|url|dsn)$/i` are masked as
+  `***REDACTED***`. The first five terms match anywhere in the key (so `passwordHash` and
+  `set-cookie` are caught); the rest are suffix-anchored. Single source:
+  `src/config/sensitive-keys.ts`
+- The logger masks metadata before it formats the message, so a `%j` or `%o` token prints the
+  masked copy. Metadata nested deeper than five levels is written as `[Truncated]`, never passed
+  through (ADR-0059)
+- What Sentry collects on its own is set by `SENTRY_DATA_COLLECTION` in
+  `src/utils/sentry-scrub.ts`: every category of `@sentry/node` 11's `dataCollection`, named and
+  off (ADR-0071). An unnamed one is on, bound query parameters included, so a new category the
+  SDK adds is named there too. `Sentry.init` pins `traceLifecycle: "stream"`, and leaves capturing
+  a server error to `errorHandler` (`expressIntegration({ shouldHandleError: false })`): the
+  integration would capture at the throw and send a domain error, a 4xx, as a 5xx
+- Everything Sentry would send passes through `src/utils/sentry-scrub.ts` first: events through
+  `scrubSentryEvent`, streamed spans and logs through their own hooks, since neither reaches
+  `beforeSend`. `Sentry.init` spreads `SENTRY_SCRUB_HOOKS`, so a new hook goes in that object; a
+  test runs it through the real SDK. The app sends no logs, and their hook is set anyway. The scrubber
+  masks credential headers, drops cookies, and applies the key pattern to the body, `extra`,
+  `contexts`, `tags`, breadcrumb data, span and log attributes. It cuts the query string and the
+  `user:password@` from the request URL and from any URL in a header, a breadcrumb or a span,
+  reduces `user` to its id, and drops the client address. A network address is judged by its
+  value, not its name: an attribute holding one is dropped, and in free text, in a URL's host and
+  in a context it becomes `[address]`. Free text (exception messages, the transaction name,
+  `logentry`, breadcrumbs) loses email addresses, JWTs, bearer tokens, query strings and the
+  userinfo of a URL of any scheme by pattern; it does **not** lose a name or any other detail a
+  message holds, so do not put one in an error message. A database span keeps its operation and
+  never its statement
 - Never log passwords, tokens, or PII
+- Redaction is by key and does not scan message text, so nothing personal is ever interpolated
+  into a log message. Name a person by user id; where there is no user, name an email address by
+  `hashEmail` (`src/utils/email-hash.ts`), as the login lockout and the rate limiters do. The
+  limiter lines carry a user id, an IP, or that hash, and a test trips every limiter to prove it.
+  A lockout or limiter key names an address the same way: it holds `hashEmail`, never the address, and `architecture.test.ts` fails on a limiter key that does otherwise (ADR-0032)
+- A cache key is never written to a log either: a cursor key holds the user's search text. Name the
+  entry with `cacheEntryName(key)` (`src/utils/cache-entry-name.ts`), which gives its namespace and
+  a short hash, and log how many keys an invalidation deleted, not which
+- A line about a rejected request says which field and which rule, not what was sent. A failed
+  validation is logged through `describeZodIssues` (field and Zod issue code); Zod's messages, which
+  repeat the input, go to the client only. A parser or routing error is logged by its `type`
+- A startup error about a connection URL names the variable and the reason, never the URL: it is
+  printed by `console.error` and again by Node, and neither is redacted. `DB_LOGGING=true` writes
+  SQL with the values of its `WHERE` clauses, so startup refuses it in production and staging
+  (ADR-0036); it is for a developer's own machine
+- An error may be passed to the logger: it is reduced to an allowlist of its fields before anything
+  is written (`name`, `code`, `statusCode` and the like, plus `db.code`, `db.constraint`,
+  `db.table`), so a database error's SQL and bound values never reach the log (ADR-0059). That
+  holds wherever the error sits: as an argument, or nested in a metadata object or an array. Do not
+  attach context to an error to get it logged; pass it by name in a metadata object. A database
+  error's message can quote a submitted value, so what it quotes becomes `"[value]"` in the
+  message, the stack and Sentry (`src/utils/mask-quoted-values.ts`); the SQLSTATE and the
+  constraint, table and column names stay in `db`. That masking needs the error itself: pass
+  `{ error }`, never `error.message` as a string, which it never sees, and put an error's text into
+  a message only through `loggableErrorMessage` (log-and-ci-leaks D-01). `architecture.test.ts`
+  fails on the string idiom
+- An email address in a URL's path is `[email]` in Sentry and in the access log
+  (`src/utils/mask-emails.ts`): an unmatched route's path keeps what was sent
+- `EMAIL_PROVIDER=console` logs every email body, tokens included. Startup refuses it unless
+  `NODE_ENV` is `development` or `test` (ADR-0049). Email adapters never log the recipient.
+- `EMAIL_PROVIDER=mailpit` sends every email, tokens included, to a local catcher. Startup
+  refuses it when `NODE_ENV=production` (ADR-0048); staging may use it.
 - Passwords hashed with bcrypt via `PasswordHasher` port
 
 ## Security CI Pipeline
 
 - `npm run test:unit:security-framework` — framework validation tests
 - `npm run security:delta:check` — dependency vulnerability delta analysis
-- `npm run security:gate:evaluate` — soft gate (uploads artifacts, doesn't block)
-- Security audit docs: `documents/security/`
-- Release SOP: `documents/security/guides/security-release-delta-sop.md`
+- `npm run security:gate:evaluate` — evaluates the gate policy. "Soft" means only
+  Critical/High findings trip it, **not** that it is non-blocking: the `Security Delta
+Checks` job re-raises a failed gate (`exit 1`), and the `Unit Tests`, `Integration Tests` and
+  `contract_local` jobs each depend on that job, so a tripped gate stops the pipeline. The
+  `Unit & Integration Tests` gate needs both suites (ADR-0081).
+- Security framework + gate policy: `docs/reference/security/`
+- Dated audit runs: `docs/internal/audits/security/`
+- Release SOP: `docs/how-to/security/release-delta-sop.md`

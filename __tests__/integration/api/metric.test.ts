@@ -7,6 +7,8 @@ import {
   createTestUser,
 } from "../helpers/test-utils.js";
 
+const UNKNOWN_METRIC_ID = "00000000-0000-4000-8000-000000000088";
+
 describe("Metric API", () => {
   let token: string;
   let categoryId: string;
@@ -121,6 +123,32 @@ describe("Metric API", () => {
     });
 
     expect(res.status).toBe(401);
+    expect(res.body.status).toBe("fail");
+  });
+
+  it("blocks unauthenticated metric listing", async () => {
+    const res = await api.get("/api/v1/metrics").query({ limit: 5 });
+
+    expect(res.status).toBe(401);
+    expect(res.body.status).toBe("fail");
+  });
+
+  it("rejects metric creation without a name", async () => {
+    const res = await api
+      .post("/api/v1/metrics")
+      .set("Authorization", authHeader(token))
+      .send({ defaultUnit: "kg", isPublic: false, categoryId });
+
+    expect(res.status).toBe(400);
+    expect(res.body.status).toBe("fail");
+  });
+
+  it("returns 404 for an unknown metric", async () => {
+    const res = await api
+      .get(`/api/v1/metrics/${UNKNOWN_METRIC_ID}`)
+      .set("Authorization", authHeader(token));
+
+    expect(res.status).toBe(404);
     expect(res.body.status).toBe("fail");
   });
 

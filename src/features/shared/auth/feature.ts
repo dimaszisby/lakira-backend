@@ -1,5 +1,7 @@
 import { env } from "@/config/envManager.js";
 import { redisClient } from "@/utils/redis-client.js";
+import logger from "@/utils/logger.js";
+import { QUEUES } from "@/shared/application/messaging/job-routes.js";
 import {
   checkLockout,
   recordFailedAttempt,
@@ -14,9 +16,13 @@ import { BcryptPasswordHasher } from "./infrastructure/providers/BcryptPasswordH
 import { JwtTokenProvider } from "./infrastructure/providers/JwtTokenProvider.js";
 import { ConsoleEmailSender } from "./infrastructure/providers/ConsoleEmailSender.js";
 import { ResendEmailSender } from "./infrastructure/providers/ResendEmailSender.js";
+import { MailpitEmailSender } from "./infrastructure/providers/MailpitEmailSender.js";
+import { TimeoutEmailSender } from "./infrastructure/providers/TimeoutEmailSender.js";
 import { EmailSender } from "./application/ports/EmailSender.js";
+import type { LoginAttemptsPort } from "./application/ports/LoginAttemptsPort.js";
 import { OrganizationRepositorySequelize } from "./infrastructure/persistence/OrganizationRepositorySequelize.js";
 import { MembershipRepositorySequelize } from "./infrastructure/persistence/MembershipRepositorySequelize.js";
+import { SequelizeTransactionPort } from "@/shared/infrastructure/persistence/SequelizeTransactionPort.js";
 import { RegisterUser } from "./application/use-cases/RegisterUser.js";
 import { LoginUser } from "./application/use-cases/LoginUser.js";
 import { GetProfile } from "./application/queries/GetProfile.js";
@@ -34,11 +40,21 @@ import { AcceptInvite } from "./application/use-cases/AcceptInvite.js";
 import { RemoveMembership } from "./application/use-cases/RemoveMembership.js";
 import { ChangeMemberRole } from "./application/use-cases/ChangeMemberRole.js";
 import { ListOrganizationMembers } from "./application/queries/ListOrganizationMembers.js";
+import { ListUserOrganizations } from "./application/queries/ListUserOrganizations.js";
 import { OrganizationInviteRepositorySequelize } from "./infrastructure/persistence/OrganizationInviteRepositorySequelize.js";
 import { RefreshTokenCrypto } from "./infrastructure/providers/RefreshTokenCrypto.js";
 import { buildPasswordResetEmail } from "./infrastructure/email/templates/password-reset.js";
 import { buildEmailVerificationEmail } from "./infrastructure/email/templates/email-verification.js";
 import { buildOrganizationInviteEmail } from "./infrastructure/email/templates/organization-invite.js";
+import { ScheduleEmailVerification } from "./application/use-cases/ScheduleEmailVerification.js";
+import { SendVerificationEmailHandler } from "./application/use-cases/SendVerificationEmailHandler.js";
+import { SendPasswordResetEmailHandler } from "./application/use-cases/SendPasswordResetEmailHandler.js";
+import { SendInviteEmailHandler } from "./application/use-cases/SendInviteEmailHandler.js";
+import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
+import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
+import { NoopMessageQueue } from "@/shared/infrastructure/queue/NoopMessageQueue.js";
+import { SequelizeMessageIdempotency } from "@/shared/infrastructure/queue/SequelizeMessageIdempotency.js";
+import { runInBackground } from "@/utils/background-tasks.js";
 
 const buildEmailSender = (): EmailSender => {
   if (env.EMAIL_PROVIDER === "resend") {
@@ -49,22 +65,34 @@ const buildEmailSender = (): EmailSender => {
     }
     return new ResendEmailSender(env.RESEND_API_KEY, env.EMAIL_FROM);
   }
+  if (env.EMAIL_PROVIDER === "mailpit") {
+    return new MailpitEmailSender(env.MAILPIT_URL, env.EMAIL_FROM);
+  }
   return new ConsoleEmailSender();
 };
 
 export type AuthFeatureOverrides = {
   emailSender?: EmailSender;
   lockoutRedis?: LockoutRedisClient;
+  /**
+   * Where the verification, password-reset and invite emails are queued; the
+   * server passes its publisher.
+   */
+  messageQueue?: MessageQueuePort;
+  idempotency?: MessageIdempotencyPort;
 };
 
 export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
   const lockoutRedis: LockoutRedisClient =
-    overrides.lockoutRedis ?? (redisClient as unknown as LockoutRedisClient);
+    overrides.lockoutRedis ?? redisClient;
+  // The edge checks the lockout and answers 429; LoginUser counts the failures
+  // (application-errors D-04).
   const loginLockout = {
     check: (email: string) => checkLockout(email, lockoutRedis),
-    recordFailedAttempt: (email: string) =>
-      recordFailedAttempt(email, lockoutRedis),
-    reset: (email: string) => resetLockout(email, lockoutRedis),
+  };
+  const loginAttempts: LoginAttemptsPort = {
+    recordFailure: (email) => recordFailedAttempt(email, lockoutRedis),
+    reset: (email) => resetLockout(email, lockoutRedis),
   };
   const repo = new UserRepositorySequelize();
   const orgRepo = new OrganizationRepositorySequelize();
@@ -76,7 +104,11 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
     new EmailVerificationTokenRepositorySequelize();
   const hasher = new BcryptPasswordHasher();
   const token = new JwtTokenProvider();
-  const emailSender = overrides.emailSender ?? buildEmailSender();
+  // Bounded: a queued email is sent inside its job's transaction (ADR-0077).
+  const emailSender =
+    overrides.emailSender ?? new TimeoutEmailSender(buildEmailSender());
+
+  const tx = new SequelizeTransactionPort();
 
   const tokenHasher = new RefreshTokenCrypto();
   const issueRefreshToken = new IssueRefreshToken(
@@ -91,11 +123,85 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
     token,
     tokenHasher,
     issueRefreshToken,
-    refreshTokenRepo,
+    tx,
   );
   const revokeRefreshTokenFamily = new RevokeRefreshTokenFamily(
     refreshTokenRepo,
     tokenHasher,
+  );
+
+  const requestEmailVerification = new RequestEmailVerification(
+    repo,
+    emailVerificationTokenRepo,
+    emailSender,
+    {
+      frontendVerifyUrl: env.FRONTEND_VERIFY_URL,
+      buildEmail: buildEmailVerificationEmail,
+      ttlSec: env.EMAIL_VERIFICATION_TTL_SEC,
+    },
+  );
+  const messageQueue = overrides.messageQueue ?? new NoopMessageQueue();
+  const idempotency =
+    overrides.idempotency ?? new SequelizeMessageIdempotency();
+  // Queued when the server passes a queue; otherwise, and when a publish fails,
+  // sent in this process after the response, as before (ADR-0067).
+  const scheduleEmailVerification = new ScheduleEmailVerification(
+    messageQueue,
+    {
+      sendInProcess: ({ userId, reason }) =>
+        runInBackground(
+          `verification-email:${reason}`,
+          () => requestEmailVerification.execute({ userId }),
+          { userId },
+        ),
+      sendJobInProcess: ({ userId, reason, messageId }) =>
+        runInBackground(
+          `verification-email:${reason}`,
+          async () => {
+            const outcome = await idempotency.runOnce(
+              { messageId, queue: QUEUES.AUTH_SEND_VERIFICATION_EMAIL },
+              (tx) => requestEmailVerification.executeInTransaction(userId, tx),
+            );
+            if (outcome === "duplicate") {
+              logger.info(
+                "[RABBITMQ] Verification email already sent by the worker.",
+                { userId, messageId },
+              );
+            }
+          },
+          { userId },
+        ),
+    },
+  );
+
+  // Queued when the server passes a queue; otherwise, and when a publish fails,
+  // sent in the request, as before (ADR-0069).
+  const requestPasswordReset = new RequestPasswordReset(
+    repo,
+    resetTokenRepo,
+    emailSender,
+    messageQueue,
+    idempotency,
+    {
+      frontendResetUrl: env.FRONTEND_RESET_URL,
+      buildEmail: buildPasswordResetEmail,
+    },
+  );
+
+  // Queued when the server passes a queue; otherwise the invite and the send
+  // share one transaction (ADR-0070).
+  const inviteUserToOrganization = new InviteUserToOrganization(
+    inviteRepo,
+    orgRepo,
+    emailSender,
+    messageQueue,
+    idempotency,
+    tx,
+    {
+      frontendInviteUrl: env.FRONTEND_INVITE_URL,
+      buildEmail: buildOrganizationInviteEmail,
+      ttlDays: env.INVITE_TOKEN_TTL_DAYS,
+    },
   );
 
   return {
@@ -105,6 +211,8 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
       membershipRepo,
       hasher,
       token,
+      issueRefreshToken,
+      tx,
     ),
     loginUser: new LoginUser(
       repo,
@@ -112,28 +220,21 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
       hasher,
       token,
       issueRefreshToken,
+      loginAttempts,
     ),
     getProfile: new GetProfile(repo),
     updateProfile: new UpdateProfile(repo, hasher),
-    requestPasswordReset: new RequestPasswordReset(
-      repo,
-      resetTokenRepo,
-      emailSender,
-      {
-        frontendResetUrl: env.FRONTEND_RESET_URL,
-        buildEmail: buildPasswordResetEmail,
-      },
+    requestPasswordReset,
+    sendPasswordResetEmailHandler: new SendPasswordResetEmailHandler(
+      requestPasswordReset,
+      idempotency,
     ),
     resetPassword: new ResetPassword(repo, resetTokenRepo, hasher),
-    requestEmailVerification: new RequestEmailVerification(
-      repo,
-      emailVerificationTokenRepo,
-      emailSender,
-      {
-        frontendVerifyUrl: env.FRONTEND_VERIFY_URL,
-        buildEmail: buildEmailVerificationEmail,
-        ttlSec: env.EMAIL_VERIFICATION_TTL_SEC,
-      },
+    requestEmailVerification,
+    scheduleEmailVerification,
+    sendVerificationEmailHandler: new SendVerificationEmailHandler(
+      requestEmailVerification,
+      idempotency,
     ),
     verifyEmail: new VerifyEmail(repo, emailVerificationTokenRepo),
     switchOrganization: new SwitchOrganization(
@@ -145,20 +246,19 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
     ),
     rotateRefreshToken,
     revokeRefreshTokenFamily,
-    inviteUserToOrganization: new InviteUserToOrganization(
-      inviteRepo,
-      orgRepo,
-      emailSender,
-      {
-        frontendInviteUrl: env.FRONTEND_INVITE_URL,
-        buildEmail: buildOrganizationInviteEmail,
-        ttlDays: env.INVITE_TOKEN_TTL_DAYS,
-      },
+    inviteUserToOrganization,
+    sendInviteEmailHandler: new SendInviteEmailHandler(
+      inviteUserToOrganization,
+      idempotency,
     ),
     acceptInvite: new AcceptInvite(inviteRepo, membershipRepo, repo),
     removeMembership: new RemoveMembership(membershipRepo),
     changeMemberRole: new ChangeMemberRole(membershipRepo),
     listOrganizationMembers: new ListOrganizationMembers(membershipRepo, repo),
+    listUserOrganizations: new ListUserOrganizations(membershipRepo, orgRepo),
     loginLockout,
   };
 };
+
+/** What `buildAuthFeature` builds: the type a router and its controller are handed (ADR-0072). */
+export type AuthFeature = ReturnType<typeof buildAuthFeature>;

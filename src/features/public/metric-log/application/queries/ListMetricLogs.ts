@@ -1,4 +1,4 @@
-import AppError from "@/utils/AppError.js";
+import { ForbiddenError } from "@/shared/domain/errors/DomainError.js";
 import type {
   MetricLogQueryPort,
   ListLogsResult,
@@ -11,7 +11,7 @@ export class ListMetricLogs {
   constructor(private repo: MetricLogQueryPort) {}
 
   async execute(options: ListOpts): Promise<ListLogsResult> {
-    if (!options.userId) throw new AppError("User not authenticated", 403);
+    if (!options.userId) throw new ForbiddenError("User not authenticated");
     return this.repo.listLogs(options);
   }
 }

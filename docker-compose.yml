@@ -1,6 +1,10 @@
 services:
   db: # PostgreSQL database service
-    image: postgres:17-alpine # Use a stable, actively maintained PostgreSQL version
+    # Deliberately NOT -alpine: alpine is musl, Render's managed Postgres is glibc, and
+    # Postgres takes text collation from the OS locale. A musl/glibc split changes ORDER BY
+    # on text columns (the API exposes ?sort=name) and btree index ordering. Keep this major
+    # in step with production and with .github/workflows/backend-ci.yml.
+    image: postgres:18
     container_name: postgres_db
     restart: always # Restart the container automatically if it fails
     environment: # Set environment variables from .env file
@@ -8,10 +12,15 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     volumes: # Persist data across container restarts
-      - db_data:/var/lib/postgresql/data
+      # PG18+ stores data in major-version subdirectories and expects a single mount at
+      # /var/lib/postgresql, not /var/lib/postgresql/data — mounting the old path makes it
+      # refuse to start ("unused mount/volume"). See docker-library/postgres#1259.
+      - db_data:/var/lib/postgresql
       - ./docker/db/init:/docker-entrypoint-initdb.d # Initialize database with scripts
+    # Published on loopback only, like every backing service below: a bare "5432:5432"
+    # binds every interface, and these credentials are development ones (audit S10).
     ports: # Expose the standard PostgreSQL port
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck: # Verify PostgreSQL readiness before Node.js app connects
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
@@ -31,7 +40,7 @@ services:
         max-file: "3"
 
   redis: # Redis service
-    image: redis:alpine # Use a lightweight Alpine-based Redis image
+    image: redis:7-alpine # Pinned to match backend-ci.yml; no collation semantics here
     container_name: redis_cache
     restart: always # Restart the container automatically if it fails
     environment: # Set environment variables from .env file
@@ -40,7 +49,7 @@ services:
     volumes: # Persist data across container restarts
       - redis_data:/data # Default Redis data directory
     ports: # Expose the default Redis port
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     networks: # Connect to the backend network
       - backend
     logging: # Configure logging to stdout
@@ -61,9 +70,9 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     ports:
-      - "5672:5672" # AMQP
-      - "15672:15672" # Management UI
-      - "15692:15692" # Prometheus metrics
+      - "127.0.0.1:5672:5672" # AMQP
+      - "127.0.0.1:15672:15672" # Management UI
+      - "127.0.0.1:15692:15692" # Prometheus metrics
     networks:
       - backend
     healthcheck:
@@ -77,16 +86,59 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  mailpit: # Local mail catcher: every email the app sends lands here (ADR-0048)
+    # Inbox and HTTP API at http://localhost:8025 — see
+    # docs/how-to/development/read-outbound-email.md. The app delivers through Mailpit's
+    # HTTP send API; SMTP on 1025 is published only for tools that speak SMTP.
+    image: axllent/mailpit:v1.31
+    container_name: mailpit
+    restart: always
+    ports:
+      - "127.0.0.1:8025:8025" # Web inbox and HTTP API
+      - "127.0.0.1:1025:1025" # SMTP
+    networks:
+      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   app: # Node.js backend application service
     build: # Define build context and Dockerfile
       context: .
       dockerfile: Dockerfile.dev
+      # The commit /health reports as `release`, baked into the image so it always names
+      # what the image was built from: `APP_RELEASE=$(git rev-parse HEAD) docker compose
+      # up -d --build app`. Unset, it is "unknown". Not under `environment:`, where an `up`
+      # without --build would label an old image with a new commit (D-03).
+      args:
+        APP_RELEASE: ${APP_RELEASE:-unknown}
     container_name: node_app
+    # Past the 25 s shutdown deadline (ADR-0076). Docker's 10 s default would kill
+    # the process before the deadline could end it.
+    stop_grace_period: 30s
     restart: always # Restart the container automatically if it fails
-    env_file: # Load environment variables from .env.development
-      - .env.development
+    # `.env` and not `.env.development`: Compose's ${VAR} interpolation (used for the db
+    # service's credentials above) reads only `.env` or the shell — never a service's
+    # env_file. Using one file keeps the app's config and the database Compose creates
+    # from drifting apart.
+    env_file:
+      - .env
     environment: # Set environment variables
       NODE_ENV: development # Run in development mode
+      # `environment:` takes precedence over `env_file:`, which is what makes one shared
+      # .env workable: the file holds host-facing values (127.0.0.1) for commands you run
+      # on your machine — migrations, npm run dev — and these override the handful that
+      # must instead resolve to Compose service names inside the container network.
+      PORT: 5000
+      DB_HOST: db
+      DEVELOPMENT_DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      REDIS_HOST: redis
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+      # Mail goes to the mailpit service, whatever .env says (ADR-0048, D-04).
+      EMAIL_PROVIDER: mailpit
+      MAILPIT_URL: http://mailpit:8025
     depends_on: # Ensure dependencies are running before starting the app
       db:
         condition: service_healthy
@@ -94,11 +146,63 @@ services:
         condition: service_started # Redis doesn't have a built-in healthcheck like postgres
       rabbitmq:
         condition: service_healthy
+      mailpit:
+        condition: service_healthy # The image ships its own healthcheck
     ports: # Expose the application port
-      - "8001:8001" # Map host port 8001 to container port 8001
+      # Host 8001 -> container 5000. Host 5000 collides with AirPlay Receiver on macOS.
+      # Loopback, like every port above. APP_BIND_ADDRESS=0.0.0.0 opens it to the network,
+      # for testing from another device (proxy-trust-and-xss-clean D-03).
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:8001:5000"
     networks: # Connect to the backend network
       - backend
     logging: # Configure logging to stdout
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  worker: # RabbitMQ consumer process (src/worker.ts)
+    # Opt-in: `docker compose --profile worker up -d`. Two reasons it does not start with a
+    # plain `up`. The app service keeps RABBITMQ_ENABLED=false, so locally nothing publishes
+    # and a default-on worker would sit idle. And it shares this broker, vhost and queue
+    # with the integration tests: a running worker consumes the test's message and looks
+    # the metric up in the development database, so the queue test fails fast while one
+    # is attached. Stop it (`docker compose stop worker`) before `npm test`.
+    profiles: ["worker"]
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      # As the app service: the commit is baked in at build time.
+      args:
+        APP_RELEASE: ${APP_RELEASE:-unknown}
+    container_name: node_worker
+    # Past the 25 s shutdown deadline (ADR-0076). Docker's 10 s default would kill
+    # the process before the deadline could end it.
+    stop_grace_period: 30s
+    restart: always
+    command: ["npm", "run", "worker:dev"]
+    # Same single-.env reasoning as the app service above.
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      DB_HOST: db
+      DEVELOPMENT_DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      REDIS_HOST: redis
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+      # worker.ts exits immediately when this is false. Set here, not in .env, so the
+      # app service keeps its synchronous fallback.
+      RABBITMQ_ENABLED: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - backend
+    logging:
       driver: "json-file"
       options:
         max-size: "10m"

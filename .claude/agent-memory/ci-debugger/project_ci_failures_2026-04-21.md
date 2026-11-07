@@ -14,7 +14,7 @@ Two CI failures confirmed on branch `pr/dev-weeks-work` as of 2026-04-21.
 
 1. `schema conformance` — `audit-2026-02-18/findings-log.md` uses compact columns (Finding ID, Severity, Theme, Status, Notes) instead of the full required schema (finding_id, title, domain, cvss, likelihood, impact, owasp_asvs_ref, etc.)
 2. `traceability` — same compact findings-log has no rows matching `SEC-*` in `finding_id` column (column name mismatch means parser returns 0 rows)
-3. `recurrence continuity` — `documents/security/audit/index.md` uses `Run Date` as the column header, but test reads `row["Audit Date"]`, returning undefined; the expected folder name becomes `"audit-"` instead of `"audit-2025-11-21"`
+3. `recurrence continuity` — `docs/internal/audits/security/index.md` uses `Run Date` as the column header, but test reads `row["Audit Date"]`, returning undefined; the expected folder name becomes `"audit-"` instead of `"audit-2025-11-21"`
 4. `portfolio sanitization` — `audit-2026-02-18/portfolio-summary.md` is missing required sections `## Findings Overview` and `## Remediation Posture` and the text "gate status is now passing"
 
 **Why:** The recent docs-heavy commit (`a0ded75` and related) updated/reformatted audit documents and the audit index, but the documents drifted from the schema the security framework validation tests enforce.

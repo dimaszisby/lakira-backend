@@ -2,4 +2,25 @@
 # Ensure npm/npx are available in GUI git clients (e.g., SourceTree)
 export PATH="/usr/local/bin:$PATH"
 
+# Refuse to commit environment files, before doing anything slower.
+#
+# .env* files hold real secrets; the *.example templates are the ones meant to be
+# committed. This inspects the staged set, so it holds regardless of how files were
+# added or by whom — unlike the agent-side guard in .claude/hooks/, which only
+# constrains tool calls and leaves an interactive blanket stage unprotected.
+#
+# Escape hatch: git commit --no-verify
+staged_env=$(git diff --cached --name-only --diff-filter=ACM \
+  | grep -E '(^|/)\.env($|\.)' \
+  | grep -vE '\.example$' || true)
+
+if [ -n "$staged_env" ]; then
+  echo "pre-commit: refusing to commit environment files:" >&2
+  echo "$staged_env" | sed 's/^/  /' >&2
+  echo >&2
+  echo "These hold real secrets. Commit the matching *.example template instead." >&2
+  echo "If this is genuinely intended: git commit --no-verify" >&2
+  exit 1
+fi
+
 npm run lint-staged

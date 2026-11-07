@@ -1,6 +1,5 @@
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import { RefreshToken } from "../entities/RefreshToken.js";
-
-export type PersistenceTransaction = unknown;
 
 export interface RefreshTokenRepository {
   save(token: RefreshToken, tx?: PersistenceTransaction): Promise<void>;
@@ -15,10 +14,4 @@ export interface RefreshTokenRepository {
     tx?: PersistenceTransaction,
   ): Promise<void>;
   findActiveByUser(userId: string): Promise<RefreshToken[]>;
-}
-
-export interface TransactionPort {
-  runInTransaction<T>(
-    fn: (tx: PersistenceTransaction) => Promise<T>,
-  ): Promise<T>;
 }

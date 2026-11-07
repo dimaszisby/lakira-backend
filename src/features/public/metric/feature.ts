@@ -1,7 +1,7 @@
 import { MetricRepoSequelize } from "./infrastructure/persistence/repositories/MetricRepoSequelize.js";
 import { MetricSettingsPortSequelize } from "./infrastructure/persistence/repositories/MetricSettingsPortSequelize.js";
 import { MetricCacheRedis } from "./infrastructure/cache/MetricCacheRedis.js";
-import { SequelizeTransactionPort } from "./infrastructure/persistence/SequelizeTransactionPort.js";
+import { SequelizeTransactionPort } from "@/shared/infrastructure/persistence/SequelizeTransactionPort.js";
 import { UpdateMetric } from "./application/use-cases/UpdateMetric.js";
 import { DeleteMetric } from "./application/use-cases/DeleteMetric.js";
 import { GenerateDummyMetrics } from "./application/use-cases/GenerateDummyMetrics.js";
@@ -12,7 +12,7 @@ import { MetricReadRepoSequelize } from "./infrastructure/persistence/repositori
 import type { MetricRepository } from "./domain/repositories/MetricRepository.js";
 import type { MetricReadRepository } from "./application/ports/MetricReadRepository.js";
 import type { CachePort } from "./application/ports/CachePort.js";
-import type { TransactionPort } from "./application/ports/TransactionPort.js";
+import type { TransactionPort } from "@/shared/application/ports/TransactionPort.js";
 import type { MetricSettingsPort } from "./application/ports/MetricSettingsPort.js";
 
 export type MetricFeatureOverrides = {
@@ -36,6 +36,9 @@ export const buildMetricFeature = (overrides: MetricFeatureOverrides = {}) => {
     deleteMetric: new DeleteMetric(repo, cache),
     getMetricDetail: new GetMetricDetail(readRepo),
     listMetrics: new ListMetrics(readRepo),
-    generateDummyMetrics: new GenerateDummyMetrics(cache),
+    generateDummyMetrics: new GenerateDummyMetrics(repo, cache, tx),
   };
 };
+
+/** What `buildMetricFeature` builds: the type a router and its controller are handed (ADR-0072). */
+export type MetricFeature = ReturnType<typeof buildMetricFeature>;

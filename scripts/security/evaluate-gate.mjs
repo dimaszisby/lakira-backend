@@ -7,7 +7,7 @@ const ROOT = process.cwd();
 
 const defaults = {
   input: path.join(ROOT, "tmp/security/security-delta-report.json"),
-  policy: path.join(ROOT, "documents/security/framework/ci-gate-policy.json"),
+  policy: path.join(ROOT, "docs/reference/security/ci-gate-policy.json"),
   output: path.join(ROOT, "tmp/security/security-gate-result.json"),
 };
 

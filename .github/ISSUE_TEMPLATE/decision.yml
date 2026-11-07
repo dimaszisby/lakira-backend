@@ -1,0 +1,23 @@
+name: Decision
+description: A question the owner must answer before work can start
+labels: ["type:decision", "state:owner"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: One question, answerable with one of the options below.
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options
+      description: Each option with what it costs. Mark the recommended one.
+    validations:
+      required: true
+  - type: textarea
+    id: blocks
+    attributes:
+      label: What it blocks
+      description: The issues or register rows that wait on the answer.

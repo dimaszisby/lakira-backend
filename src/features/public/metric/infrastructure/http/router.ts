@@ -1,15 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import {
-  createMetric,
-  getUserMetricLibrariesViaCursor,
-  getUserDetailMetricById,
-  updateMetric,
-  deleteMetric,
-  generateDummyMetrics,
-  handleMetricTrend,
-} from "./controller.js";
-import { authMiddleware } from "@/features/auth/infrastructure/http/authMiddleware.js";
+import { createMetricController } from "./controller.js";
+import { authMiddleware } from "@/features/auth/public.js";
 import { cacheMiddleware } from "@/shared/middleware/cache.js";
 import { userRateLimiter } from "@/shared/middleware/rate-limiter.js";
 import { validate } from "@/shared/middleware/validation.js";
@@ -21,69 +13,15 @@ import {
   generateDummyMetricsSchema,
   getAllMetricsViaCursorSchema,
 } from "./schema.zod.js";
-import { AuthRequest } from "@/types/request.context.js";
 import { env } from "@/config/envManager.js";
-import { buildCursorCacheKey } from "@/shared/cache/keys.js";
 import { methodNotAllowed } from "@/shared/middleware/method-guard.js";
 import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.js";
+import { metricDetailCacheKey, metricsCursorCacheKey } from "./cache-keys.js";
 
-const asString = (value: unknown): string | undefined =>
-  typeof value === "string" ? value : undefined;
-
-const METRIC_CURSOR_FEATURE = "metrics";
-const METRIC_CURSOR_VERSION = 2;
-
-const metricsCursorCacheKey = (req: AuthRequest) => {
-  const limit = Number(asString(req.query.limit) ?? 20);
-  const sort = asString(req.query.sort) ?? "-createdAt";
-  const search = asString(req.query.q) ?? "";
-  const fname = asString(req.query["filter[name]"]) ?? "";
-  const fcat = asString(req.query["filter[categoryId]"]) ?? "";
-  const after = asString(req.query.after) ?? "";
-  const includeTotal = asString(req.query.includeTotal) ?? "false";
-
-  return buildCursorCacheKey({
-    feature: METRIC_CURSOR_FEATURE,
-    version: METRIC_CURSOR_VERSION,
-    userId: req.user?.id,
-    segments: [
-      ["org", req.user?.organizationId],
-      ["l", limit],
-      ["s", sort],
-      ["q", search],
-      ["fn", fname],
-      ["fc", fcat],
-      ["after", after],
-      ["it", includeTotal],
-    ],
-  });
-};
-
-const metricCacheKey = (req: AuthRequest) => {
-  const includeRaw = asString(req.query.include) ?? "flat";
-  const logsLimit = Number(asString(req.query.logsLimit) ?? 20);
-  const allowed = ["settings", "category", "logs"] as const;
-
-  const isAllowedInclude = (value: string): value is (typeof allowed)[number] =>
-    allowed.includes(value as (typeof allowed)[number]);
-
-  let includeNormalized = "flat";
-  if (includeRaw === "full") {
-    includeNormalized = "category,logs,settings";
-  } else if (includeRaw !== "flat") {
-    includeNormalized = includeRaw
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s): s is (typeof allowed)[number] => isAllowedInclude(s))
-      .sort()
-      .join(",");
-    if (!includeNormalized) includeNormalized = "flat";
-  }
-
-  return `metric:${req.user?.id}:${req.params.id}:inc:${includeNormalized}:ll:${logsLimit}`;
-};
-
-export const createMetricRouter = () => {
+export const createMetricRouter = (
+  deps: Parameters<typeof createMetricController>[0],
+) => {
+  const controller = createMetricController(deps);
   const router = Router();
   router.use(authMiddleware);
 
@@ -92,21 +30,21 @@ export const createMetricRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(createMetricSchema),
-    createMetric,
+    controller.createMetric,
   );
 
   router.get(
     "/",
     validate(getAllMetricsViaCursorSchema),
     cacheMiddleware(metricsCursorCacheKey, 60),
-    getUserMetricLibrariesViaCursor,
+    controller.getUserMetricLibrariesViaCursor,
   );
 
   router.get(
     "/:id",
     validate(getMetricSchema),
-    cacheMiddleware(metricCacheKey, 60),
-    getUserDetailMetricById,
+    cacheMiddleware(metricDetailCacheKey, 60),
+    controller.getUserDetailMetricById,
   );
 
   router.put(
@@ -114,18 +52,22 @@ export const createMetricRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(updateMetricSchema),
-    updateMetric,
+    controller.updateMetric,
   );
 
   router.delete(
     "/:id",
     userRateLimiter,
     validate(deleteMetricSchema),
-    deleteMetric,
+    controller.deleteMetric,
   );
 
-  const trendParams = { params: z.object({ metricId: z.string().uuid() }) };
-  router.get("/:metricId/trends", validate(trendParams), handleMetricTrend);
+  const trendParams = { params: z.object({ metricId: z.string().guid() }) };
+  router.get(
+    "/:metricId/trends",
+    validate(trendParams),
+    controller.handleMetricTrend,
+  );
 
   if (env.ENABLE_DUMMY_ENDPOINTS) {
     router.post(
@@ -133,7 +75,7 @@ export const createMetricRouter = () => {
       userRateLimiter,
       requireJsonObjectBody(),
       validate(generateDummyMetricsSchema),
-      generateDummyMetrics,
+      controller.generateDummyMetrics,
     );
     router.all("/dummy", methodNotAllowed(["POST"]));
   }
@@ -144,5 +86,3 @@ export const createMetricRouter = () => {
 
   return router;
 };
-
-export const metricRouter = createMetricRouter();

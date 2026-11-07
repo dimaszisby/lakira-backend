@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-Three audits exist under `documents/development/architecture/saas-readiness/`:
+Three audits exist under `docs/internal/audits/saas-readiness/`:
 
 - `audit-2026-05-01.md` — initial audit, NOT fork-ready verdict; 7 P0s including no refresh-token, no LICENSE, no trust proxy.
 - `audit-2026-05-20.md` — self-audit after major work; most P0s closed.

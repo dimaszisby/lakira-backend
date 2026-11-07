@@ -1,5 +1,5 @@
 {
-  "extends": "@tsconfig/node18/tsconfig.json",
+  "extends": "@tsconfig/node24/tsconfig.json",
   "compilerOptions": {
     "target": "esnext",
     "module": "NodeNext",
@@ -40,11 +40,6 @@
     "skipLibCheck": true,
     "sourceMap": true
   },
-  "ts-node": {
-    "compilerOptions": {
-      "module": "NodeNext"
-    }
-  },
   "include": [
     "*.ts",
     "src/**/*",
@@ -56,5 +51,13 @@
     "scripts/**/*.cjs",
     "scripts/**/*.ts"
   ],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    // Contract-test runners are plain Node ESM scripts, not part of the typed
+    // build. They were never type-checked while they lived under `docs/`;
+    // `include: tests/**/*` (a no-op before they moved here) would otherwise
+    // pull them into the strict checkJs project.
+    "tests/contract/**/*.js"
+  ]
 }

@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Ensure npm/npx are available in GUI git clients (e.g., SourceTree)
+export PATH="/usr/local/bin:$PATH"
+
+npx --no -- commitlint --edit "$1"

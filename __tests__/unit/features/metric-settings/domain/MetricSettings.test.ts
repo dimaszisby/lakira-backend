@@ -1,5 +1,5 @@
 import { MetricSettings } from "@/features/metric-settings/domain/entities/MetricSettings.js";
-import AppError from "@/utils/AppError.js";
+import { ValidationError } from "@/shared/domain/errors/DomainError.js";
 
 const makeSettings = () =>
   MetricSettings.fromPersistence({
@@ -60,7 +60,7 @@ describe("MetricSettings entity", () => {
         goalType: null,
         goalValue: null,
       }),
-    ).toThrow(AppError);
+    ).toThrow(ValidationError);
   });
 
   it("throws when timeframe invalid", () => {
@@ -71,14 +71,14 @@ describe("MetricSettings entity", () => {
         startDate: new Date("2024-07-01T00:00:00Z"),
         deadlineDate: new Date("2024-06-01T00:00:00Z"),
       }),
-    ).toThrow(AppError);
+    ).toThrow(ValidationError);
   });
 
   it("throws when alert enabled without thresholds", () => {
     const settings = makeSettings();
     expect(() =>
       settings.updateDetails({ alertEnabled: true, alertThresholds: null }),
-    ).toThrow(AppError);
+    ).toThrow(ValidationError);
   });
 
   it("resets goal/timeframe/alerts when toggled off", () => {

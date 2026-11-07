@@ -37,7 +37,16 @@ const runCommand = (command, args, envOverrides = {}) =>
 const run = async () => {
   await runCommand(
     npxCmd,
-    ["sequelize-cli", "db:migrate", "--config", "src/config/config.cjs"],
+    [
+      "sequelize-cli",
+      "db:migrate",
+      "--config",
+      "src/config/config.cjs",
+      // Passed explicitly rather than via .sequelizerc: that file used CommonJS
+      // `require()` inside an ESM package, which only resolved on Node 20.
+      "--migrations-path",
+      "src/migrations",
+    ],
     { NODE_ENV: "test" },
   );
 };

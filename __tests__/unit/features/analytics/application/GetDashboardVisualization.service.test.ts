@@ -33,7 +33,10 @@ const buildService = () => {
     },
   };
   const repo = new VisualizationReadRepoSequelize(cache);
-  const service = new GetDashboardVisualization(repo);
+  const service = new GetDashboardVisualization(repo, {
+    maxBuckets: 400,
+    maxDashboardMetrics: 24,
+  });
   return { service };
 };
 
@@ -102,12 +105,64 @@ describe("GetDashboardVisualization service", () => {
 
     const metric = result.items[0];
     expect(metric.fallbackRangeUsed).toBe(true);
-    expect(metric.actualRange.endISO).toBe("2023-10-01T00:00:00.000Z");
+    // The end of the day that holds the last log, so the log is inside the range.
+    expect(metric.actualRange.endISO).toBe("2023-10-02T00:00:00.000Z");
     expect(metric.series).toHaveLength(1);
     expect(metric.lastLogAt).toBe("2023-10-01T00:00:00.000Z");
     expect(metric.totalLogs).toBe(9);
     expect(metric.stats.count).toBe(1);
     expect(result.sync.etagSeed).toBeDefined();
+  });
+
+  // Kit analytics-leftovers, D-02 (register row B-65). Ten empty days at 1h hold 241
+  // hourly buckets, more than the default guard of 96. The fallback reported 1d, and
+  // its series was queried hourly over a 96-hour window.
+  it("reports the bucket a fallback series is queried with", async () => {
+    querySpy
+      .mockResolvedValueOnce([
+        {
+          metric_id: "metric-3",
+          name: "Heart Rate",
+          unit: "bpm",
+          category_name: null,
+          category_icon: null,
+          category_color: null,
+          priority: 1,
+          total_count: 1,
+          metric_updated_at: "2024-02-10T00:00:00.000Z",
+          metric_settings_updated_at: "2024-02-09T00:00:00.000Z",
+          category_updated_at: null,
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          metric_id: "metric-3",
+          first_log_at: "2023-12-01T00:00:00.000Z",
+          last_log_at: "2023-12-20T10:30:00.000Z",
+          total_logs: 3,
+          latest_value: 70,
+          latest_bucket_start: "2023-12-20T10:00:00.000Z",
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const { service } = buildService();
+    const result = await service.execute({
+      ...defaultInput,
+      startISO: "2024-01-01T00:00:00.000Z",
+      endISO: "2024-01-11T00:00:00.000Z",
+      bucket: "1h",
+    });
+
+    const { actualRange } = result.items[0];
+    expect(actualRange.bucket).toBe("1h");
+    expect(actualRange.endISO).toBe("2023-12-20T11:00:00.000Z");
+    expect(
+      Date.parse(actualRange.endISO) - Date.parse(actualRange.startISO),
+    ).toBe(96 * 60 * 60 * 1000);
+    const fallbackSQL = String(querySpy.mock.calls[3][0]);
+    expect(fallbackSQL).toContain("date_trunc('hour'");
   });
 
   it("updates etag seed when metric metadata timestamps change", async () => {

@@ -1,11 +1,14 @@
-import AppError from "@/utils/AppError.js";
+import {
+  ConflictError,
+  UnauthorizedError,
+} from "@/shared/domain/errors/DomainError.js";
 import { MetricSettings } from "../../domain/entities/MetricSettings.js";
 import {
   CreateMetricSettingsDTO,
   MetricSettingsRepository,
 } from "../../domain/repositories/MetricSettingsRepository.js";
 import { CacheInvalidationPort } from "../ports/CacheInvalidationPort.js";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "../ports/MetricAccessPort.js";
 
 export type CreateMetricSettingsInput = Partial<CreateMetricSettingsDTO> & {
   userId: string;
@@ -22,7 +25,7 @@ export class CreateMetricSettings {
 
   async execute(input: CreateMetricSettingsInput): Promise<MetricSettings> {
     const { userId, organizationId, metricId } = input;
-    if (!userId) throw new AppError("User not authenticated", 401);
+    if (!userId) throw new UnauthorizedError("User not authenticated");
 
     await this.metricAccess.ensureMetricOwnership(
       userId,
@@ -32,7 +35,7 @@ export class CreateMetricSettings {
 
     const existing = await this.repo.findByMetricId(organizationId, metricId);
     if (existing) {
-      throw new AppError("Metric settings already exist for this metric", 409);
+      throw new ConflictError("Metric settings already exist for this metric");
     }
 
     const created = await this.repo.create({
@@ -57,7 +60,7 @@ export class CreateMetricSettings {
       },
     });
 
-    await this.cache.invalidate(userId, metricId, created.id);
+    await this.cache.invalidate(userId, organizationId, metricId, created.id);
     return created;
   }
 }

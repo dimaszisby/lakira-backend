@@ -21,9 +21,18 @@ const createResponse = (): Response => {
 };
 
 // Swap logger.error with a spy so we assert on the same logging surface used in production.
+// winston overloads `error`, and Jest 30 types a spy by its last overload,
+// `(infoObject)`; these assertions use the `(message, ...meta)` one.
 const loggerErrorSpy = jest
   .spyOn(logger, "error")
-  .mockImplementation(() => logger);
+  .mockImplementation(() => logger) as unknown as jest.SpiedFunction<
+  (message: string, ...meta: unknown[]) => typeof logger
+>;
+const loggerWarnSpy = jest
+  .spyOn(logger, "warn")
+  .mockImplementation(() => logger) as unknown as jest.SpiedFunction<
+  (message: string, ...meta: unknown[]) => typeof logger
+>;
 
 const makeRequest = (overrides: Partial<AuthRequest>): AuthRequest =>
   ({
@@ -40,6 +49,7 @@ describe("validation middleware", () => {
 
   afterAll(() => {
     loggerErrorSpy.mockRestore();
+    loggerWarnSpy.mockRestore();
   });
 
   it("passes through when no schema is provided", () => {
@@ -103,6 +113,27 @@ describe("validation middleware", () => {
       }),
     );
     expect(next).not.toHaveBeenCalled();
+  });
+
+  // Kit log-redaction-coverage, D-09. Zod's enum message repeats the value it
+  // rejected, so the line carries the field and the issue code only. At warn, as
+  // every other 4xx is (api-tooling-residuals D-02, audit X22).
+  it("logs a failure at warn, by field and code, not by Zod's message", () => {
+    const schema = z.object({
+      query: z.object({ sortOrder: z.enum(["ASC", "DESC"]) }),
+    });
+    const req = makeRequest({ query: { sortOrder: "victim@example.com" } });
+
+    validate(schema)(req, createResponse(), jest.fn() as NextFunction);
+
+    expect(loggerErrorSpy).not.toHaveBeenCalled();
+    expect(loggerWarnSpy).toHaveBeenCalledTimes(1);
+    expect(loggerWarnSpy).toHaveBeenCalledWith("Validation Errors:", {
+      issues: [{ field: "query.sortOrder", code: "invalid_value" }],
+    });
+    expect(JSON.stringify(loggerWarnSpy.mock.calls)).not.toContain(
+      "victim@example.com",
+    );
   });
 
   it("supports schema bags with params/query/body separation", () => {

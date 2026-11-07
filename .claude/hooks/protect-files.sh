@@ -59,7 +59,7 @@ if [[ "$REL_PATH" == src/migrations/*.cjs ]] && [[ "$TOOL_NAME" == "Edit" ]]; th
 fi
 
 # --- Block: generated OpenAPI spec (regenerate via npm run docs:openapi:generate) ---
-if [[ "$REL_PATH" == documents/openapi/lakira-backend-openapi.json ]]; then
+if [[ "$REL_PATH" == docs/reference/api/lakira-backend-openapi.json ]]; then
   echo "Protected: OpenAPI spec is auto-generated. Run 'npm run docs:openapi:generate' instead." >&2
   exit 2
 fi

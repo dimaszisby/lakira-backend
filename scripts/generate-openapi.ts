@@ -1,17 +1,15 @@
 // scripts/generate-openapi.ts
 
+// First, before anything from src/ reads the app's name. See the module.
+import "./openapi-app-name.js";
 import * as fs from "fs";
-import * as path from "path";
-import { fileURLToPath } from "url";
 import logger from "../src/utils/logger.js";
 
 import { getOpenApiDocumentation } from "../src/lib/openapi/openapi-docs.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const outputDir = path.join(__dirname, "../documents/openapi");
-const outputFile = path.join(outputDir, "lakira-backend-openapi.json");
+import {
+  OPENAPI_SPEC_DIR as outputDir,
+  OPENAPI_SPEC_FILE as outputFile,
+} from "./openapi-spec-path.js";
 
 async function generateOpenApiSpec() {
   if (!fs.existsSync(outputDir)) {

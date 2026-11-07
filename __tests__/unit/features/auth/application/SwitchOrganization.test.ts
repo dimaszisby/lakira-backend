@@ -9,7 +9,6 @@ import { TokenHasher } from "@/features/auth/application/ports/TokenHasher.js";
 import { AuthUser } from "@/features/auth/domain/entities/AuthUser.js";
 import { Membership } from "@/features/auth/domain/entities/Membership.js";
 import { RefreshToken } from "@/features/auth/domain/entities/RefreshToken.js";
-import AppError from "@/utils/AppError.js";
 
 const makeUser = () =>
   AuthUser.fromPersistence({
@@ -58,6 +57,8 @@ const build = () => {
     findDefaultByUser: jest.fn(),
     findAllByUser: jest.fn(),
     findAllByOrganization: jest.fn(),
+    findActivePageByUser: jest.fn(),
+    findPageByOrganization: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
     countByOrgAndRole: jest.fn(),
@@ -142,7 +143,7 @@ describe("SwitchOrganization use case", () => {
     membershipRepo.findByUserAndOrg.mockResolvedValue(null);
 
     await expect(sut.execute(INPUT)).rejects.toMatchObject({
-      statusCode: 403,
+      kind: "forbidden",
     });
   });
 
@@ -153,7 +154,7 @@ describe("SwitchOrganization use case", () => {
     );
 
     await expect(sut.execute(INPUT)).rejects.toMatchObject({
-      statusCode: 403,
+      kind: "forbidden",
     });
   });
 
@@ -163,7 +164,7 @@ describe("SwitchOrganization use case", () => {
     userRepo.findById.mockResolvedValue(null);
 
     await expect(sut.execute(INPUT)).rejects.toMatchObject({
-      statusCode: 401,
+      kind: "unauthorized",
     });
   });
 

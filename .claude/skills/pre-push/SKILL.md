@@ -59,13 +59,13 @@ After running, provide a summary:
 
 ```
 Pre-push validation:
-  ✓ Lint
-  ✓ Format
-  ✓ Typecheck
-  ✓ Unit tests (X passed)
-  ✓ Security delta check
-  ✓ OpenAPI check
-  ✗ Integration tests — [failure details]
+  PASS Lint
+  PASS Format
+  PASS Typecheck
+  PASS Unit tests (X passed)
+  PASS Security delta check
+  PASS OpenAPI check
+  FAIL Integration tests — [failure details]
 
 Result: BLOCKED — fix integration test failures before pushing.
 ```

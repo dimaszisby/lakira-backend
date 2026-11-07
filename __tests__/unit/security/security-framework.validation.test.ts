@@ -4,18 +4,34 @@ import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
 
 const ROOT = process.cwd();
-const AUDIT_ROOT = path.join(ROOT, "documents/security/audit");
-const TEMPLATE_ROOT = path.join(ROOT, "documents/security/templates/audit-run");
+const AUDIT_ROOT = path.join(ROOT, "docs/internal/audits/security");
+const TEMPLATE_ROOT = path.join(
+  ROOT,
+  "docs/reference/security/audit-run-template",
+);
 const TMP_ROOT = path.join(ROOT, "tmp/security/framework-tests");
 const INIT_SCRIPT = path.join(ROOT, "scripts/security/init-audit-doc-kit.mjs");
 const GATE_SCRIPT = path.join(ROOT, "scripts/security/evaluate-gate.mjs");
 const GATE_POLICY = path.join(
   ROOT,
-  "documents/security/framework/ci-gate-policy.json",
+  "docs/reference/security/ci-gate-policy.json",
 );
 
 const SAMPLE_AUDIT_DATE = "2099-12-31";
 const SAMPLE_AUDIT_DIR = path.join(AUDIT_ROOT, `audit-${SAMPLE_AUDIT_DATE}`);
+
+// `scripts/bootstrap-fork.sh` removes `docs/internal/` on fork, taking the dated
+// audit runs with it. The framework — template, gate policy, init script — ships and
+// must still be validated; the assertions about *this project's* audit history cannot
+// be. Guarding here keeps a fresh fork green instead of red on first `npm test`.
+const AUDIT_RUNS = fs.existsSync(AUDIT_ROOT)
+  ? fs
+      .readdirSync(AUDIT_ROOT)
+      .filter((entry) => /^audit-\d{4}-\d{2}-\d{2}$/.test(entry))
+  : [];
+const HAS_AUDIT_HISTORY =
+  AUDIT_RUNS.length > 0 && fs.existsSync(path.join(AUDIT_ROOT, "index.md"));
+const itWithAuditHistory = HAS_AUDIT_HISTORY ? it : it.skip;
 
 const REQUIRED_AUDIT_FILES = [
   "README.md",
@@ -212,7 +228,7 @@ describe("security framework validation suite", () => {
     }
   });
 
-  it("schema conformance: templates and current run include required table columns/sections", () => {
+  it("schema conformance: shipped templates include required sections and columns", () => {
     const templateFiles = [
       "run-README.md",
       "audit-plan.md",
@@ -234,13 +250,8 @@ describe("security framework validation suite", () => {
       expect(content).toContain("## Definition of Done");
     }
 
-    const currentAuditDir = path.join(AUDIT_ROOT, "audit-2026-02-18");
     expectColumnsPresent(
       path.join(TEMPLATE_ROOT, "findings-log.md"),
-      FINDINGS_REQUIRED_COLUMNS,
-    );
-    expectColumnsPresent(
-      path.join(currentAuditDir, "findings-log.md"),
       FINDINGS_REQUIRED_COLUMNS,
     );
     expectColumnsPresent(
@@ -248,109 +259,132 @@ describe("security framework validation suite", () => {
       THREAT_REQUIRED_COLUMNS,
     );
     expectColumnsPresent(
-      path.join(currentAuditDir, "threat-model.md"),
-      THREAT_REQUIRED_COLUMNS,
-    );
-    expectColumnsPresent(
       path.join(TEMPLATE_ROOT, "control-matrix.md"),
       CONTROL_REQUIRED_COLUMNS,
     );
-    expectColumnsPresent(
-      path.join(currentAuditDir, "control-matrix.md"),
-      CONTROL_REQUIRED_COLUMNS,
-    );
   });
 
-  it("traceability: each finding maps to controls and includes evidence references", () => {
-    const currentAuditDir = path.join(AUDIT_ROOT, "audit-2026-02-18");
-    const findingsRows = parseFirstTableRows(
-      fs.readFileSync(path.join(currentAuditDir, "findings-log.md"), "utf8"),
-    );
-    const controlRows = parseFirstTableRows(
-      fs.readFileSync(path.join(currentAuditDir, "control-matrix.md"), "utf8"),
-    );
+  itWithAuditHistory(
+    "schema conformance: the current audit run matches the template columns",
+    () => {
+      const currentAuditDir = path.join(AUDIT_ROOT, "audit-2026-02-18");
+      expectColumnsPresent(
+        path.join(currentAuditDir, "findings-log.md"),
+        FINDINGS_REQUIRED_COLUMNS,
+      );
+      expectColumnsPresent(
+        path.join(currentAuditDir, "threat-model.md"),
+        THREAT_REQUIRED_COLUMNS,
+      );
+      expectColumnsPresent(
+        path.join(currentAuditDir, "control-matrix.md"),
+        CONTROL_REQUIRED_COLUMNS,
+      );
+    },
+  );
 
-    const linkedFindingIds = new Set<string>();
-    for (const row of controlRows) {
-      const links = (row.remediation_link ?? "")
-        .split(",")
-        .map((item) => stripMarkdownCode(item))
-        .filter((item) => item.startsWith("SEC-"));
-      for (const link of links) linkedFindingIds.add(link);
-    }
-
-    const findingRows = findingsRows.filter((row) =>
-      (row.finding_id ?? "").startsWith("SEC-"),
-    );
-    expect(findingRows.length).toBeGreaterThan(0);
-
-    for (const row of findingRows) {
-      const findingId = stripMarkdownCode(row.finding_id ?? "");
-      const evidenceRefs = stripMarkdownCode(row.evidence_refs ?? "");
-
-      expect(evidenceRefs).not.toBe("");
-      expect(evidenceRefs.toLowerCase()).not.toBe("n/a");
-      expect(linkedFindingIds.has(findingId)).toBe(true);
-    }
-  });
-
-  it("recurrence continuity: audit index links valid run folders in chronological order", () => {
-    const indexRows = parseFirstTableRows(
-      fs.readFileSync(path.join(AUDIT_ROOT, "index.md"), "utf8"),
-    );
-    expect(indexRows.length).toBeGreaterThanOrEqual(2);
-
-    let previousDate = "";
-    for (const row of indexRows) {
-      const auditDate = stripMarkdownCode(row["Audit Date"] ?? "");
-      const folderPath = stripMarkdownCode(row.Folder ?? "");
-      const fullFolderPath = path.join(ROOT, folderPath);
-      const folderName = path.basename(folderPath);
-      const hasReadme = fs.existsSync(path.join(fullFolderPath, "README.md"));
-      const hasLegacyCoreArtifact = fs.existsSync(
-        path.join(fullFolderPath, "threat-model.md"),
+  itWithAuditHistory(
+    "traceability: each finding maps to controls and includes evidence references",
+    () => {
+      const currentAuditDir = path.join(AUDIT_ROOT, "audit-2026-02-18");
+      const findingsRows = parseFirstTableRows(
+        fs.readFileSync(path.join(currentAuditDir, "findings-log.md"), "utf8"),
+      );
+      const controlRows = parseFirstTableRows(
+        fs.readFileSync(
+          path.join(currentAuditDir, "control-matrix.md"),
+          "utf8",
+        ),
       );
 
-      expect(folderName).toBe(`audit-${auditDate}`);
-      expect(fs.existsSync(fullFolderPath)).toBe(true);
-      expect(hasReadme || hasLegacyCoreArtifact).toBe(true);
-      if (previousDate) {
-        expect(auditDate >= previousDate).toBe(true);
+      const linkedFindingIds = new Set<string>();
+      for (const row of controlRows) {
+        const links = (row.remediation_link ?? "")
+          .split(",")
+          .map((item) => stripMarkdownCode(item))
+          .filter((item) => item.startsWith("SEC-"));
+        for (const link of links) linkedFindingIds.add(link);
       }
-      previousDate = auditDate;
-    }
-  });
 
-  it("portfolio sanitization: summary excludes sensitive details while preserving mitigation narrative", () => {
-    const portfolioPath = path.join(
-      AUDIT_ROOT,
-      "audit-2026-02-18",
-      "portfolio-summary.md",
-    );
-    const content = fs.readFileSync(portfolioPath, "utf8");
-    const lower = content.toLowerCase();
+      const findingRows = findingsRows.filter((row) =>
+        (row.finding_id ?? "").startsWith("SEC-"),
+      );
+      expect(findingRows.length).toBeGreaterThan(0);
 
-    const forbiddenPatterns = [
-      /JWT_SECRET/i,
-      /DB_PASSWORD/i,
-      /DATABASE_URL/i,
-      /PRIVATE KEY/i,
-      /tmp\/security/i,
-      /src\//i,
-      /\/api\/v1\//i,
-      /127\.0\.0\.1/i,
-      /postgres:\/\//i,
-    ];
+      for (const row of findingRows) {
+        const findingId = stripMarkdownCode(row.finding_id ?? "");
+        const evidenceRefs = stripMarkdownCode(row.evidence_refs ?? "");
 
-    for (const pattern of forbiddenPatterns) {
-      expect(pattern.test(content)).toBe(false);
-    }
+        expect(evidenceRefs).not.toBe("");
+        expect(evidenceRefs.toLowerCase()).not.toBe("n/a");
+        expect(linkedFindingIds.has(findingId)).toBe(true);
+      }
+    },
+  );
 
-    expect(content).toContain("## Findings Overview");
-    expect(content).toContain("## Remediation Posture");
-    expect(lower).toContain("gate status is now passing");
-    expect(lower).toContain("remediated");
-  });
+  itWithAuditHistory(
+    "recurrence continuity: audit index links valid run folders in chronological order",
+    () => {
+      const indexRows = parseFirstTableRows(
+        fs.readFileSync(path.join(AUDIT_ROOT, "index.md"), "utf8"),
+      );
+      expect(indexRows.length).toBeGreaterThanOrEqual(2);
+
+      let previousDate = "";
+      for (const row of indexRows) {
+        const auditDate = stripMarkdownCode(row["Audit Date"] ?? "");
+        const folderPath = stripMarkdownCode(row.Folder ?? "");
+        const fullFolderPath = path.join(ROOT, folderPath);
+        const folderName = path.basename(folderPath);
+        const hasReadme = fs.existsSync(path.join(fullFolderPath, "README.md"));
+        const hasLegacyCoreArtifact = fs.existsSync(
+          path.join(fullFolderPath, "threat-model.md"),
+        );
+
+        expect(folderName).toBe(`audit-${auditDate}`);
+        expect(fs.existsSync(fullFolderPath)).toBe(true);
+        expect(hasReadme || hasLegacyCoreArtifact).toBe(true);
+        if (previousDate) {
+          expect(auditDate >= previousDate).toBe(true);
+        }
+        previousDate = auditDate;
+      }
+    },
+  );
+
+  itWithAuditHistory(
+    "portfolio sanitization: summary excludes sensitive details while preserving mitigation narrative",
+    () => {
+      const portfolioPath = path.join(
+        AUDIT_ROOT,
+        "audit-2026-02-18",
+        "portfolio-summary.md",
+      );
+      const content = fs.readFileSync(portfolioPath, "utf8");
+      const lower = content.toLowerCase();
+
+      const forbiddenPatterns = [
+        /JWT_SECRET/i,
+        /DB_PASSWORD/i,
+        /DATABASE_URL/i,
+        /PRIVATE KEY/i,
+        /tmp\/security/i,
+        /src\//i,
+        /\/api\/v1\//i,
+        /127\.0\.0\.1/i,
+        /postgres:\/\//i,
+      ];
+
+      for (const pattern of forbiddenPatterns) {
+        expect(pattern.test(content)).toBe(false);
+      }
+
+      expect(content).toContain("## Findings Overview");
+      expect(content).toContain("## Remediation Posture");
+      expect(lower).toContain("gate status is now passing");
+      expect(lower).toContain("remediated");
+    },
+  );
 
   it("gate policy: open critical finding fails", () => {
     const inputPath = path.join(TMP_ROOT, "critical-open-input.json");

@@ -13,15 +13,20 @@ export class TrendRepoSequelize implements TrendRepository {
       where: {
         metricId: criteria.metricId,
         organizationId: criteria.organizationId,
-        createdAt: { [Op.gte]: criteria.since },
+        loggedAt: { [Op.gte]: criteria.since },
       },
-      order: [["createdAt", "ASC"]],
-      attributes: ["createdAt", "logValue"],
+      // A trend is over when values were logged, so a backfilled log lands on its
+      // own date. `id` breaks ties (kit deterministic-query-ordering, ADR-0052).
+      order: [
+        ["loggedAt", "ASC"],
+        ["id", "ASC"],
+      ],
+      attributes: ["id", "loggedAt", "logValue"],
     });
 
     return logs.map(
       (log: MetricLog): TrendPoint => ({
-        date: log.createdAt!,
+        date: log.loggedAt,
         value: log.logValue,
       }),
     );

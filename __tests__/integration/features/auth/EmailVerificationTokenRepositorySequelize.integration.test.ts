@@ -61,31 +61,6 @@ describe("EmailVerificationTokenRepositorySequelize", () => {
     });
   });
 
-  describe("findLatestByUserId()", () => {
-    it("returns null when no tokens exist for user", async () => {
-      const user = await createUserRow("latest@example.com");
-      const result = await repo.findLatestByUserId(user.id);
-      expect(result).toBeNull();
-    });
-
-    it("returns the most recent token", async () => {
-      const user = await createUserRow("latest2@example.com");
-      await repo.save({
-        userId: user.id,
-        tokenHash: "c".repeat(64),
-        expiresAt: new Date("2026-05-08T08:00:00.000Z"),
-      });
-      await repo.save({
-        userId: user.id,
-        tokenHash: "d".repeat(64),
-        expiresAt: new Date("2026-05-09T08:00:00.000Z"),
-      });
-
-      const latest = await repo.findLatestByUserId(user.id);
-      expect(latest?.tokenHash).toBe("d".repeat(64));
-    });
-  });
-
   describe("revokeAllForUser()", () => {
     it("marks all unused tokens as used", async () => {
       const user = await createUserRow("revoke@example.com");

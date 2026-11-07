@@ -4,8 +4,12 @@ import {
   metricBody,
   metricBodyPartial,
   metricDetailQuery,
+  generateDummyMetricsBody,
 } from "@/features/metric/infrastructure/http/schema.zod.js";
-import { metricCategoryBody } from "@/features/metric-category/infrastructure/http/schema.zod.js";
+import {
+  metricCategoryBody,
+  createMetricCategoryDummyBody,
+} from "@/features/metric-category/infrastructure/http/schema.zod.js";
 import {
   settingsBody,
   settingsBodyPartial,
@@ -14,11 +18,11 @@ import {
   metricLogBody,
   generateDummyMetricLogsBody,
 } from "@/features/metric-log/infrastructure/http/schema.zod.js";
+import { isIanaTimeZone, TZ_REGEX } from "@/utils/time-zone.js";
 
 // Common Schemas
 const EMAIL_PATTERN = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
 const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-const TZ_REGEX = /^([A-Za-z_]+(?:\/[A-Za-z0-9_+-]+)+|UTC)$/;
 const UUID_PATTERN =
   "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$";
 const UUID_REGEX = new RegExp(UUID_PATTERN);
@@ -36,39 +40,18 @@ const emailSchema = (example: string) =>
 
 export const UuidSchema = registerSchema(
   "Uuid",
-  z.string().uuid().regex(UUID_REGEX).openapi({
+  z.string().guid().regex(UUID_REGEX).openapi({
+    format: "uuid",
     description: "A UUID identifier",
     example: "123e4567-e89b-42d3-a456-426614174000",
     pattern: UUID_PATTERN,
   }),
 );
 
-export const ErrorSchema = registerSchema(
-  "Error",
-  z.object({
-    status: z.string().openapi({ example: "fail" }),
-    message: z.string().openapi({ example: "Error message" }),
-  }),
-);
-
-export const ValidationErrorSchema = registerSchema(
-  "ValidationError",
-  z.object({
-    status: z.string().openapi({ example: "fail" }),
-    message: z.string().openapi({ example: "Validation Error" }),
-    errors: z.array(
-      z.object({
-        path: z.array(z.string()).openapi({ example: ["body", "email"] }),
-        message: z.string().openapi({ example: "Invalid email format" }),
-      }),
-    ),
-  }),
-);
-
 export const RateLimitErrorSchema = registerSchema(
   "RateLimitError",
   z.object({
-    status: z.number().openapi({ example: 429 }),
+    status: z.enum(["fail"]).openapi({ example: "fail" }),
     message: z
       .string()
       .openapi({ example: "Too many requests, please try again later." }),
@@ -118,15 +101,6 @@ const deepObjectParamMetadata = (
 });
 
 const DEFAULT_TZ = "Asia/Jakarta";
-
-const isValidTimeZone = (tz: string) => {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-};
 
 const validateAbsoluteRange = (
   start: string | undefined,
@@ -178,30 +152,48 @@ const validateAbsoluteRange = (
   }
 };
 
-export const MetricIdQuerySchema = registerSchema(
-  "MetricIdQuery",
-  z.object({
-    metricId: UuidSchema.optional().openapi(
-      queryParamMetadata(
-        "metricId",
-        "Optional metric identifier to scope the request",
-      ),
+export const MetricIdQuerySchema = z.object({
+  metricId: UuidSchema.optional().openapi(
+    queryParamMetadata(
+      "metricId",
+      "Optional metric identifier to scope the request",
     ),
-  }),
-);
+  ),
+});
 
-export const MetricIdRequiredQuerySchema = registerSchema(
-  "MetricIdRequiredQuery",
-  z.object({
-    metricId: UuidSchema.openapi(
-      queryParamMetadata(
-        "metricId",
-        "Metric identifier required for ownership validation",
-        true,
-      ),
+// GET /metric-logs/stats (ADR-0079): the range is half-open, by when a value was logged.
+const statsBoundSchema = (name: string, description: string) =>
+  z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .openapi({
+      ...queryParamMetadata(name, description),
+      format: "date-time",
+      example:
+        name === "startDate" ? "2025-01-01T00:00:00Z" : "2025-02-01T00:00:00Z",
+    });
+
+export const MetricLogStatsQuerySchema = MetricIdQuerySchema.extend({
+  startDate: statsBoundSchema(
+    "startDate",
+    "Count logs whose loggedAt is at or after this instant. An ISO 8601 datetime with an offset.",
+  ),
+  endDate: statsBoundSchema(
+    "endDate",
+    "Count logs whose loggedAt is before this instant (exclusive). An ISO 8601 datetime with an offset; must be after startDate when both are given.",
+  ),
+});
+
+export const MetricIdRequiredQuerySchema = z.object({
+  metricId: UuidSchema.openapi(
+    queryParamMetadata(
+      "metricId",
+      "Metric identifier required for ownership validation",
+      true,
     ),
-  }),
-);
+  ),
+});
 
 const cursorLimitParam = queryParamMetadata(
   "limit",
@@ -241,181 +233,145 @@ const nonWhitespaceSearchFieldSchema = z
   .regex(NON_WHITESPACE_REGEX)
   .openapi({ pattern: NON_WHITESPACE_PATTERN });
 
-export const MetricCursorQueryParamsSchema = registerSchema(
-  "MetricCursorQueryParams",
-  z.object({
-    limit: z
-      .number()
-      .int()
-      .min(1)
-      .max(100)
-      .optional()
-      .openapi(cursorLimitParam),
-    sort: z
-      .enum([
-        "createdAt",
-        "-createdAt",
-        "updatedAt",
-        "-updatedAt",
-        "name",
-        "-name",
-        "logCount",
-        "-logCount",
-      ] as const)
-      .optional()
-      .openapi(cursorSortParam()),
-    q: cursorSearchSchema.optional(),
-    after: z.string().optional().openapi(cursorAfterParam),
-    includeTotal: z.boolean().optional().openapi(cursorIncludeTotalParam),
-    filter: z
-      .object({
-        name: nonWhitespaceSearchFieldSchema.optional(),
-        categoryId: UuidSchema.optional(),
-      })
-      .partial()
-      .optional()
-      .openapi(
-        deepObjectParamMetadata(
-          "filter",
-          "Filter metrics by name and/or categoryId (deepObject).",
-        ),
+export const MetricCursorQueryParamsSchema = z.object({
+  limit: z.number().int().min(1).max(100).optional().openapi(cursorLimitParam),
+  sort: z
+    .enum([
+      "createdAt",
+      "-createdAt",
+      "updatedAt",
+      "-updatedAt",
+      "name",
+      "-name",
+      "logCount",
+      "-logCount",
+    ] as const)
+    .optional()
+    .openapi(cursorSortParam()),
+  q: cursorSearchSchema.optional(),
+  after: z.string().optional().openapi(cursorAfterParam),
+  includeTotal: z.boolean().optional().openapi(cursorIncludeTotalParam),
+  filter: z
+    .object({
+      name: nonWhitespaceSearchFieldSchema.optional(),
+      categoryId: UuidSchema.optional(),
+    })
+    .partial()
+    .optional()
+    .openapi(
+      deepObjectParamMetadata(
+        "filter",
+        "Filter metrics by name and/or categoryId (deepObject).",
       ),
-  }),
-);
+    ),
+});
 
-export const MetricCategoryCursorQueryParamsSchema = registerSchema(
-  "MetricCategoryCursorQueryParams",
-  z.object({
-    limit: z
-      .number()
-      .int()
-      .min(1)
-      .max(100)
-      .optional()
-      .openapi(cursorLimitParam),
-    sort: z
-      .enum([
-        "createdAt",
-        "-createdAt",
-        "updatedAt",
-        "-updatedAt",
-        "name",
-        "-name",
-        "metricCount",
-        "-metricCount",
-      ] as const)
-      .optional()
-      .openapi(cursorSortParam()),
-    q: cursorSearchSchema.optional(),
-    after: z.string().optional().openapi(cursorAfterParam),
-    includeTotal: z.boolean().optional().openapi(cursorIncludeTotalParam),
-    filter: z
-      .object({
-        name: nonWhitespaceSearchFieldSchema.optional(),
-      })
-      .partial()
-      .optional()
-      .openapi(
-        deepObjectParamMetadata(
-          "filter",
-          "Filter categories by name (deepObject).",
-        ),
+export const MetricCategoryCursorQueryParamsSchema = z.object({
+  limit: z.number().int().min(1).max(100).optional().openapi(cursorLimitParam),
+  sort: z
+    .enum([
+      "createdAt",
+      "-createdAt",
+      "updatedAt",
+      "-updatedAt",
+      "name",
+      "-name",
+      "metricCount",
+      "-metricCount",
+    ] as const)
+    .optional()
+    .openapi(cursorSortParam()),
+  q: cursorSearchSchema.optional(),
+  after: z.string().optional().openapi(cursorAfterParam),
+  includeTotal: z.boolean().optional().openapi(cursorIncludeTotalParam),
+  filter: z
+    .object({
+      name: nonWhitespaceSearchFieldSchema.optional(),
+    })
+    .partial()
+    .optional()
+    .openapi(
+      deepObjectParamMetadata(
+        "filter",
+        "Filter categories by name (deepObject).",
       ),
-  }),
-);
+    ),
+});
 
-export const MetricLogCursorQueryParamsSchema = registerSchema(
-  "MetricLogCursorQueryParams",
-  z.object({
-    limit: z
-      .number()
-      .int()
-      .min(1)
-      .max(100)
-      .optional()
-      .openapi(cursorLimitParam),
-    sort: z
-      .enum([
-        "createdAt",
-        "-createdAt",
-        "updatedAt",
-        "-updatedAt",
-        "logValue",
-        "-logValue",
-        "loggedAt",
-        "-loggedAt",
-      ] as const)
-      .optional()
-      .openapi(cursorSortParam()),
-    q: z
-      .string()
-      .min(1)
-      .regex(NON_WHITESPACE_REGEX)
-      .optional()
-      .openapi({
-        ...queryParamMetadata(
-          "q",
-          "Optional search term applied to log notes/metadata",
-        ),
-        pattern: NON_WHITESPACE_PATTERN,
-      }),
-    after: z.string().optional().openapi(cursorAfterParam),
-    includeTotal: z.boolean().optional().openapi(cursorIncludeTotalParam),
-    filter: z
-      .object({
-        metricId: UuidSchema.optional(),
-        logValue: z.number().min(0).optional(),
-      })
-      .partial()
-      .optional()
-      .openapi(
-        deepObjectParamMetadata(
-          "filter",
-          "Filter logs by metricId and/or logValue (deepObject).",
-        ),
+export const MetricLogCursorQueryParamsSchema = z.object({
+  limit: z.number().int().min(1).max(100).optional().openapi(cursorLimitParam),
+  sort: z
+    .enum([
+      "createdAt",
+      "-createdAt",
+      "updatedAt",
+      "-updatedAt",
+      "logValue",
+      "-logValue",
+      "loggedAt",
+      "-loggedAt",
+    ] as const)
+    .optional()
+    .openapi(cursorSortParam()),
+  q: z
+    .string()
+    .min(1)
+    .regex(NON_WHITESPACE_REGEX)
+    .optional()
+    .openapi({
+      ...queryParamMetadata(
+        "q",
+        "Optional search term applied to log notes/metadata",
       ),
-  }),
-);
+      pattern: NON_WHITESPACE_PATTERN,
+    }),
+  after: z.string().optional().openapi(cursorAfterParam),
+  includeTotal: z.boolean().optional().openapi(cursorIncludeTotalParam),
+  filter: z
+    .object({
+      metricId: UuidSchema.optional(),
+      logValue: z.number().min(0).optional(),
+    })
+    .partial()
+    .optional()
+    .openapi(
+      deepObjectParamMetadata(
+        "filter",
+        "Filter logs by metricId and/or logValue (deepObject).",
+      ),
+    ),
+});
 
-export const MetricSettingsCursorQueryParamsSchema = registerSchema(
-  "MetricSettingsCursorQueryParams",
-  z.object({
-    limit: z
-      .number()
-      .int()
-      .min(1)
-      .max(100)
-      .optional()
-      .openapi(cursorLimitParam),
-    sort: z
-      .enum([
-        "createdAt",
-        "-createdAt",
-        "updatedAt",
-        "-updatedAt",
-        "isActive",
-        "-isActive",
-      ] as const)
-      .optional()
-      .openapi(cursorSortParam()),
-    q: cursorSearchSchema.optional(),
-    after: z.string().optional().openapi(cursorAfterParam),
-    includeTotal: z.boolean().optional().openapi(cursorIncludeTotalParam),
-    filter: z
-      .object({
-        metricId: UuidSchema.optional(),
-        isActive: z.boolean().optional(),
-      })
-      .partial()
-      .optional()
-      .openapi(
-        deepObjectParamMetadata(
-          "filter",
-          "Filter settings by metricId and/or isActive (deepObject).",
-        ),
+export const MetricSettingsCursorQueryParamsSchema = z.object({
+  limit: z.number().int().min(1).max(100).optional().openapi(cursorLimitParam),
+  sort: z
+    .enum([
+      "createdAt",
+      "-createdAt",
+      "updatedAt",
+      "-updatedAt",
+      "isActive",
+      "-isActive",
+    ] as const)
+    .optional()
+    .openapi(cursorSortParam()),
+  q: cursorSearchSchema.optional(),
+  after: z.string().optional().openapi(cursorAfterParam),
+  includeTotal: z.boolean().optional().openapi(cursorIncludeTotalParam),
+  filter: z
+    .object({
+      metricId: UuidSchema.optional(),
+      isActive: z.boolean().optional(),
+    })
+    .partial()
+    .optional()
+    .openapi(
+      deepObjectParamMetadata(
+        "filter",
+        "Filter settings by metricId and/or isActive (deepObject).",
       ),
-  }),
-);
+    ),
+});
 
 // Auth Schemas
 export const UserSchema = registerSchema(
@@ -489,7 +445,8 @@ export const RefreshResponseSchema = registerSchema(
 export const SwitchOrgRequestSchema = registerSchema(
   "SwitchOrgRequest",
   z.object({
-    organizationId: z.string().uuid().regex(UUID_REGEX).openapi({
+    organizationId: z.string().guid().regex(UUID_REGEX).openapi({
+      format: "uuid",
       description: "Target organization ID to switch to",
       example: "123e4567-e89b-42d3-a456-426614174000",
       pattern: UUID_PATTERN,
@@ -539,11 +496,61 @@ export const MemberSchema = registerSchema(
   }),
 );
 
+// Both organization lists page by cursor (api-tooling-residuals D-09, audit X27).
+export const MembershipPageQuerySchema = z.object({
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .openapi(
+      queryParamMetadata("limit", "Rows per page, 1 to 100; 100 when omitted"),
+    ),
+  after: z.string().optional().openapi(cursorAfterParam),
+});
+
+const membershipNextCursor = z.string().nullable().openapi({
+  description:
+    "Pass as `after` for the next page; null on the last page. A page can hold fewer rows than `limit` and still be followed by another.",
+  example: null,
+});
+
 export const MemberListResponseSchema = registerSchema(
   "MemberListResponse",
   successEnvelope(
     z.object({
       members: z.array(MemberSchema),
+      nextCursor: membershipNextCursor,
+    }),
+  ),
+);
+
+export const UserOrganizationSchema = registerSchema(
+  "UserOrganization",
+  z.object({
+    organizationId: UuidSchema,
+    name: z.string().openapi({ example: "Acme" }),
+    slug: z.string().openapi({ example: "acme" }),
+    role: z.enum(["owner", "admin", "member"]).openapi({ example: "owner" }),
+    joinedAt: z
+      .string()
+      .datetime()
+      .openapi({ example: "2025-01-15T09:30:00Z" }),
+    isCurrent: z.boolean().openapi({
+      description:
+        "True for the organization the presented access token is scoped to.",
+      example: true,
+    }),
+  }),
+);
+
+export const UserOrganizationListResponseSchema = registerSchema(
+  "UserOrganizationListResponse",
+  successEnvelope(
+    z.object({
+      organizations: z.array(UserOrganizationSchema),
+      nextCursor: membershipNextCursor,
     }),
   ),
 );
@@ -651,11 +658,6 @@ export const UpdateMetricCategoryRequestSchema = registerSchema(
   }),
 );
 
-export const MetricCategoryListResponseSchema = registerSchema(
-  "MetricCategoryListResponse",
-  z.array(MetricCategorySchema),
-);
-
 const CursorMetaSchema = {
   nextCursor: z.string().nullable().openapi({
     example: "eyJpZCI6IjEyMyJ9",
@@ -674,7 +676,7 @@ const CursorMetaSchema = {
     .optional()
     .openapi({ example: "sleep", description: "Search term applied, if any" }),
   filter: z
-    .record(z.any())
+    .record(z.string(), z.any())
     .optional()
     .openapi({ description: "Normalized filters applied to the query" }),
   totalCount: z.number().optional().openapi({
@@ -716,10 +718,7 @@ export const MetricCursorResponseSchema = registerSchema(
   }),
 );
 
-export const MetricDetailQueryParamsSchema = registerSchema(
-  "MetricDetailQueryParams",
-  metricDetailQuery,
-);
+export const MetricDetailQueryParamsSchema = metricDetailQuery;
 
 export const MetricCategoryCursorResponseSchema = registerSchema(
   "MetricCategoryCursorResponse",
@@ -771,11 +770,6 @@ export const UpdateMetricRequestSchema = registerSchema(
   metricBodyPartial,
 );
 
-export const MetricListResponseSchema = registerSchema(
-  "MetricListResponse",
-  z.array(MetricSchema),
-);
-
 // Metric Log Schemas
 export const MetricLogSchema = registerSchema(
   "MetricLog",
@@ -822,11 +816,6 @@ export const UpdateMetricLogRequestSchema = registerSchema(
   }),
 );
 
-export const MetricLogListResponseSchema = registerSchema(
-  "MetricLogListResponse",
-  z.array(MetricLogSchema),
-);
-
 export const MetricLogStatsResponseSchema = registerSchema(
   "MetricLogStatsResponse",
   z.object({
@@ -849,6 +838,24 @@ export const GenerateDummyMetricLogsRequestSchema = registerSchema(
   generateDummyMetricLogsBody.openapi({
     example: {
       count: 50,
+    },
+  }),
+);
+
+export const GenerateDummyMetricsRequestSchema = registerSchema(
+  "GenerateDummyMetricsRequest",
+  generateDummyMetricsBody.openapi({
+    example: {
+      count: 50,
+    },
+  }),
+);
+
+export const GenerateDummyMetricCategoriesRequestSchema = registerSchema(
+  "GenerateDummyMetricCategoriesRequest",
+  createMetricCategoryDummyBody.openapi({
+    example: {
+      count: 5,
     },
   }),
 );
@@ -1005,11 +1012,6 @@ export const UpdateDisplayOptionsRequestSchema = registerSchema(
   }),
 );
 
-export const MetricSettingsListResponseSchema = registerSchema(
-  "MetricSettingsListResponse",
-  z.array(MetricSettingsSchema),
-);
-
 export const MetricSettingsCursorResponseSchema = registerSchema(
   "MetricSettingsCursorResponse",
   z.object({
@@ -1036,7 +1038,11 @@ export const MetricDetailResponseSchema = registerSchema(
 export const TrendDataPointSchema = registerSchema(
   "TrendDataPoint",
   z.object({
-    date: z.string().openapi({ example: "2023-01-01" }),
+    date: z.string().openapi({
+      example: "2023-01-01",
+      description:
+        "When the value was logged (the log's loggedAt), not when it was recorded. Points are in ascending date order.",
+    }),
     value: z.number().openapi({ example: 7500 }),
   }),
 );
@@ -1046,38 +1052,24 @@ export const TrendResponseSchema = registerSchema(
   z.array(TrendDataPointSchema),
 );
 
-export const GetTrendRequestSchema = registerSchema(
-  "GetTrendRequest",
-  z.object({
-    params: z.object({
-      metricId: UuidSchema,
-    }),
-    query: z.object({
-      startDate: z
-        .string()
-        .datetime()
-        .optional()
-        .openapi({ example: "2023-01-01T00:00:00Z" }),
-      endDate: z
-        .string()
-        .datetime()
-        .optional()
-        .openapi({ example: "2023-01-31T23:59:59Z" }),
-      interval: z
-        .enum(["daily", "weekly", "monthly"])
-        .optional()
-        .openapi({ example: "daily" }),
-    }),
-  }),
-);
-
 // Analytics Schemas
+const BUCKET_LABEL_DESCRIPTION =
+  "The start of a bucket in the requested `tz`, written as if it were UTC: midnight of 2025-06-10 in Asia/Jakarta is `2025-06-10T00:00:00.000Z` (ADR-0062).";
+
 const VisualizationSeriesSchema = z.object({
-  bucketStartISO: z
-    .string()
-    .datetime()
-    .openapi({ example: "2023-01-01T00:00:00Z" }),
+  bucketStartISO: z.string().datetime().openapi({
+    example: "2023-01-01T00:00:00Z",
+    description: BUCKET_LABEL_DESCRIPTION,
+  }),
   value: z.number().nullable().openapi({ example: 42.5 }),
+});
+
+const BucketEnumSchema = z.enum(["1h", "1d", "1w", "1m", "1y"]);
+
+const VisualizationRangeSchema = z.object({
+  startISO: z.string().datetime(),
+  endISO: z.string().datetime(),
+  bucket: BucketEnumSchema,
 });
 
 const VisualizationStatsSchema = z.object({
@@ -1096,11 +1088,13 @@ const VisualizationMetaSchema = z.object({
     startISO: z.string().datetime(),
     endISO: z.string().datetime(),
   }),
+  fill: z.enum(["none", "zero", "nan"]).openapi({ example: "none" }),
 });
 
 export const VisualizationResponseSchema = registerSchema(
   "VisualizationResponse",
   z.object({
+    metricId: UuidSchema,
     series: z.array(VisualizationSeriesSchema),
     stats: VisualizationStatsSchema,
     meta: VisualizationMetaSchema,
@@ -1117,6 +1111,40 @@ const DashboardVisualizationItemSchema = z.object({
   priority: z.number().nullable().openapi({ example: 1 }),
   series: z.array(VisualizationSeriesSchema),
   stats: VisualizationStatsSchema,
+  lastLogAt: z.string().datetime().nullable().openapi({
+    example: "2025-06-10T12:00:00.000Z",
+    description: "The newest log's stored instant (ADR-0062).",
+  }),
+  firstLogAt: z.string().datetime().nullable().openapi({
+    example: "2025-01-02T08:30:00.000Z",
+    description: "The oldest log's stored instant (ADR-0062).",
+  }),
+  totalLogs: z.number().int().openapi({ example: 42 }),
+  latestValue: z.number().nullable().openapi({ example: 7.5 }),
+  latestBucketStart: z
+    .string()
+    .datetime()
+    .nullable()
+    .openapi({
+      example: "2025-06-10T00:00:00.000Z",
+      description: `The bucket of the newest log. ${BUCKET_LABEL_DESCRIPTION}`,
+    }),
+  requestedRange: VisualizationRangeSchema,
+  actualRange: VisualizationRangeSchema.openapi({
+    description:
+      "The range `series` covers: `requestedRange`, or the fallback range when the requested one holds no log.",
+  }),
+  fallbackRangeUsed: z.boolean(),
+  fallbackStrategy: z
+    .enum(["last_activity_window"])
+    .nullable()
+    .openapi({
+      // The generator leaves null out of a nullable enum's values, and an OpenAPI 3.1
+      // reader then refuses the null that every item without a fallback sends.
+      enum: ["last_activity_window", null],
+      description:
+        "`last_activity_window` when `fallbackRangeUsed`: a window ending with the bucket of the newest log. Null otherwise.",
+    }),
 });
 
 export const DashboardVisualizationResponseSchema = registerSchema(
@@ -1131,11 +1159,24 @@ export const DashboardVisualizationResponseSchema = registerSchema(
         endISO: z.string().datetime(),
       }),
       count: z.number().openapi({ example: 5 }),
+      totalMetrics: z.number().int().openapi({
+        example: 8,
+        description: "Metrics shown on the dashboard, before `limit`.",
+      }),
+      fallbackMetrics: z.number().int().openapi({
+        example: 1,
+        description: "Items whose series uses the fallback range.",
+      }),
+    }),
+    sync: z.object({
+      etagSeed: z.string().openapi({
+        description:
+          "A hash of the request and the metrics' settings. Not the response's `ETag`, which is a digest of the body.",
+      }),
     }),
   }),
 );
 
-const BucketEnumSchema = z.enum(["1h", "1d", "1w", "1m", "1y"]);
 const FillEnumSchema = z.enum(["none", "zero", "nan"]);
 const RelativeLastWindowSchema = z
   .string()
@@ -1157,7 +1198,7 @@ const VisualizationQueryRawSchema = z
       .min(1)
       .regex(TZ_REGEX, { message: "Invalid IANA time zone" })
       .default(DEFAULT_TZ)
-      .refine((value) => isValidTimeZone(value), {
+      .refine((value) => isIanaTimeZone(value), {
         message: "Invalid IANA time zone",
       })
       .openapi({
@@ -1209,7 +1250,7 @@ const VisualizationQueryRawSchema = z
         in: "query",
         required: false,
         description:
-          "Relative range such as 7d or 12m (defaults to 30d; minimum is 1). Provide either this parameter or both `start` and `end`, not both; large windows may be rejected based on the bucket size.",
+          "Relative range such as 7d or 12m (defaults to 30d; minimum is 1). The range runs through the end of the current bucket in the `tz` zone, so it includes values logged today, and it starts that many hours, days, weeks, months or years before that end; `meta.range.endISO` is therefore in the future. Provide either this parameter or both `start` and `end`, not both; large windows may be rejected based on the bucket size.",
       },
     }),
   })
@@ -1221,13 +1262,9 @@ const VisualizationBaseQuerySchema = VisualizationQueryRawSchema.superRefine(
   },
 );
 
-export const VisualizationQueryParamsSchema = registerSchema(
-  "VisualizationQueryParams",
-  VisualizationBaseQuerySchema,
-);
+export const VisualizationQueryParamsSchema = VisualizationBaseQuerySchema;
 
-export const DashboardVisualizationQueryParamsSchema = registerSchema(
-  "DashboardVisualizationQueryParams",
+export const DashboardVisualizationQueryParamsSchema =
   VisualizationQueryRawSchema.extend({
     limit: z
       .number()
@@ -1247,5 +1284,4 @@ export const DashboardVisualizationQueryParamsSchema = registerSchema(
     .strict()
     .superRefine(({ start, end }, ctx) => {
       validateAbsoluteRange(start, end, ctx);
-    }),
-);
+    });

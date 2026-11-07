@@ -224,7 +224,11 @@ describe("MetricReadRepoSequelize (integration)", () => {
     expect(byLogCount.items[0].id).toBe(metricTwo.id);
   });
 
-  it("limits logs when fetching metric detail", async () => {
+  // Kit deterministic-query-ordering, D-02. This test used to insert three logs
+  // back to back and rely on `createdAt` order, which ties within a millisecond
+  // and failed CI once (#124, Fork Smoke run 36695083548). It now inserts the
+  // earliest-logged value last, so ordering by insert time would return it first.
+  it("returns the latest logs by loggedAt, not by insert order", async () => {
     const user = await createUserRow();
     const metric = await createMetricRow({
       userId: user.id,
@@ -232,15 +236,19 @@ describe("MetricReadRepoSequelize (integration)", () => {
     });
     await createMetricLogRow({
       metricId: metric.id,
-      logValue: 10,
+      logValue: 30,
+      loggedAt: new Date("2024-01-03T00:00:00Z"),
     });
     await createMetricLogRow({
       metricId: metric.id,
       logValue: 20,
+      loggedAt: new Date("2024-01-02T00:00:00Z"),
     });
+    // Backfilled: inserted last, logged first.
     await createMetricLogRow({
       metricId: metric.id,
-      logValue: 30,
+      logValue: 10,
+      loggedAt: new Date("2024-01-01T00:00:00Z"),
     });
 
     const detailed = await repo.findDetailedMetric({

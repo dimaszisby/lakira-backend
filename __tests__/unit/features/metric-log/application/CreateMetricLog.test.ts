@@ -1,10 +1,10 @@
 import { jest } from "@jest/globals";
+import { ConflictError } from "@/shared/domain/errors/DomainError.js";
 import { CreateMetricLog } from "@/features/metric-log/application/use-cases/CreateMetricLog.js";
 import { MetricLogRepository } from "@/features/metric-log/domain/repositories/MetricLogRepository.js";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import type { MetricAccessPort } from "@/features/public/metric-log/application/ports/MetricAccessPort.js";
 import { CachePort } from "@/features/metric-log/application/ports/CachePort.js";
 import { MetricLog } from "@/features/metric-log/domain/entities/MetricLog.js";
-import AppError from "@/utils/AppError.js";
 
 const buildLog = () =>
   MetricLog.fromProps({
@@ -60,7 +60,12 @@ describe("CreateMetricLog use case", () => {
       "metric-1",
     );
     expect(repo.create).toHaveBeenCalled();
-    expect(cache.invalidate).toHaveBeenCalledWith("user-1", "metric-1", log.id);
+    expect(cache.invalidate).toHaveBeenCalledWith(
+      "user-1",
+      "org-1",
+      "metric-1",
+      log.id,
+    );
     expect(result).toBe(log);
   });
 
@@ -75,7 +80,7 @@ describe("CreateMetricLog use case", () => {
         metricId: "metric-1",
         logValue: 10,
       }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(ConflictError);
     expect(repo.create).not.toHaveBeenCalled();
   });
 });

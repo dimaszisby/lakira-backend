@@ -1,5 +1,6 @@
 import { MetricCategoryRepoSequelize } from "./infrastructure/persistence/repositories/MetricCategoryRepoSequelize.js";
 import { MetricCategoryCacheRedis } from "./infrastructure/cache/MetricCategoryCacheRedis.js";
+import { CachedMetricCategoryRepository } from "./infrastructure/cache/CachedMetricCategoryRepository.js";
 import { CreateCategory } from "./application/use-cases/CreateCategory.js";
 import { UpdateCategory } from "./application/use-cases/UpdateCategory.js";
 import { DeleteCategory } from "./application/use-cases/DeleteCategory.js";
@@ -24,10 +25,17 @@ export const buildMetricCategoryFeature = (
 
   return {
     createCategory: new CreateCategory(repo, cache),
-    listCategories: new ListCategories(repo, cache),
+    listCategories: new ListCategories(
+      new CachedMetricCategoryRepository(repo, cache),
+    ),
     getCategory: new GetCategory(repo),
     updateCategory: new UpdateCategory(repo, cache),
     deleteCategory: new DeleteCategory(repo, cache),
     generateDummyCategories: new GenerateDummyCategories(repo, cache, factory),
   };
 };
+
+/** What `buildMetricCategoryFeature` builds: the type a router and its controller are handed (ADR-0072). */
+export type MetricCategoryFeature = ReturnType<
+  typeof buildMetricCategoryFeature
+>;

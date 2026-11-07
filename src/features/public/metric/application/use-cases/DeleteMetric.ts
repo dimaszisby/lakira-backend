@@ -21,7 +21,7 @@ export class DeleteMetric {
     );
 
     if (this.cache.isEnabled() && metric.id) {
-      await this.cache.invalidateMetrics(userId, metric.id);
+      await this.cache.invalidateMetrics(userId, organizationId, metric.id);
     }
 
     await this.repo.delete(organizationId, metric);

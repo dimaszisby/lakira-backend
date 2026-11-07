@@ -1,96 +1,110 @@
 # SaaS Base Checklist
 
-**Audit date:** 2026-05-24 (independent gone-gold review)
-**Full audit:** [`documents/development/architecture/saas-readiness/audit-2026-05-24-independent.md`](documents/development/architecture/saas-readiness/audit-2026-05-24-independent.md)
-**Closeout summary:** [`documents/development/architecture/saas-readiness/FINAL-AUDIT-SUMMARY.md`](documents/development/architecture/saas-readiness/FINAL-AUDIT-SUMMARY.md)
-**Kit overview:** [`documents/development/architecture/saas-readiness/README.md`](documents/development/architecture/saas-readiness/README.md)
-**Verdict authority:** ADR-008 in [`decisions.md`](documents/development/architecture/saas-readiness/decisions.md)
+**Audit date:** 2026-10-20 (four independent graders, fork dry-run, live reproductions and full re-grade, on Node 24)
+**Full audit:** [`docs/internal/audits/saas-readiness/audit-2026-10-20.md`](docs/internal/audits/saas-readiness/audit-2026-10-20.md)
+**Closeout summary:** [`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`](docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md)
+**Kit overview:** [`docs/internal/audits/saas-readiness/README.md`](docs/internal/audits/saas-readiness/README.md)
+**Verdict authority:** ADR-008 in [`decisions.md`](docs/internal/audits/saas-readiness/decisions.md)
 
 ## Verdict
 
-> **✅ GOLD WITH CAVEATS — publishable as a forkable SaaS base today.** An independent,
-> skeptical re-audit re-ran all six empirical gates (green), verified the security and
-> multi-tenancy fundamentals by reading code (not trusting the prior self-audit), and ran a
-> live forkability dry-run. The strict ADR-001 fork-ready gate now **passes**: zero P0,
-> the six critical categories all ≥80% (Cat 4 at 87.5% after P1-4.2 + P2-4.5 closed), and
-> `LICENSE` + `.env.example` present. Multi-tenant row isolation is enforced at the
-> repository layer, refresh-token rotation is single-use with family revocation on reuse,
-> email/reset tokens are 256-bit + hashed + single-use, the Dockerfile and `deploy_production`
-> gate are production-grade, and the forked tree builds + typechecks + unit-tests clean. What
-> keeps it short of a clean GOLD is a cluster of six ≤1-day quality gaps (C1–C6 below) — most
-> notably that the bootstrap-fork flow doesn't work as printed and the error envelope is
-> inconsistent + undocumented in the OpenAPI contract. No exploitable P0 remains.
+> **GOLD WITH CAVEATS — reconfirmed; every caveat is closed on its named routes, and clean GOLD is
+> blocked by two new P1 findings in the queue worker.** The strict ADR-001 fork-ready gate passes
+> on Node 24: zero P0, all six empirical commands green on the first run after a clean install, the
+> six gated categories at 83% or more, and `LICENSE` + `.env.example` present. For the first time,
+> C1 to C6, S1 and S2 are all closed-confirmed, each graded closed by an independent grader and
+> reproduced. **C5** closed: with tracing on, the built server sent Sentry no address, token,
+> cookie, email address or query string. Two findings stand in the way, both P1 and both
+> reproduced: concurrent email jobs stall for 60 s on the database connection pool (**X62**), and
+> the worker's shutdown does not stop taking messages (**X60**). No exploitable security hole or
+> cross-tenant exposure was found. Six P2 findings are open beside them.
 
 ## Fork-ready exit criteria
 
-A repo is fork-ready only when **all four** hold (see ADR-001 in [`decisions.md`](documents/development/architecture/saas-readiness/decisions.md)):
+A repo is fork-ready only when **all four** hold (see ADR-001 in [`decisions.md`](docs/internal/audits/saas-readiness/decisions.md)):
 
-| #   | Criterion                                                                                                                       | Status (2026-05-24)                       |
+| #   | Criterion                                                                                                                       | Status (2026-10-20)                       |
 | --- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| 1   | Zero P0 gaps remaining                                                                                                          | ✅ — all 7 closed                         |
-| 2   | All six empirical commands green (`typecheck`, `lint`, `format:check`, `test`, `security:delta:check`, `docs:openapi:generate`) | ✅                                        |
-| 3   | Categories 1 (Auth), 4 (Security), 6 (DX), 7 (Testing), 8 (CI/CD), 11 (Forkability) at ≥80% ✅                                  | ✅ — Cat 4 = 87.5%; all six clear the bar |
-| 4   | `LICENSE` and `.env.example` present at repo root                                                                               | ✅ — both present                         |
+| 1   | Zero P0 gaps remaining                                                                                                          | Yes                                       |
+| 2   | All six empirical commands green (`typecheck`, `lint`, `format:check`, `test`, `security:delta:check`, `docs:openapi:generate`) | Yes, on Node 24, first run after `npm ci` |
+| 3   | Categories 1 (Auth), 4 (Security), 6 (DX), 7 (Testing), 8 (CI/CD), 11 (Forkability) at ≥80% (pass)                              | Yes: 83%, 88%, 100%, 100%, 100%, 92%      |
+| 4   | `LICENSE` and `.env.example` present at repo root                                                                               | Yes                                       |
 
-**All four pass.** The repo is fork-ready by the strict ADR-001 reading; the open caveats are
-industry-standard quality items the gate does not measure (see below).
+**All four pass.** What keeps the verdict short of a clean GOLD is two P1 findings the run's
+verdict rule holds to block it (kit D-03): no caveat is open.
 
-## Scorecard (independent re-grade)
+## Scorecard (re-graded 2026-10-20)
 
-| Category                                | ✅     | ⚠️     | ❌    | N/A   |
-| --------------------------------------- | ------ | ------ | ----- | ----- |
-| 1. Authentication & Authorization       | 5      | 0      | 1     | 0     |
-| 2. API Design & Contracts               | 3      | 3      | 0     | 0     |
-| 3. Database Layer                       | 3      | 2      | 0     | 0     |
-| 4. Security                             | 6      | 2      | 0     | 0     |
-| 5. Error Handling & Observability       | 4      | 1      | 1     | 0     |
-| 6. Developer Experience & Onboarding    | 5      | 1      | 0     | 0     |
-| 7. Testing                              | 6      | 0      | 0     | 0     |
-| 8. CI/CD & Deployment                   | 6      | 0      | 0     | 0     |
-| 9. Multi-Tenancy & SaaS-Specific        | 2      | 1      | 2     | 0     |
-| 10. Code Architecture & Maintainability | 3      | 2      | 0     | 0     |
-| 11. Forkability                         | 4      | 2      | 0     | 0     |
-| **Total (65 items)**                    | **47** | **14** | **4** | **0** |
+Partial counts half toward a category's score.
 
-**Severity counts (open):** P0 = **0**. Remaining work is the C1–C6 caveats (3 graded P1:
-C1/C3/C4; 3 graded P2: C2/C5/C6) plus the by-design deferrals (subscription/billing P1-9.2,
-OAuth, APM, feature flags, outbound webhooks). The independent grade is intentionally stricter
-than the 2026-05-20 self-audit (52 / 9 / 4) — see ADR-008.
+| Category                                | Pass   | Partial | Fail  | N/A   |
+| --------------------------------------- | ------ | ------- | ----- | ----- |
+| 1. Authentication & Authorization       | 5      | 0       | 1     | 0     |
+| 2. API Design & Contracts               | 6      | 0       | 0     | 0     |
+| 3. Database Layer                       | 3      | 2       | 0     | 0     |
+| 4. Security                             | 6      | 2       | 0     | 0     |
+| 5. Error Handling & Observability       | 5      | 0       | 1     | 0     |
+| 6. Developer Experience & Onboarding    | 6      | 0       | 0     | 0     |
+| 7. Testing                              | 6      | 0       | 0     | 0     |
+| 8. CI/CD & Deployment                   | 6      | 0       | 0     | 0     |
+| 9. Multi-Tenancy & SaaS-Specific        | 2      | 1       | 2     | 0     |
+| 10. Code Architecture & Maintainability | 3      | 2       | 0     | 0     |
+| 11. Forkability                         | 5      | 1       | 0     | 0     |
+| **Total (65 items)**                    | **53** | **8**   | **4** | **0** |
 
-## Empirical commands (2026-05-24, re-run)
+**Severity counts (open):** P0 = **0**. P1 = **2**: X62, X60. P2: six new (X1, X20, X40, X41, X61,
+X63), plus R4 carried from 2026-09-29. The four Fails are by-design deferrals: OAuth, APM,
+subscription/plan model, outbound webhooks.
 
-| Command                         | Result                                                                                       |
-| ------------------------------- | -------------------------------------------------------------------------------------------- |
-| `npm run typecheck`             | ✅ exit 0                                                                                    |
-| `npm run lint`                  | ✅ exit 0                                                                                    |
-| `npm run format:check`          | ✅ exit 0                                                                                    |
-| `npm test`                      | ✅ unit exit 0 (84 suites / 497 tests); integration exit 0 (24 pass + 2 Redis-flagged skips) |
-| `npm run security:delta:check`  | ✅ exit 0 (8 medium dep findings; 0 high/critical)                                           |
-| `npm run docs:openapi:generate` | ✅ exit 0 (regenerated spec byte-identical to committed — in sync)                           |
+## Empirical commands (2026-10-20, Node 24.22.0)
 
-> Verified on host Node 22; CI/Docker use the mandated Node 20 — re-confirm parity there.
-> Run `npm test` as the project defines it (`test:unit` then `test:integration`); a combined
-> invocation under `SKIP_DB_LIFECYCLE=true` produces false failures.
+| Command                         | Result                                                                              |
+| ------------------------------- | ----------------------------------------------------------------------------------- |
+| `npm run typecheck`             | exit 0                                                                              |
+| `npm run lint`                  | exit 0                                                                              |
+| `npm run format:check`          | exit 0                                                                              |
+| `npm test`                      | exit 0 on the first run after `npm ci`: unit 1437 tests; integration 283, 5 skipped |
+| `npm run security:delta:check`  | exit 0 (3 medium dependency findings; 0 high/critical)                              |
+| `npm run docs:openapi:generate` | exit 0 (regenerated spec identical to committed)                                    |
 
-## Open caveats — path to clean GOLD (each ≤1 day)
+Also green, and run by CI: `build`, `docs:openapi:check`, `security:delta:gate`, `test:coverage`
+(thresholds enforced), `contract:local:gate` (1446 cases), `docker:smoke`. Run `npm test` as the
+project defines it (`test:unit` then `test:integration`).
 
-1. **C1 · Forkability (P1)** — `bootstrap-fork.sh` rotates `JWT_SECRET` / sets `APP_NAME` only in `.env.development` (gitignored, absent on a fresh clone → no-op); its printed `npm test` step fails out-of-box without an undocumented `.env.test`.
-2. **C3 · API Contracts (P1)** — global error handler emits three shapes (incl. an undocumented `"fail"` status), bypassing `errorResponse()` and violating `api-design.md`; OpenAPI documents no 4xx/5xx schema (only 429).
-3. **C4 · Architecture (P1)** — the architecture test enforces only 3 narrow checks (no negative cases); real app→infra ORM writes, `AppError` in domain entities, and cross-feature deep imports pass green.
-4. **C2 · Forkability (P2)** — `app-name.ts` defaults to `"lakira-backend"`; combined with C1 a fresh fork brands its runtime as "lakira-backend".
-5. **C5 · Observability (P2)** — Sentry `init()` has no `beforeSend` PII scrubber.
-6. **C6 · Security (P2)** — `SENSITIVE_KEY_PATTERN` is suffix-anchored; misses `authorization`/`cookie`/`bearer` (latent).
+## Top gaps — path to clean GOLD
 
-Full evidence (file:line) is in the [dated audit](documents/development/architecture/saas-readiness/audit-2026-05-24-independent.md); fix-status tracking is in [`FINAL-AUDIT-SUMMARY.md` § 4](documents/development/architecture/saas-readiness/FINAL-AUDIT-SUMMARY.md).
+1. **X62 · Queue (P1)** — the email handlers hold a transaction's connection and ask the pool for a
+   second; with the default pool of five, twelve queued emails stalled 61 s and seven failed into
+   retry. Reproduced. [Todo](docs/internal/todos/2026-10-20-todo-email-handlers-wait-on-the-pool.md).
+2. **X60 · Queue (P1)** — `RabbitMQConsumer.cancel()` cancels nothing, so a stopping worker keeps
+   taking messages until its channel closes. Reproduced on the broker's consumer list.
+   [Todo](docs/internal/todos/2026-10-20-todo-worker-consumer-cancel-is-a-no-op.md).
+3. **X1 · Security (P2)** — a production database connection may run with TLS verification off, and
+   `.env.example` ships it off. Reproduced.
+   [Todo](docs/internal/todos/2026-10-20-todo-production-database-tls-verification-off.md).
+4. **X61 · Security (P2)** — a database failure inside `authMiddleware` answers 401 "Invalid token"
+   and is not logged. Reproduced.
+   [Todo](docs/internal/todos/2026-10-20-todo-auth-middleware-hides-infrastructure-errors.md).
+5. **X63 · Reliability (P2)** — a broker declaration mismatch takes the API process down. Reproduced.
+   [Todo](docs/internal/todos/2026-10-20-todo-broker-setup-failure-stops-the-api.md).
+6. **X20 · API (P2)** — `GET /metric-logs/stats` answers 500 past about 150,000 logs. Reproduced.
+   [Todo](docs/internal/todos/2026-10-20-todo-metric-log-stats-loads-every-row.md).
+7. **X40, X41 · Architecture (P2)** — inner layers can import infrastructure by relative path, or
+   through another feature's `public.ts`. Reproduced by lint.
+   [Todo](docs/internal/todos/2026-10-20-todo-inner-layers-reach-infrastructure.md).
 
-## What's already strong (✅ highlights)
+Closed and confirmed in the run of 2026-10-20: C5 (V3, W1), and again C1 to C4, C6, S1 and S2;
+the last run's W1 to W5 and T3. Full evidence (file:line) is in the
+[dated audit](docs/internal/audits/saas-readiness/audit-2026-10-20.md).
 
-- **Multi-tenancy:** `Organization` + `Membership`, `organizationId` on every domain table, repository-layer row isolation (verified in every domain read repo), cross-org isolation integration tests.
-- **Auth:** refresh-token family with single-use rotation + reuse-revocation; email verification; password reset; org-scoped RBAC via membership roles; Redis-backed login lockout; `TokenProvider.verify()` port (no `jwt.verify` in middleware).
-- **Observability:** request-ID propagation via AsyncLocalStorage + Winston correlation; Sentry 5xx hook; `/api/v1/ready` DB+Redis readiness probe.
-- **Production:** multi-stage Dockerfile (non-root, `npm ci --omit=dev`, `dumb-init`); `deploy_production` gated on `main` + GitHub environment protection; e2e Jest project.
-- **Forkability scaffolding:** `LICENSE`, root `README.md`, `CONTRIBUTING.md`, `.env.example`, `bootstrap-fork.sh` (validated `--name`), `APP_NAME` centralization, `FORKED-FROM.md`.
-- **Quality gates:** Zod validation + centralized errors + OpenAPI gen + Swagger + drift check; three-tier rate limiting; 664 passing tests with coverage thresholds; security-delta CI gate; branch promotion `feature/* → dev → staging → main`.
+## What's already strong (Pass-graded highlights)
+
+- **Multi-tenancy:** `Organization` + `Membership`, `organizationId` on every domain table, repository-layer row isolation, tenant-scoped cache keys (ADR-0035), cross-org checks on every organization, invite and membership route.
+- **Auth:** refresh-token family with single-use rotation + reuse-revocation; email verification; password reset; org-scoped RBAC via membership roles; Redis-backed login lockout; `TokenProvider.verify()` port.
+- **Production safety:** startup refuses production-unsafe switches (ADR-0036, 0048, 0049), and the image defaults `NODE_ENV=production` (ADR-0050).
+- **Observability:** request-ID propagation via AsyncLocalStorage + Winston correlation; logs to stdout with key-based redaction; Sentry with `scrubSentryEvent` for headers and bodies; `/api/v1/ready` DB+Redis readiness probe.
+- **Contracts:** one documented error envelope for every error path, rate limits included (ADR-0057), OpenAPI generated from Zod and gated on both drift and validity, Schemathesis fuzzing of 42 operations.
+- **Forkability scaffolding:** `LICENSE`, root `README.md`, `CONTRIBUTING.md`, `.env.example`, `bootstrap-fork.sh` (validated `--name`, rotates `JWT_SECRET`, generates the database password, sets `APP_NAME`), `FORKED-FROM.md`.
 
 ## Re-running this audit
 
@@ -98,4 +112,4 @@ Full evidence (file:line) is in the [dated audit](documents/development/architec
 npm run typecheck && npm run lint && npm run format:check && npm test && npm run security:delta:check && npm run docs:openapi:generate
 ```
 
-Then write the result to a new file `documents/development/architecture/saas-readiness/audit-YYYY-MM-DD.md` (do not overwrite a prior audit) and update this checklist to point at it. See the kit [`README.md`](documents/development/architecture/saas-readiness/README.md) for the full re-audit recipe. When caveats C1–C6 close, produce a fresh dated audit and re-state the verdict as **GOLD** per ADR-008.
+Then write the result to a new file `docs/internal/audits/saas-readiness/audit-YYYY-MM-DD.md` (do not overwrite a prior audit) and update this checklist to point at it. See the kit [`README.md`](docs/internal/audits/saas-readiness/README.md) for the full re-audit recipe. Include a fork dry-run on a machine, or a database, that has never run the upstream stack: that is what C1 needs. C1–C6 are closed; when X60 and X62 are fixed, a fresh dated run can restate the verdict as **GOLD** per ADR-008.

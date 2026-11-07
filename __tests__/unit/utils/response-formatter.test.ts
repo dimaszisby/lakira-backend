@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
-import { successResponse, errorResponse } from "@/utils/response-formatter.js";
+import { successResponse } from "@/utils/response-formatter.js";
 import type { Response } from "express";
 
 // Minimal Express response stub: both status/json return the response so we can assert chaining.
@@ -49,40 +49,6 @@ describe("response-formatter", () => {
         data: null,
         code: "metric.created",
         success: true,
-      });
-    });
-  });
-
-  describe("errorResponse", () => {
-    it("sends error payload with optional error/code/errors", () => {
-      const details = ["name required", "limit exceeded"];
-      const err = new Error("Invalid input");
-
-      errorResponse(res, 422, "Validation failed", err, "VALIDATION", details);
-
-      expect(res.status).toHaveBeenCalledWith(422);
-      expect(res.json).toHaveBeenCalledWith({
-        status: "error",
-        message: "Validation failed",
-        error: err,
-        code: "VALIDATION",
-        errors: details,
-        data: null,
-        success: false,
-      });
-    });
-
-    it("defaults optional arguments when omitted", () => {
-      errorResponse(res, 500, "Internal server error");
-
-      expect(res.json).toHaveBeenCalledWith({
-        status: "error",
-        message: "Internal server error",
-        error: null,
-        code: undefined,
-        errors: undefined,
-        data: null,
-        success: false,
       });
     });
   });

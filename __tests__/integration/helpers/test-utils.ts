@@ -32,11 +32,16 @@ export const buildUserPayload = (
   };
 };
 
+/**
+ * `agent` is the app to register through: a test with an app of its own
+ * (`appWith`) passes it, so the registration runs on the features it replaced.
+ */
 export const createTestUser = async (
   overrides: Partial<Record<string, any>> = {},
+  agent: typeof api = api,
 ) => {
   const payload = buildUserPayload(overrides);
-  const res = await api.post("/api/v1/auth/register").send(payload);
+  const res = await agent.post("/api/v1/auth/register").send(payload);
 
   if (res.status !== 201) {
     throw new Error(

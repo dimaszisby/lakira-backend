@@ -1,9 +1,9 @@
 import { jest } from "@jest/globals";
+import { UnauthorizedError } from "@/shared/domain/errors/DomainError.js";
 import { RevokeRefreshTokenFamily } from "@/features/auth/application/use-cases/RevokeRefreshTokenFamily.js";
 import { RefreshTokenRepository } from "@/features/auth/domain/repositories/RefreshTokenRepository.js";
 import { TokenHasher } from "@/features/auth/application/ports/TokenHasher.js";
 import { RefreshToken } from "@/features/auth/domain/entities/RefreshToken.js";
-import AppError from "@/utils/AppError.js";
 
 const build = () => {
   const refreshTokenRepo: jest.Mocked<RefreshTokenRepository> = {
@@ -56,9 +56,11 @@ describe("RevokeRefreshTokenFamily use case", () => {
     const { sut, refreshTokenRepo } = build();
     refreshTokenRepo.findByTokenHash.mockResolvedValue(null);
 
-    await expect(sut.execute("unknown")).rejects.toBeInstanceOf(AppError);
+    await expect(sut.execute("unknown")).rejects.toBeInstanceOf(
+      UnauthorizedError,
+    );
     await expect(sut.execute("unknown")).rejects.toMatchObject({
-      statusCode: 401,
+      kind: "unauthorized",
     });
   });
 });

@@ -1,4 +1,8 @@
-import { MembershipRepository } from "../../domain/repositories/MembershipRepository.js";
+import type {
+  MembershipPageRequest,
+  MembershipPosition,
+  MembershipRepository,
+} from "../../domain/repositories/MembershipRepository.js";
 import { UserRepository } from "../../domain/repositories/UserRepository.js";
 import type {
   MembershipRole,
@@ -21,15 +25,21 @@ export class ListOrganizationMembers {
     private userRepo: UserRepository,
   ) {}
 
-  async execute(organizationId: string): Promise<MemberDTO[]> {
-    const memberships =
-      await this.membershipRepo.findAllByOrganization(organizationId);
+  // A page of memberships (api-tooling-residuals D-09). A membership whose user is
+  // gone is left out, so a page can be shorter than its limit; `next` follows the
+  // last membership read, so none is skipped.
+  async execute(
+    organizationId: string,
+    page: MembershipPageRequest,
+  ): Promise<{ members: MemberDTO[]; next: MembershipPosition | null }> {
+    const { items: memberships, next } =
+      await this.membershipRepo.findPageByOrganization(organizationId, page);
 
     const userIds = memberships.map((m) => m.userId);
     const users = await this.userRepo.findByIds(userIds);
     const userMap = new Map(users.map((u) => [u.id, u]));
 
-    return memberships.reduce<MemberDTO[]>((acc, m) => {
+    const members = memberships.reduce<MemberDTO[]>((acc, m) => {
       const user = userMap.get(m.userId);
       if (!user) return acc;
       acc.push({
@@ -43,5 +53,6 @@ export class ListOrganizationMembers {
       });
       return acc;
     }, []);
+    return { members, next };
   }
 }

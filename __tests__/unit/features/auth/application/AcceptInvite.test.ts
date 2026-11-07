@@ -7,7 +7,6 @@ import { UserRepository } from "@/features/auth/domain/repositories/UserReposito
 import { OrganizationInvite } from "@/features/auth/domain/entities/OrganizationInvite.js";
 import { Membership } from "@/features/auth/domain/entities/Membership.js";
 import { AuthUser } from "@/features/auth/domain/entities/AuthUser.js";
-import AppError from "@/utils/AppError.js";
 
 const RAW_TOKEN = "test-raw-token-value";
 const TOKEN_HASH = crypto.createHash("sha256").update(RAW_TOKEN).digest("hex");
@@ -55,8 +54,12 @@ const makeMembership = () =>
 const build = () => {
   const inviteRepo: jest.Mocked<OrganizationInviteRepository> = {
     save: jest.fn(),
+    findById: jest.fn(),
     findByTokenHash: jest.fn(),
     findPendingByEmailAndOrg: jest.fn(),
+    deleteExpiredPendingByEmailAndOrg: jest.fn(),
+    replaceTokenHash: jest.fn(),
+    deleteById: jest.fn(),
     markAccepted: jest.fn(),
   };
   const membershipRepo: jest.Mocked<MembershipRepository> = {
@@ -65,6 +68,8 @@ const build = () => {
     findDefaultByUser: jest.fn(),
     findAllByUser: jest.fn(),
     findAllByOrganization: jest.fn(),
+    findActivePageByUser: jest.fn(),
+    findPageByOrganization: jest.fn(),
     countByOrgAndRole: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
@@ -118,7 +123,7 @@ describe("AcceptInvite", () => {
     await expect(
       sut.execute({ rawToken: "bogus-token", userId: "user-1" }),
     ).rejects.toMatchObject({
-      statusCode: 400,
+      kind: "validation",
       message: "Invalid or expired invitation",
     });
   });
@@ -132,7 +137,7 @@ describe("AcceptInvite", () => {
     await expect(
       sut.execute({ rawToken: RAW_TOKEN, userId: "user-1" }),
     ).rejects.toMatchObject({
-      statusCode: 400,
+      kind: "validation",
       message: "Invalid or expired invitation",
     });
   });
@@ -146,7 +151,7 @@ describe("AcceptInvite", () => {
     await expect(
       sut.execute({ rawToken: RAW_TOKEN, userId: "user-1" }),
     ).rejects.toMatchObject({
-      statusCode: 400,
+      kind: "validation",
       message: "Invalid or expired invitation",
     });
   });
@@ -159,7 +164,7 @@ describe("AcceptInvite", () => {
     await expect(
       sut.execute({ rawToken: RAW_TOKEN, userId: "user-1" }),
     ).rejects.toMatchObject({
-      statusCode: 400,
+      kind: "validation",
       message: "Invalid or expired invitation",
     });
   });
@@ -184,6 +189,6 @@ describe("AcceptInvite", () => {
 
     await expect(
       sut.execute({ rawToken: RAW_TOKEN, userId: "user-1" }),
-    ).rejects.toMatchObject({ statusCode: 404 });
+    ).rejects.toMatchObject({ kind: "not_found" });
   });
 });

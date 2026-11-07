@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { sendError } from "@/shared/utils/error-envelope.js";
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -8,14 +9,8 @@ export const requireJsonObjectBody =
   (req: Request, res: Response, next: NextFunction): void => {
     const hasBody = req.body !== undefined;
     if (!hasBody || !isPlainObject(req.body)) {
-      res.status(400).json({
-        status: "fail",
-        errors: [
-          {
-            field: "body",
-            message,
-          },
-        ],
+      sendError(res, 400, message, {
+        errors: [{ field: "body", message }],
       });
       return;
     }

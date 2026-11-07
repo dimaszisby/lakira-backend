@@ -1,7 +1,7 @@
-import AppError from "@/utils/AppError.js";
+import { DomainError } from "@/shared/domain/errors/DomainError.js";
 
-export class InvalidTokenError extends AppError {
+export class InvalidTokenError extends DomainError {
   constructor(message = "Unauthorized: Invalid token") {
-    super(message, 401);
+    super(message, "unauthorized");
   }
 }

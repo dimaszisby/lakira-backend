@@ -1,4 +1,9 @@
 export interface CachePort {
   isEnabled(): boolean;
-  invalidate(userId: string, metricId: string, logId?: string): Promise<void>;
+  invalidate(
+    userId: string,
+    organizationId: string,
+    metricId: string,
+    logId?: string,
+  ): Promise<void>;
 }

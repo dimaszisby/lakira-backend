@@ -30,10 +30,13 @@ import {
   CreateMetricLogRequestSchema,
   UpdateMetricLogRequestSchema,
   MetricLogStatsResponseSchema,
+  MetricLogStatsQuerySchema,
   MetricLogCursorResponseSchema,
   MetricLogCursorQueryParamsSchema,
   GenerateDummyMetricLogsRequestSchema,
   GenerateDummyMetricLogsResponseSchema,
+  GenerateDummyMetricsRequestSchema,
+  GenerateDummyMetricCategoriesRequestSchema,
   MetricDisplayOptionsSchema,
   MetricSettingsSchema,
   CreateMetricSettingsRequestSchema,
@@ -42,7 +45,6 @@ import {
   MetricSettingsCursorResponseSchema,
   MetricSettingsCursorQueryParamsSchema,
   TrendResponseSchema,
-  MetricIdQuerySchema,
   MetricIdRequiredQuerySchema,
   VisualizationResponseSchema,
   DashboardVisualizationResponseSchema,
@@ -55,12 +57,47 @@ import {
   AcceptInviteRequestSchema,
   ChangeMemberRoleRequestSchema,
   MemberListResponseSchema,
+  MembershipPageQuerySchema,
+  UserOrganizationListResponseSchema,
   successEnvelope,
 } from "./openapi-schemas.js";
 import {
   GetByIdParamSchema,
   GetTrendParamsSchema,
 } from "@/types/api/zod-request-params.schema.js";
+
+// Response headers, declared once in openapi-config.ts (kit
+// error-envelope-residuals, D-09). A route that sets the refresh cookie, clears
+// it, or sends the analytics validator points at these; it does not describe
+// the header again.
+const REFRESH_COOKIE_HEADERS = {
+  "Set-Cookie": { $ref: "#/components/headers/RefreshCookie" },
+};
+const CLEARED_REFRESH_COOKIE_HEADERS = {
+  "Set-Cookie": { $ref: "#/components/headers/ClearedRefreshCookie" },
+};
+// Every limiter, and the login lockout, sends Retry-After with its 429
+// (kit release-and-retry-after, D-02).
+const RETRY_AFTER_HEADER = {
+  "Retry-After": { $ref: "#/components/headers/RetryAfter" },
+};
+const VALIDATOR_HEADERS = {
+  ETag: { $ref: "#/components/headers/ETag" },
+  "Cache-Control": { $ref: "#/components/headers/VisualizationCacheControl" },
+};
+// Both analytics routes answer a matching If-None-Match with this.
+const NOT_MODIFIED_RESPONSE = {
+  description:
+    "Not modified: `If-None-Match` matched the current `ETag`. No body; reuse the stored response.",
+  headers: VALIDATOR_HEADERS,
+};
+const conditionalRequestHeaders = z.object({
+  "If-None-Match": z.string().optional().openapi({
+    description:
+      "The `ETag` of a response stored earlier. When it still matches, the answer is a 304 with no body.",
+    example: '"mJ3k0sVw2xQ9uYtR1aBcDeFgHiJ"',
+  }),
+});
 
 // Register all schemas with the OpenAPIRegistry
 // This is done in openapi-schemas.ts directly using registry.register
@@ -84,6 +121,7 @@ registry.registerPath({
   responses: {
     201: {
       description: "User registered successfully",
+      headers: REFRESH_COOKIE_HEADERS,
       content: {
         "application/json": {
           schema: LoginResponseSchema,
@@ -95,6 +133,16 @@ registry.registerPath({
     },
     409: {
       $ref: "#/components/responses/ConflictError",
+    },
+    429: {
+      description:
+        "Too many registration attempts from this IP (RATE_LIMIT_REGISTER_IP_MAX per hour)",
+      headers: RETRY_AFTER_HEADER,
+      content: {
+        "application/json": {
+          schema: RateLimitErrorSchema,
+        },
+      },
     },
     500: {
       $ref: "#/components/responses/InternalServerError",
@@ -120,6 +168,7 @@ registry.registerPath({
   responses: {
     200: {
       description: "User logged in successfully",
+      headers: REFRESH_COOKIE_HEADERS,
       content: {
         "application/json": {
           schema: LoginResponseSchema,
@@ -218,11 +267,15 @@ registry.registerPath({
   responses: {
     200: {
       description: "User logged out successfully",
+      headers: CLEARED_REFRESH_COOKIE_HEADERS,
       content: {
         "application/json": {
           schema: SuccessResponseSchema,
         },
       },
+    },
+    400: {
+      $ref: "#/components/responses/BadRequestError",
     },
     500: {
       $ref: "#/components/responses/InternalServerError",
@@ -250,11 +303,15 @@ registry.registerPath({
   responses: {
     200: {
       description: "New access token issued; new refresh cookie set",
+      headers: REFRESH_COOKIE_HEADERS,
       content: {
         "application/json": {
           schema: RefreshResponseSchema,
         },
       },
+    },
+    400: {
+      $ref: "#/components/responses/BadRequestError",
     },
     401: {
       $ref: "#/components/responses/UnauthorizedError",
@@ -298,6 +355,7 @@ registry.registerPath({
     },
     429: {
       description: "Rate limit exceeded for password reset requests",
+      headers: RETRY_AFTER_HEADER,
       content: {
         "application/json": {
           schema: RateLimitErrorSchema,
@@ -343,6 +401,7 @@ registry.registerPath({
     },
     429: {
       description: "Rate limit exceeded for password reset requests",
+      headers: RETRY_AFTER_HEADER,
       content: {
         "application/json": {
           schema: RateLimitErrorSchema,
@@ -387,6 +446,7 @@ registry.registerPath({
     },
     429: {
       description: "Rate limit exceeded for email verification requests",
+      headers: RETRY_AFTER_HEADER,
       content: {
         "application/json": {
           schema: RateLimitErrorSchema,
@@ -418,11 +478,15 @@ registry.registerPath({
         },
       },
     },
+    400: {
+      $ref: "#/components/responses/BadRequestError",
+    },
     401: {
       $ref: "#/components/responses/UnauthorizedError",
     },
     429: {
       description: "Rate limit exceeded for resend verification requests",
+      headers: RETRY_AFTER_HEADER,
       content: {
         "application/json": {
           schema: RateLimitErrorSchema,
@@ -458,6 +522,7 @@ registry.registerPath({
   responses: {
     200: {
       description: "Organization switched; new tokens issued",
+      headers: REFRESH_COOKIE_HEADERS,
       content: {
         "application/json": {
           schema: RefreshResponseSchema,
@@ -534,14 +599,51 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
+  path: "/organizations",
+  tags: ["Organizations"],
+  summary: "List the caller's organizations",
+  description:
+    "Returns the organizations the authenticated user holds an active membership in, " +
+    "oldest membership first, with the caller's role in each. `isCurrent` marks the " +
+    "organization the access token is scoped to; pass any listed `organizationId` to " +
+    "`POST /auth/switch-org`. Scoped to the caller: it never lists another user's " +
+    "organizations. Paged by cursor, 100 per page unless `limit` says fewer; follow " +
+    "`nextCursor` until it is null.",
+  security: [{ BearerAuth: [] }],
+  request: { query: MembershipPageQuerySchema },
+  responses: {
+    200: {
+      description: "The caller's organizations",
+      content: {
+        "application/json": {
+          schema: UserOrganizationListResponseSchema,
+        },
+      },
+    },
+    400: {
+      $ref: "#/components/responses/BadRequestError",
+    },
+    401: {
+      $ref: "#/components/responses/UnauthorizedError",
+    },
+    500: {
+      $ref: "#/components/responses/InternalServerError",
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
   path: "/organizations/{id}/members",
   tags: ["Organizations"],
   summary: "List organization members",
   description:
-    "Returns all active memberships for the organization with user details. " +
-    "Any member of the organization can call this endpoint.",
+    "Returns the organization's memberships, of every status, with user details, " +
+    "oldest first. Any member of the organization can call this endpoint. Paged by " +
+    "cursor, 100 per page unless `limit` says fewer; follow `nextCursor` until it is null.",
   security: [{ BearerAuth: [] }],
   request: {
+    query: MembershipPageQuerySchema,
     params: z.object({
       id: z.string().uuid().openapi({
         description: "Organization ID",
@@ -557,6 +659,9 @@ registry.registerPath({
           schema: MemberListResponseSchema,
         },
       },
+    },
+    400: {
+      $ref: "#/components/responses/BadRequestError",
     },
     401: {
       $ref: "#/components/responses/UnauthorizedError",
@@ -1148,9 +1253,11 @@ registry.registerPath({
   path: "/metric-logs/stats",
   tags: ["Metric Logs"],
   summary: "Get aggregated statistics for metric logs",
+  description:
+    "Average, minimum and maximum of the caller's logs, for one metric or all of them. With startDate and/or endDate, only logs with startDate <= loggedAt < endDate are counted. No log in scope answers zeros.",
   security: [{ BearerAuth: [] }],
   request: {
-    query: MetricIdQuerySchema,
+    query: MetricLogStatsQuerySchema,
   },
   responses: {
     200: {
@@ -1297,8 +1404,81 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
+  path: "/metrics/dummy",
+  tags: ["Dummy Data"],
+  summary: "Generate dummy metrics",
+  description:
+    "Creates `count` randomly generated metrics for the authenticated user in their active " +
+    "organization and returns them. Inserts synchronously — unlike the metric-logs generator, " +
+    "this does not enqueue work. Only available when `ENABLE_DUMMY_ENDPOINTS=true`.",
+  security: [{ BearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: GenerateDummyMetricsRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "Dummy metrics created",
+      content: {
+        "application/json": {
+          schema: successEnvelope(z.array(MetricSchema)),
+        },
+      },
+    },
+    400: { $ref: "#/components/responses/BadRequestError" },
+    401: { $ref: "#/components/responses/UnauthorizedError" },
+    429: { $ref: "#/components/responses/TooManyRequestsError" },
+    500: { $ref: "#/components/responses/InternalServerError" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/metric-categories/dummy",
+  tags: ["Dummy Data"],
+  summary: "Generate dummy metric categories",
+  description:
+    "Creates `count` randomly generated categories for the authenticated user in their active " +
+    "organization and returns them. Inserts synchronously. Only available when " +
+    "`ENABLE_DUMMY_ENDPOINTS=true`.",
+  security: [{ BearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: GenerateDummyMetricCategoriesRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "Dummy categories created",
+      content: {
+        "application/json": {
+          schema: successEnvelope(z.array(MetricCategorySchema)),
+        },
+      },
+    },
+    400: { $ref: "#/components/responses/BadRequestError" },
+    401: { $ref: "#/components/responses/UnauthorizedError" },
+    429: { $ref: "#/components/responses/TooManyRequestsError" },
+    500: { $ref: "#/components/responses/InternalServerError" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
   path: "/metric-logs/{metricId}/dummy",
-  tags: ["Metric Logs"],
+  // Tagged "Dummy Data" rather than "Metric Logs" so the Schemathesis tag selection in
+  // tests/contract/schemathesis/scripts/run-local.js does not fuzz a data generator that
+  // accepts count up to 1000 against the same database the contract fixtures rely on.
+  tags: ["Dummy Data"],
   summary: "Enqueue dummy metric log generation",
   description:
     "Accepts a generation job and returns immediately with a `jobId`. " +
@@ -1643,16 +1823,19 @@ registry.registerPath({
   security: [{ BearerAuth: [] }],
   request: {
     query: DashboardVisualizationQueryParamsSchema,
+    headers: conditionalRequestHeaders,
   },
   responses: {
     200: {
       description: "Dashboard visualization payload",
+      headers: VALIDATOR_HEADERS,
       content: {
         "application/json": {
           schema: successEnvelope(DashboardVisualizationResponseSchema),
         },
       },
     },
+    304: NOT_MODIFIED_RESPONSE,
     400: {
       $ref: "#/components/responses/BadRequestError",
     },
@@ -1674,16 +1857,19 @@ registry.registerPath({
   request: {
     params: GetTrendParamsSchema,
     query: VisualizationQueryParamsSchema,
+    headers: conditionalRequestHeaders,
   },
   responses: {
     200: {
       description: "Visualization payload for the requested metric",
+      headers: VALIDATOR_HEADERS,
       content: {
         "application/json": {
           schema: successEnvelope(VisualizationResponseSchema),
         },
       },
     },
+    304: NOT_MODIFIED_RESPONSE,
     400: {
       $ref: "#/components/responses/BadRequestError",
     },
@@ -1698,6 +1884,126 @@ registry.registerPath({
     },
   },
 });
+
+registry.registerPath({
+  method: "get",
+  path: "/admin/_ping",
+  tags: ["Admin"],
+  summary: "Admin liveness probe",
+  description:
+    "Confirms the caller holds an admin or owner role in the active organization. Guarded by `authMiddleware` + `requireOrgRole('admin', 'owner')`.",
+  security: [{ BearerAuth: [] }],
+  responses: {
+    200: {
+      description: "Caller is an admin or owner of the active organization",
+      content: {
+        "application/json": {
+          schema: z.object({
+            status: z.literal("ok"),
+            scope: z.literal("admin"),
+          }),
+        },
+      },
+    },
+    401: {
+      $ref: "#/components/responses/UnauthorizedError",
+    },
+    403: {
+      $ref: "#/components/responses/ForbiddenError",
+    },
+  },
+});
+
+// The platform's probes (src/app.ts). They run ahead of the limiter and take no
+// credentials, so they carry no 429 and no security; the contract gate does not
+// fuzz the Health tag (openapi-contract-polish D-01).
+const HEALTH_TAG = "Health";
+const READINESS_CHECKS = z.object({
+  db: z.enum(["ok", "fail"]),
+  redis: z.enum(["ok", "fail"]),
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/health",
+  tags: [HEALTH_TAG],
+  summary: "Liveness probe",
+  description:
+    "Answers 200 while the process serves requests. It checks no dependency.",
+  responses: {
+    200: {
+      description: "The process is up",
+      content: {
+        "application/json": {
+          schema: z.object({
+            status: z.literal("ok"),
+            environment: z.string().openapi({ example: "production" }),
+            release: z.string().openapi({
+              description:
+                "`APP_RELEASE`, else the platform's commit, else `unknown`",
+              example: "d985155",
+            }),
+            timestamp: z.string().datetime(),
+          }),
+        },
+      },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/ready",
+  tags: [HEALTH_TAG],
+  summary: "Readiness probe",
+  description:
+    "Checks Postgres and Redis, each within 2 s. A result is held for 2 s, so it can lag by that much. Not the error envelope: a 503 is a probe document.",
+  responses: {
+    200: {
+      description: "Every dependency answered",
+      content: {
+        "application/json": {
+          schema: z.object({
+            status: z.literal("ok"),
+            checks: READINESS_CHECKS,
+          }),
+        },
+      },
+    },
+    503: {
+      description: "A dependency failed or timed out; `checks` names which",
+      content: {
+        "application/json": {
+          schema: z.object({
+            status: z.literal("degraded"),
+            checks: READINESS_CHECKS,
+          }),
+        },
+      },
+    },
+    500: {
+      $ref: "#/components/responses/InternalServerError",
+    },
+  },
+});
+
+const OPERATION_METHODS = [
+  "get",
+  "put",
+  "post",
+  "delete",
+  "patch",
+  "head",
+  "options",
+  "trace",
+] as const;
+const SHARED_RATE_LIMIT_RESPONSE = {
+  $ref: "#/components/responses/TooManyRequestsError",
+};
+const SHARED_BODY_RESPONSES = {
+  "413": { $ref: "#/components/responses/PayloadTooLargeError" },
+  "415": { $ref: "#/components/responses/UnsupportedMediaTypeError" },
+} as const;
 
 export const getOpenApiDocumentation = () => {
   const generator = new OpenApiGeneratorV31(registry.definitions);
@@ -1728,7 +2034,35 @@ export const getOpenApiDocumentation = () => {
       ...(baseComponents.parameters ?? {}),
       ...(generatedComponents.parameters ?? {}),
     },
+    headers: {
+      ...(baseComponents.headers ?? {}),
+      ...(generatedComponents.headers ?? {}),
+    },
   } as ComponentsObject;
+
+  // globalRateLimiter is mounted before every router, so every operation can
+  // answer 429. Added here, once: when each registerPath call was left to write
+  // it, 40 of 47 did not. An operation with a limiter of its own keeps the
+  // description it wrote. scripts/validate-openapi.ts fails if one has none.
+  // The probes are the exception: they run ahead of the limiter.
+  //
+  // express.json reads the body of every operation that has one, and answers
+  // an oversized body with 413 and an unsupported charset or encoding with 415
+  // (openapi-contract-polish D-03). Added here for the same reason as the 429.
+  for (const pathItem of Object.values(document.paths ?? {})) {
+    for (const method of OPERATION_METHODS) {
+      const operation = pathItem[method];
+      if (!operation) continue;
+      operation.responses ??= {};
+      if (!operation.tags?.includes(HEALTH_TAG)) {
+        operation.responses["429"] ??= SHARED_RATE_LIMIT_RESPONSE;
+      }
+      if (operation.requestBody) {
+        operation.responses["413"] ??= SHARED_BODY_RESPONSES["413"];
+        operation.responses["415"] ??= SHARED_BODY_RESPONSES["415"];
+      }
+    }
+  }
 
   return document;
 };

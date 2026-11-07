@@ -9,5 +9,5 @@ Legacy suites once lived directly under `__tests__/unit/analytics`. With the ver
 **When extending analytics coverage**
 
 1. Keep new suites inside `application/`, `domain/`, or `infrastructure/` depending on their target layer.
-2. Update `documents/tests/test-classification-2025-12-22.md` so the catalog always matches the filesystem.
-3. If a suite requires new CI wiring (env vars, Redis/DB toggles, etc.), add the guardrails to `documents/ci-cd/CI_CD_DEVELOPER_SIMPLIFIED_GUIDE.md` before landing the tests, mirroring the approach used for the earlier CI/CD and JWT work noted in the historical README.
+2. Update `docs/internal/archive/test-classification-2025-12-22.md` so the catalog always matches the filesystem.
+3. If a suite requires new CI wiring (env vars, Redis/DB toggles, etc.), add the guardrails to `docs/how-to/ci-cd/daily-pipeline-playbook.md` before landing the tests, mirroring the approach used for the earlier CI/CD and JWT work noted in the historical README.

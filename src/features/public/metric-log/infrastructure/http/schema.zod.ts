@@ -1,18 +1,20 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
-  zDateOptional,
   zLogType,
   zPositiveFloat,
   zUUID,
   zISODateTime,
+  zStrictBooleanQuery,
 } from "@/constants/zod/zod-rules.js";
 import { z } from "zod";
 import { ZodMessages } from "@/constants/zod/zod-messages.js";
+import { MAX_DUMMY_METRIC_LOGS } from "../../application/use-cases/GenerateDummyMetricLogs.js";
 
 extendZodWithOpenApi(z);
 
 const normalizedSearchParam = z
   .union([z.string(), z.undefined(), z.null()])
+  .optional()
   .transform((value) => {
     if (typeof value !== "string") return undefined;
     return value.trim();
@@ -21,17 +23,6 @@ const normalizedSearchParam = z
     (value) => value === undefined || value.length > 0,
     ZodMessages.common.searchQueryMin,
   );
-
-const strictBooleanQuery = z
-  .union([z.boolean(), z.string()])
-  .transform((value) => {
-    if (typeof value === "boolean") return value;
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true") return true;
-    if (normalized === "false") return false;
-    return value;
-  })
-  .pipe(z.boolean());
 
 const coerceNonNegativeNumber = z.preprocess((value) => {
   if (typeof value === "number") return value;
@@ -70,7 +61,7 @@ const FilterSchema = z
   .strict();
 
 export const metricLogParams = z.object({
-  id: z.string().uuid({ message: ZodMessages.metricLog.invalidId }),
+  id: z.string().guid({ message: ZodMessages.metricLog.invalidId }),
 });
 
 export const metricLogBody = z.object({
@@ -115,10 +106,11 @@ const listMetricCursorBase = z
     q: normalizedSearchParam,
     after: z
       .union([z.string(), z.undefined(), z.null()])
+      .optional()
       .transform((value) =>
         typeof value === "string" && value.trim().length ? value : undefined,
       ),
-    includeTotal: strictBooleanQuery.optional().default(false),
+    includeTotal: zStrictBooleanQuery.optional().default(false),
   })
   .strict();
 
@@ -142,15 +134,27 @@ export const listMetricQueryViaCursor = listMetricCursorBase
     };
   });
 
-export const aggregatedStatsQuery = z.object({
-  metricId: zUUID.optional(),
-  startDate: zDateOptional,
-  endDate: zDateOptional,
-});
+// Logs with `startDate <= loggedAt < endDate`, as the analytics range is bounded; either bound
+// may be left open. An ISO datetime with an offset, so each names one instant (ADR-0079).
+export const aggregatedStatsQuery = z
+  .object({
+    metricId: zUUID.optional(),
+    startDate: zISODateTime.optional(),
+    endDate: zISODateTime.optional(),
+  })
+  .superRefine(({ startDate, endDate }, ctx) => {
+    if (startDate && endDate && Date.parse(endDate) <= Date.parse(startDate)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["endDate"],
+        message: "endDate must be after startDate",
+      });
+    }
+  });
 
 export const createMetricLogSchema = z.object({ body: metricLogBody });
 export const updateMetricLogSchema = z.object({
-  params: z.object({ id: z.string().uuid() }),
+  params: z.object({ id: z.string().guid() }),
   body: metricLogBody.partial().extend({
     loggedAt: zISODateTime.optional(),
   }),
@@ -173,7 +177,7 @@ export const getAggregatedStatsSchema = z.object({
 });
 
 export const generateDummyMetricLogsBody = z.object({
-  count: z.coerce.number().int().min(1).max(1000).default(50),
+  count: z.coerce.number().int().min(1).max(MAX_DUMMY_METRIC_LOGS).default(50),
 });
 
 export const generateDummyMetricLogsSchema = z.object({

@@ -1,7 +1,10 @@
-import AppError from "@/utils/AppError.js";
+import { NotFoundError } from "@/shared/domain/errors/DomainError.js";
 import { MetricCategoryRepository } from "../../domain/repositories/MetricCategoryRepository.js";
 import { CachePort } from "../ports/CachePort.js";
-import { METRIC_CATEGORY_CURSOR_NAMESPACE_ALL } from "../cache.constants.js";
+import {
+  categoryEntryKey,
+  METRIC_CATEGORY_CURSOR_NAMESPACE_ALL,
+} from "../cache.constants.js";
 
 export class DeleteCategory {
   constructor(
@@ -16,7 +19,7 @@ export class DeleteCategory {
       categoryId,
     );
     if (!category) {
-      throw new AppError("Metric Category not found", 404);
+      throw new NotFoundError("Metric Category not found");
     }
 
     await this.repo.delete(userId, organizationId, categoryId);
@@ -25,7 +28,11 @@ export class DeleteCategory {
       await this.cache.delByPattern(
         `${METRIC_CATEGORY_CURSOR_NAMESPACE_ALL}:${userId}:*`,
       );
-      await this.cache.delByPattern(`category:${userId}:${categoryId}`);
+      // The key its GET writes; this once left out the organization, so nothing
+      // matched (api-tooling-residuals D-03, register row B-90).
+      await this.cache.delete(
+        categoryEntryKey(organizationId, userId, categoryId),
+      );
     }
   }
 }

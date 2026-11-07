@@ -1,5 +1,8 @@
 # Security framework and governance ownership
 scripts/security/* @dimaspramudya
-documents/security/** @dimaspramudya
+# security content is split by Diátaxis purpose; all three need the same owner
+docs/reference/security/** @dimaspramudya
+docs/how-to/security/** @dimaspramudya
+docs/internal/audits/security/** @dimaspramudya
 .github/workflows/backend-ci.yml @dimaspramudya
 .github/CODEOWNERS @dimaspramudya

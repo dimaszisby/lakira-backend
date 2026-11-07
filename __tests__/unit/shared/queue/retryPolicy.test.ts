@@ -1,0 +1,109 @@
+import { describe, it, expect } from "@jest/globals";
+import { TerminalMessageError } from "@/shared/application/errors/TerminalMessageError.js";
+import { InvalidMessageIdError } from "@/shared/infrastructure/queue/SequelizeMessageIdempotency.js";
+import {
+  MAX_RETRY_DELAY_MS,
+  decideOnFailure,
+  readRetryCount,
+  retryDelayMs,
+  retryDelaysMs,
+} from "@/shared/infrastructure/queue/retryPolicy.js";
+
+const decide = (error: unknown, retryCount: number, maxRetries = 5) =>
+  decideOnFailure({ error, retryCount, maxRetries, baseDelayMs: 2000 });
+
+describe("decideOnFailure", () => {
+  it("retries an unrecognised error — the safe default", () => {
+    expect(decide(new Error("connection reset"), 0)).toEqual({
+      action: "retry",
+      nextRetryCount: 1,
+      delayMs: 2000,
+    });
+    expect(decide("not even an Error", 0).action).toBe("retry");
+  });
+
+  it("parks a terminal error on the first failure", () => {
+    expect(decide(new TerminalMessageError("malformed"), 0)).toEqual({
+      action: "park",
+      reason: "terminal",
+    });
+    expect(decide(new InvalidMessageIdError(undefined), 0)).toEqual({
+      action: "park",
+      reason: "terminal",
+    });
+  });
+
+  it("parks once the retry budget is spent", () => {
+    expect(decide(new Error("x"), 4).action).toBe("retry");
+    expect(decide(new Error("x"), 5)).toEqual({
+      action: "park",
+      reason: "exhausted",
+    });
+  });
+
+  it("parks on the first failure when maxRetries is 0", () => {
+    expect(decide(new Error("x"), 0, 0)).toEqual({
+      action: "park",
+      reason: "exhausted",
+    });
+  });
+
+  it("doubles the delay per retry and caps it", () => {
+    const delays = [0, 1, 2, 3, 4].map(
+      (n) => (decide(new Error("x"), n) as { delayMs: number }).delayMs,
+    );
+    expect(delays).toEqual([2000, 4000, 8000, 16000, 32000]);
+    expect(
+      (decide(new Error("x"), 20, 50) as { delayMs: number }).delayMs,
+    ).toBe(MAX_RETRY_DELAY_MS);
+  });
+});
+
+describe("readRetryCount", () => {
+  it("reads the header as a number or a string", () => {
+    expect(readRetryCount({ "x-retry-count": 3 })).toBe(3);
+    expect(readRetryCount({ "x-retry-count": "2" })).toBe(2);
+  });
+
+  it("treats an absent or unreadable header as a first attempt", () => {
+    expect(readRetryCount(undefined)).toBe(0);
+    expect(readRetryCount({})).toBe(0);
+    expect(readRetryCount({ "x-retry-count": "abc" })).toBe(0);
+    expect(readRetryCount({ "x-retry-count": -1 })).toBe(0);
+  });
+});
+
+// queue-design-hardening D-02: each delay has a retry queue of its own, so the
+// consumer and whoever inspects the broker must agree on the ladder.
+describe("retryDelaysMs", () => {
+  it("is the delay of every retry the budget allows, doubling from the base", () => {
+    expect(retryDelaysMs(4, 50)).toEqual([50, 100, 200, 400]);
+  });
+
+  it("stops at the cap and lists a capped delay once", () => {
+    expect(retryDelaysMs(12, 100_000)).toEqual([
+      100_000,
+      200_000,
+      MAX_RETRY_DELAY_MS,
+    ]);
+  });
+
+  it("is empty when no retry is allowed", () => {
+    expect(retryDelaysMs(0, 50)).toEqual([]);
+  });
+
+  it("matches the delay decideOnFailure schedules", () => {
+    for (let retryCount = 0; retryCount < 6; retryCount++) {
+      const decision = decideOnFailure({
+        error: new Error("x"),
+        retryCount,
+        maxRetries: 6,
+        baseDelayMs: 50,
+      });
+      expect(decision).toEqual(
+        expect.objectContaining({ delayMs: retryDelayMs(retryCount, 50) }),
+      );
+      expect(retryDelaysMs(6, 50)).toContain(retryDelayMs(retryCount, 50));
+    }
+  });
+});

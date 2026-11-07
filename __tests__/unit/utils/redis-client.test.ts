@@ -4,6 +4,7 @@ import {
   invalidateCache,
   invalidateCacheByPattern,
 } from "@/utils/redis-client.js";
+import { cacheEntryName } from "@/utils/cache-entry-name.js";
 
 type AsyncFn<T = void, Args extends any[] = any[]> = (
   ...args: Args
@@ -42,9 +43,16 @@ jest.mock("redis", () => {
     keys: [] as string[],
   });
 
+  const captured: { config?: { socket?: { reconnectStrategy?: unknown } } } =
+    {};
+
   return {
-    createClient: () => mockRedisClient,
+    createClient: (config: { socket?: { reconnectStrategy?: unknown } }) => {
+      captured.config = config;
+      return mockRedisClient;
+    },
     __mockClient: mockRedisClient,
+    __captured: captured,
   };
 });
 
@@ -75,16 +83,23 @@ const { env: envMock } = jest.requireMock("@/config/envManager.js") as {
 };
 
 // Silence logger output during tests and let assertions capture the payloads instead.
-jest.mock("@/utils/logger.js", () => ({
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
-}));
+// Exposed as both a default export and top-level props: redis-client imports
+// `logger, { flushLogs }`, while these tests read `loggerMock.info` directly.
+jest.mock("@/utils/logger.js", () => {
+  const log = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+  return {
+    __esModule: true,
+    default: log,
+    ...log,
+    flushLogs: jest.fn(async () => undefined),
+  };
+});
 
 const loggerMock = jest.requireMock("@/utils/logger.js") as {
   info: jest.Mock;
   warn: jest.Mock;
   error: jest.Mock;
+  flushLogs: jest.Mock;
 };
 
 describe("redis-client utils", () => {
@@ -111,7 +126,7 @@ describe("redis-client utils", () => {
 
       expect(mockRedisClient.del).toHaveBeenCalledWith("metrics:user-1");
       expect(loggerMock.info).toHaveBeenCalledWith(
-        "♻️ Cache invalidated for metrics:user-1",
+        `[CACHE] invalidated ${cacheEntryName("metrics:user-1")}`,
       );
     });
   });
@@ -134,20 +149,69 @@ describe("redis-client utils", () => {
 
       expect(mockRedisClient.scan).toHaveBeenNthCalledWith(1, 0, {
         MATCH: "metrics:user-1:*",
-        COUNT: 100,
+        COUNT: 1000,
       });
       expect(mockRedisClient.scan).toHaveBeenNthCalledWith(2, 1, {
         MATCH: "metrics:user-1:*",
-        COUNT: 100,
+        COUNT: 1000,
       });
       expect(mockRedisClient.del).toHaveBeenCalledWith(["k1", "k2"]);
+      // Kit v6-small-items (audit V6): one line for the whole scan, not one
+      // per page.
+      const name = cacheEntryName("metrics:user-1:*");
+      expect(loggerMock.info).toHaveBeenCalledTimes(1);
       expect(loggerMock.info).toHaveBeenCalledWith(
-        '[CACHE] Pattern "metrics:user-1:*" deleted keys:',
-        ["k1", "k2"],
+        `[CACHE] invalidated 2 entries matching ${name}`,
       );
+    });
+
+    it("logs one line with the total across pages", async () => {
+      mockRedisClient.scan
+        .mockResolvedValueOnce({ cursor: 7, keys: ["k1"] })
+        .mockResolvedValueOnce({ cursor: 3, keys: [] as string[] })
+        .mockResolvedValueOnce({ cursor: 0, keys: ["k2", "k3"] });
+
+      await invalidateCacheByPattern("metrics:user-1:*");
+
+      expect(mockRedisClient.del).toHaveBeenCalledTimes(2);
+      expect(loggerMock.info).toHaveBeenCalledTimes(1);
       expect(loggerMock.info).toHaveBeenCalledWith(
-        '[CACHE] Pattern "metrics:user-1:*" found NO keys to delete.',
+        `[CACHE] invalidated 3 entries matching ${cacheEntryName("metrics:user-1:*")}`,
       );
+    });
+
+    it("logs one line when nothing matches", async () => {
+      mockRedisClient.scan
+        .mockResolvedValueOnce({ cursor: 4, keys: [] as string[] })
+        .mockResolvedValueOnce({ cursor: 0, keys: [] as string[] });
+
+      await invalidateCacheByPattern("metrics:user-1:*");
+
+      expect(mockRedisClient.del).not.toHaveBeenCalled();
+      expect(loggerMock.info).toHaveBeenCalledTimes(1);
+      expect(loggerMock.info).toHaveBeenCalledWith(
+        `[CACHE] no entries matching ${cacheEntryName("metrics:user-1:*")}`,
+      );
+    });
+
+    // Kit log-redaction-coverage, D-08. A cursor key holds the user's search
+    // text, and the deleted keys used to be handed to the logger as a list.
+    it("logs how many keys it deleted, never the keys or the pattern", async () => {
+      const key = "cursor:metrics:v3:user-1:org:org-1:q:victim@example.com";
+      const pattern = "cursor:metrics:v*:user-1:org:org-1:*";
+      mockRedisClient.scan.mockResolvedValueOnce({ cursor: 0, keys: [key] });
+
+      await invalidateCacheByPattern(pattern);
+      await invalidateCache(key);
+
+      expect(mockRedisClient.del).toHaveBeenCalledWith([key]);
+      expect(mockRedisClient.del).toHaveBeenCalledWith(key);
+      expect(loggerMock.info).toHaveBeenCalledTimes(2);
+      for (const call of loggerMock.info.mock.calls) {
+        expect(call).toHaveLength(1);
+        expect(call[0]).not.toContain("victim@example.com");
+        expect(call[0]).not.toContain("user-1");
+      }
     });
   });
 
@@ -173,5 +237,159 @@ describe("redis-client utils", () => {
         "[PROCESS] Redis client disconnected.",
       );
     });
+  });
+});
+
+/**
+ * The reconnect defect: the error handler used to process.exit(1) on the FIRST error
+ * event, so the reconnect strategy could never run a single retry — node-redis emits
+ * `error` on every failed attempt, including the first.
+ *
+ * These load a fresh copy of the module per case, because `isTestEnv` and the
+ * exhausted-flag are module-level state captured at import.
+ */
+describe("redis reconnect + exit behaviour", () => {
+  type LoadedClient = {
+    reconnectStrategy: (retries: number) => number | Error;
+    errorHandler: (err: Error) => void;
+    connectHandler: () => void;
+  };
+
+  const loadClient = (envOverrides: Record<string, unknown>): LoadedClient => {
+    let loaded!: LoadedClient;
+
+    jest.isolateModules(() => {
+      const envModule = jest.requireMock("@/config/envManager.js") as {
+        env: Record<string, unknown>;
+      };
+      Object.assign(envModule.env, envOverrides);
+
+      const redisMock = jest.requireMock("redis") as {
+        __mockClient: { on: jest.Mock };
+        __captured: {
+          config?: {
+            socket?: { reconnectStrategy?: (r: number) => number | Error };
+          };
+        };
+      };
+      redisMock.__mockClient.on.mockClear();
+
+      // Importing registers the handlers and hands the config to createClient.
+      require("@/utils/redis-client.js");
+
+      const calls = redisMock.__mockClient.on.mock.calls as [
+        string,
+        (...a: never[]) => void,
+      ][];
+      const byEvent = new Map(
+        calls.map(([event, handler]) => [event, handler]),
+      );
+
+      loaded = {
+        reconnectStrategy:
+          redisMock.__captured.config!.socket!.reconnectStrategy!,
+        errorHandler: byEvent.get("error") as (err: Error) => void,
+        connectHandler: byEvent.get("connect") as () => void,
+      };
+    });
+
+    return loaded;
+  };
+
+  const PRODUCTION = { NODE_ENV: "production", REDIS_REQUIRED: true };
+  let exitSpy: jest.SpiedFunction<typeof process.exit>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    exitSpy = jest
+      .spyOn(process, "exit")
+      .mockImplementation((() => undefined) as never);
+  });
+
+  afterEach(() => {
+    exitSpy.mockRestore();
+    // Restore the shared env mock for the suites above.
+    const envModule = jest.requireMock("@/config/envManager.js") as {
+      env: Record<string, unknown>;
+    };
+    Object.assign(envModule.env, { NODE_ENV: "test", REDIS_REQUIRED: false });
+  });
+
+  it("schedules another attempt while the retry budget remains", () => {
+    const { reconnectStrategy } = loadClient(PRODUCTION);
+
+    expect(reconnectStrategy(0)).toBe(0);
+    expect(reconnectStrategy(5)).toBe(250);
+    // The 2000ms cap is only reached at attempt 40, beyond the 35-attempt budget,
+    // so the largest delay actually used is 34 * 50 = 1700ms.
+    expect(reconnectStrategy(34)).toBe(1700);
+  });
+
+  it("returns an Error once the retry budget is exhausted", () => {
+    const { reconnectStrategy } = loadClient(PRODUCTION);
+
+    const result = reconnectStrategy(35);
+    expect(result).toBeInstanceOf(Error);
+    expect((result as Error).message).toMatch(/unreachable after 35 attempts/);
+  });
+
+  it("does NOT exit on a transient error — the whole point of the fix", async () => {
+    const { errorHandler } = loadClient(PRODUCTION);
+
+    errorHandler(new Error("ECONNREFUSED"));
+    await Promise.resolve();
+
+    expect(exitSpy).not.toHaveBeenCalled();
+    expect(loggerMock.error).toHaveBeenCalled();
+  });
+
+  it("exits 1 once retries are exhausted and Redis is required", async () => {
+    const { reconnectStrategy, errorHandler } = loadClient(PRODUCTION);
+
+    reconnectStrategy(35); // exhaust the budget
+    errorHandler(new Error("ECONNREFUSED"));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(loggerMock.flushLogs).toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("continues without Redis when exhausted but Redis is not required", async () => {
+    const { reconnectStrategy, errorHandler } = loadClient({
+      NODE_ENV: "production",
+      REDIS_REQUIRED: false,
+    });
+
+    reconnectStrategy(35);
+    errorHandler(new Error("ECONNREFUSED"));
+    await Promise.resolve();
+
+    expect(exitSpy).not.toHaveBeenCalled();
+    expect(loggerMock.warn).toHaveBeenCalledWith(
+      expect.stringContaining("continuing without Redis"),
+    );
+  });
+
+  it("never exits in the test environment, whatever the flags", async () => {
+    const { reconnectStrategy, errorHandler } = loadClient({
+      NODE_ENV: "test",
+      REDIS_REQUIRED: true,
+    });
+
+    reconnectStrategy(35);
+    errorHandler(new Error("ECONNREFUSED"));
+    await Promise.resolve();
+
+    expect(exitSpy).not.toHaveBeenCalled();
+  });
+
+  it("a successful connect restores the retry budget for a later outage", () => {
+    const { reconnectStrategy, connectHandler } = loadClient(PRODUCTION);
+
+    expect(reconnectStrategy(35)).toBeInstanceOf(Error);
+    connectHandler();
+    // budget reset — a fresh outage gets the full window again
+    expect(reconnectStrategy(5)).toBe(250);
   });
 });

@@ -1,2 +1,4 @@
-export { visualizationRouter } from "./infrastructure/http/router.js";
-export { buildAnalyticsFeature } from "./feature.js";
+export { createVisualizationRouter } from "./infrastructure/http/router.js";
+
+// The cross-feature surface; see public.ts.
+export * from "./public.js";

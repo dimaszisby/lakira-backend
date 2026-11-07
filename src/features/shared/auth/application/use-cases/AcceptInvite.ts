@@ -1,5 +1,8 @@
+import {
+  NotFoundError,
+  ValidationError,
+} from "@/shared/domain/errors/DomainError.js";
 import crypto from "node:crypto";
-import AppError from "@/utils/AppError.js";
 import { OrganizationInviteRepository } from "../../domain/repositories/OrganizationInviteRepository.js";
 import { MembershipRepository } from "../../domain/repositories/MembershipRepository.js";
 import { UserRepository } from "../../domain/repositories/UserRepository.js";
@@ -26,24 +29,24 @@ export class AcceptInvite {
 
     const invite = await this.inviteRepo.findByTokenHash(tokenHash);
     if (!invite) {
-      throw new AppError(GENERIC_ERROR, 400);
+      throw new ValidationError(GENERIC_ERROR);
     }
 
     if (invite.isAccepted()) {
-      throw new AppError(GENERIC_ERROR, 400);
+      throw new ValidationError(GENERIC_ERROR);
     }
 
     if (invite.isExpired()) {
-      throw new AppError(GENERIC_ERROR, 400);
+      throw new ValidationError(GENERIC_ERROR);
     }
 
     const user = await this.userRepo.findById(input.userId);
     if (!user) {
-      throw new AppError("User not found", 404);
+      throw new NotFoundError("User not found");
     }
 
     if (user.email.toLowerCase() !== invite.email.toLowerCase()) {
-      throw new AppError(GENERIC_ERROR, 400);
+      throw new ValidationError(GENERIC_ERROR);
     }
 
     const existingMembership = await this.membershipRepo.findByUserAndOrg(

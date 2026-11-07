@@ -1,17 +1,6 @@
 import { Router } from "express";
-import {
-  register,
-  login,
-  getProfile,
-  updateProfile,
-  logout,
-  refresh,
-  forgotPassword,
-  resetPassword,
-  verifyEmail,
-  resendVerification,
-  switchOrg,
-} from "./controller.js";
+import { createAuthController } from "./controller.js";
+import type { AuthFeature } from "../../feature.js";
 import { authMiddleware } from "./authMiddleware.js";
 import {
   passwordResetEmailRateLimiter,
@@ -20,6 +9,9 @@ import {
   switchOrgRateLimiter,
   emailVerificationEmailRateLimiter,
   emailVerificationIpRateLimiter,
+  registerIpRateLimiter,
+  loginRateLimiter,
+  authSessionRateLimiter,
 } from "@/shared/middleware/rate-limiter.js";
 import { validate } from "@/shared/middleware/validation.js";
 import {
@@ -34,34 +26,38 @@ import {
 import { methodNotAllowed } from "@/shared/middleware/method-guard.js";
 import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.js";
 
-export const createAuthRouter = () => {
+export const createAuthRouter = (feature: AuthFeature) => {
+  const controller = createAuthController(feature);
   const router = Router();
 
   router.post(
     "/register",
+    registerIpRateLimiter,
     requireJsonObjectBody(),
     validate(createUserSchema),
-    register,
+    controller.register,
   );
   router.post(
     "/login",
-    userRateLimiter,
+    loginRateLimiter,
     requireJsonObjectBody(),
     validate(loginUserSchema),
-    login,
+    controller.login,
   );
 
-  router.get("/profile", authMiddleware, getProfile);
+  router.get("/profile", authMiddleware, controller.getProfile);
   router.put(
     "/profile",
-    userRateLimiter,
     authMiddleware,
+    userRateLimiter,
     requireJsonObjectBody(),
     validate(updateUserSchema),
-    updateProfile,
+    controller.updateProfile,
   );
-  router.post("/logout", userRateLimiter, logout);
-  router.post("/refresh", userRateLimiter, refresh);
+  // Neither has a user to key on: limited by address, apart from login's budget
+  // (api-tooling-residuals D-08).
+  router.post("/logout", authSessionRateLimiter, controller.logout);
+  router.post("/refresh", authSessionRateLimiter, controller.refresh);
 
   router.post(
     "/forgot-password",
@@ -69,21 +65,22 @@ export const createAuthRouter = () => {
     requireJsonObjectBody(),
     validate(forgotPasswordSchema),
     passwordResetEmailRateLimiter,
-    forgotPassword,
+    controller.forgotPassword,
   );
   router.post(
     "/reset-password",
     passwordResetIpRateLimiter,
     requireJsonObjectBody(),
     validate(resetPasswordSchema),
-    resetPassword,
+    controller.resetPassword,
   );
 
   router.post(
     "/verify-email",
+    emailVerificationIpRateLimiter,
     requireJsonObjectBody(),
     validate(verifyEmailSchema),
-    verifyEmail,
+    controller.verifyEmail,
   );
 
   router.post(
@@ -91,16 +88,16 @@ export const createAuthRouter = () => {
     authMiddleware,
     emailVerificationIpRateLimiter,
     emailVerificationEmailRateLimiter,
-    resendVerification,
+    controller.resendVerification,
   );
 
   router.post(
     "/switch-org",
-    switchOrgRateLimiter,
     authMiddleware,
+    switchOrgRateLimiter,
     requireJsonObjectBody(),
     validate(switchOrgSchema),
-    switchOrg,
+    controller.switchOrg,
   );
 
   router.all("/register", methodNotAllowed(["POST"]));
@@ -116,5 +113,3 @@ export const createAuthRouter = () => {
 
   return router;
 };
-
-export const authRouter = createAuthRouter();

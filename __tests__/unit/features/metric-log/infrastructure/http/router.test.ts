@@ -1,6 +1,10 @@
 import { jest } from "@jest/globals";
+import {
+  metricLogCacheKey,
+  metricLogStatsCacheKey,
+  metricLogsCursorCacheKey,
+} from "@/features/metric-log/infrastructure/http/cache-keys.js";
 import { createMetricLogRouter } from "@/features/metric-log/infrastructure/http/router.js";
-import * as controllerModule from "@/features/metric-log/infrastructure/http/controller.js";
 
 type RouterDouble = {
   use: jest.Mock;
@@ -79,15 +83,19 @@ jest.mock("@/utils/logger.js", () => ({
   debug: jest.fn(),
 }));
 
-jest.mock("@/features/metric-log/infrastructure/http/controller.js", () => ({
-  createMetricLog: jest.fn(),
-  getLogById: jest.fn(),
-  updateLog: jest.fn(),
-  deleteLog: jest.fn(),
-  getAggregatedStats: jest.fn(),
-  generateDummyMetricLogs: jest.fn(),
-  getUserLogLibrariesViaCursor: jest.fn(),
-}));
+jest.mock("@/features/metric-log/infrastructure/http/controller.js", () => {
+  // One set of handler mocks, returned by every call of the factory (ADR-0072).
+  const handlers = {
+    createMetricLog: jest.fn(),
+    getLogById: jest.fn(),
+    updateLog: jest.fn(),
+    deleteLog: jest.fn(),
+    getAggregatedStats: jest.fn(),
+    generateDummyMetricLogs: jest.fn(),
+    getUserLogLibrariesViaCursor: jest.fn(),
+  };
+  return { createMetricLogController: jest.fn(() => handlers), handlers };
+});
 
 jest.mock("@/features/metric-log/infrastructure/http/schema.zod.js", () => ({
   createMetricLogSchema: "createMetricLogSchema",
@@ -99,9 +107,13 @@ jest.mock("@/features/metric-log/infrastructure/http/schema.zod.js", () => ({
   listMetricLogsViaCursorSchema: "listMetricLogsViaCursorSchema",
 }));
 
-const controllerMocks = controllerModule as jest.Mocked<
-  typeof controllerModule
->;
+const controllerMocks = (
+  jest.requireMock(
+    "@/features/metric-log/infrastructure/http/controller.js",
+  ) as {
+    handlers: Record<string, jest.Mock>;
+  }
+).handlers;
 
 const {
   createMetricLog: createMetricLogMock,
@@ -144,14 +156,6 @@ cacheMiddlewareMock.mockImplementation(
   }),
 );
 
-const { buildCursorCacheKey: buildCursorCacheKeyMock } = jest.requireMock(
-  "@/shared/cache/keys.js",
-) as { buildCursorCacheKey: jest.MockedFunction<(args: any) => string> };
-
-const { debug: loggerDebugMock } = jest.requireMock("@/utils/logger.js") as {
-  debug: jest.Mock;
-};
-
 const getLastRouterInstance = (): RouterDouble => {
   const result = RouterMock.mock.results[RouterMock.mock.results.length - 1];
   if (!result || result.type !== "return" || !result.value) {
@@ -167,7 +171,7 @@ describe("metric log router", () => {
   });
 
   const buildRouter = () => {
-    createMetricLogRouter();
+    createMetricLogRouter({} as any);
     return getLastRouterInstance();
   };
 
@@ -267,66 +271,26 @@ describe("metric log router", () => {
     );
   });
 
-  it("creates cursor cache keys that respect filters and search", () => {
+  // Both keys moved to cache-keys.ts and are tested there against the real schema
+  // (query-values-mean-what-they-say D-04, D-05); this checks each route uses its builder.
+  it("caches the list route under metricLogsCursorCacheKey", () => {
     buildRouter();
-    const cursorBuilder = cacheMiddlewareMock.mock.calls[0][0] as (
-      req: any,
-    ) => string;
-
-    const req: any = {
-      user: { id: "user-123", organizationId: "org-1" },
-      params: {},
-      query: {
-        filter: { metricId: "metric-1" },
-        limit: "10",
-        sort: "createdAt",
-        q: "progress",
-        after: "cursor",
-        includeTotal: "true",
-      },
-    };
-
-    const key = cursorBuilder(req);
-    expect(buildCursorCacheKeyMock).toHaveBeenCalledWith({
-      feature: "metric-logs.js",
-      version: 3,
-      userId: "user-123",
-      segments: [
-        ["org", "org-1"],
-        ["l", 10],
-        ["s", "createdAt"],
-        ["q", "progress"],
-        ["fm", "metric-1"],
-        ["fn", "_.js"],
-        ["after", "cursor"],
-        ["it", "1"],
-      ],
-    });
-    expect(loggerDebugMock).toHaveBeenCalledWith(
-      "[CACHE] Generated logs cursor key",
-      { key: "metric-log-cursor-key" },
-    );
-    expect(key).toBe("metric-log-cursor-key");
+    expect(cacheMiddlewareMock.mock.calls[0]).toEqual([
+      metricLogsCursorCacheKey,
+      300,
+    ]);
   });
 
-  it("builds detail cache keys with user/context data", () => {
+  it("caches the single-log route under metricLogCacheKey", () => {
     buildRouter();
-    const detailBuilder = cacheMiddlewareMock.mock.calls[2][0] as (
-      req: any,
-    ) => string;
-
-    const req: any = { user: { id: "user-1" }, params: { id: "log-9" } };
-    expect(detailBuilder(req)).toBe("log:user-1:log-9");
+    expect(cacheMiddlewareMock.mock.calls[2]).toEqual([metricLogCacheKey, 300]);
   });
 
-  it("builds stats cache keys for metric scope", () => {
+  it("caches the stats route under metricLogStatsCacheKey", () => {
     buildRouter();
-    const statsKeyFn = cacheMiddlewareMock.mock.calls[1][0] as (
-      req: any,
-    ) => string;
-
-    expect(
-      statsKeyFn({ user: { id: "user-2" }, params: { metricId: "metric-3" } }),
-    ).toBe("logStats:user-2:metric-3");
+    expect(cacheMiddlewareMock.mock.calls[1]).toEqual([
+      metricLogStatsCacheKey,
+      300,
+    ]);
   });
 });

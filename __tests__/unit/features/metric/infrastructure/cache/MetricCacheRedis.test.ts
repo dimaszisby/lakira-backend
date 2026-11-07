@@ -47,39 +47,56 @@ describe("MetricCacheRedis", () => {
   it("skips invalidation when redis is disabled", async () => {
     redisClient.isOpen = false;
 
-    await cache.invalidateMetrics("user-1", "metric-2");
+    await cache.invalidateMetrics("user-1", "org-1", "metric-2");
 
     expect(invalidateCacheByPattern).not.toHaveBeenCalled();
     expect(logCacheInvalidation).not.toHaveBeenCalled();
   });
 
   it("invalidates metric user scopes and logs context", async () => {
-    await cache.invalidateMetrics("user-9", "metric-5");
+    await cache.invalidateMetrics("user-9", "org-9", "metric-5");
 
     expect(invalidateCacheByPattern).toHaveBeenNthCalledWith(
       1,
-      "metrics:user-9:*",
+      "cursor:metrics:v*:user-9:org:org-9:*",
     );
     expect(invalidateCacheByPattern).toHaveBeenNthCalledWith(
       2,
-      "metric:user-9:metric-5:*",
+      "metric:org-9:user-9:metric-5:*",
     );
     expect(logCacheInvalidation).toHaveBeenCalledWith("metric-cache", {
       userId: "user-9",
+      organizationId: "org-9",
       metricId: "metric-5",
     });
+  });
+
+  it("starts both walks before either finishes (#240)", async () => {
+    let finish: () => void = () => {};
+    invalidateCacheByPattern.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+
+    const done = cache.invalidateMetrics("user-9", "org-9", "metric-5");
+    await Promise.resolve();
+
+    expect(invalidateCacheByPattern).toHaveBeenCalledTimes(2);
+    finish();
+    await done;
   });
 
   it("logs error payloads when invalidation fails", async () => {
     const boom = new Error("boom");
     invalidateCacheByPattern.mockRejectedValueOnce(boom);
 
-    await cache.invalidateMetrics("user-3");
+    await cache.invalidateMetrics("user-3", "org-3");
 
     expect(logCacheInvalidationError).toHaveBeenCalledWith(
       "metric-cache",
       boom,
-      { userId: "user-3", metricId: "-" },
+      { userId: "user-3", organizationId: "org-3", metricId: "-" },
     );
   });
 });

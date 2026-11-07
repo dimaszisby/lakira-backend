@@ -1,6 +1,9 @@
 import { jest } from "@jest/globals";
 import { createMetricSettingsRouter } from "@/features/metric-settings/infrastructure/http/router.js";
-import * as controllerModule from "@/features/metric-settings/infrastructure/http/controller.js";
+import {
+  metricSettingCacheKey,
+  metricSettingsCursorCacheKey,
+} from "@/features/metric-settings/infrastructure/http/cache-keys.js";
 
 type RouterDouble = {
   use: jest.Mock;
@@ -60,15 +63,22 @@ jest.mock("@/utils/logger.js", () => ({
 
 jest.mock(
   "@/features/metric-settings/infrastructure/http/controller.js",
-  () => ({
-    createMetricSettings: jest.fn(),
-    getMetricSettingsById: jest.fn(),
-    updateMetricSettings: jest.fn(),
-    deleteMetricSettings: jest.fn(),
-    updateGoalAchievement: jest.fn(),
-    updateDisplayOptions: jest.fn(),
-    getAllMetricSettingsViaCursor: jest.fn(),
-  }),
+  () => {
+    // One set of handler mocks, returned by every call of the factory (ADR-0072).
+    const handlers = {
+      createMetricSettings: jest.fn(),
+      getMetricSettingsById: jest.fn(),
+      updateMetricSettings: jest.fn(),
+      deleteMetricSettings: jest.fn(),
+      updateGoalAchievement: jest.fn(),
+      updateDisplayOptions: jest.fn(),
+      getAllMetricSettingsViaCursor: jest.fn(),
+    };
+    return {
+      createMetricSettingsController: jest.fn(() => handlers),
+      handlers,
+    };
+  },
 );
 
 jest.mock(
@@ -84,9 +94,13 @@ jest.mock(
   }),
 );
 
-const controllerMocks = controllerModule as jest.Mocked<
-  typeof controllerModule
->;
+const controllerMocks = (
+  jest.requireMock(
+    "@/features/metric-settings/infrastructure/http/controller.js",
+  ) as {
+    handlers: Record<string, jest.Mock>;
+  }
+).handlers;
 
 const {
   createMetricSettings: createMetricSettingsMock,
@@ -155,7 +169,7 @@ describe("metric settings router", () => {
   });
 
   const buildRouter = () => {
-    createMetricSettingsRouter();
+    createMetricSettingsRouter({} as any);
     return getLastRouterInstance();
   };
 
@@ -235,57 +249,24 @@ describe("metric settings router", () => {
     );
   });
 
-  it("generates deterministic cursor cache keys using request filters", () => {
+  // Key building is tested against the real schema in cache-keys.test.ts (kit
+  // list-cache-key-filters, D-04); this only checks the list route uses it.
+  it("caches the list route under metricSettingsCursorCacheKey", () => {
     buildRouter();
-    const listKeyFn = cacheMiddlewareMock.mock.calls[0][0] as (
-      req: any,
-    ) => string;
 
-    const req: any = {
-      user: { id: "user-1", organizationId: "org-1" },
-      query: {
-        filter: { metricId: "metric-42" },
-        limit: "50",
-        sort: "createdAt",
-        after: "cursor-123",
-        includeTotal: "true",
-      },
-    };
-
-    const key = listKeyFn(req);
-
-    expect(buildCursorCacheKeyMock).toHaveBeenCalledWith({
-      feature: "metric-settings",
-      version: 2,
-      userId: "user-1",
-      segments: [
-        ["org", "org-1"],
-        ["l", 50],
-        ["s", "createdAt"],
-        ["fm", "metric-42"],
-        ["after", "cursor-123"],
-        ["it", "1"],
-      ],
-    });
-    expect(loggerDebugMock).toHaveBeenCalledWith(
-      "[CACHE] Generated metric settings cursor key",
-      { key: "cursor-key" },
-    );
-    expect(key).toBe("cursor-key");
+    expect(cacheMiddlewareMock.mock.calls[0]).toEqual([
+      metricSettingsCursorCacheKey,
+      300,
+    ]);
   });
 
-  it("builds cache keys for detail routes using user + metricSetting ids", () => {
+  // The key's own rules are tested in cache-keys.test.ts (api-tooling-residuals D-03).
+  it("caches the detail route under metricSettingCacheKey", () => {
     buildRouter();
-    const detailKeyFn = cacheMiddlewareMock.mock.calls[1][0] as (
-      req: any,
-    ) => string;
 
-    const req: any = {
-      user: { id: "user-A" },
-      params: { id: "settings-9" },
-    };
-
-    const key = detailKeyFn(req);
-    expect(key).toBe("metricSetting:user-A:settings-9");
+    expect(cacheMiddlewareMock.mock.calls[1]).toEqual([
+      metricSettingCacheKey,
+      300,
+    ]);
   });
 });

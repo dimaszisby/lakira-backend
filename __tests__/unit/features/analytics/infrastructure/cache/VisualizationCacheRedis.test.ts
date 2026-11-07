@@ -5,7 +5,6 @@ import type {
   VizResponse,
   DashboardVizResponse,
 } from "@/features/analytics/domain/types.js";
-import crypto from "node:crypto";
 import type {
   SingleVizCacheKey,
   DashboardVizCacheKey,
@@ -59,25 +58,18 @@ const dashKey: DashboardVizCacheKey = {
   versionCursor: "v2",
 };
 
-const computeSingleCacheKey = () => {
-  const raw = `${singleKey.userId}|${singleKey.metricId}|${singleKey.bucketIso}|${singleKey.startISO}|${singleKey.endISO}|${singleKey.tz}|${singleKey.fill}`;
-  const hash = crypto
-    .createHash("sha1")
-    .update(raw)
-    .digest("base64url")
-    .slice(0, 16);
-  return `viz:${singleKey.userId}:${singleKey.metricId}:${singleKey.bucketIso}:${hash}`;
-};
+// Hard-coded literals, deliberately NOT recomputed from the fixtures. These helpers
+// previously mirrored the key algorithm, which meant they would have kept passing
+// against the org-less keys ADR-0035 exists to prevent. A literal is the only form
+// that actually pins the key shape.
+const EXPECTED_SINGLE_KEY =
+  "viz:org-test-id:user-1:metric-2:1d:pXpViiRLk2z5YFNX";
+// The hash moved when the dashboard key gained its response version
+// (query-values-mean-what-they-say D-01): an entry written before is never read.
+const EXPECTED_DASH_KEY = "vizdash:org-test-id:user-1:1w:xP4vVE9eYFmtq1Ra";
 
-const computeDashCacheKey = () => {
-  const raw = `${dashKey.userId}|${dashKey.metricIds.join(",")}|${dashKey.bucketIso}|${dashKey.startISO}|${dashKey.endISO}|${dashKey.tz}|${dashKey.fill}|${dashKey.versionCursor ?? ""}`;
-  const hash = crypto
-    .createHash("sha1")
-    .update(raw)
-    .digest("base64url")
-    .slice(0, 16);
-  return `vizdash:${dashKey.userId}:${dashKey.bucketIso}:${hash}`;
-};
+const computeSingleCacheKey = () => EXPECTED_SINGLE_KEY;
+const computeDashCacheKey = () => EXPECTED_DASH_KEY;
 
 describe("VisualizationCacheRedis", () => {
   beforeEach(() => {
@@ -146,6 +138,35 @@ describe("VisualizationCacheRedis", () => {
         { EX: 120 },
       );
     });
+  });
+
+  it("produces a different key for the same user in a different organization", async () => {
+    redisClient.get.mockResolvedValue(null);
+
+    await cache.getSingleVisualization(singleKey);
+    await cache.getSingleVisualization({
+      ...singleKey,
+      organizationId: "org-other",
+    });
+
+    const [[firstKey], [secondKey]] = redisClient.get.mock.calls;
+    expect(firstKey).toBe(EXPECTED_SINGLE_KEY);
+    expect(secondKey).toBe("viz:org-other:user-1:metric-2:1d:cAUIwxiRILqLNkYb");
+    expect(firstKey).not.toBe(secondKey);
+  });
+
+  it("produces a different dashboard key across organizations", async () => {
+    redisClient.get.mockResolvedValue(null);
+
+    await cache.getDashboardVisualization(dashKey);
+    await cache.getDashboardVisualization({
+      ...dashKey,
+      organizationId: "org-other",
+    });
+
+    const [[firstKey], [secondKey]] = redisClient.get.mock.calls;
+    expect(firstKey).toBe(EXPECTED_DASH_KEY);
+    expect(firstKey).not.toBe(secondKey);
   });
 });
 const sampleVizPayload = (): VizResponse => ({

@@ -1,5 +1,6 @@
 import { redisClient } from "@/utils/redis-client.js";
 import { env } from "@/config/envManager.js";
+import { readCachedJson } from "@/shared/cache/read.js";
 import crypto from "node:crypto";
 import {
   VisualizationCachePort,
@@ -18,7 +19,9 @@ export class VisualizationCacheRedis implements VisualizationCachePort {
     if (!redisClient.isOpen) return null;
     const key = vizKey(params);
     const json = await redisClient.get(key);
-    return json ? (JSON.parse(json) as VizResponse) : null;
+    if (!json) return null;
+    const cached = readCachedJson(json, key);
+    return cached.ok ? (cached.value as VizResponse) : null;
   }
 
   async setSingleVisualization(
@@ -36,7 +39,9 @@ export class VisualizationCacheRedis implements VisualizationCachePort {
     if (!redisClient.isOpen) return null;
     const key = vizDashKey(params);
     const json = await redisClient.get(key);
-    return json ? (JSON.parse(json) as DashboardVizResponse) : null;
+    if (!json) return null;
+    const cached = readCachedJson(json, key);
+    return cached.ok ? (cached.value as DashboardVizResponse) : null;
   }
 
   async setDashboardVisualization(
@@ -49,22 +54,29 @@ export class VisualizationCacheRedis implements VisualizationCachePort {
   }
 }
 
+// organizationId is a mandatory segment in both the visible prefix and the hashed
+// raw string — see ADR-0035. Cache keys are a tenant boundary that must be enforced
+// independently of the repository layer's WHERE clauses.
 function vizKey(input: SingleVizCacheKey) {
-  const raw = `${input.userId}|${input.metricId}|${input.bucketIso}|${input.startISO}|${input.endISO}|${input.tz}|${input.fill}`;
+  const raw = `${input.organizationId}|${input.userId}|${input.metricId}|${input.bucketIso}|${input.startISO}|${input.endISO}|${input.tz}|${input.fill}`;
   const hash = crypto
     .createHash("sha1")
     .update(raw)
     .digest("base64url")
     .slice(0, 16);
-  return `viz:${input.userId}:${input.metricId}:${input.bucketIso}:${hash}`;
+  return `viz:${input.organizationId}:${input.userId}:${input.metricId}:${input.bucketIso}:${hash}`;
 }
 
+// Bumped when a dashboard response's values change meaning, so an entry written before is
+// never read. 2: a bucket averaging 0 is 0, not null (query-values-mean-what-they-say D-01).
+const DASHBOARD_RESPONSE_VERSION = 2;
+
 function vizDashKey(input: DashboardVizCacheKey) {
-  const raw = `${input.userId}|${input.metricIds.join(",")}|${input.bucketIso}|${input.startISO}|${input.endISO}|${input.tz}|${input.fill}|${input.versionCursor ?? ""}`;
+  const raw = `v${DASHBOARD_RESPONSE_VERSION}|${input.organizationId}|${input.userId}|${input.metricIds.join(",")}|${input.bucketIso}|${input.startISO}|${input.endISO}|${input.tz}|${input.fill}|${input.versionCursor ?? ""}`;
   const hash = crypto
     .createHash("sha1")
     .update(raw)
     .digest("base64url")
     .slice(0, 16);
-  return `vizdash:${input.userId}:${input.bucketIso}:${hash}`;
+  return `vizdash:${input.organizationId}:${input.userId}:${input.bucketIso}:${hash}`;
 }

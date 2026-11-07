@@ -1,8 +1,13 @@
 import { Response } from "express";
 
 /**
- * * Standardized API Response Helpers
- * Provides a consistent structure for success and error responses.
+ * * Standardized API Success Response Helper
+ *
+ * Errors do not go through here. Handlers `throw new AppError(...)` and the
+ * global error handler renders the one envelope via
+ * `src/shared/utils/error-envelope.ts`. An `errorResponse()` helper used to sit
+ * beside this one with zero production callers and a fourth, incompatible body
+ * shape; it was removed in the C3 error-envelope work rather than wired in.
  */
 
 interface SuccessResponse<T> {
@@ -11,16 +16,6 @@ interface SuccessResponse<T> {
   code?: number | string;
   data: T | null;
   success?: true;
-}
-
-interface ErrorResponse {
-  status: "error";
-  message: string;
-  code?: number | string;
-  error?: unknown;
-  errors?: string[];
-  data: null;
-  success?: false;
 }
 
 /**
@@ -48,32 +43,4 @@ const successResponse = <T>(
   });
 };
 
-/**
- * Sends an error response.
- *
- * @param res - Express response object
- * @param statusCode - HTTP status code
- * @param message - Error message
- * @param error - Optional error object or message
- * @param code - Optional custom code for the response
- * @param errors - Optional array of error messages
- */
-const errorResponse = (
-  res: Response,
-  statusCode: number,
-  message: string,
-  error: unknown = null,
-  code?: number | string,
-  errors?: string[],
-): Response<ErrorResponse> => {
-  return res.status(statusCode).json({
-    status: "error",
-    message,
-    error,
-    code,
-    errors,
-    data: null,
-    success: false,
-  });
-};
-export { successResponse, errorResponse };
+export { successResponse };

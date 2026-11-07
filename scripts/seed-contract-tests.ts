@@ -2,10 +2,18 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Transaction } from "sequelize";
 import { sequelize, models } from "@/infrastructure/db/models.js";
-import { tokenGenerator } from "@/utils/token-generator.js";
+import { env } from "@/config/envManager.js";
+import { JwtTokenProvider } from "@/features/auth/infrastructure/providers/JwtTokenProvider.js";
 import logger from "./logger.js";
 
 const OUTPUT_PATH = path.resolve(process.cwd(), "tmp/contract-seed.json");
+
+// Schemathesis sends a seeded token as its bearer for the whole run, and the
+// seed file is reused locally between runs, so these outlive a user's access
+// token (ACCESS_TOKEN_TTL_SEC). Signed by the app's own provider, so the
+// algorithm and the claims are the ones it verifies (single-token-signer D-01,
+// D-02).
+const SEED_TOKEN_TTL = "7d";
 
 const SEED_IDS = {
   primaryUser: "11111111-aaaa-4aaa-8aaa-000000000001",
@@ -84,6 +92,20 @@ const EXTRA_SETTINGS_FREE_METRIC_IDS = Array.from(
     `eeeeeeee-eeee-4eee-8eee-${String(25 + index).padStart(12, "0")}`,
 );
 
+// Non-owner members of the primary org, for the membership routes (fuzz-organization-routes
+// kit). Index 0 is the fixed PATCH target; the rest are consumed one per DELETE.
+const MEMBER_USER_IDS = Array.from(
+  { length: 41 },
+  (_, index) =>
+    `f1f1f1f1-f1f1-4f1f-8f1f-${String(1 + index).padStart(12, "0")}`,
+);
+
+const MEMBER_MEMBERSHIP_IDS = Array.from(
+  { length: 41 },
+  (_, index) =>
+    `f2f2f2f2-f2f2-4f2f-8f2f-${String(1 + index).padStart(12, "0")}`,
+);
+
 const BASE_DATES = {
   oldest: new Date("2024-12-15T00:00:00.000Z"),
   mid: new Date("2024-12-22T00:00:00.000Z"),
@@ -113,7 +135,7 @@ async function seedData(transaction: Transaction) {
   const primaryUser = await models.User.create(
     {
       id: SEED_IDS.primaryUser,
-      email: "contract-primary@lakira.dev",
+      email: "contract-primary@example.com",
       username: "contract_primary",
       password: "ContractPrimary!123",
       isPublicProfile: true,
@@ -126,7 +148,7 @@ async function seedData(transaction: Transaction) {
   const secondaryUser = await models.User.create(
     {
       id: SEED_IDS.secondaryUser,
-      email: "contract-secondary@lakira.dev",
+      email: "contract-secondary@example.com",
       username: "contract_secondary",
       password: "ContractSecondary!123",
       isPublicProfile: true,
@@ -185,6 +207,34 @@ async function seedData(transaction: Transaction) {
     },
     { transaction },
   );
+
+  for (const [index, userId] of MEMBER_USER_IDS.entries()) {
+    await models.User.create(
+      {
+        id: userId,
+        email: `contract-member-${index}@example.com`,
+        username: `contract_member_${index}`,
+        password: "ContractMember!123",
+        isPublicProfile: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+      { transaction },
+    );
+    await models.Membership.create(
+      {
+        id: MEMBER_MEMBERSHIP_IDS[index],
+        userId,
+        organizationId: SEED_IDS.primaryOrg,
+        role: "member",
+        status: "active",
+        joinedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+      { transaction },
+    );
+  }
 
   const revenueCategory = await models.MetricCategory.create(
     {
@@ -900,14 +950,17 @@ async function main() {
     return seedData(transaction);
   });
 
-  const primaryToken = tokenGenerator({
+  const tokens = new JwtTokenProvider(env.JWT_SECRET, SEED_TOKEN_TTL);
+  const primaryToken = tokens.sign({
     id: result.primaryUser.id,
     email: result.primaryUser.email,
+    username: result.primaryUser.username,
     organizationId: SEED_IDS.primaryOrg,
   });
-  const secondaryToken = tokenGenerator({
+  const secondaryToken = tokens.sign({
     id: result.secondaryUser.id,
     email: result.secondaryUser.email,
+    username: result.secondaryUser.username,
     organizationId: SEED_IDS.secondaryOrg,
   });
 
@@ -915,6 +968,8 @@ async function main() {
     generatedAt: new Date().toISOString(),
     primaryUser: {
       id: result.primaryUser.id,
+      // The organization the token is scoped to; the hook uses it for /organizations/{id}/...
+      organizationId: SEED_IDS.primaryOrg,
       email: result.primaryUser.email,
       username: result.primaryUser.username,
       password: "ContractPrimary!123",
@@ -980,7 +1035,10 @@ async function main() {
       metricLogIds: result.deletableLogs
         .map((log) => log?.id ?? null)
         .filter(Boolean),
+      membershipIds: MEMBER_MEMBERSHIP_IDS.slice(1),
     },
+    // A non-owner membership in the primary org that PATCH may re-role repeatedly.
+    patchMembershipId: MEMBER_MEMBERSHIP_IDS[0],
   };
 
   await writeSeedOutput(output);

@@ -22,7 +22,7 @@ disable-model-invocation: true
 
 3. **Report the result**:
    - If check passes: spec is up to date
-   - If check fails: show the diff and remind the user to commit the updated spec at `documents/openapi/lakira-backend-openapi.json`
+   - If check fails: show the diff and remind the user to commit the updated spec at `docs/reference/api/lakira-backend-openapi.json`
 
 ## When This Is Needed
 

@@ -1,0 +1,87 @@
+[
+  {
+    "name": "type:task",
+    "color": "0e8a16",
+    "description": "A piece of work with acceptance criteria"
+  },
+  {
+    "name": "type:bug",
+    "color": "d73a4a",
+    "description": "Something does not work as it should"
+  },
+  {
+    "name": "type:decision",
+    "color": "5319e7",
+    "description": "A question the owner must answer before work can start"
+  },
+  {
+    "name": "tier:1",
+    "color": "b60205",
+    "description": "Keeps an audit caveat open (register D-01)"
+  },
+  {
+    "name": "tier:2",
+    "color": "d93f0b",
+    "description": "P1 or P2 owed to the frontend (register D-01)"
+  },
+  {
+    "name": "tier:3",
+    "color": "e99695",
+    "description": "P2 security (register D-01)"
+  },
+  {
+    "name": "tier:4",
+    "color": "fbca04",
+    "description": "Any other P2 (register D-01)"
+  },
+  {
+    "name": "tier:5",
+    "color": "c5def5",
+    "description": "P3 and ungraded (register D-01)"
+  },
+  {
+    "name": "sev:P1",
+    "color": "b60205",
+    "description": "Severity P1, as the source graded it"
+  },
+  {
+    "name": "sev:P2",
+    "color": "d93f0b",
+    "description": "Severity P2, as the source graded it"
+  },
+  {
+    "name": "sev:P3",
+    "color": "fef2c0",
+    "description": "Severity P3, as the source graded it"
+  },
+  {
+    "name": "state:ready",
+    "color": "0e8a16",
+    "description": "Nothing blocks it; it can be planned now"
+  },
+  {
+    "name": "state:owner",
+    "color": "5319e7",
+    "description": "Waiting on the owner's decision"
+  },
+  {
+    "name": "state:frontend",
+    "color": "1d76db",
+    "description": "Waiting on lakira-frontend"
+  },
+  {
+    "name": "state:upstream",
+    "color": "bfdadc",
+    "description": "Waiting on a package's maintainers"
+  },
+  {
+    "name": "state:unexplained",
+    "color": "f9d0c4",
+    "description": "Seen, not reproduced or explained; needs a sighting with evidence"
+  },
+  {
+    "name": "state:deferred",
+    "color": "ededed",
+    "description": "Considered and set aside until something changes"
+  }
+]

@@ -46,6 +46,26 @@ describe("Analytics API", () => {
     expect(res.body.data.meta.metricId).toBe(metricId);
   });
 
+  // Kit api-tooling-residuals, D-01 (audit X23). Intl and Postgres read an offset with
+  // opposite signs, so a request's range and its buckets disagreed by twice the offset.
+  it.each([
+    ["+07:00", 400],
+    ["-04:00", 400],
+    ["Asia/Jakarta", 200],
+    ["UTC", 200],
+  ])("answers tz=%s with %i on both routes", async (tz, status) => {
+    for (const path of [
+      "/api/v1/analytics/dashboard",
+      `/api/v1/analytics/metrics/${metricId}`,
+    ]) {
+      const res = await api
+        .get(path)
+        .set("Authorization", authHeader(token))
+        .query({ last: "7d", tz });
+      expect(res.status).toBe(status);
+    }
+  });
+
   it("requires authentication", async () => {
     const res = await api
       .get("/api/v1/analytics/dashboard")
@@ -109,7 +129,7 @@ describeRedis("Analytics API – Redis cache coverage", () => {
 
     expect(firstViz.status).toBe(200);
     expect(firstViz.body.data.meta.metricId).toBe(metric.id);
-    const vizKeys = await listKeys(`viz:${auth.user.id}:${metric.id}:*`);
+    const vizKeys = await listKeys(`viz:*:${auth.user.id}:${metric.id}:*`);
     expect(vizKeys.length).toBeGreaterThan(0);
 
     const dash = await api
@@ -117,7 +137,7 @@ describeRedis("Analytics API – Redis cache coverage", () => {
       .set("Authorization", authHeader(auth.token))
       .query(query);
     expect(dash.status).toBe(200);
-    const dashKeys = await listKeys(`vizdash:${auth.user.id}:*`);
+    const dashKeys = await listKeys(`vizdash:*:${auth.user.id}:*`);
     expect(dashKeys.length).toBeGreaterThan(0);
 
     await createMetricLog(auth.token, metric.id, {
@@ -125,10 +145,10 @@ describeRedis("Analytics API – Redis cache coverage", () => {
       loggedAt: "2025-05-02T00:00:00.000Z",
     });
 
-    expect(await listKeys(`viz:${auth.user.id}:${metric.id}:*`)).toHaveLength(
+    expect(await listKeys(`viz:*:${auth.user.id}:${metric.id}:*`)).toHaveLength(
       0,
     );
-    expect(await listKeys(`vizdash:${auth.user.id}:*`)).toHaveLength(0);
+    expect(await listKeys(`vizdash:*:${auth.user.id}:*`)).toHaveLength(0);
 
     const refreshed = await api
       .get(`/api/v1/analytics/metrics/${metric.id}`)
@@ -144,7 +164,9 @@ describeRedis("Analytics API – Redis cache coverage", () => {
       (point: { value: number }) => point.value,
     );
     expect(metricValues).toEqual(expect.arrayContaining([12, 27]));
-    const refreshedKeys = await listKeys(`viz:${auth.user.id}:${metric.id}:*`);
+    const refreshedKeys = await listKeys(
+      `viz:*:${auth.user.id}:${metric.id}:*`,
+    );
     expect(refreshedKeys.length).toBeGreaterThan(0);
   });
 });

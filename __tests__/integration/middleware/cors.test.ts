@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import request from "supertest";
 import { loadEnvOrExit } from "@/config/envManager.js";
-import { withTestEnv } from "@/tests/env-test-utils.js";
+import { withTestEnv } from "../../helpers/env-test-utils.js";
 
 // Mirrors the CORS wiring in src/server.ts so per-test CORS_ORIGIN overrides
 // (via withTestEnv) actually take effect — the shared `app` import bakes env

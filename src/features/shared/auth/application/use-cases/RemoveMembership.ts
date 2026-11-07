@@ -1,4 +1,8 @@
-import AppError from "@/utils/AppError.js";
+import {
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from "@/shared/domain/errors/DomainError.js";
 import { MembershipRepository } from "../../domain/repositories/MembershipRepository.js";
 
 export type RemoveMembershipInput = {
@@ -13,20 +17,20 @@ export class RemoveMembership {
 
   async execute(input: RemoveMembershipInput): Promise<void> {
     if (input.actorRole !== "owner") {
-      throw new AppError("Forbidden: only owner can remove members", 403);
+      throw new ForbiddenError("Forbidden: only owner can remove members");
     }
 
     const membership = await this.membershipRepo.findById(input.membershipId);
     if (!membership) {
-      throw new AppError("Membership not found", 404);
+      throw new NotFoundError("Membership not found");
     }
 
     if (membership.organizationId !== input.organizationId) {
-      throw new AppError("Membership not found", 404);
+      throw new NotFoundError("Membership not found");
     }
 
     if (membership.userId === input.actorUserId) {
-      throw new AppError("Cannot remove yourself from the organization", 400);
+      throw new ValidationError("Cannot remove yourself from the organization");
     }
 
     if (membership.isOwner()) {
@@ -35,9 +39,8 @@ export class RemoveMembership {
         "owner",
       );
       if (ownerCount <= 1) {
-        throw new AppError(
+        throw new ValidationError(
           "Cannot remove the last owner of the organization",
-          400,
         );
       }
     }

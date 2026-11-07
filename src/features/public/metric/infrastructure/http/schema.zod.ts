@@ -8,6 +8,7 @@ import {
   zMetricDefaultUnit,
   zMetricIsPublic,
   zMetricOriginalId,
+  zStrictBooleanQuery,
 } from "@/constants/zod/zod-rules.js";
 import { ZodMessages } from "@/constants/zod/zod-messages.js";
 
@@ -15,6 +16,7 @@ extendZodWithOpenApi(z);
 
 const normalizedSearchParam = z
   .union([z.string(), z.undefined(), z.null()])
+  .optional()
   .transform((value) => {
     if (typeof value !== "string") return undefined;
     return value.trim();
@@ -23,17 +25,6 @@ const normalizedSearchParam = z
     (value) => value === undefined || value.length > 0,
     ZodMessages.common.searchQueryMin,
   );
-
-const strictBooleanQuery = z
-  .union([z.boolean(), z.string()])
-  .transform((value) => {
-    if (typeof value === "boolean") return value;
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true") return true;
-    if (normalized === "false") return false;
-    return value;
-  })
-  .pipe(z.boolean());
 
 const filterObject = z
   .object({
@@ -116,12 +107,15 @@ const listMetricQueryRaw = z
       ] as const)
       .default("-createdAt"),
     q: normalizedSearchParam,
-    after: z.union([z.string(), z.undefined(), z.null()]).transform((value) => {
-      if (typeof value !== "string") return undefined;
-      const trimmed = value.trim();
-      return trimmed.length ? trimmed : undefined;
-    }),
-    includeTotal: strictBooleanQuery.optional().default(false),
+    after: z
+      .union([z.string(), z.undefined(), z.null()])
+      .optional()
+      .transform((value) => {
+        if (typeof value !== "string") return undefined;
+        const trimmed = value.trim();
+        return trimmed.length ? trimmed : undefined;
+      }),
+    includeTotal: zStrictBooleanQuery.optional().default(false),
   })
   .merge(FilterSchema)
   .strict();

@@ -1,0 +1,90 @@
+# ADR-0036 — Production-unsafe env switches must be refused at schema layer
+
+- **Status:** Accepted (2026-08-23)
+- **Date:** 2026-06-05
+- **Related:** Open finding — see `docs/internal/audits/saas-readiness/audit-2026-06-05.md`.
+- **Origin:** `ADR-010` in the SaaS readiness audit kit — [`saas-readiness`](../../internal/audits/saas-readiness/decisions.md)
+
+---
+
+## Context
+
+The 2026-06-05 re-audit (`audit-2026-06-05.md` §6.2 F1) flagged that `DISABLE_RATE_LIMITING` (a global killswitch for every rate limiter — global, user, analytics, switch-org, password-reset, email-verify) is parsed as a plain boolean with `.default("false")` at `src/config/zodEnv.ts:188–191`. There is **no validation that rejects `true` when `NODE_ENV=production`**. The rule is documented as "test/fuzzing only" in `.claude/rules/security.md`, but the rules-as-convention enforcement is purely advisory: a misconfigured production deploy (fat-finger, CI copying a test `.env`, a forker who didn't clean their `.env`) silently disables every rate limiter, and the only signal is a single `logger.info` line at process start (`src/shared/middleware/rate-limiter.ts:10`) that log monitoring may miss.
+
+## Decision
+
+Any environment variable whose `true` value would weaken a production security control MUST refuse that combination at the Zod schema layer via `.superRefine()`, causing `loadEnvOrExit()` to fail fast at process start. The minimum enforcement set for this codebase:
+
+| Env var                  | Refused-in-production combination                                                                          |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `DISABLE_RATE_LIMITING`  | `true` when `NODE_ENV=production`                                                                          |
+| `ALLOW_TEST_HTTP_SERVER` | `true` when `NODE_ENV=production`                                                                          |
+| `RABBITMQ_USER`          | `"guest"` when `NODE_ENV=production` and `RABBITMQ_ENABLED`, where no `RABBITMQ_URL` is set                |
+| `RABBITMQ_PASSWORD`      | `"guest"` when `NODE_ENV=production` and `RABBITMQ_ENABLED`, where no `RABBITMQ_URL` is set                |
+| `RABBITMQ_URL`           | a URL that logs in as `guest`, by user or password, or names no credentials, under the same two conditions |
+| `SWAGGER_REQUIRE_AUTH`   | `false` when `NODE_ENV=production` (already conventionally true; codify)                                   |
+| `SKIP_DB_LIFECYCLE`      | `true` when `NODE_ENV=production` (added 2026-08-24; twelve-factor TF-6)                                   |
+| `DB_LOGGING`             | `true` when `NODE_ENV=production` (added 2026-10-10; audit finding V2)                                     |
+| `JWT_SECRET`             | shorter than 32 characters when `NODE_ENV` is `production` or `staging`                                    |
+| `JWT_SECRET`             | the placeholder from `.env.example`, in the same two environments                                          |
+
+## Options considered
+
+- _Documentation-only enforcement (status quo)._ Rejected — this audit caught a real instance; "documented as test-only" is not a safety property.
+- _Runtime assertion in the consuming module (e.g., `rate-limiter.ts`)._ Considered. The schema layer is preferred because it short-circuits the boot sequence consistently with `loadEnvOrExit()`'s fail-fast contract; runtime guards run later and can be bypassed by code that bypasses the singleton.
+- _Whitelist approach (every env switch must be explicitly safe-in-prod)._ Considered. Overkill at this scale; the named-bad list is more maintainable. Re-visit if the env schema doubles in size.
+
+## Consequences
+
+- Process refuses to start in `NODE_ENV=production` if any of the listed combinations are set. Failure surface is the startup logger error message, which is monitored.
+- Test envs continue to work unchanged — only `NODE_ENV=production` triggers the refusal.
+- Future security-relevant switches added to `zodEnv.ts` MUST be considered against this rule (a comment in the schema referencing this ADR will be added).
+
+## Links
+
+- `audit-2026-06-05.md` §6.2 (F1), §6.3 (F3)
+- `src/config/zodEnv.ts:188–191` (the unguarded `DISABLE_RATE_LIMITING`)
+- `src/config/zodEnv.ts:193–196` (`ALLOW_TEST_HTTP_SERVER`)
+- `src/config/zodEnv.ts`, `RABBITMQ_USER` and `RABBITMQ_PASSWORD` (RabbitMQ guest defaults; line numbers as of 2026-06-05 were 215–216)
+- `.claude/rules/security.md` (which will reference this ADR)
+
+---
+
+> **2026-09-26:** [ADR-0048](./adr-0048-mailpit-for-local-outbound-email.md) adds
+> `EMAIL_PROVIDER=mailpit` to the refused set. The table above is the original set; the live list
+> is the `superRefine` block in `src/config/zodEnv.ts`, which also refuses `LOG_LEVEL=silly`.
+
+> **2026-09-27:** [ADR-0049](./adr-0049-console-email-adapter-confined-to-dev-and-test.md) adds
+> `EMAIL_PROVIDER=console`, refused unless `NODE_ENV` is `development` or `test`. It is the first
+> entry that also applies in staging.
+
+> **2026-09-28:** every refusal here is keyed on `NODE_ENV`. The production image now defaults it to
+> `production` ([ADR-0050](./adr-0050-production-image-defaults-node-env.md)), so the refusals hold
+> even when a deployer sets nothing.
+
+> **2026-10-13:** the two `JWT_SECRET` rows were added (audit finding W2; kit
+> [`jwt-secret-minimum-length`](../../internal/initiatives/jwt-secret-minimum-length/decisions.md),
+> D-01). They are the first entries about how strong a value is, where every other entry is a
+> switch, and after ADR-0049 the second that also applies in staging. Tokens are HS256, so a
+> guessable secret lets anyone mint a token. The placeholder has a rule of its own because it is 33
+> characters long and passes the length check. Neither message quotes the value.
+
+> **2026-10-14:** the `RABBITMQ_URL` row was added and the two rows above it narrowed (audit
+> finding W4; kit
+> [`jwt-secret-minimum-length`](../../internal/initiatives/jwt-secret-minimum-length/decisions.md),
+> D-04). The connection uses `RABBITMQ_URL` as given whenever it is set and ignores the two
+> fields, so the refusal read fields the connection never used: a `guest` URL started, and a URL
+> with real credentials was refused while the fields held their `guest` default. The refusal now
+> judges the login the connection will use. A URL that names no user and password is refused too,
+> since the client logs in as `guest` then. The message names the variable and never quotes the
+> URL. Still production only.
+
+> **2026-10-21:** the
+> [`database-tls-and-staging-refusals`](../../internal/initiatives/database-tls-and-staging-refusals/decisions.md)
+> kit, D-01, D-02 and D-04 (audit 2026-10-20, X1 and X2). Every refusal now applies when `NODE_ENV`
+> is `production` **or** `staging`, staging being reachable from the internet, except
+> `EMAIL_PROVIDER=mailpit`, which ADR-0048 keeps for staging. Production also refuses
+> `DB_SSL_REJECT_UNAUTHORIZED=false`, in the schema and in the migration config; staging defaults
+> to `true` and may set `false`, which `src/config/db.ts` announces at every start. `DB_SSL_CA`, a
+> PEM CA certificate the database connection trusts, lets a database signed by a private CA be
+> verified; a value that holds no certificate is refused.

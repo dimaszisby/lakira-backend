@@ -1,5 +1,6 @@
-import { Op } from "sequelize";
+import { Op, Transaction } from "sequelize";
 import { models } from "@/infrastructure/db/models.js";
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import { PasswordResetToken } from "../../domain/entities/PasswordResetToken.js";
 import {
   CreatePasswordResetTokenDTO,
@@ -15,14 +16,21 @@ export class PasswordResetTokenRepositorySequelize implements PasswordResetToken
     return row ? toDomainPasswordResetToken(row) : null;
   }
 
-  async create(data: CreatePasswordResetTokenDTO): Promise<PasswordResetToken> {
-    const created = await models.PasswordResetToken.create({
-      userId: data.userId,
-      tokenHash: data.tokenHash,
-      expiresAt: data.expiresAt,
-      usedAt: null,
-    });
-    await created.reload();
+  async create(
+    data: CreatePasswordResetTokenDTO,
+    tx?: PersistenceTransaction,
+  ): Promise<PasswordResetToken> {
+    const transaction = tx as Transaction | undefined;
+    const created = await models.PasswordResetToken.create(
+      {
+        userId: data.userId,
+        tokenHash: data.tokenHash,
+        expiresAt: data.expiresAt,
+        usedAt: null,
+      },
+      { transaction },
+    );
+    await created.reload({ transaction });
     return toDomainPasswordResetToken(created);
   }
 
@@ -33,6 +41,7 @@ export class PasswordResetTokenRepositorySequelize implements PasswordResetToken
   async invalidateAllForUser(
     userId: string,
     now: Date = new Date(),
+    tx?: PersistenceTransaction,
   ): Promise<void> {
     await models.PasswordResetToken.update(
       { usedAt: now },
@@ -41,6 +50,7 @@ export class PasswordResetTokenRepositorySequelize implements PasswordResetToken
           userId,
           usedAt: { [Op.is]: null },
         },
+        transaction: tx as Transaction | undefined,
       },
     );
   }

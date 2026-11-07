@@ -1,3 +1,5 @@
+import { envelopeStatus } from "@/shared/utils/error-envelope.js";
+
 class AppError extends Error {
   public readonly statusCode: number;
   public readonly status: "fail" | "error";
@@ -12,8 +14,10 @@ class AppError extends Error {
     super(message);
     Object.setPrototypeOf(this, new.target.prototype); // Maintain correct prototype chain
 
+    // Names the class in a log line, as DomainError does (v6-small-items D-01).
+    this.name = new.target.name;
     this.statusCode = statusCode;
-    this.status = statusCode >= 400 && statusCode < 500 ? "fail" : "error";
+    this.status = envelopeStatus(statusCode);
     this.isOperational = true; // Distinguish operational errors from programming errors
 
     Error.captureStackTrace(this);

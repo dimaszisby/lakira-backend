@@ -1,11 +1,14 @@
 import { jest } from "@jest/globals";
+import {
+  ConflictError,
+  NotFoundError,
+} from "@/shared/domain/errors/DomainError.js";
 import { CreateMetric } from "@/features/metric/application/use-cases/CreateMetric.js";
 import { MetricRepository } from "@/features/metric/domain/repositories/MetricRepository.js";
 import { Metric } from "@/features/metric/domain/entities/Metric.js";
 import { MetricSettingsPort } from "@/features/metric/application/ports/MetricSettingsPort.js";
 import { CachePort } from "@/features/metric/application/ports/CachePort.js";
-import { TransactionPort } from "@/features/metric/application/ports/TransactionPort.js";
-import AppError from "@/utils/AppError.js";
+import { TransactionPort } from "@/shared/application/ports/TransactionPort.js";
 
 type RepoMock = jest.Mocked<MetricRepository>;
 type SettingsMock = jest.Mocked<MetricSettingsPort>;
@@ -102,7 +105,11 @@ describe("CreateMetric use case", () => {
       "org-1",
       fakeTx,
     );
-    expect(cache.invalidateMetrics).toHaveBeenCalledWith("user-1", metric.id);
+    expect(cache.invalidateMetrics).toHaveBeenCalledWith(
+      "user-1",
+      "org-1",
+      metric.id,
+    );
   });
 
   it("throws when name already exists", async () => {
@@ -119,7 +126,7 @@ describe("CreateMetric use case", () => {
         defaultUnit: "steps",
         isPublic: true,
       }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(ConflictError);
 
     expect(repo.create).not.toHaveBeenCalled();
   });
@@ -140,7 +147,7 @@ describe("CreateMetric use case", () => {
         defaultUnit: "steps",
         isPublic: false,
       }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(NotFoundError);
 
     expect(repo.create).not.toHaveBeenCalled();
   });

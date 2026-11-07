@@ -1,4 +1,4 @@
-import AppError from "@/utils/AppError.js";
+import { UnauthorizedError } from "@/shared/domain/errors/DomainError.js";
 import {
   ListMetricSettingsOptions,
   ListMetricSettingsResult,
@@ -11,7 +11,7 @@ export class ListMetricSettingsViaCursor {
   async execute(
     options: ListMetricSettingsOptions,
   ): Promise<ListMetricSettingsResult> {
-    if (!options.userId) throw new AppError("User not authenticated", 401);
+    if (!options.userId) throw new UnauthorizedError("User not authenticated");
     return this.repo.listByCursor(options);
   }
 }

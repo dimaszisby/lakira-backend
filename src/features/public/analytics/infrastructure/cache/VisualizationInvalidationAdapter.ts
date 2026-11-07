@@ -1,27 +1,20 @@
 import type { VisualizationInvalidationPort } from "@/shared/application/ports/VisualizationInvalidationPort.js";
-import { redisClient } from "@/utils/redis-client.js";
-
-const SCAN_COUNT = 200;
+import { invalidateCacheByPattern, redisClient } from "@/utils/redis-client.js";
 
 export class AnalyticsVisualizationInvalidationAdapter implements VisualizationInvalidationPort {
-  async invalidateByMetric(userId: string, metricId: string): Promise<void> {
+  async invalidateByMetric(
+    userId: string,
+    organizationId: string,
+    metricId: string,
+  ): Promise<void> {
     if (!redisClient.isOpen) return;
 
-    const singular = `viz:${userId}:${metricId}:*`;
-    const dash = `vizdash:${userId}:*`;
-
-    for await (const key of redisClient.scanIterator({
-      MATCH: singular,
-      COUNT: SCAN_COUNT,
-    })) {
-      await redisClient.del(key);
-    }
-
-    for await (const key of redisClient.scanIterator({
-      MATCH: dash,
-      COUNT: SCAN_COUNT,
-    })) {
-      await redisClient.del(key);
-    }
+    // The shared walk deletes a page of keys per round trip; this adapter's own
+    // loop deleted one key per round trip, and ran its walks one after another
+    // (#240, ADR-0087).
+    await Promise.all([
+      invalidateCacheByPattern(`viz:${organizationId}:${userId}:${metricId}:*`),
+      invalidateCacheByPattern(`vizdash:${organizationId}:${userId}:*`),
+    ]);
   }
 }

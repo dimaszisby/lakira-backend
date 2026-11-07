@@ -1,0 +1,91 @@
+# API reference
+
+The OpenAPI 3.1 contract is **generated from the Zod schemas that validate live requests**, so
+the document and the runtime cannot disagree about shapes.
+
+|                    |                                                                |
+| ------------------ | -------------------------------------------------------------- |
+| Spec               | [`lakira-backend-openapi.json`](./lakira-backend-openapi.json) |
+| Swagger UI         | `GET /api/v1/docs`                                             |
+| Raw spec over HTTP | `GET /api/v1/docs/openapi.json`                                |
+| Base path          | `/api/v1`                                                      |
+| Auth               | `Authorization: Bearer <access token>`                         |
+
+Both docs endpoints require authentication unless `SWAGGER_REQUIRE_AUTH=false`.
+
+## Do not hand-edit the spec
+
+`lakira-backend-openapi.json` is a build artifact, named after the package
+(`scripts/openapi-spec-path.js`). Its title and the refresh cookie's name follow the package name
+too (`scripts/openapi-app-name.js`), so a fork's spec describes the fork. A `.claude/hooks/protect-files.sh` guard
+blocks writes to it, and CI fails if it drifts from what the generator produces.
+
+Change the source instead:
+
+| To change                              | Edit                                 |
+| -------------------------------------- | ------------------------------------ |
+| a request/response shape               | `src/lib/openapi/openapi-schemas.ts` |
+| which paths and operations exist       | `src/lib/openapi/openapi-docs.ts`    |
+| title, servers, tags, security schemes | `src/lib/openapi/openapi-config.ts`  |
+
+Then regenerate:
+
+```bash
+npm run docs:openapi:generate   # writes + normalises the spec
+npm run docs:openapi:check      # regenerates and fails if the result differs from HEAD
+```
+
+`docs:openapi:check` runs in CI. Committing a schema change without regenerating fails the build.
+Full workflow: [`../../how-to/development/regenerate-the-openapi-spec.md`](../../how-to/development/regenerate-the-openapi-spec.md).
+
+## Coverage
+
+**49 documented operations** (counted from the committed spec on 2026-10-23) across `Auth` (11),
+`Organizations` (6), `Metric Categories` (5), `Metrics` (5), `Metric Logs` (6), `Metric Settings`
+(7), `Dummy Data` (3), `Analytics` (2), `Trends` (1), `Admin` (1) and `Health` (2).
+
+Every operation documents the 429 of the app-wide limiter, except the two `Health` probes, which
+run ahead of it. Every operation that takes a body documents 413 and 415, which the body parser
+answers for an oversized body and for an unsupported charset or encoding. The generator adds all
+three, and `docs:openapi:validate` fails on an operation that lacks one
+([`openapi-contract-polish`](../../internal/initiatives/openapi-contract-polish/decisions.md) D-01,
+D-03).
+
+Every API route is in the spec; only `/api/v1/docs`, which serves the spec itself, is not. The
+local contract run fuzzes only the tags in `DEFAULT_TAGS`, minus the operations named in
+`EXCLUDED_OPERATIONS` (both in `tests/contract/schemathesis/scripts/run-local.js`). Three documented tags are not fuzzed, `Admin`
+(1), `Dummy Data` (3) and `Health` (2), and one operation is excluded by name, so the gate reports
+**42 of 49** operations selected: the same 42 it reported as "42 of 47" (seed 42, 2026-09-29)
+before the probes were documented. The organization routes are fuzzed against the seeded primary
+organization, its members and a pool of deletable memberships
+([`fuzz-organization-routes`](../../internal/initiatives/fuzz-organization-routes/README.md)).
+
+| Route                           | Why                                                                                                                                                                                                                                                                         |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Health` tag (2 operations)     | `GET /health` and `GET /ready`: the platform's probes. `/ready` answers 503 when Postgres or Redis fails, so fuzzing it would test the infrastructure, not the contract ([`openapi-contract-polish`](../../internal/initiatives/openapi-contract-polish/decisions.md) D-01) |
+| `GET /api/v1/admin/_ping`       | documented under the `Admin` tag, which is **excluded from the contract-test tag set** — the seeded fixtures hold no admin role, so fuzzing it would only produce 403s                                                                                                      |
+| `POST /api/v1/invites/accept`   | excluded by name: a valid token exists only in an invite email, so every generated body is a random token the API rightly answers with 400. Included, it passes but tests only that rejection. The accept path is covered by the integration suite                          |
+| `Dummy Data` tag (3 operations) | no recorded reason                                                                                                                                                                                                                                                          |
+
+## Request id
+
+Every response carries an `x-request-id` header, and the same id is on every log line the
+request writes and on any Sentry event it raises. A caller may send its own id in the request's
+`x-request-id` header. It is used only when it is 1 to 64 characters of letters, digits, `.`, `_`
+and `-`; a UUID fits. Anything else, including a header sent twice, is replaced by a UUID the
+backend mints, and the value sent is neither echoed nor logged. The header is not in the spec
+([ADR-0027](../../explanation/decisions/adr-0027-asynclocalstorage-for-request-correlation.md)).
+
+## Known gaps
+
+- ~~Error responses are under-specified.~~ Closed by caveat C3 (`75cfdaa`, #79): every operation
+  now documents its `4xx`/`5xx` responses with the single error envelope. Kept here as history.
+- Request validation is done by **Zod middleware**, not by the spec at runtime. The spec is
+  generated _from_ the validators; it does not enforce anything itself. (`express-openapi-validator`
+  was a declared dependency with zero imports and has been removed.)
+
+## Contract testing
+
+The spec is the input to Schemathesis property-based fuzzing in `tests/contract/schemathesis/`,
+which runs in CI against a live server.
+See [`../../how-to/testing/`](../../how-to/testing/).

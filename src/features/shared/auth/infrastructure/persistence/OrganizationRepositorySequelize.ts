@@ -1,5 +1,7 @@
+import { Op, Transaction } from "sequelize";
 import { models } from "@/infrastructure/db/models.js";
 import { Organization } from "../../domain/entities/Organization.js";
+import type { PersistenceTransaction } from "@/shared/domain/PersistenceTransaction.js";
 import {
   CreateOrganizationDTO,
   OrganizationRepository,
@@ -17,9 +19,22 @@ const toDomain = (row: OrganizationModel): Organization =>
   });
 
 export class OrganizationRepositorySequelize implements OrganizationRepository {
-  async findById(id: string): Promise<Organization | null> {
-    const row = await models.Organization.findByPk(id);
+  async findById(
+    id: string,
+    tx?: PersistenceTransaction,
+  ): Promise<Organization | null> {
+    const row = await models.Organization.findByPk(id, {
+      transaction: tx as Transaction | undefined,
+    });
     return row ? toDomain(row) : null;
+  }
+
+  async findByIds(ids: string[]): Promise<Organization[]> {
+    if (ids.length === 0) return [];
+    const rows = await models.Organization.findAll({
+      where: { id: { [Op.in]: ids } },
+    });
+    return rows.map(toDomain);
   }
 
   async findBySlug(slug: string): Promise<Organization | null> {
@@ -32,12 +47,19 @@ export class OrganizationRepositorySequelize implements OrganizationRepository {
     return count > 0;
   }
 
-  async create(data: CreateOrganizationDTO): Promise<Organization> {
-    const created = await models.Organization.create({
-      name: data.name,
-      slug: data.slug,
-    });
-    await created.reload();
+  async create(
+    data: CreateOrganizationDTO,
+    tx?: PersistenceTransaction,
+  ): Promise<Organization> {
+    const transaction = tx as Transaction | undefined;
+    const created = await models.Organization.create(
+      {
+        name: data.name,
+        slug: data.slug,
+      },
+      { transaction },
+    );
+    await created.reload({ transaction });
     return toDomain(created);
   }
 

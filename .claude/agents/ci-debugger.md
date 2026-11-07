@@ -14,12 +14,12 @@ You are a CI/CD specialist investigating GitHub Actions failures for the Lakira 
 The main CI pipeline is `.github/workflows/backend-ci.yml` with this job dependency chain:
 
 ```
-checks (lint, format, typecheck, openapi)
-    → security_delta (framework tests, delta check, gate evaluation)
-        → tests (build, migrate, unit + integration tests with coverage)
-            → contract_local (Newman + Schemathesis against local server)
-                → deploy_staging (only on staging branch)
-                    → contract_staging (tests against live staging)
+checks (lint, format, typecheck, openapi)          security_delta (framework tests, delta check, gate)
+                      └──────────────┬──────────────┘   (the two run in parallel)
+                                     → tests (needs both: build, migrate, unit + integration with coverage)
+                                         → contract_local (seed + Schemathesis against local server)
+                                             → deploy_staging (staging branch only) → smoke_staging
+                                             → deploy_production (main branch only)
 ```
 
 Other workflows:
@@ -59,22 +59,22 @@ Other workflows:
 
    **`tests` job failures**:
    - Build failure: `npm run build` — check TypeScript compilation
-   - Migration failure: `npm run migrate:test` — check migration files
+   - Migration failure: `npm run db:migrate:test` (what CI runs) — check migration files
    - Unit tests: `npm run test:unit` — check specific test failures
    - Integration tests: `npm run test:integration` — needs PostgreSQL running
    - Coverage thresholds: unit (60% stmt), integration (70% stmt)
 
    **`contract_local` job failures**:
    - Server didn't start: check health endpoint, port conflicts
-   - Newman tests: API contract violations
    - Schemathesis: OpenAPI spec inconsistencies, fuzzing failures
+   - Missing `tmp/contract-seed.json`: the token step fails loudly, but the seeded-ID hook
+     fails silently — check the run reports 37 of 46 operations selected
 
 4. **Check environment differences** between local and CI:
-   - CI uses PostgreSQL 15 (local may differ)
-   - CI uses Redis 7
-   - CI sets `DISABLE_RATE_LIMITING=true`, `REDIS_REQUIRED=false`
-   - CI uses Node 20.x (check `.nvmrc` matches)
-   - CI concurrency: one run per branch (`group: lakira-ci-$branch`)
+   - CI uses `postgres:18`, `redis:7-alpine` and `rabbitmq:3.13-management-alpine` (the same as Compose)
+   - `DISABLE_RATE_LIMITING=true` in `security_delta`, `tests` and `contract_local`; `REDIS_REQUIRED=false` in `security_delta` (elsewhere it defaults to false under `NODE_ENV=test`)
+   - CI uses the Node version in `.nvmrc` (24.x); every `setup-node` step reads it through `node-version-file`
+   - CI concurrency: one run per branch (`group: backend-ci-${{ github.ref }}`)
 
 5. **Reproduce locally**:
    ```bash

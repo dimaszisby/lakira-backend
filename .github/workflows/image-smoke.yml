@@ -1,0 +1,56 @@
+# Image smoke — ADR-0055.
+#
+# Builds the production Dockerfile and runs scripts/image-smoke.sh against it: the
+# image must run as a non-root user, carry runtime dependencies only, default to
+# NODE_ENV=production (ADR-0050), serve /health and /ready in production mode, and
+# stop cleanly on SIGTERM.
+#
+# Nothing else in CI builds this image. A runtime stage that could not install its
+# dependencies sat on dev from bba4e6c until cb99f50 found it by hand
+# (audit-2026-09-29 § 6, R6).
+name: Image Smoke
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - staging
+      - "feat/**"
+      - "fix/**"
+      - "chore/**"
+      - "ci/**"
+      - "docs/**"
+      - "refactor/**"
+  pull_request:
+    branches:
+      - main
+      - dev
+      - staging
+  workflow_dispatch:
+
+concurrency:
+  group: image-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  image-smoke:
+    name: Build and smoke the production image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # The script needs only Docker and curl, so there is no npm ci here. It starts
+      # its own Postgres and Redis and prints the app container's log on failure.
+      - name: Build and smoke
+        env:
+          APP_RELEASE: ${{ github.sha }}
+        run: bash scripts/image-smoke.sh

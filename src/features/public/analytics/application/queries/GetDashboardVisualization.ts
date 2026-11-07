@@ -1,5 +1,4 @@
-import AppError from "@/utils/AppError.js";
-import { loadEnvOrExit } from "@/config/envManager.js";
+import { ValidationError } from "@/shared/domain/errors/DomainError.js";
 import type { FillMode } from "../../domain/types.js";
 import {
   resolveBucket,
@@ -22,17 +21,28 @@ export type GetDashboardVisualizationInput = {
   limit?: number;
 };
 
+/**
+ * Handed in by `buildAnalyticsFeature` from `VIZ_MAX_BUCKETS` and
+ * `VIZ_DASH_MAX_METRICS` (v6-small-items D-04).
+ */
+export type GetDashboardVisualizationLimits = {
+  maxBuckets: number;
+  maxDashboardMetrics: number;
+};
+
 export class GetDashboardVisualization {
-  constructor(private repo: VisualizationReadRepository) {}
+  constructor(
+    private repo: VisualizationReadRepository,
+    private limits: GetDashboardVisualizationLimits,
+  ) {}
 
   async execute(
     input: GetDashboardVisualizationInput,
   ): Promise<DashboardVizResponse> {
-    const env = loadEnvOrExit();
     const spec = resolveBucket(input.bucket);
-    assertBounds(input.startISO, input.endISO, spec, env.VIZ_MAX_BUCKETS);
+    assertBounds(input.startISO, input.endISO, spec, this.limits.maxBuckets);
 
-    const limit = Math.min(input.limit ?? 12, env.VIZ_DASH_MAX_METRICS);
+    const limit = Math.min(input.limit ?? 12, this.limits.maxDashboardMetrics);
 
     return this.repo.fetchDashboardVisualization({
       userId: input.userId,
@@ -58,14 +68,13 @@ function assertBounds(
   const end = Date.parse(endISO);
 
   if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
-    throw new AppError("Invalid date range", 400);
+    throw new ValidationError("Invalid date range");
   }
 
   const est = Math.ceil((end - start) / spec.approxMs) + 2;
   if (est > maxBuckets) {
-    throw new AppError(
+    throw new ValidationError(
       `Range too large for ${spec.iso} (~${est} buckets, max=${maxBuckets})`,
-      400,
     );
   }
 }

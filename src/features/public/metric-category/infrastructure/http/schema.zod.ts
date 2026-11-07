@@ -4,6 +4,7 @@ import {
   zMetricCategoryName,
   zMetricCategoryColor,
   zMetricCategoryIcon,
+  zStrictBooleanQuery,
 } from "@/constants/zod/zod-rules.js";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 
@@ -11,6 +12,7 @@ extendZodWithOpenApi(z);
 
 const normalizedSearchParam = z
   .union([z.string(), z.undefined(), z.null()])
+  .optional()
   .transform((value) => {
     if (typeof value !== "string") return undefined;
     return value.trim();
@@ -20,17 +22,6 @@ const normalizedSearchParam = z
     ZodMessages.common.searchQueryMin,
   );
 
-const strictBooleanQuery = z
-  .union([z.boolean(), z.string()])
-  .transform((value) => {
-    if (typeof value === "boolean") return value;
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true") return true;
-    if (normalized === "false") return false;
-    return value;
-  })
-  .pipe(z.boolean());
-
 // * Base
 export const metricCategoryBody = z.object({
   name: zMetricCategoryName,
@@ -39,7 +30,7 @@ export const metricCategoryBody = z.object({
 });
 
 export const metricCategoryParams = z.object({
-  id: z.string().uuid({ message: ZodMessages.metricCategory.invalidId }),
+  id: z.string().guid({ message: ZodMessages.metricCategory.invalidId }),
 });
 
 const filterObject = z
@@ -69,10 +60,11 @@ export const listCategoriesQuery = z
     filter: filterObject.optional(),
     after: z
       .union([z.string(), z.undefined(), z.null()])
+      .optional()
       .transform((value) =>
         typeof value === "string" && value.trim().length ? value : undefined,
       ),
-    includeTotal: strictBooleanQuery.optional().default(false),
+    includeTotal: zStrictBooleanQuery.optional().default(false),
   })
   .strict()
   .transform((raw) => {
@@ -110,7 +102,7 @@ export const getAllMetricCategoriesSchema = z.object({
  */
 
 export const createMetricCategoryDummyBody = z.object({
-  // id: z.string().uuid({ message: ZodMessages.metricCategory.invalidId }),
+  // id: z.string().guid({ message: ZodMessages.metricCategory.invalidId }),
   count: z.number().int().min(1).max(1000).default(5), // Default to 5, max 1000
 });
 

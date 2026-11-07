@@ -79,6 +79,6 @@ module.exports = {
 After creating the migration, remind the user to run:
 
 ```bash
-npm run migrate:dev    # Apply to development DB
+npm run migrate:development    # Apply to development DB
 npm run migrate:test   # Apply to test DB
 ```

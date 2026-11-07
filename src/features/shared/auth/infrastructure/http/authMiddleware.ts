@@ -9,6 +9,8 @@ import { MembershipRepositorySequelize } from "../persistence/MembershipReposito
 import { TokenProvider } from "../../application/ports/TokenProvider.js";
 import { JwtTokenProvider } from "../providers/JwtTokenProvider.js";
 import { AuthUser } from "../../domain/entities/AuthUser.js";
+import { DomainError } from "@/shared/domain/errors/DomainError.js";
+import type { TokenClaims } from "../../application/ports/TokenProvider.js";
 
 type Dependencies = {
   userRepo: UserRepository;
@@ -46,8 +48,21 @@ export const makeAuthMiddleware = (
     }
 
     const token = authHeader.split(" ")[1];
+
+    // Only a token that fails verification is the client's fault. Anything else,
+    // a database failure above all, reaches the error handler as itself: a logged
+    // 500, not a 401 that signs the user out (auth-infrastructure-errors-are-5xx D-01).
+    let claims: TokenClaims;
     try {
-      const claims = await tokenProvider.verify(token);
+      claims = await tokenProvider.verify(token);
+    } catch (error) {
+      if (error instanceof DomainError && error.kind === "unauthorized") {
+        return next(new AppError("Unauthorized: Invalid token", 401));
+      }
+      return next(error);
+    }
+
+    try {
       const authUser = await userRepo.findById(claims.userId);
 
       if (!authUser) {
@@ -79,8 +94,9 @@ export const makeAuthMiddleware = (
         userId: membership.userId,
       };
       next();
-    } catch {
-      return next(new AppError("Unauthorized: Invalid token", 401));
+    } catch (error) {
+      // Express 4 does not catch a rejected async middleware.
+      return next(error);
     }
   };
 };
@@ -95,4 +111,12 @@ export const createAuthMiddleware = (
   );
 };
 
-export const authMiddleware = createAuthMiddleware();
+// The default instance is built on its first request, never at import (ADR-0045): sibling
+// routers import this module, and constructing repositories during that import is what
+// let a half-loaded feature hand out `undefined`. The export stays one stable function, so
+// routers and tests can keep referring to it by identity.
+type AuthMiddleware = ReturnType<typeof createAuthMiddleware>;
+let defaultAuthMiddleware: AuthMiddleware | undefined;
+
+export const authMiddleware: AuthMiddleware = (req, res, next) =>
+  (defaultAuthMiddleware ??= createAuthMiddleware())(req, res, next);

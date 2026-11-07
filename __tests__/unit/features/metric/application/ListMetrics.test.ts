@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import AppError from "@/utils/AppError.js";
+import { ForbiddenError } from "@/shared/domain/errors/DomainError.js";
 import { ListMetrics } from "@/features/metric/application/queries/ListMetrics.js";
 import type { ListMetricsResult } from "@/features/metric/application/ports/MetricReadRepository.js";
 
@@ -26,7 +26,7 @@ describe("ListMetrics query", () => {
         limit: 10,
         sort: "-createdAt",
       }),
-    ).rejects.toBeInstanceOf(AppError);
+    ).rejects.toBeInstanceOf(ForbiddenError);
     expect(repo.listMetrics).not.toHaveBeenCalled();
   });
 

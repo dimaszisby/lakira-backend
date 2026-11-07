@@ -5,15 +5,16 @@ import type { buildAuthFeature } from "@/features/auth/feature.js";
 
 type ControllerModule =
   typeof import("@/features/auth/infrastructure/http/controller.js");
-let register: ControllerModule["register"];
-let login: ControllerModule["login"];
-let getProfile: ControllerModule["getProfile"];
-let updateProfile: ControllerModule["updateProfile"];
-let logout: ControllerModule["logout"];
-let verifyEmail: ControllerModule["verifyEmail"];
-let resendVerification: ControllerModule["resendVerification"];
-let switchOrg: ControllerModule["switchOrg"];
-let overrideAuthFeatureForTest: ControllerModule["overrideAuthFeatureForTest"];
+type Handlers = ReturnType<ControllerModule["createAuthController"]>;
+let register: Handlers["register"];
+let login: Handlers["login"];
+let getProfile: Handlers["getProfile"];
+let updateProfile: Handlers["updateProfile"];
+let logout: Handlers["logout"];
+let verifyEmail: Handlers["verifyEmail"];
+let resendVerification: Handlers["resendVerification"];
+let switchOrg: Handlers["switchOrg"];
+let createAuthController: ControllerModule["createAuthController"];
 
 type AuthFeature = ReturnType<typeof buildAuthFeature>;
 type AsyncMock = jest.MockedFunction<(...args: any[]) => Promise<any>>;
@@ -24,7 +25,7 @@ const getProfileExecute: AsyncMock = jest.fn();
 const updateProfileExecute: AsyncMock = jest.fn();
 const rotateRefreshTokenExecute: AsyncMock = jest.fn();
 const revokeRefreshTokenFamilyExecute: AsyncMock = jest.fn();
-const requestEmailVerificationExecute: AsyncMock = jest.fn(
+const scheduleEmailVerificationExecute: AsyncMock = jest.fn(
   async () => undefined,
 ) as unknown as AsyncMock;
 const verifyEmailExecute: AsyncMock = jest.fn();
@@ -33,10 +34,6 @@ const switchOrganizationExecute: AsyncMock = jest.fn();
 const assertAuthenticatedMock = jest.fn();
 
 const checkLockoutMock: AsyncMock = jest.fn(async () => undefined) as AsyncMock;
-const recordFailedAttemptMock: AsyncMock = jest.fn(
-  async () => undefined,
-) as AsyncMock;
-const resetLockoutMock: AsyncMock = jest.fn(async () => undefined) as AsyncMock;
 
 jest.mock("@/utils/auth-guards.js", () => ({
   assertAuthenticated: assertAuthenticatedMock,
@@ -45,15 +42,7 @@ jest.mock("@/utils/auth-guards.js", () => ({
 const loadController = async () => {
   const controller =
     await import("@/features/auth/infrastructure/http/controller.js");
-  register = controller.register;
-  login = controller.login;
-  getProfile = controller.getProfile;
-  updateProfile = controller.updateProfile;
-  logout = controller.logout;
-  verifyEmail = controller.verifyEmail;
-  resendVerification = controller.resendVerification;
-  switchOrg = controller.switchOrg;
-  overrideAuthFeatureForTest = controller.overrideAuthFeatureForTest;
+  createAuthController = controller.createAuthController;
 };
 
 const buildFeatureMocks = (): AuthFeature =>
@@ -64,13 +53,11 @@ const buildFeatureMocks = (): AuthFeature =>
     updateProfile: { execute: updateProfileExecute },
     rotateRefreshToken: { execute: rotateRefreshTokenExecute },
     revokeRefreshTokenFamily: { execute: revokeRefreshTokenFamilyExecute },
-    requestEmailVerification: { execute: requestEmailVerificationExecute },
+    scheduleEmailVerification: { execute: scheduleEmailVerificationExecute },
     verifyEmail: { execute: verifyEmailExecute },
     switchOrganization: { execute: switchOrganizationExecute },
     loginLockout: {
       check: checkLockoutMock,
-      recordFailedAttempt: recordFailedAttemptMock,
-      reset: resetLockoutMock,
     },
   }) as unknown as AuthFeature;
 
@@ -93,7 +80,16 @@ beforeAll(async () => {
 describe("Auth HTTP controller", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    overrideAuthFeatureForTest(buildFeatureMocks());
+    ({
+      register,
+      login,
+      getProfile,
+      updateProfile,
+      logout,
+      verifyEmail,
+      resendVerification,
+      switchOrg,
+    } = createAuthController(buildFeatureMocks()));
   });
 
   it("registers new users via use case", async () => {
@@ -110,6 +106,7 @@ describe("Auth HTTP controller", () => {
     registerExecute.mockResolvedValue({
       token: "jwt",
       user,
+      rawRefreshToken: "refresh-raw",
     });
 
     const req = {
@@ -119,17 +116,33 @@ describe("Auth HTTP controller", () => {
         password: "Password123!",
         passwordConfirmation: "Password123!",
       },
+      headers: { "user-agent": "test" },
+      ip: "127.0.0.1",
     } as unknown as AuthRequest;
 
     const response = res();
     await register(req, response, next);
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(registerExecute).toHaveBeenCalledWith({
       email: "user@example.com",
       username: "tester",
       password: "Password123!",
       passwordConfirmation: "Password123!",
+      isPublicProfile: undefined,
+      userAgent: "test",
+      ip: "127.0.0.1",
     });
+    expect(scheduleEmailVerificationExecute).toHaveBeenCalledWith({
+      userId: "user-1",
+      reason: "register",
+    });
+    // AC-1: registration sets the refresh cookie, as login does.
+    expect(response.cookie).toHaveBeenCalledWith(
+      expect.stringContaining("refresh"),
+      "refresh-raw",
+      expect.objectContaining({ httpOnly: true }),
+    );
     expect(response.status).toHaveBeenCalledWith(201);
     expect(response.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -181,13 +194,15 @@ describe("Auth HTTP controller", () => {
       }),
     );
     expect(checkLockoutMock).toHaveBeenCalledWith("user@example.com");
-    expect(resetLockoutMock).toHaveBeenCalledWith("user@example.com");
-    expect(recordFailedAttemptMock).not.toHaveBeenCalled();
   });
 
-  it("records a failed attempt when login throws 401", async () => {
-    const { default: AppError } = await import("@/utils/AppError.js");
-    loginExecute.mockRejectedValue(new AppError("Invalid credentials", 401));
+  // application-errors D-04: LoginUser counts the failure; the controller only
+  // checks the lockout and hands the error on.
+  it("passes a failed login to the error handler", async () => {
+    const { UnauthorizedError } =
+      await import("@/shared/domain/errors/DomainError.js");
+    const failure = new UnauthorizedError("Invalid email or password");
+    loginExecute.mockRejectedValue(failure);
 
     const req = {
       body: { email: "user@example.com", password: "Password123!" },
@@ -200,9 +215,8 @@ describe("Auth HTTP controller", () => {
     await login(req, response, errorNext);
     await new Promise((resolve) => setImmediate(resolve));
 
-    expect(recordFailedAttemptMock).toHaveBeenCalledWith("user@example.com");
-    expect(resetLockoutMock).not.toHaveBeenCalled();
-    expect(errorNext).toHaveBeenCalledWith(expect.any(Error));
+    expect(checkLockoutMock).toHaveBeenCalledWith("user@example.com");
+    expect(errorNext).toHaveBeenCalledWith(failure);
   });
 
   it("sets Retry-After header and skips use case when lockout returns 429", async () => {
@@ -224,7 +238,6 @@ describe("Auth HTTP controller", () => {
 
     expect(response.setHeader).toHaveBeenCalledWith("Retry-After", "900");
     expect(loginExecute).not.toHaveBeenCalled();
-    expect(recordFailedAttemptMock).not.toHaveBeenCalled();
     expect(errorNext).toHaveBeenCalledWith(expect.any(Error));
   });
 
@@ -371,7 +384,7 @@ describe("Auth HTTP controller", () => {
     );
   });
 
-  it("resends verification email fire-and-forget and returns 200 immediately", async () => {
+  it("schedules the verification email on resend and returns 200", async () => {
     const req = {
       user: { id: "user-1", email: "user@example.com" },
       organizationId: "org-1",
@@ -386,9 +399,9 @@ describe("Auth HTTP controller", () => {
     const response = res();
     await resendVerification(req, response, next);
 
-    expect(requestEmailVerificationExecute).toHaveBeenCalledWith({
+    expect(scheduleEmailVerificationExecute).toHaveBeenCalledWith({
       userId: "user-1",
-      email: "user@example.com",
+      reason: "resend",
     });
     expect(response.status).toHaveBeenCalledWith(200);
     expect(response.json).toHaveBeenCalledWith(

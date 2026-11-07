@@ -1,13 +1,21 @@
-import { UpdateMetricRequestDTO } from "@/types/dtos/metric.dto.js";
+import {
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+} from "@/shared/domain/errors/DomainError.js";
 import { MetricRepository } from "../../domain/repositories/MetricRepository.js";
 import { CachePort } from "../ports/CachePort.js";
-import AppError from "@/utils/AppError.js";
+
+import type { Metric } from "../../domain/entities/Metric.js";
+
+/** The fields a metric can be updated with: what the entity's own `update` accepts. */
+export type UpdateMetricData = Parameters<Metric["update"]>[0];
 
 type Input = {
   userId: string;
   organizationId: string;
   metricId: string;
-  data: UpdateMetricRequestDTO;
+  data: UpdateMetricData;
 };
 
 export class UpdateMetric {
@@ -29,7 +37,7 @@ export class UpdateMetric {
         organizationId,
         data.categoryId,
       );
-      if (!exists) throw new AppError("Category not found", 404);
+      if (!exists) throw new NotFoundError("Category not found");
     }
 
     if (data.originalMetricId != null) {
@@ -37,7 +45,7 @@ export class UpdateMetric {
         userId,
         data.originalMetricId,
       );
-      if (!exists) throw new AppError("Original metric not found", 404);
+      if (!exists) throw new NotFoundError("Original metric not found");
     }
 
     if (data.name !== undefined) {
@@ -49,11 +57,11 @@ export class UpdateMetric {
           organizationId,
           data.name,
         );
-        if (exists) throw new AppError("Metric already exists", 409);
+        if (exists) throw new ConflictError("Metric already exists");
       }
     }
 
-    const update: UpdateMetricRequestDTO = {};
+    const update: UpdateMetricData = {};
     if (data.name !== undefined) update.name = data.name;
     if (data.description !== undefined) {
       update.description = data.description ?? null;
@@ -67,7 +75,7 @@ export class UpdateMetric {
     if (data.isPublic !== undefined) update.isPublic = data.isPublic;
 
     if (!Object.keys(update).length) {
-      throw new AppError("Update payload cannot be empty", 400);
+      throw new ValidationError("Update payload cannot be empty");
     }
 
     metric.update(update);
@@ -75,7 +83,7 @@ export class UpdateMetric {
     const saved = await this.repo.save(organizationId, metric);
 
     if (this.cache.isEnabled() && metric.id) {
-      await this.cache.invalidateMetrics(userId, metric.id);
+      await this.cache.invalidateMetrics(userId, organizationId, metric.id);
     }
 
     return saved;

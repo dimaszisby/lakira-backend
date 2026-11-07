@@ -1,7 +1,7 @@
 import {
   MetricLibraryDomain,
   MetricDomainExtended,
-} from "@/types/domain/metric.domain.js";
+} from "../../domain/metric.domain.js";
 
 export type SortField = "createdAt" | "updatedAt" | "name" | "logCount";
 export type SortParam = SortField | `-${SortField}`;

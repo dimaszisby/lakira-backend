@@ -45,20 +45,64 @@ describe("redactObject", () => {
     expect(redactObject(true, 0)).toBe(true);
   });
 
-  it("stops recursing at depth 5 — objects at that depth are returned as-is", () => {
+  it("stops recursing at depth 5 — an object at that depth is dropped, not returned", () => {
     // Nesting: depth 0 → 1 → 2 → 3 → 4 → bail at 5, so the innermost
-    // object at depth 5 is returned unchanged (password NOT redacted).
+    // object at depth 5 is replaced whole (kit log-redaction-coverage D-07).
     const deep = {
-      a: { a: { a: { a: { a: { password: "should-not-be-redacted" } } } } },
+      a: { a: { a: { a: { a: { note: "should-not-be-written" } } } } },
     };
     const result = redactObject(deep, 0) as Record<
       string,
-      Record<
-        string,
-        Record<string, Record<string, Record<string, Record<string, unknown>>>>
-      >
+      Record<string, Record<string, Record<string, Record<string, unknown>>>>
     >;
-    expect(result.a.a.a.a.a.password).toBe("should-not-be-redacted");
+    expect(result.a.a.a.a.a).toBe("[Truncated]");
+    expect(JSON.stringify(result)).not.toContain("should-not-be-written");
+  });
+
+  it("drops an array at depth 5 as well", () => {
+    const deep = { a: { a: { a: { a: { a: ["should-not-be-written"] } } } } };
+
+    expect(JSON.stringify(redactObject(deep, 0))).not.toContain(
+      "should-not-be-written",
+    );
+  });
+
+  it("keeps a scalar at depth 5", () => {
+    const deep = { a: { a: { a: { a: { a: 7 } } } } };
+
+    expect(redactObject(deep, 0)).toEqual(deep);
+  });
+
+  it("leaves a date as it is", () => {
+    const at = new Date("2026-01-02T03:04:05.000Z");
+
+    expect(redactObject({ at }, 0)).toEqual({ at });
+  });
+
+  // C6: the pattern was suffix-anchored, so none of these four matched.
+  it.each([
+    ["authorization", "Bearer eyJhbGciOi..."],
+    ["cookie", "lakira_refresh=abc123"],
+    ["bearer", "eyJhbGciOi..."],
+    ["passwordHash", "$2b$10$abcdefghijklmnop"],
+    ["passwordConfirmation", "Password123!"],
+  ])("masks %s", (key, value) => {
+    const result = redactObject({ [key]: value }, 0) as Record<string, unknown>;
+    expect(result[key]).toBe("***REDACTED***");
+  });
+
+  // The other half of the same change: over-redaction destroys debugging context.
+  // `etagHash` and `authorId` are the two this could plausibly break.
+  it.each([
+    ["username", "alice"],
+    ["email", "user@example.com"],
+    ["author", "alice"],
+    ["authorId", "user-1"],
+    ["etagHash", "W/abc123"],
+    ["description", "safe"],
+  ])("leaves %s untouched", (key, value) => {
+    const result = redactObject({ [key]: value }, 0) as Record<string, unknown>;
+    expect(result[key]).toBe(value);
   });
 
   it("masks multiple sensitive keys in the same object", () => {

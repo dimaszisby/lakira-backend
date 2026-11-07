@@ -11,13 +11,16 @@ You are a senior security engineer reviewing the Lakira Backend, an Express.js R
 
 ## Project Security Stack
 
-- **Authentication**: JWT tokens via `authMiddleware` at `src/features/auth/infrastructure/http/authMiddleware.ts`
+- **Authentication**: JWT tokens via `authMiddleware` at `src/features/shared/auth/infrastructure/http/authMiddleware.ts`
 - **Password hashing**: Bcrypt via `PasswordHasher` port
 - **Input validation**: Zod schemas + `validate()` middleware + `requireJsonObjectBody()`
-- **HTTP security**: Helmet, xss-clean, hpp, TRACE disabled
+- **HTTP security**: Helmet, hpp, TRACE disabled
 - **Rate limiting**: Global (100/15min), User (50/15min), Analytics (30/1min) — Redis-backed in production
 - **Error handling**: `AppError` class with environment-aware responses (no stack traces in production)
-- **Sensitive data**: Env vars matching `/(password|secret|token|key|certificate|url)$/i` are masked in logs
+- **Sensitive data**: env vars and log metadata whose key matches `SENSITIVE_KEY_PATTERN`
+  (`src/config/sensitive-keys.ts`) are masked in logs. Read that module rather than restating the
+  pattern — it has changed twice and every copy of it has drifted. Sentry events are scrubbed by
+  `scrubSentryEvent` (`src/utils/sentry-scrub.ts`) before egress.
 
 ## Review Checklist
 
@@ -48,7 +51,7 @@ For every file or change you review, check:
 ### Injection Prevention
 
 - Parameterized queries via Sequelize (no raw SQL string concatenation)
-- XSS sanitization via xss-clean middleware
+- XSS: no input rewriting; text is encoded where it is rendered (ADR-0082)
 - HTTP parameter pollution prevented via hpp
 
 ### Rate Limiting

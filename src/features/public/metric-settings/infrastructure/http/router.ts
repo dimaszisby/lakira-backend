@@ -1,14 +1,7 @@
 import { Router } from "express";
-import {
-  createMetricSettings,
-  getMetricSettingsById,
-  updateMetricSettings,
-  deleteMetricSettings,
-  updateGoalAchievement,
-  updateDisplayOptions,
-  getAllMetricSettingsViaCursor,
-} from "./controller.js";
-import { authMiddleware } from "@/features/auth/infrastructure/http/authMiddleware.js";
+import { createMetricSettingsController } from "./controller.js";
+import type { MetricSettingsFeature } from "../../feature.js";
+import { authMiddleware } from "@/features/auth/public.js";
 import { cacheMiddleware } from "@/shared/middleware/cache.js";
 import { userRateLimiter } from "@/shared/middleware/rate-limiter.js";
 import { validate } from "@/shared/middleware/validation.js";
@@ -21,70 +14,15 @@ import {
   updateDisplayOptionsSchema,
   goalAchievementSchema,
 } from "./schema.zod.js";
-import { AuthRequest } from "@/types/request.context.js";
-import logger from "@/utils/logger.js";
-import { buildCursorCacheKey } from "@/shared/cache/keys.js";
 import { methodNotAllowed } from "@/shared/middleware/method-guard.js";
 import { requireJsonObjectBody } from "@/shared/middleware/require-json-object.js";
+import {
+  metricSettingCacheKey,
+  metricSettingsCursorCacheKey,
+} from "./cache-keys.js";
 
-// const metricSettingsCacheKey = (req: AuthRequest) =>
-//   `metricSettings:${req.user?.id}:${req.query.metricId || "all"}`;
-
-const metricSettingCacheKey = (req: AuthRequest) =>
-  `metricSetting:${req.user?.id}:${req.params.id}`;
-
-const firstNonEmpty = (...vals: unknown[]) =>
-  vals.find((v) => typeof v === "string" && v.trim().length > 0) as
-    | string
-    | undefined;
-
-const bool01 = (v: unknown) => (v === true || v === "true" ? "1" : "0");
-
-const asString = (value: unknown): string | undefined =>
-  typeof value === "string" ? value : undefined;
-
-const METRIC_SETTINGS_CURSOR_FEATURE = "metric-settings";
-const METRIC_SETTINGS_CURSOR_VERSION = 2;
-
-const metricSettingsCursorCacheKey = (req: AuthRequest) => {
-  const q = req.query;
-  const filter =
-    (typeof q.filter === "object" && q.filter !== null
-      ? (q.filter as Record<string, unknown>)
-      : undefined) ?? {};
-
-  const metricId =
-    firstNonEmpty(
-      asString(filter.metricId),
-      asString(q["filter[metricId]"]),
-      asString(q.metricId),
-      req.params?.metricId,
-    ) ?? "_";
-
-  const limit = Number(asString(q.limit) ?? 20);
-  const sort = asString(q.sort) ?? "-createdAt";
-  const after = asString(q.after) ?? "";
-  const it = bool01(q.includeTotal);
-
-  const key = buildCursorCacheKey({
-    feature: METRIC_SETTINGS_CURSOR_FEATURE,
-    version: METRIC_SETTINGS_CURSOR_VERSION,
-    userId: req.user?.id,
-    segments: [
-      ["org", req.user?.organizationId],
-      ["l", limit],
-      ["s", sort],
-      ["fm", metricId],
-      ["after", after],
-      ["it", it],
-    ],
-  });
-
-  logger.debug("[CACHE] Generated metric settings cursor key", { key });
-  return key;
-};
-
-export const createMetricSettingsRouter = () => {
+export const createMetricSettingsRouter = (feature: MetricSettingsFeature) => {
+  const controller = createMetricSettingsController(feature);
   const router = Router();
   router.use(authMiddleware);
 
@@ -92,14 +30,14 @@ export const createMetricSettingsRouter = () => {
     "/",
     validate(listMetricSettingsViaCursorSchema),
     cacheMiddleware(metricSettingsCursorCacheKey, 300),
-    getAllMetricSettingsViaCursor,
+    controller.getAllMetricSettingsViaCursor,
   );
 
   router.get(
     "/:id",
     validate(getMetricSettingsSchema),
     cacheMiddleware(metricSettingCacheKey, 300),
-    getMetricSettingsById,
+    controller.getMetricSettingsById,
   );
 
   router.post(
@@ -107,7 +45,7 @@ export const createMetricSettingsRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(createMetricSettingsSchema),
-    createMetricSettings,
+    controller.createMetricSettings,
   );
 
   router.put(
@@ -115,21 +53,21 @@ export const createMetricSettingsRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(updateMetricSettingsSchema),
-    updateMetricSettings,
+    controller.updateMetricSettings,
   );
 
   router.delete(
     "/:id",
     userRateLimiter,
     validate(deleteMetricSettingsSchema),
-    deleteMetricSettings,
+    controller.deleteMetricSettings,
   );
 
   router.patch(
     "/:id/achieve",
     userRateLimiter,
     validate(goalAchievementSchema),
-    updateGoalAchievement,
+    controller.updateGoalAchievement,
   );
 
   router.patch(
@@ -137,7 +75,7 @@ export const createMetricSettingsRouter = () => {
     userRateLimiter,
     requireJsonObjectBody(),
     validate(updateDisplayOptionsSchema),
-    updateDisplayOptions,
+    controller.updateDisplayOptions,
   );
 
   router.all("/", methodNotAllowed(["GET", "POST"]));
@@ -147,5 +85,3 @@ export const createMetricSettingsRouter = () => {
 
   return router;
 };
-
-export const metricSettingsRouter = createMetricSettingsRouter();

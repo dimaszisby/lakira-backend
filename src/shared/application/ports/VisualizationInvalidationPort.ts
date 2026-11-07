@@ -1,5 +1,9 @@
 export interface VisualizationInvalidationPort {
-  invalidateByMetric(userId: string, metricId: string): Promise<void>;
+  invalidateByMetric(
+    userId: string,
+    organizationId: string,
+    metricId: string,
+  ): Promise<void>;
 }
 
 export class NoopVisualizationInvalidation implements VisualizationInvalidationPort {

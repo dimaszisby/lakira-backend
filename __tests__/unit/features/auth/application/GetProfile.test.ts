@@ -1,8 +1,11 @@
 import { jest } from "@jest/globals";
+import {
+  NotFoundError,
+  UnauthorizedError,
+} from "@/shared/domain/errors/DomainError.js";
 import { GetProfile } from "@/features/auth/application/queries/GetProfile.js";
 import { UserRepository } from "@/features/auth/domain/repositories/UserRepository.js";
 import { AuthUser } from "@/features/auth/domain/entities/AuthUser.js";
-import AppError from "@/utils/AppError.js";
 
 const makeUser = () =>
   AuthUser.fromPersistence({
@@ -49,13 +52,13 @@ describe("GetProfile use case", () => {
   it("throws when request lacks user id", async () => {
     const { sut } = build();
 
-    await expect(sut.execute("")).rejects.toBeInstanceOf(AppError);
+    await expect(sut.execute("")).rejects.toBeInstanceOf(UnauthorizedError);
   });
 
   it("throws when user cannot be found", async () => {
     const { sut, repo } = build();
     repo.findById.mockResolvedValue(null);
 
-    await expect(sut.execute("missing")).rejects.toBeInstanceOf(AppError);
+    await expect(sut.execute("missing")).rejects.toBeInstanceOf(NotFoundError);
   });
 });

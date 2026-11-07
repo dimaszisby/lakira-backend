@@ -1,15 +1,6 @@
 import { jest } from "@jest/globals";
 import AppError from "@/utils/AppError.js";
-import {
-  createMetricSettings,
-  deleteMetricSettings,
-  getAllMetricSettingsViaCursor,
-  getMetricSettingsById,
-  overrideMetricSettingsFeatureForTest,
-  updateDisplayOptions,
-  updateGoalAchievement,
-  updateMetricSettings,
-} from "@/features/metric-settings/infrastructure/http/controller.js";
+import { createMetricSettingsController } from "@/features/metric-settings/infrastructure/http/controller.js";
 import { buildMetricSettings } from "../../../../factories/metric-settings.js";
 import { AuthRequest } from "@/types/request.context.js";
 
@@ -39,12 +30,13 @@ type FeatureMock = ReturnType<typeof buildFeatureMock>;
 
 describe("MetricSettings HTTP controller", () => {
   let feature: FeatureMock;
+  let controller: ReturnType<typeof createMetricSettingsController>;
   const res = {} as any;
 
   beforeEach(() => {
     jest.clearAllMocks();
     feature = buildFeatureMock();
-    overrideMetricSettingsFeatureForTest(feature as any);
+    controller = createMetricSettingsController(feature as any);
   });
 
   const makeAuthReq = (overrides: Partial<AuthRequest> = {}): AuthRequest => {
@@ -71,7 +63,7 @@ describe("MetricSettings HTTP controller", () => {
     pickValidatedMock.mockReturnValueOnce(() => ({ body: payload }));
     const req = makeAuthReq({ body: payload });
 
-    await createMetricSettings(req, res, jest.fn());
+    await controller.createMetricSettings(req, res, jest.fn());
 
     expect(feature.createSettings.execute).toHaveBeenCalledWith({
       userId: "user-1",
@@ -97,7 +89,11 @@ describe("MetricSettings HTTP controller", () => {
       query: { limit: 10, sort: "-createdAt" as const },
     }));
 
-    await getAllMetricSettingsViaCursor(makeAuthReq(), res, jest.fn());
+    await controller.getAllMetricSettingsViaCursor(
+      makeAuthReq(),
+      res,
+      jest.fn(),
+    );
 
     expect(feature.listSettings.execute).toHaveBeenCalledWith({
       userId: "user-1",
@@ -123,7 +119,7 @@ describe("MetricSettings HTTP controller", () => {
       params: { id: "settings-3" },
     }));
 
-    await getMetricSettingsById(makeAuthReq(), res, jest.fn());
+    await controller.getMetricSettingsById(makeAuthReq(), res, jest.fn());
 
     expect(feature.getSettings.execute).toHaveBeenCalledWith(
       "user-1",
@@ -150,7 +146,7 @@ describe("MetricSettings HTTP controller", () => {
       body,
     }));
 
-    await updateMetricSettings(makeAuthReq(), res, jest.fn());
+    await controller.updateMetricSettings(makeAuthReq(), res, jest.fn());
 
     expect(feature.updateSettings.execute).toHaveBeenCalledWith(
       "user-1",
@@ -172,7 +168,7 @@ describe("MetricSettings HTTP controller", () => {
       params: { id: "settings-5" },
     }));
 
-    await deleteMetricSettings(makeAuthReq(), res, jest.fn());
+    await controller.deleteMetricSettings(makeAuthReq(), res, jest.fn());
 
     expect(feature.deleteSettings.execute).toHaveBeenCalledWith(
       "user-1",
@@ -194,7 +190,7 @@ describe("MetricSettings HTTP controller", () => {
       params: { id: "settings-6" },
     }));
 
-    await updateGoalAchievement(makeAuthReq(), res, jest.fn());
+    await controller.updateGoalAchievement(makeAuthReq(), res, jest.fn());
 
     expect(feature.updateGoalAchievement.execute).toHaveBeenCalledWith(
       "user-1",
@@ -231,7 +227,7 @@ describe("MetricSettings HTTP controller", () => {
       body: { displayOptions },
     }));
 
-    await updateDisplayOptions(makeAuthReq(), res, jest.fn());
+    await controller.updateDisplayOptions(makeAuthReq(), res, jest.fn());
 
     expect(feature.updateDisplayOptions.execute).toHaveBeenCalledWith(
       "user-1",
@@ -250,7 +246,7 @@ describe("MetricSettings HTTP controller", () => {
   it("bubbles authentication errors via next()", async () => {
     pickValidatedMock.mockReturnValueOnce(() => ({ body: {} }));
     const next = jest.fn();
-    await createMetricSettings({} as AuthRequest, res, next);
+    await controller.createMetricSettings({} as AuthRequest, res, next);
     expect(next).toHaveBeenCalledWith(expect.any(AppError));
   });
 });

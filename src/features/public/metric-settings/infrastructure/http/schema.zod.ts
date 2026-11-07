@@ -9,6 +9,8 @@ import {
   zAlertThresholds,
   zAlertThresholdsOptional,
   zDisplayOptions,
+  zDisplayOptionsObject,
+  zStrictBooleanQuery,
 } from "@/constants/zod/zod-rules.js";
 import { ZodMessages } from "@/constants/zod/zod-messages.js";
 import {
@@ -58,7 +60,7 @@ const settingsUpdateShared = z
     deadlineDate: zDateOptionalNullable,
     alertEnabled: z.boolean().optional(),
     alertThresholds: zAlertThresholdsOptional.nullable(),
-    displayOptions: zDisplayOptions.optional(),
+    displayOptions: zDisplayOptionsObject.optional(),
   })
   .strict();
 
@@ -245,7 +247,7 @@ const metricSettingsCursorBase = z
       z.string().min(1).optional(),
     ),
     after: z.string().optional(),
-    includeTotal: z.coerce.boolean().default(false),
+    includeTotal: zStrictBooleanQuery.optional().default(false),
   })
   .strict();
 

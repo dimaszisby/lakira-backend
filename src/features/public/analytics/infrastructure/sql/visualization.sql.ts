@@ -38,8 +38,11 @@ export function buildVisualizationSQL(spec: BucketSpec) {
       FROM logs
       GROUP BY 1
     )
+    -- A label is the bucket's wall time in :tz, sent with a Z (ADR-0062). As a
+    -- timestamptz read in UTC, the driver reads it the same in every process zone
+    -- (analytics-leftovers D-03).
     SELECT
-      s.bucket_start,
+      timezone('UTC', s.bucket_start) AS bucket_start,
       b.avg_value, b.min_value, b.max_value, b.cnt
     FROM series s
     LEFT JOIN binned b

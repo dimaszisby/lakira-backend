@@ -1,11 +1,15 @@
--- Create the development database
-CREATE DATABASE IF NOT EXISTS lakira_development;
-
--- Create the test database
-CREATE DATABASE IF NOT EXISTS lakira_test_db;
-
--- Grant all privileges on the development database to lakira_user
-GRANT ALL PRIVILEGES ON DATABASE lakira_development TO lakira_user;
-
--- Grant all privileges on the test database to lakira_user
-GRANT ALL PRIVILEGES ON DATABASE lakira_test_db TO lakira_user;
+-- Runs once, on an empty cluster, via /docker-entrypoint-initdb.d.
+--
+-- The development database is already created by the entrypoint from POSTGRES_DB,
+-- so this script only adds the test database that `npm run test:integration` and
+-- `.env.test` expect in the same container.
+--
+-- Note there is no `IF NOT EXISTS`: PostgreSQL does not support it on CREATE
+-- DATABASE (that is MySQL syntax). The previous version of this file used it, so
+-- both statements errored on every run and neither database was ever created here.
+-- An init script only ever runs against an empty cluster, so a plain CREATE is
+-- correct and the guard was never needed.
+--
+-- The script runs as POSTGRES_USER, which therefore owns the database — no GRANT
+-- is required, and none is hardcoded, so this keeps working if DB_USER changes.
+CREATE DATABASE lakira_test_db;

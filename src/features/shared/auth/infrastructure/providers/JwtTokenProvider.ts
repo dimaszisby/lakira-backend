@@ -7,6 +7,10 @@ import {
 } from "../../application/ports/TokenProvider.js";
 import { InvalidTokenError } from "../../domain/errors/InvalidTokenError.js";
 
+// Stated for both directions, so what is issued and what is accepted cannot drift
+// apart on a library default (kit jwt-secret-minimum-length, D-02).
+const TOKEN_ALGORITHM = "HS256";
+
 export class JwtTokenProvider implements TokenProvider {
   constructor(
     private secret: Secret = env.JWT_SECRET,
@@ -14,12 +18,17 @@ export class JwtTokenProvider implements TokenProvider {
   ) {}
 
   sign(payload: TokenPayload): string {
-    return jwt.sign(payload, this.secret, { expiresIn: this.expiresIn });
+    return jwt.sign(payload, this.secret, {
+      algorithm: TOKEN_ALGORITHM,
+      expiresIn: this.expiresIn,
+    });
   }
 
   async verify(token: string): Promise<TokenClaims> {
     try {
-      const decoded = jwt.verify(token, this.secret) as {
+      const decoded = jwt.verify(token, this.secret, {
+        algorithms: [TOKEN_ALGORITHM],
+      }) as {
         id?: string;
         email?: string;
         organizationId?: string;

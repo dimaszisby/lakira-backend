@@ -13,15 +13,12 @@ import {
   changeMemberRoleBody,
   orgIdParam,
   membershipIdParam,
+  membershipPageQuery,
 } from "./organization.schema.zod.js";
-import { buildAuthFeature } from "../../feature.js";
+import { encodeMembershipCursor } from "./membership-cursor.js";
+import type { AuthFeature } from "../../feature.js";
 
-type OrgFeature = ReturnType<typeof buildAuthFeature>;
-let feature: OrgFeature = buildAuthFeature();
-
-export const overrideOrgFeatureForTest = (custom: OrgFeature) => {
-  feature = custom;
-};
+type OrgFeature = AuthFeature;
 
 const pickCreateInvite = pickValidated(
   z.object({ body: createInviteBody, params: orgIdParam }),
@@ -31,10 +28,15 @@ const pickChangeMemberRole = pickValidated(
   z.object({ body: changeMemberRoleBody, params: membershipIdParam }),
 );
 const pickMembershipId = pickValidated(z.object({ params: membershipIdParam }));
-const pickOrgId = pickValidated(z.object({ params: orgIdParam }));
+const pickMembersPage = pickValidated(
+  z.object({ params: orgIdParam, query: membershipPageQuery }),
+);
+const pickOrganizationsPage = pickValidated(
+  z.object({ query: membershipPageQuery }),
+);
 
-export const createInvite = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const createInvite = (feature: OrgFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const {
       body: { email, role },
@@ -55,11 +57,10 @@ export const createInvite = catchAsync(
     });
 
     successResponse(res, 201, null, "Invitation sent successfully");
-  },
-);
+  });
 
-export const acceptInvite = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const acceptInvite = (feature: OrgFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const {
       body: { token },
@@ -71,11 +72,10 @@ export const acceptInvite = catchAsync(
     });
 
     successResponse(res, 200, null, "Invitation accepted");
-  },
-);
+  });
 
-export const removeMembership = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const removeMembership = (feature: OrgFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const {
       params: { id: membershipId },
@@ -91,11 +91,10 @@ export const removeMembership = catchAsync(
     });
 
     successResponse(res, 200, null, "Member removed successfully");
-  },
-);
+  });
 
-export const changeMemberRole = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const changeMemberRole = (feature: OrgFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const {
       body: { role },
@@ -112,23 +111,59 @@ export const changeMemberRole = catchAsync(
     });
 
     successResponse(res, 200, null, "Member role updated successfully");
-  },
-);
+  });
 
-export const listMembers = catchAsync(
-  async (req: AuthRequest, res: Response) => {
+const listMembers = (feature: OrgFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const {
       params: { id: organizationId },
-    } = pickOrgId(req);
+      query: { limit, after },
+    } = pickMembersPage(req);
 
     if (req.membership.organizationId !== organizationId) {
       throw new AppError("Forbidden: not a member of this organization", 403);
     }
 
-    const members =
-      await feature.listOrganizationMembers.execute(organizationId);
+    const { members, next } = await feature.listOrganizationMembers.execute(
+      organizationId,
+      { limit, after },
+    );
 
-    successResponse(res, 200, { members });
-  },
-);
+    successResponse(res, 200, {
+      members,
+      nextCursor: next ? encodeMembershipCursor(next) : null,
+    });
+  });
+
+const listMyOrganizations = (feature: OrgFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
+    assertAuthenticated(req);
+
+    // Scoped by the verified token only; the query pages, it does not select.
+    const {
+      query: { limit, after },
+    } = pickOrganizationsPage(req);
+    const { organizations, next } = await feature.listUserOrganizations.execute(
+      {
+        userId: req.user.id,
+        currentOrganizationId: req.membership.organizationId,
+        page: { limit, after },
+      },
+    );
+
+    successResponse(res, 200, {
+      organizations,
+      nextCursor: next ? encodeMembershipCursor(next) : null,
+    });
+  });
+
+/** Every handler, closed over the feature the router hands it (ADR-0072). */
+export const createOrganizationController = (feature: OrgFeature) => ({
+  createInvite: createInvite(feature),
+  acceptInvite: acceptInvite(feature),
+  removeMembership: removeMembership(feature),
+  changeMemberRole: changeMemberRole(feature),
+  listMembers: listMembers(feature),
+  listMyOrganizations: listMyOrganizations(feature),
+});

@@ -1,5 +1,8 @@
-import AppError from "@/utils/AppError.js";
-import type { MetricAccessPort } from "@/features/public/metric/application/ports/MetricAccessPort.js";
+import {
+  UnauthorizedError,
+  ValidationError,
+} from "@/shared/domain/errors/DomainError.js";
+import type { MetricAccessPort } from "../ports/MetricAccessPort.js";
 import type { TrendRepository, TrendPoint } from "../ports/TrendRepository.js";
 
 type GetMetricTrendInput = {
@@ -23,8 +26,8 @@ export class GetMetricTrend {
     metricId,
     days = 30,
   }: GetMetricTrendInput): Promise<TrendPoint[]> {
-    if (!userId) throw new AppError("User not authenticated", 401);
-    if (!metricId) throw new AppError("Metric ID is required", 400);
+    if (!userId) throw new UnauthorizedError("User not authenticated");
+    if (!metricId) throw new ValidationError("Metric ID is required");
 
     await this.metricAccess.ensureMetricOwnership(
       userId,

@@ -1,5 +1,5 @@
+import { ValidationError } from "@/shared/domain/errors/DomainError.js";
 import crypto from "node:crypto";
-import AppError from "@/utils/AppError.js";
 import { UserRepository } from "../../domain/repositories/UserRepository.js";
 import { EmailVerificationTokenRepository } from "../../domain/repositories/EmailVerificationTokenRepository.js";
 
@@ -29,12 +29,12 @@ export class VerifyEmail {
 
     const token = await this.tokenRepo.findByTokenHash(tokenHash);
     if (!token || !token.isUsable(now)) {
-      throw new AppError(INVALID_TOKEN_MESSAGE, 400);
+      throw new ValidationError(INVALID_TOKEN_MESSAGE);
     }
 
     const user = await this.userRepo.findById(token.userId);
     if (!user) {
-      throw new AppError(INVALID_TOKEN_MESSAGE, 400);
+      throw new ValidationError(INVALID_TOKEN_MESSAGE);
     }
 
     user.setEmailVerifiedAt(now);
