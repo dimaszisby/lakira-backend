@@ -21,6 +21,26 @@ const JWT_SECRET_TEMPLATE_PLACEHOLDER = "replace-with-a-long-random-secret";
 const SENTRY_DSN_SHAPE =
   /^(?:(\w+):)\/\/(?:(\w+)(?::(\w+)?)?@)((?:\[[:.%\w]+\]|[\w.-]+))(?::(\d+))?\/(.+)/;
 
+// A CORS entry as the browser spells `Origin`: lowercase scheme and host, no
+// trailing slash, no default port. Anything more than an origin is undefined
+// (#245, ADR-0088).
+const bareOrigin = (entry: string): string | undefined => {
+  let url: URL;
+  try {
+    url = new URL(entry);
+  } catch {
+    return undefined;
+  }
+  const isOrigin =
+    (url.protocol === "http:" || url.protocol === "https:") &&
+    url.username === "" &&
+    url.password === "" &&
+    url.pathname === "/" &&
+    !entry.includes("?") &&
+    !entry.includes("#");
+  return isOrigin ? url.origin : undefined;
+};
+
 const nodeEnvSchema = z
   .preprocess(
     (val) => (typeof val === "string" ? val.toLowerCase() : val),
@@ -82,16 +102,29 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
       // CORS
       // Comma-separated list of allowed origins. Single origin still works
       // (parses to a 1-element array). Empty entries are dropped after trimming.
+      // Each entry is kept as its origin, the browser's spelling, and one that
+      // is not an origin is refused by position, never quoted (#245, ADR-0088).
       CORS_ORIGIN: z
         .string()
         .optional()
-        .transform((val) => {
+        .transform((val, ctx) => {
           if (val === undefined) return undefined;
-          const parsed = val
+          const entries = val
             .split(",")
             .map((origin) => origin.trim())
             .filter((origin) => origin.length > 0);
-          return parsed.length > 0 ? parsed : undefined;
+          const origins = entries.map(bareOrigin);
+          origins.forEach((origin, index) => {
+            if (origin === undefined) {
+              ctx.addIssue({
+                code: "custom",
+                message: `CORS_ORIGIN entry ${index + 1} is not a bare origin; write a scheme and host, like https://example.com`,
+              });
+            }
+          });
+          if (origins.some((origin) => origin === undefined)) return z.NEVER;
+          const unique = [...new Set(origins as string[])];
+          return unique.length > 0 ? unique : undefined;
         }),
 
       // Database URLs (separate environment variables for dev/test/prod)
