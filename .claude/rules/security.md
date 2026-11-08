@@ -124,7 +124,11 @@ and limits stop being shared across instances (twelve-factor TF-12).
   `logentry`, breadcrumbs) loses email addresses, JWTs, bearer tokens, query strings and the
   userinfo of a URL of any scheme by pattern; it does **not** lose a name or any other detail a
   message holds, so do not put one in an error message. A database span keeps its operation and
-  never its statement
+  never its statement. Span attributes, and the root span's on an error event, pass an allowlist
+  by name (`SPAN_ATTRIBUTE_ALLOWED`, ADR-0091): a new attribute is dropped until it is added there.
+  `server_name` loses an address. Each hook is guarded: an event or a log whose scrubber throws
+  is dropped, and a span, which the SDK would send raw, goes out as `[scrub failed]` with no
+  attributes
 - Never log passwords, tokens, or PII
 - Redaction is by key and does not scan message text, so nothing personal is ever interpolated
   into a log message. Name a person by user id; where there is no user, name an email address by
