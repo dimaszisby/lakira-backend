@@ -23,6 +23,7 @@ import { env } from "@/config/envManager.js";
 import { redisClient, disconnectRedis } from "@/utils/redis-client.js";
 import { MetricLogCacheRedis } from "@/features/public/metric-log/infrastructure/cache/MetricLogCacheRedis.js";
 import { AnalyticsVisualizationInvalidationAdapter } from "@/features/public/analytics/infrastructure/cache/VisualizationInvalidationAdapter.js";
+import { MetricCacheRedis } from "@/features/public/metric/infrastructure/cache/MetricCacheRedis.js";
 import {
   METRIC_LOG_CURSOR_FEATURE,
   METRIC_LOG_CURSOR_VERSION,
@@ -70,9 +71,9 @@ const tenantKeys = (org: string, user: string, metric: string, log: string) => {
 };
 
 const TARGET_KEYS = tenantKeys(ORG, USER, METRIC, LOG);
-// A log write does not delete the `metric:` entries, so they stay seeded but
-// unchecked.
-const DELETED_KEYS = TARGET_KEYS.filter((key) => !key.startsWith("metric:"));
+// A log write deletes every one of them, the `metric:` entries included since
+// #251.
+const DELETED_KEYS = TARGET_KEYS;
 
 const setAll = async (keys: string[]) => {
   for (let i = 0; i < keys.length; i += 1_000) {
@@ -163,6 +164,7 @@ const measureSize = async (size: number) => {
 
   const cache = new MetricLogCacheRedis(
     new AnalyticsVisualizationInvalidationAdapter(),
+    new MetricCacheRedis(),
   );
   const store = createLimiterStore();
   const durations: number[] = [];

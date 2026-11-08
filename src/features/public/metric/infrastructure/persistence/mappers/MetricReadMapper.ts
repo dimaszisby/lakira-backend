@@ -63,6 +63,19 @@ export const toDomainMetric = (metric: Metric): MetricDomain => {
   };
 };
 
+/**
+ * The `logCount` a list query computes. A Sequelize row holds a computed column
+ * only in its dataValues, readable through `get`; as a property it is undefined,
+ * so every metric listed with 0 (#251). A plain object carries it as a property.
+ */
+export const logCountOf = (row: object): number => {
+  const value =
+    typeof (row as { get?: unknown }).get === "function"
+      ? (row as { get: (key: string) => unknown }).get("logCount")
+      : (row as { logCount?: unknown }).logCount;
+  return Number((value as number | string | undefined) ?? 0);
+};
+
 export const toDomainMetricLibrary = (
   metric: MetricWithAssociations & { logCount?: number | string },
 ): MetricLibraryDomain => {
@@ -70,7 +83,7 @@ export const toDomainMetricLibrary = (
 
   const rawCategory = metric.MetricCategory ?? metric.category ?? null;
   const categoryDomain = rawCategory ? toDomainCategoryInfo(rawCategory) : null;
-  const logCount = Number(metric.logCount ?? 0);
+  const logCount = logCountOf(metric);
 
   return {
     id: metric.id,

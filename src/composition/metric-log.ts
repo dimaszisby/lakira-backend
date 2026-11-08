@@ -1,5 +1,8 @@
 import { AnalyticsVisualizationInvalidationAdapter } from "@/features/analytics/public.js";
-import { MetricAccessSequelize } from "@/features/metric/public.js";
+import {
+  MetricAccessSequelize,
+  MetricCacheRedis,
+} from "@/features/metric/public.js";
 import {
   buildMetricLogFeature,
   type MetricLogFeatureDeps,
@@ -21,15 +24,17 @@ import {
  *
  * `overrides` is for what legitimately differs per process: the server passes
  * its message queue and the access adapter it shares, the worker enqueues
- * nothing and gets an adapter of its own.
+ * nothing and gets an adapter of its own. A log write clears the metric's
+ * cached list and entry through metric's cache adapter, joined here too (#251).
  */
 export const buildWiredMetricLogFeature = ({
   metricAccess = new MetricAccessSequelize(),
+  metricCache = new MetricCacheRedis(),
   ...overrides
 }: Omit<MetricLogFeatureOverrides, "visualizationInvalidator"> &
   Partial<MetricLogFeatureDeps> = {}) =>
   buildMetricLogFeature(
-    { metricAccess },
+    { metricAccess, metricCache },
     {
       ...overrides,
       visualizationInvalidator: new AnalyticsVisualizationInvalidationAdapter(),

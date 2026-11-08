@@ -199,9 +199,10 @@ describe("GET /metric-logs/stats", () => {
         await redisClient.set(key, "{}");
       }
 
-      const cache = new MetricLogCacheRedis({
-        invalidateByMetric: async () => {},
-      });
+      const cache = new MetricLogCacheRedis(
+        { invalidateByMetric: async () => {} },
+        { invalidateMetrics: async () => {} },
+      );
       await cache.invalidate(userId, organizationId, metricId);
 
       for (const key of cleared) {
