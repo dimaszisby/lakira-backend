@@ -1,7 +1,7 @@
 import { isIP } from "node:net";
 import type { NodeOptions } from "@sentry/node";
 import { SENSITIVE_KEY_PATTERN } from "../config/sensitive-keys.js";
-import { redactObject } from "./logger.js";
+import logger, { redactObject } from "./logger.js";
 import { maskQuotedValues } from "./mask-quoted-values.js";
 import { EMAIL_IN_TEXT, maskEmails } from "./mask-emails.js";
 
@@ -11,6 +11,7 @@ import { EMAIL_IN_TEXT, maskEmails } from "./mask-emails.js";
  */
 export type ScrubbableEvent = {
   message?: string;
+  server_name?: string;
   transaction?: string;
   tags?: Record<string, unknown>;
   logentry?: { message?: string; params?: unknown[] };
@@ -178,6 +179,16 @@ const DROPPED_KEY =
 const MAX_DEPTH = 5;
 
 /**
+ * The span attributes that leave, by name (#256, ADR-0091). Anything else is
+ * dropped, so an SDK upgrade that adds an attribute can only send less. Sentry's
+ * own `sentry.*` keys are what its UI reads. The host names and ports are kept on
+ * purpose: they are how a trace is read (log-redaction-coverage D-13). A kept
+ * value is still cleaned as before.
+ */
+const SPAN_ATTRIBUTE_ALLOWED =
+  /^(sentry\.[\w.]+|http\.(request\.method|response\.status_code|route|response_content_length|url|target)|url\.(path|full|scheme)|express\.(name|type)|db\.(system(\.name)?|operation(\.name)?|namespace|name)|server\.(address|port)|net\.(host|peer)\.(name|port)|user\.id)$/;
+
+/**
  * One value of span attributes or breadcrumb data, at any depth: a console
  * breadcrumb keeps its raw arguments in an array. A URL keeps its path, where the
  * key-based mask would have blanked it: `url` is on the sensitive list because a
@@ -213,6 +224,18 @@ const scrubData = (
   return out;
 };
 
+/** Span or trace attributes: the allowlisted ones, cleaned. */
+const scrubSpanAttributes = (
+  attributes: Record<string, unknown>,
+): Record<string, unknown> =>
+  scrubData(
+    Object.fromEntries(
+      Object.entries(attributes).filter(([key]) =>
+        SPAN_ATTRIBUTE_ALLOWED.test(key),
+      ),
+    ),
+  );
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -233,6 +256,10 @@ export const scrubSentryEvent = <T extends ScrubbableEvent>(event: T): T => {
   // The matched route as a rule, but an unmatched raw path reaches it as well.
   if (typeof event.transaction === "string") {
     event.transaction = scrubText(event.transaction);
+  }
+  // The SDK sets it to the host name, which can be an address (#256).
+  if (typeof event.server_name === "string") {
+    event.server_name = maskAddresses(event.server_name);
   }
   if (isRecord(event.tags)) event.tags = scrubData(event.tags);
   if (event.logentry) {
@@ -292,7 +319,9 @@ export const scrubSentryEvent = <T extends ScrubbableEvent>(event: T): T => {
     // are cleaned from the original: the key-based mask would blank a `url` key.
     const trace = event.contexts.trace;
     const traceData =
-      isRecord(trace) && isRecord(trace.data) ? scrubData(trace.data) : null;
+      isRecord(trace) && isRecord(trace.data)
+        ? scrubSpanAttributes(trace.data)
+        : null;
     // A socket error's context carries the address it failed to reach.
     event.contexts = maskAddressesDeep(
       redactObject(event.contexts, 0),
@@ -335,7 +364,9 @@ export const scrubSentrySpan = <T extends ScrubbableSpan>(span: T): T => {
   } else if (typeof span.name === "string") {
     span.name = scrubText(span.name);
   }
-  if (isRecord(span.attributes)) span.attributes = scrubData(span.attributes);
+  if (isRecord(span.attributes)) {
+    span.attributes = scrubSpanAttributes(span.attributes);
+  }
   return span;
 };
 
@@ -351,12 +382,66 @@ export const scrubSentryLog = <T extends ScrubbableLog>(log: T): T => {
   return log;
 };
 
+type ScrubHooks = {
+  beforeSend: <T extends ScrubbableEvent>(event: T) => T;
+  beforeSendSpan: <T extends ScrubbableSpan>(span: T) => T;
+  beforeSendLog: <T extends ScrubbableLog>(log: T) => T;
+};
+
+/** One line for a hook that threw: its name and the error's, never its message. */
+const scrubFailed = (hook: string, error: unknown) =>
+  logger.warn(`[SENTRY] ${hook} threw; nothing unscrubbed was sent`, {
+    errorName: error instanceof Error ? error.name : typeof error,
+  });
+
+/**
+ * The hooks, each guarded (#256, ADR-0091). An error event or a log whose
+ * scrubber throws is dropped. A span cannot be: the SDK sends it unmodified when
+ * its hook throws or returns nothing. So it goes out as its ids and times alone,
+ * named "[scrub failed]", with no attributes and no links.
+ */
+export const guardScrubHooks = ({
+  beforeSend,
+  beforeSendSpan,
+  beforeSendLog,
+}: ScrubHooks) => ({
+  beforeSend: <T extends ScrubbableEvent>(event: T): T | null => {
+    try {
+      return beforeSend(event);
+    } catch (error) {
+      scrubFailed("beforeSend", error);
+      return null;
+    }
+  },
+  beforeSendSpan: <T extends ScrubbableSpan & { links?: unknown }>(
+    span: T,
+  ): T => {
+    try {
+      return beforeSendSpan(span);
+    } catch (error) {
+      scrubFailed("beforeSendSpan", error);
+      span.name = "[scrub failed]";
+      span.attributes = {};
+      delete span.links;
+      return span;
+    }
+  },
+  beforeSendLog: <T extends ScrubbableLog>(log: T): T | null => {
+    try {
+      return beforeSendLog(log);
+    } catch (error) {
+      scrubFailed("beforeSendLog", error);
+      return null;
+    }
+  },
+});
+
 /** Every hook `Sentry.init` takes, as one object, so none is left out of it. */
-export const SENTRY_SCRUB_HOOKS = {
+export const SENTRY_SCRUB_HOOKS = guardScrubHooks({
   beforeSend: scrubSentryEvent,
   beforeSendSpan: scrubSentrySpan,
   beforeSendLog: scrubSentryLog,
-};
+});
 
 /**
  * What the SDK may collect on its own: nothing. Sentry 11 replaced `sendDefaultPii`

@@ -316,12 +316,8 @@ describe("scrubSentrySpan", () => {
       },
     });
 
-    expect(span.attributes).toEqual({
-      "sentry.op": "http.server",
-      "http.request.header.authorization": "***REDACTED***",
-      "http.request.header.cookie": "***REDACTED***",
-      "http.request.header.accept": ["application/json"],
-    });
+    // Request headers are not on the allowlist (#256, ADR-0091).
+    expect(span.attributes).toEqual({ "sentry.op": "http.server" });
   });
 });
 
@@ -535,10 +531,12 @@ describe("scrubSentrySpan: network addresses", () => {
     expect(scrubbed({ "some.future.attribute": value })).toEqual({});
   });
 
-  it("masks an address inside an array, where there is no key to drop", () => {
+  // An unlisted key goes whatever it holds (#256, ADR-0091); an address in an
+  // array is still masked where the denylist applies, in breadcrumb data.
+  it("drops an unlisted attribute holding an array of addresses", () => {
     const data = scrubbed({ hops: ["203.0.113.9", "edge-1"] });
 
-    expect(data).toEqual({ hops: ["***REDACTED***", "edge-1"] });
+    expect(data).toEqual({});
   });
 
   it("drops a known address key whatever its value looks like", () => {
@@ -559,11 +557,61 @@ describe("scrubSentrySpan: network addresses", () => {
       "net.peer.name": "mail.example.com",
       "net.host.port": 5000,
       "net.peer.port": 51234,
-      "app.version": "1.2.3",
       "http.response_content_length": 1234,
     };
 
     expect(scrubbed({ ...kept, "net.peer.ip": "203.0.113.9" })).toEqual(kept);
+  });
+
+  // Issue #256, ADR-0091: an attribute is kept only by name. A denylist let a
+  // new one through until someone named it; now an SDK upgrade can only send less.
+  it("drops every attribute it does not name", () => {
+    expect(
+      scrubbed({
+        "app.version": "1.2.3",
+        "new.thing": "x",
+        "user.email": "alice@example.com",
+        "user.name": "Alice",
+        "cache.key": "cursor:metrics:v4:user-1:q:alice",
+        "http.request.header.x_custom": ["v"],
+        "db.query.parameter.0": "alice@example.com",
+      }),
+    ).toEqual({});
+  });
+
+  it("keeps every attribute it names, its value still cleaned", () => {
+    const kept = {
+      "sentry.origin": "auto.http.otel.http",
+      "sentry.source": "route",
+      "sentry.sample_rate": 1,
+      "http.request.method": "GET",
+      "http.response.status_code": 200,
+      "http.route": "/api/v1/metrics",
+      "http.response_content_length": 10,
+      "url.path": "/api/v1/metrics",
+      "url.scheme": "https",
+      "express.name": "/api/v1/metrics",
+      "express.type": "request_handler",
+      "db.system": "postgresql",
+      "db.system.name": "postgresql",
+      "db.operation": "SELECT",
+      "db.operation.name": "SELECT",
+      "db.namespace": "lakira",
+      "db.name": "lakira",
+      "server.address": "api.example.com",
+      "server.port": 443,
+      "user.id": "user-1",
+    };
+
+    expect(
+      scrubbed({
+        ...kept,
+        "url.full": "https://u:pw@api.example.com/api/v1/metrics?q=alice",
+      }),
+    ).toEqual({
+      ...kept,
+      "url.full": "https://[credentials]@api.example.com/api/v1/metrics",
+    });
   });
 
   it("gives the same span on a second pass", () => {
@@ -582,7 +630,13 @@ describe("scrubSentrySpan: network addresses", () => {
   it("cleans the trace data an error event carries", () => {
     const event = scrubSentryEvent({
       contexts: {
-        trace: { data: { "net.peer.ip": "203.0.113.9", "http.route": "/x" } },
+        trace: {
+          data: {
+            "net.peer.ip": "203.0.113.9",
+            "app.version": "1.2.3",
+            "http.route": "/x",
+          },
+        },
       },
     });
 
@@ -625,6 +679,15 @@ describe("scrubSentrySpan: network addresses", () => {
 
 // What the review of D-13 found: an address also rides outside span attributes.
 describe("scrubSentryEvent: addresses outside span attributes", () => {
+  // Issue #256: the SDK sets it to the host name, which can be an address.
+  it.each([
+    ["203.0.113.9", "[address]"],
+    ["2001:db8::17", "[address]"],
+    ["srv-d51693buibrs73b7ming-9tgmg", "srv-d51693buibrs73b7ming-9tgmg"],
+  ])("masks a server_name of %s as an address only", (name, sent) => {
+    expect(scrubSentryEvent({ server_name: name }).server_name).toBe(sent);
+  });
+
   it("masks the address a socket error's context carries", () => {
     const event = scrubSentryEvent({
       contexts: {
@@ -699,7 +762,7 @@ describe("scrubSentryEvent: addresses outside span attributes", () => {
       attributes: {
         "sentry.op": "http.client",
         "url.full": "http://[address]/api/v1/send",
-        "db.connection_string": "postgresql://[address]/app",
+        // Not on the allowlist, so dropped whole (#256, ADR-0091).
         "http.url": "https://mail.example.com/send",
       },
     });
