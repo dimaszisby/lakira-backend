@@ -128,10 +128,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0088](./adr-0088-cors-origins-are-kept-as-origins.md)                         | CORS origins are kept as origins; anything else is refused at startup                                            | Accepted                                            | 2026-11-06 | issue #245                                        |
 | [ADR-0089](./adr-0089-sentry-sample-rate-is-refused-outside-0-to-1.md)             | SENTRY_TRACES_SAMPLE_RATE is refused outside 0 to 1                                                              | Accepted                                            | 2026-11-07 | issue #247                                        |
 | [ADR-0090](./adr-0090-ci-is-the-only-path-that-deploys-staging.md)                 | CI is the only path that deploys staging, and migrations run only in CI                                          | Accepted                                            | 2026-11-07 | issue #272                                        |
+| [ADR-0091](./adr-0091-span-attributes-pass-an-allowlist.md)                        | Span attributes pass an allowlist, and every scrub hook is guarded                                               | Accepted                                            | 2026-11-08 | issue #256                                        |
 
 ## Adding one
 
-Take the next free number — **ADR-0091** as of 2026-11-07 — copy the shape of an existing record, and write `Status: Accepted` in the pull request that
+Take the next free number — **ADR-0092** as of 2026-11-08 — copy the shape of an existing record, and write `Status: Accepted` in the pull request that
 makes it, once the owner has approved it; `Proposed` only while it waits for that (ADR-0085).
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
