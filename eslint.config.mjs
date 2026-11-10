@@ -117,7 +117,8 @@ const FEATURE_DEEP_IMPORTS_EXCEPT_MODELS = {
 // the third of SaaS-readiness caveat C4's three claims; the application half is
 // audit R7 (application-errors D-02).
 // A regex on the file name, not a list of spellings: the list had three, and the
-// `@utils/` alias and an extensionless relative path got past it (audit-2026-10-10 V4).
+// `@utils/` alias (removed since, ADR-0092) and an extensionless relative path got past it
+// (audit-2026-10-10 V4).
 // Any import whose last segment is `AppError` or `AppError.js` is refused;
 // __tests__/unit/feature-boundaries.lint.test.ts proves each spelling in all four
 // inner layers.
@@ -207,13 +208,18 @@ const APPLICATION_LAYER_ALLOWLIST = onlyFrom(
 // a doubled slash, or one written from the repository root, named a feature the patterns
 // above could not parse: `@/features/metric/../metric-log/domain/...` reached another
 // feature's domain unseen. Applies to every file under src.
-// ADR-0078 (X45): the rule covers the other two aliases of tsconfig.json, `@utils/*` and
-// `@config/*`; `@utils/../features/...` reached another feature past every pattern here.
-const ALIAS = "@(?:utils|config)?/";
+// ADR-0078 (X45) widened it to `@utils/*` and `@config/*`, which ADR-0092 (#259) then removed:
+// the build never rewrote them, so an import through one ran in tests and failed in dist/.
+const ALIAS = "@/";
 const CANONICAL_PATH = {
   regex: `^src/|^${ALIAS}(?:[^/]*/)*\\.{1,2}(?:/|$)|^${ALIAS}(?:.*/)?/`,
   message:
-    "Write the canonical path: `@/...`, `@utils/...` or `@config/...` with no `.` or `..` segment and no doubled slash, or a relative path. A non-canonical spelling hides which feature or layer it reaches (ADR-0074, ADR-0078).",
+    "Write the canonical path: `@/...` with no `.` or `..` segment and no doubled slash, or a relative path. A non-canonical spelling hides which feature or layer it reaches (ADR-0074, ADR-0078).",
+};
+const REMOVED_ALIAS = {
+  regex: "^@(?:utils|config)/",
+  message:
+    "The `@utils/` and `@config/` aliases were removed (ADR-0092): write `@/utils/...` or `@/config/...`.",
 };
 
 // ADR-0058, widened by ADR-0074 (D-04, register row B-29): outside src/features, a file
@@ -257,7 +263,11 @@ const MODEL_ASSOCIATION_FILES = [
 
 // Every block below restates these: a later block that sets no-restricted-imports
 // replaces the rule for the files it matches.
-const BASE_IMPORT_PATTERNS = [...LEGACY_IMPORT_PATTERNS, CANONICAL_PATH];
+const BASE_IMPORT_PATTERNS = [
+  ...LEGACY_IMPORT_PATTERNS,
+  CANONICAL_PATH,
+  REMOVED_ALIAS,
+];
 
 // Every rule above is a no-restricted-imports pattern, and that rule reads static
 // `import` and `export … from` only. A dynamic `import()` or a TypeScript import type

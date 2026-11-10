@@ -32,7 +32,7 @@ Common types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`.
 Follow `.claude/rules/code-style.md`:
 
 - 2-space indent, double quotes, semicolons, trailing commas everywhere (Prettier 3 default `all`).
-- ESM imports with `.js` extensions, path aliases (`@/*`, `@utils/*`).
+- ESM imports with `.js` extensions, through the path alias `@/*` (the only one).
 - camelCase for variables/functions, PascalCase for classes/types, kebab-case for files.
 
 Run `npm run lint:fix && npm run format:write` before committing.

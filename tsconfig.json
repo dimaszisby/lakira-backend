@@ -8,8 +8,6 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@utils/*": ["src/utils/*"],
-      "@config/*": ["src/config/*"],
       "@/features/auth": ["src/features/shared/auth/index"],
       "@/features/auth/*": ["src/features/shared/auth/*"],
       "@/features/metric": ["src/features/public/metric/index"],

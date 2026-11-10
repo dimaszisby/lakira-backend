@@ -54,7 +54,7 @@ Create a complete feature module at `src/features/<audience>/$0/` following this
 ## Critical Conventions
 
 - All imports use `.js` extensions (ESM)
-- Path aliases: `@/*` for `src/*`, `@utils/*`, `@config/*`
+- Path alias: `@/*` for `src/*`, the only one (ADR-0092)
 - Domain layer has ZERO infrastructure imports
 - Use `AppError` for known errors, never raw `throw new Error()`
 - Double quotes, semicolons, 2-space indent
