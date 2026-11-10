@@ -1,4 +1,4 @@
-import express, { Application } from "express";
+import express, { Application, type Response } from "express";
 import swaggerUi from "swagger-ui-express";
 import { env, loadEnvOrExit } from "./config/envManager.js";
 import { getOpenApiDocumentation } from "./lib/openapi/openapi-docs.js";
@@ -52,8 +52,13 @@ export const createApp = (features: AppFeatures): Application => {
   const corsOrigins = loadEnvOrExit().CORS_ORIGIN ?? ["http://localhost:3000"];
 
   const mountProbes = (probed: Application): void => {
+    // A cache between the platform and the app must never answer for a probe:
+    // it would report a dead instance alive, or a recovered one down (#257).
+    const noStore = (res: Response) => res.set("Cache-Control", "no-store");
+
     // Health check — registered before rate limiter so probes are never throttled
     probed.get("/api/v1/health", (_req, res) => {
+      noStore(res);
       res.json({
         status: "ok",
         environment: env.NODE_ENV,
@@ -75,6 +80,7 @@ export const createApp = (features: AppFeatures): Application => {
     });
 
     probed.get("/api/v1/ready", (_req, res) => {
+      noStore(res);
       void readinessProbe()
         .then(({ ok, checks }) => {
           res.status(ok ? 200 : 503).json({

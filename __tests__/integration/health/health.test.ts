@@ -12,6 +12,13 @@ describe("GET /api/v1/health", () => {
     expect(typeof res.body.timestamp).toBe("string");
   });
 
+  // Issue #257: a cache between the platform and the app must never answer for it.
+  it("tells every cache not to store it", async () => {
+    const res = await api.get("/api/v1/health");
+
+    expect(res.headers["cache-control"]).toBe("no-store");
+  });
+
   // ADR-0061: the probes are mounted ahead of the body parsers.
   it("ignores a body it is sent, malformed or not", async () => {
     const res = await api

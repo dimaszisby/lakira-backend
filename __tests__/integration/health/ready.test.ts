@@ -35,6 +35,8 @@ describe("GET /api/v1/ready", () => {
     expect(res.body.status).toBe("ok");
     expect(res.body.checks.db).toBe("ok");
     expect(res.body.checks.redis).toBe("ok");
+    // Issue #257: no cache may answer for the probe, ready or not.
+    expect(res.headers["cache-control"]).toBe("no-store");
   });
 
   it("returns 503 with db:fail when sequelize.authenticate throws", async () => {
@@ -49,6 +51,7 @@ describe("GET /api/v1/ready", () => {
     expect(res.body.status).toBe("degraded");
     expect(res.body.checks.db).toBe("fail");
     expect(res.body.checks.redis).toBe("ok");
+    expect(res.headers["cache-control"]).toBe("no-store");
   });
 
   it("returns 503 with redis:fail when redis.ping throws", async () => {
