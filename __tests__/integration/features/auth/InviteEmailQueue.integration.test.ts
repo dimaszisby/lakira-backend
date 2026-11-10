@@ -287,6 +287,59 @@ describe("The invite email via RabbitMQ", () => {
     expect(accept.status).toBe(200);
   });
 
+  // Issue #249, ADR-0093: a re-invite while the first job still waits replaces the
+  // invite. The first job finds no invite and sends nothing; the second sends the one
+  // email, whose link accepts with the newer role.
+  it("replaces a pending invite whose job has not run: one email, for the new invite", async () => {
+    const { token, orgId, email, username } = await owner();
+
+    expect((await invite(token, orgId, email)).status).toBe(201);
+    const reinvite = await api
+      .post(`/api/v1/organizations/${orgId}/invites`)
+      .set("Authorization", authHeader(token))
+      .send({ email, role: "admin" });
+    expect(reinvite.status).toBe(201);
+
+    await pollUntil(
+      "both jobs to be queued",
+      () => depth(QUEUE),
+      (n) => n === 2,
+    );
+    const rows = await invitesFor(orgId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].role).toBe("admin");
+
+    startConsumer();
+    // The email itself, then both deliveries: `invocations` counts a job when it
+    // starts, so it cannot say the second has finished sending.
+    await pollUntil(
+      "one email",
+      () => sender.sent.length,
+      (n) => n === 1,
+    );
+    await pollUntil(
+      "both jobs to be delivered",
+      () => invocations,
+      (n) => n >= 2,
+    );
+    // The first job found no invite: it never sends, so nothing more can arrive.
+    expect(sender.sent).toHaveLength(1);
+    expect(sender.calls).toBe(1);
+    const sentHash = sha256(tokenFrom(sender.sent[0]));
+    await pollUntil(
+      "the emailed token's hash to commit",
+      async () => (await invitesFor(orgId))[0]?.tokenHash,
+      (hash) => hash === sentHash,
+    );
+
+    const invitee = await createTestUser({ email, username });
+    const accept = await api
+      .post("/api/v1/invites/accept")
+      .set("Authorization", authHeader(invitee.token))
+      .send({ token: tokenFrom(sender.sent[0]) });
+    expect(accept.status).toBe(200);
+  });
+
   // AC-3, first half.
   it("retries a failed send, and the stored hash is the emailed token's", async () => {
     const { token, orgId, email } = await owner();

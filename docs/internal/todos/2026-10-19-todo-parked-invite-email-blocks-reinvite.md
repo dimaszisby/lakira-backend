@@ -1,6 +1,7 @@
 # Todo — an invite whose email never arrived blocks re-inviting
 
-- **Status:** Open. Issue #249 (was register row B-71); waits on the frontend's choice of remedy
+- **Status:** Closed (2026-11-10) by issue #249 (was register row B-71): a re-invite replaces the
+  pending invite, the remedy the frontend chose (ADR-0093)
 - **Created:** 2026-10-19
 - **Owner:** unassigned
 - **Origin:** [`durable-invite-email` D-04](../initiatives/durable-invite-email/decisions.md)

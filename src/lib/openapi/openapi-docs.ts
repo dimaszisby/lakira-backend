@@ -552,7 +552,9 @@ registry.registerPath({
   summary: "Invite a user to the organization",
   description:
     "Sends an invitation email with a single-use token. " +
-    "Only owners and admins can invite. Rejects if a pending invite already exists for the email.",
+    "Only owners and admins can invite. Inviting an address that already has a pending invite replaces it: " +
+    "a new token and expiry, the email sent again, the earlier link no longer accepted, and the newer role applies. " +
+    "A 409 means only that two invites for the same address raced.",
   security: [{ BearerAuth: [] }],
   request: {
     params: z.object({

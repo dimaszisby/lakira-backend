@@ -67,22 +67,107 @@ describe("Organization Membership API", () => {
       expect(emailCapture.sent[0].to).toBe("invitee@example.com");
     });
 
-    it("returns 409 when a pending invite already exists", async () => {
-      const { token } = await createTestUser();
-      const orgId = decodeOrgId(token);
-      const inviteeEmail = buildUserPayload().email;
+    // Issue #249, ADR-0093: re-inviting replaces a pending invite (the frontend's
+    // O-14). A new token, a new expiry, the email sent again; the earlier link stops
+    // working and the newer role wins.
+    describe("re-inviting an address with a pending invite", () => {
+      const inviteAs = (
+        token: string,
+        orgId: string,
+        email: string,
+        role: string,
+      ) =>
+        api
+          .post(`/api/v1/organizations/${orgId}/invites`)
+          .set("Authorization", authHeader(token))
+          .send({ email, role });
 
-      await api
-        .post(`/api/v1/organizations/${orgId}/invites`)
-        .set("Authorization", authHeader(token))
-        .send({ email: inviteeEmail, role: "member" });
+      it("replaces it: 201, one invite with the newer role, and only the new link accepts", async () => {
+        const owner = await createTestUser();
+        const orgId = decodeOrgId(owner.token);
+        const invitee = buildUserPayload();
 
-      const res = await api
-        .post(`/api/v1/organizations/${orgId}/invites`)
-        .set("Authorization", authHeader(token))
-        .send({ email: inviteeEmail, role: "member" });
+        expect(
+          (await inviteAs(owner.token, orgId, invitee.email, "member")).status,
+        ).toBe(201);
+        const firstToken = emailCapture.lastToken();
+        const first = await models.OrganizationInvite.findOne({
+          where: { organizationId: orgId },
+        });
 
-      expect(res.status).toBe(409);
+        const res = await inviteAs(owner.token, orgId, invitee.email, "admin");
+
+        expect(res.status).toBe(201);
+        expect(emailCapture.sent).toHaveLength(2);
+        const rows = await models.OrganizationInvite.findAll({
+          where: { organizationId: orgId },
+        });
+        expect(rows).toHaveLength(1);
+        expect(rows[0].role).toBe("admin");
+        expect(rows[0].expiresAt.getTime()).toBeGreaterThanOrEqual(
+          first!.expiresAt.getTime(),
+        );
+
+        const user = await createTestUser({
+          email: invitee.email,
+          username: invitee.username,
+        });
+        const accept = (rawToken: string) =>
+          api
+            .post("/api/v1/invites/accept")
+            .set("Authorization", authHeader(user.token))
+            .send({ token: rawToken });
+
+        expect((await accept(firstToken)).status).toBe(400);
+        expect((await accept(emailCapture.lastToken())).status).toBe(200);
+        const members = await api
+          .get(`/api/v1/organizations/${orgId}/members`)
+          .set("Authorization", authHeader(owner.token));
+        expect(
+          members.body.data.members.find(
+            (m: { email: string }) => m.email === invitee.email,
+          ).role,
+        ).toBe("admin");
+      });
+
+      // The replacement and its send share one transaction: a failed send leaves
+      // the earlier invite, and its link, as they were.
+      it("keeps the earlier invite and its link when the new send fails", async () => {
+        const owner = await createTestUser();
+        const orgId = decodeOrgId(owner.token);
+        const invitee = buildUserPayload();
+        expect(
+          (await inviteAs(owner.token, orgId, invitee.email, "member")).status,
+        ).toBe(201);
+        const firstToken = emailCapture.lastToken();
+        api = appWith({
+          auth: buildAuthFeature({
+            emailSender: {
+              send: async () => {
+                throw new Error("injected send failure");
+              },
+            },
+          }),
+        });
+
+        expect(
+          (await inviteAs(owner.token, orgId, invitee.email, "admin")).status,
+        ).toBe(500);
+
+        const rows = await models.OrganizationInvite.findAll({
+          where: { organizationId: orgId },
+        });
+        expect(rows.map((row) => row.role)).toEqual(["member"]);
+        const user = await createTestUser({
+          email: invitee.email,
+          username: invitee.username,
+        });
+        const accept = await api
+          .post("/api/v1/invites/accept")
+          .set("Authorization", authHeader(user.token))
+          .send({ token: firstToken });
+        expect(accept.status).toBe(200);
+      });
     });
 
     // durable-invite-email D-03, AC-5: with the queue off, the invite and the
@@ -143,7 +228,10 @@ describe("Organization Membership API", () => {
       const invitesFor = (organizationId: string) =>
         models.OrganizationInvite.findAll({ where: { organizationId } });
 
-      it("AC-1: two concurrent invites store one row and send one email", async () => {
+      // Since #249 a re-invite replaces, so a race ends one of two ways: the second
+      // loses at the index (409), or it replaces the first once committed (201).
+      // Either way one invite remains.
+      it("AC-1: two concurrent invites leave one invite", async () => {
         const { token } = await createTestUser();
         const orgId = decodeOrgId(token);
         const email = buildUserPayload().email;
@@ -157,9 +245,12 @@ describe("Organization Membership API", () => {
           .map((res) => res.status)
           .sort();
 
-        expect(statuses).toEqual([201, 409]);
+        expect(statuses[0]).toBe(201);
+        expect([201, 409]).toContain(statuses[1]);
         expect(await invitesFor(orgId)).toHaveLength(1);
-        expect(emailCapture.sent).toHaveLength(1);
+        expect(emailCapture.sent).toHaveLength(
+          statuses.filter((status) => status === 201).length,
+        );
       });
 
       it("AC-1: a save that skips the check is refused with the same 409", async () => {
@@ -214,7 +305,8 @@ describe("Organization Membership API", () => {
         expect(await invitesFor(orgId)).toHaveLength(2);
       });
 
-      it("AC-5: an invite stored in another case still conflicts", async () => {
+      // Since #249 it is replaced, matched as the index matches.
+      it("AC-5: an invite stored in another case is replaced", async () => {
         const { token } = await createTestUser();
         const orgId = decodeOrgId(token);
         await models.OrganizationInvite.create({
@@ -227,8 +319,11 @@ describe("Organization Membership API", () => {
 
         const res = await invite(token, orgId, "mixed.case@example.com");
 
-        expect(res.status).toBe(409);
-        expect(await invitesFor(orgId)).toHaveLength(1);
+        expect(res.status).toBe(201);
+        const rows = await invitesFor(orgId);
+        expect(rows.map((row) => row.email)).toEqual([
+          "mixed.case@example.com",
+        ]);
       });
     });
   });
