@@ -82,25 +82,10 @@ export class OrganizationInviteRepositorySequelize implements OrganizationInvite
     return row ? toDomain(row) : null;
   }
 
-  async findPendingByEmailAndOrg(
+  async deletePendingByEmailAndOrg(
     email: string,
     organizationId: string,
-  ): Promise<OrganizationInvite | null> {
-    const row = await models.OrganizationInvite.findOne({
-      where: {
-        email,
-        organizationId,
-        acceptedAt: { [Op.is]: null },
-        expiresAt: { [Op.gt]: new Date() },
-      },
-    });
-    return row ? toDomain(row) : null;
-  }
-
-  async deleteExpiredPendingByEmailAndOrg(
-    email: string,
-    organizationId: string,
-    now: Date,
+    tx?: PersistenceTransaction,
   ): Promise<void> {
     // Matched as the index matches, so a row stored in another case goes too.
     await models.OrganizationInvite.destroy({
@@ -109,9 +94,9 @@ export class OrganizationInviteRepositorySequelize implements OrganizationInvite
           where(fn("lower", col("email")), email.toLowerCase()),
           { organizationId },
           { acceptedAt: { [Op.is]: null } },
-          { expiresAt: { [Op.lte]: now } },
         ],
       },
+      transaction: tx as Transaction | undefined,
     });
   }
 

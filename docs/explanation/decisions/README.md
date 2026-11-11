@@ -130,10 +130,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0090](./adr-0090-ci-is-the-only-path-that-deploys-staging.md)                 | CI is the only path that deploys staging, and migrations run only in CI                                              | Accepted                                            | 2026-11-07 | issue #272                                        |
 | [ADR-0091](./adr-0091-span-attributes-pass-an-allowlist.md)                        | Span attributes pass an allowlist, and every scrub hook is guarded                                                   | Accepted                                            | 2026-11-08 | issue #256                                        |
 | [ADR-0092](./adr-0092-one-import-alias.md)                                         | One import alias, `@/`: `@utils/` and `@config/` are removed (narrows ADR-0001; ADR-0078's widening to them is moot) | Accepted                                            | 2026-11-10 | issue #259                                        |
+| [ADR-0093](./adr-0093-a-reinvite-replaces-the-pending-invite.md)                   | A re-invite replaces the pending invite                                                                              | Accepted                                            | 2026-11-10 | issue #249                                        |
 
 ## Adding one
 
-Take the next free number — **ADR-0093** as of 2026-11-10 — copy the shape of an existing record, and write `Status: Accepted` in the pull request that
+Take the next free number — **ADR-0094** as of 2026-11-10 — copy the shape of an existing record, and write `Status: Accepted` in the pull request that
 makes it, once the owner has approved it; `Proposed` only while it waits for that (ADR-0085).
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.

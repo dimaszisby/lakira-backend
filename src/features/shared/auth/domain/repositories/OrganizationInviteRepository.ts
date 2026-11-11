@@ -22,15 +22,14 @@ export interface OrganizationInviteRepository {
     tx?: PersistenceTransaction,
   ): Promise<OrganizationInvite | null>;
   findByTokenHash(hash: string): Promise<OrganizationInvite | null>;
-  findPendingByEmailAndOrg(
+  /**
+   * Deletes every unaccepted invite for this email, expired or not, matched in any
+   * case as the unique index matches: a re-invite replaces it (#249, ADR-0093).
+   */
+  deletePendingByEmailAndOrg(
     email: string,
     organizationId: string,
-  ): Promise<OrganizationInvite | null>;
-  /** Deletes the unaccepted invites for this email that expired by `now`. */
-  deleteExpiredPendingByEmailAndOrg(
-    email: string,
-    organizationId: string,
-    now: Date,
+    tx?: PersistenceTransaction,
   ): Promise<void>;
   /** The token is minted when the email is sent (durable-invite-email D-02). */
   replaceTokenHash(
