@@ -1,4 +1,5 @@
 import { execFileSync } from "child_process";
+import { readFileSync } from "fs";
 import path from "path";
 
 /**
@@ -443,7 +444,11 @@ describe("feature boundaries in ESLint (ADR-0044)", () => {
     ])(
       "leaves %s free to import it",
       (file) => {
-        expectCases(file, spellings(false));
+        // Not through `@utils/`, which no file may use since ADR-0092 (#259).
+        expectCases(
+          file,
+          spellings(false).filter(({ spec }) => !spec.startsWith("@utils/")),
+        );
       },
       60_000,
     );
@@ -951,8 +956,9 @@ describe("feature boundaries in ESLint (ADR-0044)", () => {
       }
     }, 60_000);
 
-    // X45: the other two aliases were not held to one spelling.
-    it("rejects @utils and @config paths that are not canonical, anywhere under src", () => {
+    // X45 held the other two aliases to one spelling. Issue #259 (ADR-0092) removed
+    // them: the build never rewrote them, so every spelling of either is refused.
+    it("rejects every @utils and @config path, anywhere under src", () => {
       const ODD: Case[] = [
         {
           spec: "@utils/../features/public/metric/domain/x.js",
@@ -968,10 +974,23 @@ describe("feature boundaries in ESLint (ADR-0044)", () => {
       expectCases(INFRASTRUCTURE_FILE, ODD);
       expectCases("src/server.ts", [
         ...ODD,
-        { spec: "@utils/logger.js", rejected: false },
-        { spec: "@config/envManager.js", rejected: false },
+        { spec: "@utils/logger.js", rejected: true },
+        { spec: "@config/envManager.js", rejected: true },
+        { spec: "@/utils/logger.js", rejected: false },
+        { spec: "@/config/envManager.js", rejected: false },
       ]);
     }, 60_000);
+
+    // Issue #259 (ADR-0092): with no mapping, an import through either alias fails
+    // typecheck and Jest, as it always failed in dist/.
+    it("maps neither @utils nor @config in tsconfig.json or Jest", () => {
+      const read = (file: string) =>
+        readFileSync(path.join(ROOT, file), "utf-8");
+
+      // Both hold comments, so neither is plain JSON: each is read as text.
+      expect(read("tsconfig.json")).not.toMatch(/"@(utils|config)\/\*"/);
+      expect(read("jest.config.mjs")).not.toMatch(/\^@(utils|config)\//);
+    });
 
     // X43's rest (architecture-boundaries D-06): an alias of `process` or `module` reaches
     // getBuiltinModule or require under a name no rule reads.

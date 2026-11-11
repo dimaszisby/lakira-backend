@@ -63,9 +63,9 @@ features/{name}/
   `src/lib/openapi/` through one `http/schema.zod` file. Every other file under `src/` imports no
   feature, `public.ts` included: a type that needs a feature's type lives in a feature. Within
   features, the frozen model exception names its six files
-- **One spelling per module** (ADR-0074, ADR-0078): an `@/`, `@utils/` or `@config/` path with a
-  `.` or `..` segment or a doubled slash, or one starting `src/`, is rejected; it hid which
-  feature it reached
+- **One spelling per module** (ADR-0074, ADR-0078): an `@/` path with a `.` or `..` segment or a
+  doubled slash, or one starting `src/`, is rejected; it hid which feature it reached. `@/` is the
+  only alias: `@utils/` and `@config/` are refused, since the build never rewrote them (ADR-0092)
 - **Static imports only under `src/`.** The rules above read `import … from` and `export … from`,
   so the forms they cannot read are refused outright: a dynamic `import()`, an `import("…")` type
   (write `import type { X } from "…"`), anything from node's `module` package

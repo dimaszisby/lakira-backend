@@ -59,7 +59,7 @@ Perform a thorough code review of `$ARGUMENTS` (or all uncommitted changes if no
 - `.js` extensions on all imports
 - Double quotes, semicolons
 - Winston logger used (not `console.log` in app code)
-- Path aliases used (`@/`, `@utils/`, `@config/`)
+- The path alias `@/` used, the only one (ADR-0092)
 
 ### 7. Test Coverage
 

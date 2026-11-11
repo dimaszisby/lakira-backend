@@ -12,7 +12,9 @@
 
 - Always use `.js` extension in import paths, even for TypeScript files (ESM convention)
 - Use ES module syntax (`import`/`export`), never CommonJS (`require`/`module.exports`)
-- Use path aliases: `@/*` for `src/*`, `@utils/*` for `src/utils/*`, `@config/*` for `src/config/*`
+- Use the path alias `@/*` for `src/*` (`@/utils/...`, `@/config/...`). It is the only one: the
+  build rewrites no other, so `@utils/*` and `@config/*` were removed and lint refuses them
+  (ADR-0092)
 
 ## Naming Conventions
 

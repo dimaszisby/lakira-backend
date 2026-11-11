@@ -5,8 +5,6 @@
     "baseUrl": ".", // Base directory to resolve non-relative module names
     "paths": {
       // Define path aliases for cleaner imports
-      "@config/*": ["src/config/*"],
-      "@utils/*": ["src/utils/*"],
       "@tests/*": ["tests/*"]
     },
     "checkJs": false, // Enable type checking on JavaScript files
