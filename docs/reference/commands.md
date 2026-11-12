@@ -42,7 +42,7 @@ npm test        # unit, then integration — the canonical order
 
 | Command                                | Needs    | Does                                      |
 | -------------------------------------- | -------- | ----------------------------------------- |
-| `npm run test:unit`                    | —        | Unit suites, no database                  |
+| `npm run test:unit`                    | —        | Unit suites, no database, across workers  |
 | `npm run test:integration`             | Postgres | Full wiring against a real DB             |
 | `npm run test:e2e`                     | Postgres | End-to-end                                |
 | `npm run test:coverage`                | Postgres | Both layers with coverage                 |
