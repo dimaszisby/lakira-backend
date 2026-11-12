@@ -8,18 +8,9 @@ on:
       - main
       - dev
       - staging
-      # Every working-branch prefix the team uses, per the Conventional Commits types named
-      # in .claude/rules/workflow.md. Without these, a fix/ or chore/ branch gets no CI until
-      # a PR is opened — the pull_request trigger below is the real gate, but there is no
-      # early signal. Keep this list in step with that rule. concurrency (below) cancels
-      # superseded pushes.
-      - "feat/**"
-      - "feature/**" # retired in favour of feat/; kept so pre-existing branches still build
-      - "fix/**"
-      - "chore/**"
-      - "ci/**"
-      - "docs/**"
-      - "refactor/**"
+      # A working branch runs on its pull request, not on its push: both ran the same
+      # commit, and in different concurrency groups, so neither cancelled the other
+      # (#286, ADR-0094). workflow_dispatch runs any branch by hand.
   pull_request:
     branches:
       - main
@@ -52,15 +43,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          check-latest: true
-          cache: npm
-
+      # Node from .nvmrc, and node_modules from a cache keyed on the lockfile and the
+      # Node version; npm ci only on a miss (#286, ADR-0094).
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/install-deps
 
       - name: Lint
         run: npm run lint
@@ -100,15 +86,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          check-latest: true
-          cache: npm
-
+      # Node from .nvmrc, and node_modules from a cache keyed on the lockfile and the
+      # Node version; npm ci only on a miss (#286, ADR-0094).
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/install-deps
 
       - name: Run security framework validation tests
         run: npm run test:unit:security-framework
@@ -159,15 +140,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          check-latest: true
-          cache: npm
-
+      # Node from .nvmrc, and node_modules from a cache keyed on the lockfile and the
+      # Node version; npm ci only on a miss (#286, ADR-0094).
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/install-deps
 
       # Enforces the unit thresholds and writes the JUnit report (ADR-0066).
       - name: Run unit tests with coverage
@@ -242,15 +218,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          check-latest: true
-          cache: npm
-
+      # Node from .nvmrc, and node_modules from a cache keyed on the lockfile and the
+      # Node version; npm ci only on a miss (#286, ADR-0094).
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/install-deps
 
       - name: Run DB migrations (test)
         run: npm run db:migrate:test
@@ -335,15 +306,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          check-latest: true
-          cache: npm
-
+      # Node from .nvmrc, and node_modules from a cache keyed on the lockfile and the
+      # Node version; npm ci only on a miss (#286, ADR-0094).
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/install-deps
 
       - name: Build
         run: npm run build
@@ -455,15 +421,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          check-latest: true
-          cache: npm
-
+      # Node from .nvmrc, and node_modules from a cache keyed on the lockfile and the
+      # Node version; npm ci only on a miss (#286, ADR-0094).
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/install-deps
 
       - name: Build
         run: npm run build
@@ -493,15 +454,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          check-latest: true
-          cache: npm
-
+      # Node from .nvmrc, and node_modules from a cache keyed on the lockfile and the
+      # Node version; npm ci only on a miss (#286, ADR-0094).
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/install-deps
 
       # Fixture-free by design: the contract suite this replaces required twelve
       # environment variables (CI supplied one), and one of them was an auth token that
@@ -545,15 +501,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          check-latest: true
-          cache: npm
-
+      # Node from .nvmrc, and node_modules from a cache keyed on the lockfile and the
+      # Node version; npm ci only on a miss (#286, ADR-0094).
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/install-deps
 
       - name: Verify staging is healthy (smoke gate)
         env:

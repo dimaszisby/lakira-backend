@@ -98,3 +98,15 @@ against the staged copy before the handover, by pointing them at it or by runnin
 the owner has run the `cp`. Say which in the gate report.
 **Why**: The hook protects the file from my edits, not from my tests. A gate run against a tree
 that differs from the commit proves nothing about the commit.
+
+## [2026-11-12] A handoff's "plan mode optional" does not override the rule
+
+**Mistake**: Picking up #286 from a pasted handoff that said "Small; plan mode optional", I cut
+the branch, edited three docs and started the gates without entering plan mode. The task had
+seven steps, two of them owner handovers. The owner had to ask why. The entry of 2026-09-24 on
+`saas-audit-closeout` already names this rule.
+**Rule**: `workflow.md` § Plan Mode Default decides, not a handoff note or an earlier approval of
+the task. "Approved as the next task" approves what to work on, not how. Three or more steps
+means plan mode first, and the plan goes through `ExitPlanMode` before any edit.
+**Why**: A handoff is written by a session that cannot see the next one's context, and the
+owner's approval of the plan is the step that catches a wrong approach cheaply.

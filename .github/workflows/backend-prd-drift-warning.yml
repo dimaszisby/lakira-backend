@@ -11,8 +11,6 @@ on:
       - main
       - dev
       - staging
-      - "feat/**"
-      - "feature/**" # retired in favour of feat/; kept so pre-existing branches still build
   workflow_dispatch:
 
 permissions:
