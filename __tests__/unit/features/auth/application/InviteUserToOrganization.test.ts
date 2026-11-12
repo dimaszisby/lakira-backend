@@ -83,8 +83,7 @@ const build = ({ queueEnabled = false } = {}) => {
     save: jest.fn(),
     findById: jest.fn(),
     findByTokenHash: jest.fn(),
-    findPendingByEmailAndOrg: jest.fn(),
-    deleteExpiredPendingByEmailAndOrg: jest.fn(),
+    deletePendingByEmailAndOrg: jest.fn(),
     replaceTokenHash: jest.fn(),
     deleteById: jest.fn(),
     markAccepted: jest.fn(),
@@ -152,7 +151,6 @@ describe("InviteUserToOrganization", () => {
   it("creates invite and sends email for valid owner request", async () => {
     const { sut, inviteRepo, orgRepo, emailSender } = build();
     orgRepo.findById.mockResolvedValue(makeOrg());
-    inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
     inviteRepo.save.mockResolvedValue(makePendingInvite());
     emailSender.send.mockResolvedValue(undefined);
 
@@ -165,9 +163,10 @@ describe("InviteUserToOrganization", () => {
     });
 
     expect(orgRepo.findById).toHaveBeenCalledWith("org-1");
-    expect(inviteRepo.findPendingByEmailAndOrg).toHaveBeenCalledWith(
+    expect(inviteRepo.deletePendingByEmailAndOrg).toHaveBeenCalledWith(
       "invited@example.com",
       "org-1",
+      TX,
     );
     // With the queue off, the invite is saved inside the send's transaction.
     expect(inviteRepo.save).toHaveBeenCalledWith(
@@ -186,7 +185,6 @@ describe("InviteUserToOrganization", () => {
   it("allows admin to invite", async () => {
     const { sut, inviteRepo, orgRepo, emailSender } = build();
     orgRepo.findById.mockResolvedValue(makeOrg());
-    inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
     inviteRepo.save.mockResolvedValue(makePendingInvite());
     emailSender.send.mockResolvedValue(undefined);
 
@@ -230,28 +228,38 @@ describe("InviteUserToOrganization", () => {
     ).rejects.toMatchObject({ kind: "not_found" });
   });
 
-  it("throws 409 when a pending invite already exists", async () => {
-    const { sut, orgRepo, inviteRepo } = build();
+  // Issue #249, ADR-0093: re-inviting replaces a pending invite, chosen by the
+  // frontend (its O-14). The earlier invite goes, with its token, in the same
+  // transaction that saves the new one; the newer role wins.
+  it("replaces a pending invite in the transaction that saves the new one", async () => {
+    const { sut, orgRepo, inviteRepo, emailSender } = build();
     orgRepo.findById.mockResolvedValue(makeOrg());
-    inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(makePendingInvite());
+    inviteRepo.save.mockResolvedValue(makePendingInvite());
 
     await expect(
-      sut.execute({
-        organizationId: "org-1",
-        email: "invited@example.com",
-        role: "member",
-        inviterUserId: "user-1",
-        inviterRole: "owner",
-      }),
-    ).rejects.toMatchObject({ kind: "conflict" });
+      sut.execute({ ...input, role: "admin" }),
+    ).resolves.toBeUndefined();
+
+    expect(inviteRepo.deletePendingByEmailAndOrg).toHaveBeenCalledWith(
+      "invited@example.com",
+      "org-1",
+      TX,
+    );
+    expect(
+      inviteRepo.deletePendingByEmailAndOrg.mock.invocationCallOrder[0],
+    ).toBeLessThan(inviteRepo.save.mock.invocationCallOrder[0]);
+    expect(inviteRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "admin" }),
+      TX,
+    );
+    expect(emailSender.send).toHaveBeenCalledTimes(1);
   });
 
   // Kit pending-invite-uniqueness, D-01. The unique index covers expired
-  // invites too, so re-inviting first deletes an expired one.
-  it("deletes an expired invite for the email before saving", async () => {
+  // invites too; since #249 every pending one for the address goes first.
+  it("deletes the address's pending invites before saving", async () => {
     const { sut, inviteRepo, orgRepo, emailSender } = build();
     orgRepo.findById.mockResolvedValue(makeOrg());
-    inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
     inviteRepo.save.mockResolvedValue(makePendingInvite());
     emailSender.send.mockResolvedValue(undefined);
 
@@ -263,22 +271,22 @@ describe("InviteUserToOrganization", () => {
       inviterRole: "owner",
     });
 
-    expect(inviteRepo.deleteExpiredPendingByEmailAndOrg).toHaveBeenCalledWith(
+    expect(inviteRepo.deletePendingByEmailAndOrg).toHaveBeenCalledWith(
       "invited@example.com",
       "org-1",
-      NOW,
+      TX,
     );
     expect(
-      inviteRepo.deleteExpiredPendingByEmailAndOrg.mock.invocationCallOrder[0],
+      inviteRepo.deletePendingByEmailAndOrg.mock.invocationCallOrder[0],
     ).toBeLessThan(inviteRepo.save.mock.invocationCallOrder[0]);
   });
 
-  // A concurrent invite that passed the same check loses at the index; the
-  // repository answers 409 and no email goes out.
+  // Two invites for one address racing: the second save loses at the index,
+  // the repository answers 409, and no email goes out. Since #249 that race is
+  // the only 409.
   it("sends no email when save reports a pending invite", async () => {
     const { sut, inviteRepo, orgRepo, emailSender } = build();
     orgRepo.findById.mockResolvedValue(makeOrg());
-    inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
     inviteRepo.save.mockRejectedValue(
       new AppError("An invitation is already pending for this email", 409),
     );
@@ -298,7 +306,6 @@ describe("InviteUserToOrganization", () => {
   it("stores SHA-256 hash, not raw token", async () => {
     const { sut, inviteRepo, orgRepo, emailSender } = build();
     orgRepo.findById.mockResolvedValue(makeOrg());
-    inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
     inviteRepo.save.mockResolvedValue(makePendingInvite());
     emailSender.send.mockResolvedValue(undefined);
 
@@ -317,7 +324,6 @@ describe("InviteUserToOrganization", () => {
   it("throws when email sending fails", async () => {
     const { sut, inviteRepo, orgRepo, emailSender } = build();
     orgRepo.findById.mockResolvedValue(makeOrg());
-    inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
     inviteRepo.save.mockResolvedValue(makePendingInvite());
     emailSender.send.mockRejectedValue(new Error("SMTP down"));
 
@@ -336,7 +342,6 @@ describe("InviteUserToOrganization", () => {
   it("saves and sends inside one transaction with the queue off", async () => {
     const { sut, inviteRepo, orgRepo, emailSender, buildEmailMock } = build();
     orgRepo.findById.mockResolvedValue(makeOrg());
-    inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
     inviteRepo.save.mockResolvedValue(makePendingInvite());
 
     await sut.execute(input);
@@ -356,12 +361,14 @@ describe("InviteUserToOrganization", () => {
         queueEnabled: true,
       });
       orgRepo.findById.mockResolvedValue(makeOrg());
-      inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
       inviteRepo.save.mockResolvedValue(makePendingInvite());
 
       await sut.execute(input);
 
-      expect(inviteRepo.save.mock.calls[0][1]).toBeUndefined();
+      // #249: the replaced invite and the new one commit together, before the
+      // publish; the send is not in that transaction.
+      expect(inviteRepo.deletePendingByEmailAndOrg.mock.calls[0][2]).toBe(TX);
+      expect(inviteRepo.save.mock.calls[0][1]).toBe(TX);
       expect(queue.publish).toHaveBeenCalledTimes(1);
       const [exchange, payload, options] = queue.publish.mock.calls[0];
       expect(exchange).toBe(EXCHANGES.JOBS);
@@ -383,7 +390,6 @@ describe("InviteUserToOrganization", () => {
         idempotency,
       } = build({ queueEnabled: true });
       orgRepo.findById.mockResolvedValue(makeOrg());
-      inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
       inviteRepo.save.mockResolvedValue(makePendingInvite());
       inviteRepo.findById.mockResolvedValue(makePendingInvite());
       queue.publish.mockRejectedValueOnce(new Error("Timeout"));
@@ -414,7 +420,6 @@ describe("InviteUserToOrganization", () => {
         queueEnabled: true,
       });
       orgRepo.findById.mockResolvedValue(makeOrg());
-      inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
       inviteRepo.save.mockResolvedValue(makePendingInvite());
       inviteRepo.findById.mockResolvedValue(makePendingInvite());
       queue.publish.mockRejectedValueOnce(new Error("Timeout"));
@@ -429,7 +434,6 @@ describe("InviteUserToOrganization", () => {
       const { sut, inviteRepo, orgRepo, emailSender, queue, idempotency } =
         build({ queueEnabled: true });
       orgRepo.findById.mockResolvedValue(makeOrg());
-      inviteRepo.findPendingByEmailAndOrg.mockResolvedValue(null);
       inviteRepo.save.mockResolvedValue(makePendingInvite());
       queue.publish.mockRejectedValueOnce(new Error("Timeout"));
       idempotency.outcome.next = "duplicate";

@@ -1,5 +1,4 @@
 import {
-  ConflictError,
   ForbiddenError,
   NotFoundError,
 } from "@/shared/domain/errors/DomainError.js";
@@ -22,7 +21,10 @@ import type {
   OrganizationInvite,
 } from "../../domain/entities/OrganizationInvite.js";
 
-/** Also what the repository answers when the unique index refuses a second invite. */
+/**
+ * What the repository answers when the unique index refuses a second invite: since
+ * #249 a re-invite replaces a pending one, so only two invites racing see it.
+ */
 export const PENDING_INVITE_EXISTS_MESSAGE =
   "An invitation is already pending for this email";
 
@@ -60,9 +62,11 @@ export class InviteUserToOrganization {
   ) {}
 
   /**
-   * Hands the email to the worker when the queue is on (ADR-0070). Otherwise
-   * the invite and the send share one transaction, so a failed send leaves no
-   * invite to answer 409 on the retry (D-03).
+   * A pending invite for the address is replaced: deleted in the transaction that
+   * saves the new one, so its link stops working and the newer role wins (#249,
+   * ADR-0093). Hands the email to the worker when the queue is on (ADR-0070).
+   * Otherwise the replacement and the send share one transaction, so a failed send
+   * leaves the earlier invite as it was (D-03).
    */
   async execute(input: InviteUserToOrganizationInput): Promise<void> {
     if (input.inviterRole !== "owner" && input.inviterRole !== "admin") {
@@ -79,22 +83,6 @@ export class InviteUserToOrganization {
     const email = input.email.trim().toLowerCase();
     const now = this.now();
 
-    // The unique index covers expired invites too, and none of them can be
-    // accepted (kit pending-invite-uniqueness, D-01).
-    await this.inviteRepo.deleteExpiredPendingByEmailAndOrg(
-      email,
-      input.organizationId,
-      now,
-    );
-
-    const pendingInvite = await this.inviteRepo.findPendingByEmailAndOrg(
-      email,
-      input.organizationId,
-    );
-    if (pendingInvite) {
-      throw new ConflictError(PENDING_INVITE_EXISTS_MESSAGE);
-    }
-
     const ttlDays = this.ttlDays();
     const { rawToken, tokenHash } = mintToken();
     const data = {
@@ -105,17 +93,30 @@ export class InviteUserToOrganization {
       expiresAt: new Date(now.getTime() + ttlDays * 24 * 60 * 60 * 1000),
     };
 
+    // Every pending invite for the address goes, expired or not: the unique index
+    // covers them all (kit pending-invite-uniqueness, D-01), and a live one is
+    // replaced (#249).
+    const replace = async (tx: PersistenceTransaction) => {
+      await this.inviteRepo.deletePendingByEmailAndOrg(
+        email,
+        input.organizationId,
+        tx,
+      );
+      return this.inviteRepo.save(data, tx);
+    };
+
     if (!this.queue.isEnabled()) {
       await this.tx.runInTransaction(async (tx) => {
-        await this.inviteRepo.save(data, tx);
+        await replace(tx);
         await this.emailSender.send(this.message(email, org.name, rawToken));
       });
       return;
     }
 
     // Saved with the hash of a token nobody sees; the sender mints the one it
-    // emails (D-02).
-    const invite = await this.inviteRepo.save(data);
+    // emails (D-02). The replaced invite's job, if it still waits, finds no
+    // invite and sends nothing.
+    const invite = await this.tx.runInTransaction(replace);
     const job: InviteEmailJob = { inviteId: invite.id };
     const messageId = randomUUID();
     try {
