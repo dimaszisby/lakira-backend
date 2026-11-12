@@ -49,8 +49,7 @@ The main backend workflow is triggered on:
   - `main`
   - `dev`
   - `staging`
-  - `feat/**`, `fix/**`, `chore/**`, `ci/**`, `docs/**`, `refactor/**` (and legacy `feature/**`)
-- `pull_request` targeting:
+- `pull_request` targeting (a working branch runs here, not on its push; ADR-0094):
   - `main`
   - `dev`
   - `staging`

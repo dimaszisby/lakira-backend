@@ -53,12 +53,6 @@ on:
       - main
       - dev
       - staging
-      - "feat/**"
-      - "fix/**"
-      - "chore/**"
-      - "ci/**"
-      - "docs/**"
-      - "refactor/**"
   pull_request:
     branches:
       - main
@@ -66,6 +60,10 @@ on:
       - staging
   workflow_dispatch:
 ```
+
+A working branch (`feat/`, `fix/` and the rest) runs on its pull request, not on its push: both
+ran the same commit, in different concurrency groups, so neither cancelled the other (#286,
+ADR-0094). `workflow_dispatch` runs any branch by hand.
 
 > Working directory tip: set `defaults.run.working-directory` to the literal backend path (e.g., `.` or `./apps/backend`). GitHub Actions forbids `${{ env.* }}` expressions in this field, so edit the string directly when relocating the backend code.
 
@@ -146,9 +144,22 @@ Avoid unbounded runtimes; keep timeouts visible and justifiable.
 
 ## 4. Node Setup, Install Strategy & Caching
 
+A job that runs the project's npm scripts uses the composite action, which does both steps
+below and caches `node_modules` on the lockfile and the exact Node version, running `npm ci` only
+on a miss (ADR-0094):
+
+```yaml
+- name: Install dependencies
+  uses: ./.github/actions/install-deps
+```
+
+It needs `actions/checkout` first, since the action lives in the repository. Write the two steps
+by hand only where the cache would be wrong: `fork-smoke.yml` installs a freshly bootstrapped
+fork, so it keeps its own `npm ci`.
+
 ### 4.1 Node.js Setup
 
-Use `actions/setup-node@v4` with the version read from `.nvmrc` and npm caching:
+The action uses `actions/setup-node@v4` with the version read from `.nvmrc` and npm caching:
 
 ```yaml
 - name: Use Node.js
@@ -170,15 +181,12 @@ run resolves the newest 24.x (node-24-runtime D-05).
 
 ### 4.2 Dependency Installation
 
-Use `npm ci` instead of `npm install`:
-
-```yaml
-- name: Install dependencies
-  run: npm ci
-```
+On a cache miss the action runs `npm ci`, never `npm install`:
 
 - `npm ci` is deterministic and optimized for CI.
 - Avoid running `npm ci` more than once per job.
+- The `setup-node` npm cache holds downloads only; `npm ci` still unpacks and links every
+  package, 30-51 s a job, which is why `node_modules` itself is cached.
 
 ---
 
@@ -343,12 +351,6 @@ on:
       - main
       - dev
       - staging
-      - "feat/**"
-      - "fix/**"
-      - "chore/**"
-      - "ci/**"
-      - "docs/**"
-      - "refactor/**"
   pull_request:
     branches:
       - main

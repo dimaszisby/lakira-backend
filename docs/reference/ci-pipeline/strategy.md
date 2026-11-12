@@ -37,8 +37,8 @@ Goals:
 
 3. **Small, Fast, Frequent**
    - Pipelines should be fast enough to run on:
-     - Every push to `main`/`dev`/`staging` and to working branches,
-     - Every pull request.
+     - Every push to `main`/`dev`/`staging`,
+     - Every pull request, which is where a working branch runs (ADR-0094).
    - Encourage small PRs and frequent merges.
 
 4. **Environment Parity for Staging**

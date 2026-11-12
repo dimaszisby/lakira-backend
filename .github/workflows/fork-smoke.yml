@@ -17,12 +17,6 @@ on:
       - main
       - dev
       - staging
-      - "feat/**"
-      - "fix/**"
-      - "chore/**"
-      - "ci/**"
-      - "docs/**"
-      - "refactor/**"
   pull_request:
     branches:
       - main
