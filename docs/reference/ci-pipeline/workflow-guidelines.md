@@ -53,12 +53,6 @@ on:
       - main
       - dev
       - staging
-      - "feat/**"
-      - "fix/**"
-      - "chore/**"
-      - "ci/**"
-      - "docs/**"
-      - "refactor/**"
   pull_request:
     branches:
       - main
@@ -66,6 +60,10 @@ on:
       - staging
   workflow_dispatch:
 ```
+
+A working branch (`feat/`, `fix/` and the rest) runs on its pull request, not on its push: both
+ran the same commit, in different concurrency groups, so neither cancelled the other (#286,
+ADR-0094). `workflow_dispatch` runs any branch by hand.
 
 > Working directory tip: set `defaults.run.working-directory` to the literal backend path (e.g., `.` or `./apps/backend`). GitHub Actions forbids `${{ env.* }}` expressions in this field, so edit the string directly when relocating the backend code.
 
@@ -343,12 +341,6 @@ on:
       - main
       - dev
       - staging
-      - "feat/**"
-      - "fix/**"
-      - "chore/**"
-      - "ci/**"
-      - "docs/**"
-      - "refactor/**"
   pull_request:
     branches:
       - main

@@ -1,0 +1,30 @@
+# Node and the project's dependencies, for every CI job that runs npm scripts (#286,
+# ADR-0094). setup-node caches npm's downloads, not node_modules, so npm ci still
+# unpacked and linked every package in each job: 30 to 51 s. node_modules is cached
+# here on the lockfile and the exact Node version, and npm ci runs only on a miss.
+# The one install script, `prepare: husky`, writes git hooks CI never uses.
+name: Install dependencies
+description: Node from .nvmrc, then node_modules from the cache or from npm ci.
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      id: node
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        check-latest: true
+        cache: npm
+
+    - name: Restore node_modules
+      id: modules
+      uses: actions/cache@v4
+      with:
+        path: node_modules
+        key: node-modules-${{ runner.os }}-node${{ steps.node.outputs.node-version }}-${{ hashFiles('package-lock.json') }}
+
+    - name: npm ci (cache miss)
+      if: steps.modules.outputs.cache-hit != 'true'
+      shell: bash
+      run: npm ci
