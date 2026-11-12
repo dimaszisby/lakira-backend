@@ -50,15 +50,10 @@ jobs:
           # shallow clone is not enough.
           fetch-depth: 0
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          check-latest: true
-          cache: npm
-
+      # Node from .nvmrc, and node_modules from a cache keyed on the lockfile and the
+      # Node version; npm ci only on a miss (#286, ADR-0094).
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/install-deps
 
       # Multi-commit PRs take their squash subject from the PR title. Passed via
       # env rather than interpolated into the script: `${{ }}` inside `run:` splices

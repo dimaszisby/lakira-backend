@@ -5,6 +5,9 @@
 - **Related:** issue #286; updates [ADR-0081](./adr-0081-ci-runs-the-suites-in-parallel-behind-a-gate.md)'s
   reasoning on `--runInBand`, and keeps its rule that the test jobs wait for `Security Delta Checks`
 - **Origin:** the CI audit of 2026-11-11; the trigger choice is the owner's, on 2026-11-11
+- **Amended:** 2026-11-12, by the follow-up pull request for #286. The workflows this record
+  describes reached `dev` there, not in #287. The estimate under Consequences was replaced with
+  the measured CI timings; the decision is unchanged.
 
 ---
 
@@ -59,8 +62,17 @@ Security Delta Checks 51-67 s (npm ci 51 s, its checks 6 s)
 
 ## Consequences
 
-- The PR for #286 measures the required checks before and after. The estimate was about 2.5-3
-  minutes, down from about 6.
+- **Workers bought about 8 s on CI, not the local 169 s.** The unit test step took 143 s before
+  (the `dev` push run 42984965496) and 135 s with workers (PR run 43166796092), against 262 s and
+  93 s locally on 12 workers. CI has four CPUs, and the ESLint boundary files start ESLint
+  processes that most likely compete with the workers for them; that is not measured. The
+  decision stands, since it costs nothing, but it is not where the time comes from.
+- **The cache is the remaining gain:** the install took 34-51 s in every job of both runs. The
+  pull request that finishes #286 records its runs' timings on a cache miss and on a hit. This
+  record first estimated about 2.5-3 minutes for the required checks; that estimate assumed the
+  local speed-up and is withdrawn.
+- Once the unit job shrinks, Integration Tests (193 s in run 43166796092) is close behind it on
+  the critical path, and holds it whenever it is the slower of the two.
 - A branch pushed without a pull request gets no CI until one opens, or until someone runs the
   workflow by hand.
 - A cached `node_modules` is restored only for the same lockfile and Node version. A dependency
