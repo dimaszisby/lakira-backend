@@ -263,7 +263,18 @@ registry.registerPath({
   tags: ["Auth"],
   summary: "Log out the current user",
   description:
-    "Revokes the refresh token family associated with the presented cookie or bearer token.",
+    `Revokes the refresh-token family of the \`${APP_SHORT_NAME}_refresh\` cookie, when the ` +
+    "request carries it, and clears the cookie either way. The cookie is the only thing it " +
+    "revokes by: its path covers `/auth/logout`, so a browser sends it here, and a server-side " +
+    "client sends it itself.",
+  request: {
+    cookies: z.object({
+      [`${APP_SHORT_NAME}_refresh`]: z.string().optional().openapi({
+        description: "Opaque refresh token; without it, logout revokes nothing",
+        example: "dGVzdC1yZWZyZXNoLXRva2Vu",
+      }),
+    }),
+  },
   responses: {
     200: {
       description: "User logged out successfully",

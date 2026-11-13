@@ -13,6 +13,11 @@
 > **Differs from point 3:** the cookie is `SameSite=Strict`, not `Lax`, and is named
 > `<app>_refresh` (`controller.ts`). Registration was later added to the issuing endpoints by
 > [ADR-0043](./adr-0043-session-issuance-at-every-authenticated-entry-point.md).
+>
+> **Amended (2026-11-13) by [ADR-0096](./adr-0096-the-refresh-cookie-is-scoped-to-the-auth-routes.md).**
+> Point 3: the cookie's path is `/api/v1/auth`, not `/api/v1/auth/refresh`, so a browser also
+> sends it to `/auth/logout`. Point 6: logout revokes by the cookie only; the header fallback
+> named under Alternatives was never built.
 
 ---
 

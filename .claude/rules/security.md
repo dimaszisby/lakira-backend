@@ -83,7 +83,8 @@ and limits stop being shared across instances (twelve-factor TF-12).
 ## Authentication Flow
 
 1. Client sends `Authorization: Bearer <JWT>` header (a short-lived access token; the refresh
-   token travels separately, as an httpOnly cookie scoped to `/api/v1/auth/refresh`)
+   token travels separately, as an httpOnly cookie scoped to `/api/v1/auth`, so `/auth/refresh`
+   and `/auth/logout` both receive it; ADR-0096)
 2. `authMiddleware` validates the token via the `TokenProvider` port
 3. The token must carry an organization claim, and the user must hold an active membership in
    that organization — otherwise 401

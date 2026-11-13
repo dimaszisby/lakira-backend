@@ -7,6 +7,10 @@
   [ADR-0039](./adr-0039-release-identity-and-immutable-artifacts.md)'s smoke suite, whose release
   check is unchanged
 - **Origin:** the owner approved the plan for #258 on 2026-11-12
+- **Amended:** 2026-11-13, by [ADR-0096](./adr-0096-the-refresh-cookie-is-scoped-to-the-auth-routes.md),
+  which fixed #290. The log-in step now also checks that the cookie's path covers `/auth/logout`,
+  so a browser would send it there. The logout step still sends the cookie by hand, since `fetch`
+  keeps no jar, as lakira-frontend's server does.
 
 ---
 

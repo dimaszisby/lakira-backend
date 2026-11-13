@@ -76,20 +76,20 @@ export const openApiDocument = {
       RefreshCookie: {
         description:
           `Sets the \`${APP_SHORT_NAME}_refresh\` cookie to a new opaque refresh token. ` +
-          "The cookie is `HttpOnly` and `SameSite=Strict`, scoped to `Path=/api/v1/auth/refresh`, " +
+          "The cookie is `HttpOnly` and `SameSite=Strict`, scoped to `Path=/api/v1/auth`, " +
           "with `Max-Age` set to the refresh token's lifetime. `Secure` is added in staging and production. " +
-          "A browser sends it to `POST /auth/refresh` only; script cannot read it.",
+          "A browser sends it to the auth routes, where `POST /auth/refresh` and `POST /auth/logout` read it; script cannot read it.",
         required: true,
         schema: { type: "string" },
-        example: `${APP_SHORT_NAME}_refresh=dGVzdC1yZWZyZXNoLXRva2Vu; Max-Age=604800; Path=/api/v1/auth/refresh; HttpOnly; SameSite=Strict`,
+        example: `${APP_SHORT_NAME}_refresh=dGVzdC1yZWZyZXNoLXRva2Vu; Max-Age=604800; Path=/api/v1/auth; HttpOnly; SameSite=Strict`,
       },
       ClearedRefreshCookie: {
         description:
           `Clears the \`${APP_SHORT_NAME}_refresh\` cookie: an empty value with an expiry in the past, ` +
-          "on the same `Path=/api/v1/auth/refresh`, `HttpOnly` and `SameSite=Strict`.",
+          "on the same `Path=/api/v1/auth`, `HttpOnly` and `SameSite=Strict`.",
         required: true,
         schema: { type: "string" },
-        example: `${APP_SHORT_NAME}_refresh=; Path=/api/v1/auth/refresh; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Strict`,
+        example: `${APP_SHORT_NAME}_refresh=; Path=/api/v1/auth; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Strict`,
       },
       ETag: {
         description:

@@ -289,6 +289,28 @@ const refreshCookieFrom = (headers) => {
 };
 
 /**
+ * Whether a browser would send the refresh cookie to `requestPath`: the cookie's `Path`
+ * must equal it or be a prefix that ends at a `/` (RFC 6265, 5.1.4). Logout revokes only
+ * the cookie it receives, so a path that left `/auth/logout` out made a browser's logout
+ * revoke nothing (#290, ADR-0096).
+ *
+ * @param {Headers} headers
+ * @param {string} requestPath
+ */
+const refreshCookieReaches = (headers, requestPath) => {
+  for (const line of headers.getSetCookie()) {
+    if (!/^[^=;\s]+_refresh=[^;]+/.test(line)) continue;
+    const cookiePath = /;\s*path=([^;]*)/i.exec(line)?.[1]?.trim() || "/";
+    return (
+      requestPath === cookiePath ||
+      (requestPath.startsWith(cookiePath) &&
+        (cookiePath.endsWith("/") || requestPath[cookiePath.length] === "/"))
+    );
+  }
+  return false;
+};
+
+/**
  * What the session carries from step to step. An empty string is "not yet".
  *
  * @typedef {object} SessionState
@@ -338,9 +360,16 @@ const sessionSteps = [
       if (!body?.data?.token) throw new Error("no token in the response");
       const cookie = refreshCookieFrom(headers);
       if (!cookie) throw new Error("no refresh cookie was set");
+      const logoutPath = new URL(`${baseUrl}/auth/logout`).pathname;
+      if (!refreshCookieReaches(headers, logoutPath)) {
+        throw new Error(
+          `the refresh cookie's path does not cover ${logoutPath}, so a browser's ` +
+            "logout would revoke nothing (ADR-0096)",
+        );
+      }
       state.token = body.data.token;
       state.cookie = cookie;
-      return "token and refresh cookie received";
+      return "token and refresh cookie received; its path covers /auth/logout";
     },
   },
   {
@@ -424,10 +453,9 @@ const sessionSteps = [
     name: "session: log out",
     detail: "POST /auth/logout with the refresh cookie",
     run: async (state) => {
-      // The cookie is sent explicitly. Its path is /api/v1/auth/refresh, so a client that
-      // honours it, as a browser does, never sends it here, and logout then revokes
-      // nothing (#290, ADR-0095). This proves the revoke path works
-      // when the cookie arrives; once the cookie path is fixed, send it as a browser would.
+      // fetch keeps no cookie jar, so the cookie is sent by hand. The log-in step checked
+      // that its path covers this route, so a browser would send it too (ADR-0096); a
+      // server-side client such as lakira-frontend's sends it itself, as this does.
       const { status } = await request("/auth/logout", {
         method: "POST",
         headers: { cookie: state.cookie },
