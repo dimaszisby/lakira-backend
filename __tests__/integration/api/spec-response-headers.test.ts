@@ -91,7 +91,8 @@ describe("the response headers the spec declares are sent", () => {
       .send({ email: payload.email, password: payload.password });
     expectDeclaredHeaders(loggedIn, "post", "/auth/login", 200);
     const cookie = refreshCookie(loggedIn) as string;
-    expect(cookie).toContain("Path=/api/v1/auth/refresh");
+    // The auth routes, so logout receives it too (ADR-0096).
+    expect(cookie).toContain("Path=/api/v1/auth;");
     expect(cookie).toMatch(/SameSite=Strict/i);
 
     const refreshed = await api

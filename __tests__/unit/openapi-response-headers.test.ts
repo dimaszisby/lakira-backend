@@ -67,7 +67,8 @@ describe("response headers in the OpenAPI spec", () => {
     expect(cookie?.description).toMatch(/`\w[\w-]*_refresh`/);
     expect(cookie?.description).toContain("HttpOnly");
     expect(cookie?.description).toContain("SameSite=Strict");
-    expect(cookie?.description).toContain("/api/v1/auth/refresh");
+    // The auth routes, so logout receives it too (ADR-0096).
+    expect(cookie?.description).toContain("`Path=/api/v1/auth`");
   });
 
   describe.each(["/analytics/dashboard", "/analytics/metrics/{metricId}"])(

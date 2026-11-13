@@ -23,7 +23,9 @@ import {
 import { z } from "zod";
 
 const REFRESH_COOKIE_NAME = `${APP_SHORT_NAME}_refresh`;
-const REFRESH_COOKIE_PATH = "/api/v1/auth/refresh";
+// The auth routes, not /auth/refresh alone: a browser sends the cookie only where
+// its path allows, and logout revokes by the cookie it receives (ADR-0096).
+const REFRESH_COOKIE_PATH = "/api/v1/auth";
 
 const setRefreshCookie = (res: Response, rawToken: string) => {
   res.cookie(REFRESH_COOKIE_NAME, rawToken, {

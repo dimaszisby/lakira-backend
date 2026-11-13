@@ -81,6 +81,8 @@ describe("tests/smoke/run-smoke.mjs against the real app", () => {
 
     expect(output).toContain("all 11 checks passed");
     expect(code).toBe(0);
+    // A browser would send the cookie to logout (ADR-0096).
+    expect(output).toContain("its path covers /auth/logout");
     for (const step of [
       "session: log in",
       "session: refresh with the cookie",

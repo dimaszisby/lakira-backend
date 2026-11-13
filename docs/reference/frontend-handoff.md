@@ -60,7 +60,9 @@ Secret naming already used in docs:
 - `POST /api/v1/auth/refresh` reads that cookie, rotates it (single use; reuse revokes the whole
   token family), sets a new cookie and returns a new `data.token`. Refresh-token lifetime is
   `REFRESH_TOKEN_TTL_DAYS`.
-- `POST /api/v1/auth/logout` revokes the refresh-token family server-side and clears the cookie.
+- `POST /api/v1/auth/logout` revokes the refresh-token family of the cookie the request carries,
+  server-side, and clears the cookie. Without the cookie it revokes nothing; a browser on the API's
+  origin sends it, and a server-side caller sends it itself (ADR-0096).
   The FE should also drop its in-memory access token.
 - Other auth routes: `/forgot-password`, `/reset-password`, `/verify-email`,
   `/resend-verification`, `/switch-org` (all under `/api/v1/auth`).
@@ -89,7 +91,7 @@ Guidance for FE deployment surfaces (documentation-only, no backend code change 
 ### CSRF and cookies
 
 - The refresh token is an **httpOnly cookie** named `<app>_refresh` (`lakira_refresh` for this
-  repo), `SameSite=Strict`, `Path=/api/v1/auth/refresh`, `Secure` in staging and production. The
+  repo), `SameSite=Strict`, `Path=/api/v1/auth` (ADR-0096), `Secure` in staging and production. The
   FE never reads it; it only needs to send `credentials: "include"` on `/auth/refresh` and
   `/auth/logout`. No `Domain` attribute is set, so it is host-only.
 - `SameSite=Strict` means the FE and API must be same-site for the cookie to be sent. A

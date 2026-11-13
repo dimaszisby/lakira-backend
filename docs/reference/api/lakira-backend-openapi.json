@@ -52,20 +52,20 @@
   "components": {
     "headers": {
       "RefreshCookie": {
-        "description": "Sets the `lakira_refresh` cookie to a new opaque refresh token. The cookie is `HttpOnly` and `SameSite=Strict`, scoped to `Path=/api/v1/auth/refresh`, with `Max-Age` set to the refresh token's lifetime. `Secure` is added in staging and production. A browser sends it to `POST /auth/refresh` only; script cannot read it.",
+        "description": "Sets the `lakira_refresh` cookie to a new opaque refresh token. The cookie is `HttpOnly` and `SameSite=Strict`, scoped to `Path=/api/v1/auth`, with `Max-Age` set to the refresh token's lifetime. `Secure` is added in staging and production. A browser sends it to the auth routes, where `POST /auth/refresh` and `POST /auth/logout` read it; script cannot read it.",
         "required": true,
         "schema": {
           "type": "string"
         },
-        "example": "lakira_refresh=dGVzdC1yZWZyZXNoLXRva2Vu; Max-Age=604800; Path=/api/v1/auth/refresh; HttpOnly; SameSite=Strict"
+        "example": "lakira_refresh=dGVzdC1yZWZyZXNoLXRva2Vu; Max-Age=604800; Path=/api/v1/auth; HttpOnly; SameSite=Strict"
       },
       "ClearedRefreshCookie": {
-        "description": "Clears the `lakira_refresh` cookie: an empty value with an expiry in the past, on the same `Path=/api/v1/auth/refresh`, `HttpOnly` and `SameSite=Strict`.",
+        "description": "Clears the `lakira_refresh` cookie: an empty value with an expiry in the past, on the same `Path=/api/v1/auth`, `HttpOnly` and `SameSite=Strict`.",
         "required": true,
         "schema": {
           "type": "string"
         },
-        "example": "lakira_refresh=; Path=/api/v1/auth/refresh; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Strict"
+        "example": "lakira_refresh=; Path=/api/v1/auth; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Strict"
       },
       "ETag": {
         "description": "A strong validator for the response body: a quoted digest that changes whenever the body does. Send it back in `If-None-Match` to get a 304 when nothing changed.",
@@ -2539,7 +2539,20 @@
       "post": {
         "tags": ["Auth"],
         "summary": "Log out the current user",
-        "description": "Revokes the refresh token family associated with the presented cookie or bearer token.",
+        "description": "Revokes the refresh-token family of the `lakira_refresh` cookie, when the request carries it, and clears the cookie either way. The cookie is the only thing it revokes by: its path covers `/auth/logout`, so a browser sends it here, and a server-side client sends it itself.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Opaque refresh token; without it, logout revokes nothing",
+              "example": "dGVzdC1yZWZyZXNoLXRva2Vu"
+            },
+            "required": false,
+            "description": "Opaque refresh token; without it, logout revokes nothing",
+            "name": "lakira_refresh",
+            "in": "cookie"
+          }
+        ],
         "responses": {
           "200": {
             "description": "User logged out successfully",
