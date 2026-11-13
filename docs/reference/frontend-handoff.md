@@ -21,7 +21,8 @@ FE convention: keep these equal per environment:
 Secret naming already used in docs:
 
 - FE CI secret: `STAGING_API_BASE_URL` (feed both FE vars in CI)
-- BE CI secret: `STAGING_BASE_URL` (the `smoke_staging` job; same value as above)
+- BE CI secret: `STAGING_BASE_URL` (the `smoke_staging` job; same value as above), and
+  `STAGING_SMOKE_EMAIL` and `STAGING_SMOKE_PASSWORD`, the backend's own smoke account (ADR-0095)
 
 ---
 
