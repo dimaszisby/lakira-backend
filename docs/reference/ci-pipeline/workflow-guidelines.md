@@ -255,6 +255,7 @@ Store sensitive values only as GitHub Secrets, for example:
 - `RENDER_STAGING_DEPLOY_HOOK_URL`
 - `STAGING_BASE_URL`
 - `STAGING_HEALTH_URL`
+- `STAGING_SMOKE_EMAIL`, `STAGING_SMOKE_PASSWORD` (the smoke account, ADR-0095)
 
 Usage example:
 

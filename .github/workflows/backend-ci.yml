@@ -468,6 +468,10 @@ jobs:
         env:
           SMOKE_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
           SMOKE_EXPECTED_RELEASE: ${{ github.sha }}
+          # The session logs in as staging's dedicated smoke account; required in CI
+          # (#258, ADR-0095).
+          SMOKE_EMAIL: ${{ secrets.STAGING_SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.STAGING_SMOKE_PASSWORD }}
         run: npm run test:smoke
 
   deploy_production:
@@ -510,6 +514,10 @@ jobs:
         env:
           SMOKE_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
           SMOKE_EXPECTED_RELEASE: ${{ github.sha }}
+          # The session logs in as staging's dedicated smoke account; required in CI
+          # (#258, ADR-0095).
+          SMOKE_EMAIL: ${{ secrets.STAGING_SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.STAGING_SMOKE_PASSWORD }}
         run: |
           if [ -z "$SMOKE_BASE_URL" ]; then
             echo "STAGING_BASE_URL secret is not configured — cannot gate production deploy on staging health."

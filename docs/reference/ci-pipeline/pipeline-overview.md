@@ -75,7 +75,8 @@ The workflow (`name: Lakira Backend CI`) has these jobs:
    it starts its own server, so it does not wait for the tests
 7. **deploy_staging** (needs `tests` and `contract_local`) – Deploy backend to Render staging
    (`staging` branch only)
-8. **smoke_staging** (needs `deploy_staging`) – Smoke suite against live staging (`staging` branch only)
+8. **smoke_staging** (needs `deploy_staging`) – Smoke suite against live staging, with a login
+   round trip as the staging smoke account (`staging` branch only; ADR-0095)
 9. **deploy_production** (needs `tests` and `contract_local`) – Deploy to production (`main` branch
    only, behind the `production` environment's approval gate; no production service is provisioned
    yet)

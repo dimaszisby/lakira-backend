@@ -223,6 +223,8 @@ GitHub secrets for staging deploy:
 - `RENDER_STAGING_DEPLOY_HOOK_URL` – Render deploy hook URL.
 - `STAGING_BASE_URL` – e.g. `https://lakira-backend-staging.onrender.com/api/v1`
 - `STAGING_HEALTH_URL` – e.g. `https://lakira-backend-staging.onrender.com/api/v1/health`
+- `STAGING_SMOKE_EMAIL`, `STAGING_SMOKE_PASSWORD` – the staging smoke account the smoke suite
+  logs in as (ADR-0095). Required: without them the staging smoke and the production gate fail.
 - (Optional) `RENDER_API_KEY` / `RENDER_SERVICE_ID` – if you move from deploy hooks to Render API/CLI deployments.
 
 When the free Postgres expires (it did on 2026-08-23 and again by 2026-11-07), the migration step
@@ -232,8 +234,10 @@ prompts for it), then re-run the failed job. CI applies every migration to the e
 
 Staging verification:
 
-- `npm run test:smoke` reads `SMOKE_BASE_URL` (falling back to `STAGING_BASE_URL`) and needs
-  nothing else — no token, no fixtures. See `tests/smoke/run-smoke.mjs`.
+- `npm run test:smoke` reads `SMOKE_BASE_URL` (falling back to `STAGING_BASE_URL`), and
+  `SMOKE_EMAIL` and `SMOKE_PASSWORD` for its login round trip, which CI requires (ADR-0095). No
+  stored token, no fixtures. See `tests/smoke/run-smoke.mjs` and
+  [the pre-production sequence](../how-to/ci-cd/run-the-pre-production-smoke-sequence.md).
 
 Seed / fixture policy:
 
