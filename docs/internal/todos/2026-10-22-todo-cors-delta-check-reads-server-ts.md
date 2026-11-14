@@ -1,6 +1,6 @@
 # Todo — The security delta's CORS rule reads a file the CORS options left
 
-- **Status:** Issue #260 (was register row B-86). Open
+- **Status:** Fixed by #260 (was register row B-86) on `fix/260-cors-delta-rule`: the rule reads `http-pipeline.ts`, searches every router under `src/`, and reports a missing list as its own high finding, `AUTO-CFG-CORS-002`
 - **Created:** 2026-10-22
 - **Owner:** unassigned
 - **Origin:** the `security:delta:gate` run on `fix/proxy-trust-and-xss-clean`
