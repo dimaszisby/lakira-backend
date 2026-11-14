@@ -92,7 +92,7 @@ grep -c _refresh "$JAR"
 ```
 
 Expect `logged in` and `1`: the response set the refresh cookie. Add `-D -` to the `curl` to see
-its flags: `HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth/refresh`, and `Secure` on staging
+its flags: `HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`, and `Secure` on staging
 and production.
 
 ### 3. Refresh with the cookie
@@ -133,17 +133,17 @@ that died before its delete does not make the next create answer `409`.
 
 ```bash
 COOKIE=$(awk '/_refresh/ {print $6 "=" $7}' "$JAR")
-curl -s -o /dev/null -w "%{http_code}\n" -H "cookie: $COOKIE" -X POST "$BASE/auth/logout"
+curl -s -o /dev/null -w "%{http_code}\n" -b "$JAR" -c "$JAR" -X POST "$BASE/auth/logout"
 curl -s -o /dev/null -w "%{http_code}\n" -H "cookie: $COOKIE" -X POST "$BASE/auth/refresh"
 rm -f "$JAR"; unset TOKEN COOKIE SMOKE_PASSWORD
 ```
 
 Expect `200`, then `401`: logout revoked the refresh token, and the same cookie is refused.
 
-The cookie is sent by hand on purpose. Its path is `/api/v1/auth/refresh`, so a client that
-honours it, as a browser and `curl -b "$JAR"` do, never sends it to `/auth/logout`, and logout
-then revokes nothing. The refresh after it would still answer `401`, but only because logout
-cleared the cookie from the jar, which proves nothing. That is #290 (ADR-0095).
+Logout goes through the jar, as a browser would: the cookie's path, `/api/v1/auth`, covers
+`/auth/logout` (ADR-0096). The refresh after it sends the cookie kept in `$COOKIE` by hand,
+because logout cleared it from the jar, and a jar with no cookie would answer `401` whether or
+not anything was revoked.
 
 ## If a step fails
 
@@ -166,8 +166,6 @@ its `x-request-id`, which every response carries.
 
 - **The frontend's path.** It calls the API directly, not through lakira-frontend's
   `/api/proxy`. The frontend's half of the sequence covers that.
-- **A browser's logout.** The session sends the refresh cookie to `/auth/logout`, which a browser
-  does not (step 6).
 - **Everything else.** It is one user's round trip, not a regression suite. CI's tests and the
   contract gate are that.
 - **Run on your own machine,** it cannot show the `Secure` flag, which is set only when `NODE_ENV`

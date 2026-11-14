@@ -1,3 +1,5 @@
+import request from "supertest";
+import app from "@/server.js";
 import { api, buildUserPayload, authHeader } from "../helpers/test-utils.js";
 import { APP_SHORT_NAME } from "@/config/app-name.js";
 
@@ -102,6 +104,28 @@ describe("Auth Refresh Token Flow", () => {
       .set("Cookie", `${REFRESH_COOKIE_NAME}=${cookie}`);
     expect(logoutRes.status).toBe(200);
     expect(logoutRes.body.message).toBe("Logged out successfully");
+
+    const refreshAfterLogout = await api
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", `${REFRESH_COOKIE_NAME}=${cookie}`);
+    expect(refreshAfterLogout.status).toBe(401);
+  });
+
+  // The test above sets the cookie by hand, as lakira-frontend's server does. A
+  // browser on the API's origin sends only what the cookie's path allows; the agent
+  // keeps a cookie jar that honours it. With the path scoped to /auth/refresh,
+  // logout here revoked nothing (#290, ADR-0096).
+  it("logging out as a browser does, through a cookie jar, revokes the family", async () => {
+    const browser = request.agent(app);
+    const payload = buildUserPayload();
+    const registerRes = await browser
+      .post("/api/v1/auth/register")
+      .send(payload);
+    expect(registerRes.status).toBe(201);
+    const cookie = extractRefreshCookie(registerRes)!;
+
+    const logoutRes = await browser.post("/api/v1/auth/logout");
+    expect(logoutRes.status).toBe(200);
 
     const refreshAfterLogout = await api
       .post("/api/v1/auth/refresh")
