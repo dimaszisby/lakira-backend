@@ -2,7 +2,7 @@
 
 Add the billing skeleton that most SaaS forks need within the first month: `Plan` + `Subscription` tables, a `BillingProvider` port with a Stripe adapter, webhook signature verification, and plan-gated middleware.
 
-**Status: Deferred — unblocked, not started.** This kit is scaffolded up front for planning visibility. Its blocker, the multi-tenancy foundation (Phase 4), shipped in #44–#47; no billing code exists yet. Billing attaches to an organization, not a user.
+**Status: Deferred by owner decision of 2026-11-14 (#297), not started.** Billing stays designed, not built. Reopen only when all three hold: Lakira will charge real users; production is live (#237, and lakira-frontend #194); and a paid feature exists for a plan to gate. Before any code, settle four things the scope below does not: how the webhook gets its raw body ahead of `express.json()`, the webhook's exemption from the global rate limiter, how a route that exists only when a provider key is set appears in the OpenAPI spec, and which payment provider serves the market. This kit was scaffolded up front for planning visibility. Its earlier blocker, the multi-tenancy foundation (Phase 4), shipped in #44–#47; no billing code exists yet. Billing attaches to an organization, not a user.
 
 ## Scope
 
