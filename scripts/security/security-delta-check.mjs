@@ -3,8 +3,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { evaluateCorsMethodsRule } from "./cors-methods-rule.mjs";
 
 const ROOT = process.cwd();
+// Where the CORS options are set (ADR-0061); rule CFG-CORS-001 reads the methods list here.
+const PIPELINE_PATH = "src/shared/middleware/http-pipeline.ts";
 const DEFAULT_OUTPUT = path.join(
   ROOT,
   "tmp/security/security-delta-report.json",
@@ -197,7 +200,7 @@ const runStaticChecks = async (nowIso) => {
   const findings = [];
   const rules = [];
 
-  const server = await readText("src/server.ts");
+  const pipeline = await readText(PIPELINE_PATH);
   const zodEnv = await readText("src/config/zodEnv.ts");
   const dbConfig = await readText("src/config/db.ts");
   const sequelizeConfig = await readText("src/config/config.cjs");
@@ -281,27 +284,27 @@ const runStaticChecks = async (nowIso) => {
     );
   }
 
-  const hasPatchRoutes =
-    hasRegex(server.text, /router\.patch\(/) ||
-    hasRegex(
-      await fs.readFile(
-        path.join(
-          ROOT,
-          "src/features/public/metric-settings/infrastructure/http/router.ts",
-        ),
-        "utf8",
-      ),
-      /router\.patch\(/,
-    );
-  const corsMethodsMatch = server.text.match(/methods\s*:\s*\[(.*?)\]/s);
-  const corsMethodsBlock = corsMethodsMatch ? corsMethodsMatch[1] : "";
-  const corsHasPatch = /"PATCH"|'PATCH'/.test(corsMethodsBlock);
+  // The CORS options live in mountHttpPipeline (ADR-0061). Every router file under src/
+  // is searched for PATCH routes, so a new one is seen without editing this list (#260).
+  const routerPaths = (
+    await fs.readdir(path.join(ROOT, "src"), { recursive: true })
+  )
+    .filter((p) => /(^|[/.])router\.ts$/.test(p))
+    .map((p) => path.posix.join("src", p.split(path.sep).join("/")))
+    .sort();
+  const routerTexts = await Promise.all(
+    routerPaths.map(async (p) => ({ path: p, text: (await readText(p)).text })),
+  );
+  const corsRule = evaluateCorsMethodsRule({
+    pipelineText: pipeline.text,
+    routerTexts,
+  });
   const ruleCorsPatch = {
     id: "CFG-CORS-001",
-    passed: !hasPatchRoutes || corsHasPatch,
+    passed: corsRule.status === "pass",
   };
   rules.push(ruleCorsPatch);
-  if (!ruleCorsPatch.passed) {
+  if (corsRule.status === "missing-patch") {
     findings.push(
       buildStaticFinding({
         id: "AUTO-CFG-CORS-001",
@@ -309,9 +312,26 @@ const runStaticChecks = async (nowIso) => {
         severity: "medium",
         description:
           "Browser clients may bypass intended route behavior and create security/control inconsistencies.",
+        evidenceRefs: [PIPELINE_PATH, ...corsRule.patchRouteFiles],
+        owaspAsvsRef: "V14",
+        owaspTop10Ref: "A05",
+        nistSsdfRef: "RV.1",
+        nowIso,
+      }),
+    );
+  }
+  if (corsRule.status === "no-methods-list") {
+    // High, so the gate trips: a rule that cannot see the list reports nothing true
+    // about it, and a medium here went unread for weeks (#260).
+    findings.push(
+      buildStaticFinding({
+        id: "AUTO-CFG-CORS-002",
+        title: "The CORS rule cannot find the allow-methods list",
+        severity: "high",
+        description: `No \`methods: [...]\` list in ${PIPELINE_PATH}. If the CORS options moved, point PIPELINE_PATH in scripts/security/security-delta-check.mjs at their new file.`,
         evidenceRefs: [
-          "src/server.ts",
-          "src/features/public/metric-settings/infrastructure/http/router.ts",
+          PIPELINE_PATH,
+          "scripts/security/security-delta-check.mjs",
         ],
         owaspAsvsRef: "V14",
         owaspTop10Ref: "A05",
