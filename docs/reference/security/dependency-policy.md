@@ -237,6 +237,10 @@ Both were removed; each consumer now resolves its own range to a patched release
 in 0.x, and is kept as a recorded exception to rule 1 because removing it re-opens a low. Revisit:
 `docs/internal/todos/2026-09-29-todo-esbuild-override-crosses-tsx-range.md`.
 
+> **Update (#262, 2026-11-16):** `overrides` is now empty. `tsx` 4.23.15 declares
+> `esbuild ~0.28.0` and resolves 0.28.2 on its own, so the exception to rule 1 is retired and
+> `npm audit` reports no `esbuild` finding.
+
 The remaining three findings are the `uuid` < 11.1.1 root, unchanged and still deliberately not
 overridden; the reasoning is under the 2026-08-31 snapshot below. Full record:
 `docs/internal/initiatives/npm-audit-findings/`.
