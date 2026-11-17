@@ -1,4 +1,4 @@
-import { describe, it, expect, jest, beforeAll } from "@jest/globals";
+import { describe, it, expect, jest, beforeAll, afterAll } from "@jest/globals";
 import type { Application } from "express";
 import request from "supertest";
 import { withTestEnv } from "../../helpers/env-test-utils.js";
@@ -15,6 +15,10 @@ import { withTestEnv } from "../../helpers/env-test-utils.js";
 const ORIGIN = "https://app.example.com";
 
 let app: Application;
+// The isolated registry imports its own redis-client, whose client connects at
+// import when ENABLE_REDIS_INTEGRATION is set. jest.setup.ts quits only the shared
+// one, so this quits the isolated one; left open, Jest never exits (#276).
+let disconnectIsolatedRedis: () => Promise<void> = async () => {};
 
 beforeAll(async () => {
   await withTestEnv(
@@ -23,6 +27,8 @@ beforeAll(async () => {
         const { createApp } = await import("@/app.js");
         const { buildWiredFeatures } =
           await import("@/composition/features.js");
+        ({ disconnectRedis: disconnectIsolatedRedis } =
+          await import("@/utils/redis-client.js"));
         app = createApp(buildWiredFeatures());
       });
     },
@@ -35,6 +41,8 @@ beforeAll(async () => {
     },
   );
 });
+
+afterAll(() => disconnectIsolatedRedis());
 
 describe("the real app with rate limiting on (#257)", () => {
   it("counts every request, answers the one past the budget with the envelope, and lets the browser read it", async () => {

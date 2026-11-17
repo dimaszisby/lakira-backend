@@ -67,7 +67,8 @@ The workflow (`name: Lakira Backend CI`) has these jobs:
    uploads `backend-coverage-unit`
 4. **integration** (`Integration Tests`, needs `security_delta`) – migrations, then
    `test:integration:coverage` with Postgres, Redis and RabbitMQ services; uploads
-   `backend-coverage-integration`
+   `backend-coverage-integration`. `ENABLE_REDIS_INTEGRATION=true` connects the suite to the
+   Redis service, so the `describeRedis` suites run rather than skip (#276)
 5. **tests** (`Unit & Integration Tests`, needs `unit` and `integration`) – the check the rulesets
    require. It runs `if: always()` and fails unless both suites passed: without `if: always()` a
    failed suite would leave it skipped, which GitHub counts as passed (ADR-0081)
