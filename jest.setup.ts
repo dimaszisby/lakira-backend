@@ -8,7 +8,7 @@ import app from "./src/server.js";
 import { attachClientErrorHandler } from "./src/shared/middleware/client-error.js";
 import sequelize from "./src/config/db.js";
 import { disconnectRedis } from "./src/utils/redis-client.js";
-import request from "supertest";
+import request from "./__tests__/helpers/request.js";
 import { env } from "./src/config/envManager.js";
 import logger from "./src/utils/logger.js";
 import { drainBackgroundTasks } from "./src/utils/background-tasks.js";
@@ -46,7 +46,8 @@ const TEST_SERVER_PORT = 4000 + workerId;
 if (!skipDbLifecycle) {
   beforeAll(async () => {
     try {
-      server = app.listen(TEST_SERVER_PORT, () => {
+      // On loopback, as every test server listens (#243).
+      server = app.listen(TEST_SERVER_PORT, "127.0.0.1", () => {
         logger.info(
           `[PROCESS] Test server running on port ${TEST_SERVER_PORT}`,
         );

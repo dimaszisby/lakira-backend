@@ -1,6 +1,6 @@
 import { describe, it, expect, jest, beforeAll, afterAll } from "@jest/globals";
 import type { Application } from "express";
-import request from "supertest";
+import request from "../../helpers/request.js";
 import { withTestEnv } from "../../helpers/env-test-utils.js";
 
 /**

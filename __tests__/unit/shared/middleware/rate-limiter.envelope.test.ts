@@ -1,6 +1,6 @@
 import { describe, it, expect, jest } from "@jest/globals";
 import express, { type RequestHandler } from "express";
-import request from "supertest";
+import request from "../../../helpers/request.js";
 import { hashEmail } from "@/utils/email-hash.js";
 
 // The real express-rate-limit, as in register-rate-limiter.trip.test.ts: this
