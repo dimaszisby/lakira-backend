@@ -211,6 +211,9 @@ jobs:
       DB_PASSWORD: ${{ secrets.POSTGRES_PASSWORD_TEST }}
       DB_NAME: lakira_ci
       REDIS_URL: redis://localhost:6379
+      # Connects the suite to the redis service above, as every deployed environment
+      # is, and runs the describeRedis suites, which otherwise skip (#276).
+      ENABLE_REDIS_INTEGRATION: "true"
       JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
       DISABLE_RATE_LIMITING: "true"
 
