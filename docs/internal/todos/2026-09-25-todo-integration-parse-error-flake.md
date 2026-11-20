@@ -297,3 +297,8 @@ directly, or on a `listen` that names no loopback host.
 The 401 on register of [`2026-09-24-todo-queue-test-intermittent-401.md`](2026-09-24-todo-queue-test-intermittent-401.md)
 (#252), and the one-off failure of #253, may be the same mechanism: another HTTP server's answer
 reads as a 401 or a 404. Neither is closed here; each closes by evidence.
+
+**2026-11-20.** Both closed by evidence. #252's `401 {}` is reproduced exactly by this mechanism,
+and the app cannot produce it (that todo's last section). #253's message was never captured, so it
+closes on runs alone: five full integration runs after #303 passed it, with the three of the #303
+gate.
