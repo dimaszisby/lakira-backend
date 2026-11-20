@@ -1,4 +1,4 @@
-import request from "supertest";
+import request from "../../helpers/request.js";
 import app from "@/server.js";
 import { api, buildUserPayload, authHeader } from "../helpers/test-utils.js";
 import { APP_SHORT_NAME } from "@/config/app-name.js";

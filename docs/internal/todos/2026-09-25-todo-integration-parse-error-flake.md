@@ -1,6 +1,6 @@
 # Todo — intermittent `Parse Error: Expected HTTP/` in the integration suite
 
-- **Status:** Issue #243 (was register row B-11). Open — the parse error is still unexplained. The `TRUNCATE` failure was explained
+- **Status:** Fixed by #243 on 2026-11-19: the parse error and the `socket hang up`s were requests that reached another process (see the last section). Before: Issue #243 (was register row B-11), unexplained. The `TRUNCATE` failure was explained
   on 2026-09-29 (a deadlock with a fire-and-forget write) and fixed on 2026-10-02 (see the last
   section). A third failure was explained and fixed on 2026-09-27
 - **Created:** 2026-09-25
@@ -262,3 +262,38 @@ HTTP/, RTSP/ or ICE/`: `JSON body guard › rejects scalar payloads for POST /ap
 (`json-body-guard.test.ts`), a `POST` with a scalar body (316 passed, 6 skipped, 1 failed). The file
 alone, on fresh containers, passed three times in a row (13/13 each), and the next full run, on
 fresh containers, passed (317 passed, 6 skipped). The same shape as the sightings above.
+
+## 2026-11-19 — explained and fixed
+
+**Cause.** supertest 7.2.2 wraps the app in `http.createServer`, calls `listen(0)` with no host,
+and sends the request to `http://127.0.0.1:<port>` (`node_modules/supertest/lib/test.js`). A listen
+with no host binds every interface. On macOS such a bind can be given a port that another process
+holds on `127.0.0.1` alone, and a connection to `127.0.0.1:<port>` then reaches that process, the
+more specific binding. The test reads whatever it answers: bytes that are not HTTP from a database
+or a broker (`Parse Error: Expected HTTP/`), a closed connection (`socket hang up`), or another HTTP
+server's answer. The note under "What" above had it backwards: a fresh ephemeral server per request
+is exactly what exposes it, once per listen.
+
+It fits every sighting: all of them local, on macOS, in the integration and the unit project alike
+(2026-10-22), at random in a suite that passes alone, more often with more programs listening on
+loopback (the throwaway containers, the "memory pressure" runs). CI runs on Linux, which does not
+hand out a port this way, and has never shown it.
+
+**Found by** the dated audit of 2026-11-14 (issue #299), whose three local `npm test` runs each
+failed one test this way. It measured one wildcard listen in about 1,700 landing on a port held on
+loopback, with ten such listeners up.
+
+**Reproduction**, on demand, on Node 24.22.1 and macOS: a loopback-only listener that answers
+non-HTTP bytes on port P; a listen on P with no host succeeds (bound to `::`); a request to
+`127.0.0.1:P` fails with `Parse Error: Expected HTTP/, RTSP/ or ICE/`. A listen on P naming
+`127.0.0.1` is refused with `EADDRINUSE`. That reproduction is now a test,
+`__tests__/unit/helpers/request.test.ts`, run on macOS only.
+
+**Fix.** Every test imports supertest through `__tests__/helpers/request.ts`, which listens on
+`127.0.0.1`, and the servers tests start by hand name `127.0.0.1` as well. A loopback listen is
+never given a port held on loopback. The same test file fails on a file that imports supertest
+directly, or on a `listen` that names no loopback host.
+
+The 401 on register of [`2026-09-24-todo-queue-test-intermittent-401.md`](2026-09-24-todo-queue-test-intermittent-401.md)
+(#252), and the one-off failure of #253, may be the same mechanism: another HTTP server's answer
+reads as a 401 or a 404. Neither is closed here; each closes by evidence.

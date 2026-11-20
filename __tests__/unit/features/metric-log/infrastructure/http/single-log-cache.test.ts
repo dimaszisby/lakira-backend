@@ -1,6 +1,6 @@
 import { describe, beforeEach, it, expect, jest } from "@jest/globals";
 import express from "express";
-import request from "supertest";
+import request from "../../../../../helpers/request.js";
 import { cacheMiddleware } from "@/shared/middleware/cache.js";
 import { drainBackgroundTasks } from "@/utils/background-tasks.js";
 import { metricLogCacheKey } from "@/features/metric-log/infrastructure/http/cache-keys.js";

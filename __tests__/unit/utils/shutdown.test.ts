@@ -10,6 +10,7 @@ import http from "http";
 import net from "net";
 import type { AddressInfo } from "net";
 import { closeHttpServer, createShutdown } from "@/utils/shutdown.js";
+import { LOOPBACK } from "../../helpers/request.js";
 
 jest.mock("@/utils/logger.js", () => ({
   __esModule: true,
@@ -194,7 +195,8 @@ describe("closeHttpServer", () => {
     sockets = [];
     // A handler that never answers: the request it holds keeps close() waiting.
     server = http.createServer(() => undefined);
-    await new Promise<void>((resolve) => server.listen(0, resolve));
+    // On loopback, as every test server listens (#243).
+    await new Promise<void>((resolve) => server.listen(0, LOOPBACK, resolve));
   });
 
   afterEach(() => {
@@ -204,7 +206,7 @@ describe("closeHttpServer", () => {
 
   const holdRequestOpen = async (): Promise<void> => {
     const { port } = server.address() as AddressInfo;
-    const socket = net.connect(port, "127.0.0.1");
+    const socket = net.connect(port, LOOPBACK);
     sockets.push(socket);
     socket.on("error", () => undefined);
     await new Promise<void>((resolve) => socket.on("connect", resolve));

@@ -1,4 +1,4 @@
-import request from "supertest";
+import request from "../../helpers/request.js";
 import app from "@/server.js";
 
 export const api = request(app);
