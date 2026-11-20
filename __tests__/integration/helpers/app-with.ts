@@ -1,4 +1,4 @@
-import request from "supertest";
+import request from "../../helpers/request.js";
 import { createApp } from "@/app.js";
 import {
   buildWiredFeatures,

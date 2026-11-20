@@ -1,7 +1,7 @@
 import { describe, it, expect } from "@jest/globals";
 import express from "express";
 import cors from "cors";
-import request from "supertest";
+import request from "../../helpers/request.js";
 import { loadEnvOrExit } from "@/config/envManager.js";
 import { withTestEnv } from "../../helpers/env-test-utils.js";
 

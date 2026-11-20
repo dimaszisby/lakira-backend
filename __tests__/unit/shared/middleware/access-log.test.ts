@@ -1,6 +1,6 @@
 import { describe, it, expect, jest, beforeEach } from "@jest/globals";
 import express from "express";
-import request from "supertest";
+import request from "../../../helpers/request.js";
 
 jest.mock("@/utils/logger.js", () => ({
   __esModule: true,

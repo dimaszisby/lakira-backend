@@ -1,6 +1,6 @@
 import { describe, it, expect, jest } from "@jest/globals";
 import express from "express";
-import request from "supertest";
+import request from "../../../helpers/request.js";
 
 // The real express-rate-limit, not the options-capturing mock the main limiter
 // test uses: this proves the register limit actually trips (audit R1, kit

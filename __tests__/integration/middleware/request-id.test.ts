@@ -4,6 +4,7 @@ import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 import app from "@/server.js";
 import { api } from "../helpers/test-utils.js";
+import { LOOPBACK } from "../../helpers/request.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -43,13 +44,15 @@ describe("Request-ID middleware", () => {
   // supertest sets a header once, so the request is written by hand: two
   // x-request-id lines on the wire, which Node joins as "first-id, second-id".
   it("replaces a header sent twice by a minted UUID", async () => {
-    const server = http.createServer(app).listen(0);
+    // On loopback, as every test server listens (#243).
+    const server = http.createServer(app).listen(0, LOOPBACK);
     try {
       await once(server, "listening");
       const { port } = server.address() as AddressInfo;
       const res = await new Promise<http.IncomingMessage>((resolve, reject) => {
         http
           .request({
+            host: LOOPBACK,
             port,
             path: "/api/v1/health",
             // A raw header list gets no Host added, and HTTP/1.1 refuses a

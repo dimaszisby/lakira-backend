@@ -71,7 +71,12 @@ describe("MyUseCase", () => {
 - The setup drains background work before truncating and before closing the database (ADR-0054).
   A test that needs work a handler started after responding — the verification email — awaits
   `drainBackgroundTasks()` from `@/utils/background-tasks.js`. Never a sleep or a polling loop
-- Use `supertest` for HTTP assertions
+- Use `supertest` for HTTP assertions, always through `__tests__/helpers/request.ts`, never
+  imported directly. supertest listens with no host, and on macOS such a listen can be given a
+  port another process holds on loopback; the request then reads that process and fails as
+  `Parse Error: Expected HTTP/` or `socket hang up` (#243). The helper listens on `127.0.0.1`.
+  A server a test starts by hand does the same: `listen(0, LOOPBACK)`. A unit test fails on
+  either rule broken
 - DB fixtures in `__tests__/integration/helpers/db-fixtures.ts` (`createUserRow`, `createMetricRow`,
   `truncateAllTables`, …)
 - A test of an ordered query forces the case it checks: explicit ids and timestamps, arranged so

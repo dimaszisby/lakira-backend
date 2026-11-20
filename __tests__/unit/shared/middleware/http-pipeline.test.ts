@@ -1,7 +1,7 @@
 import { describe, it, expect } from "@jest/globals";
 import express, { type Application, type RequestHandler } from "express";
 import rateLimit from "express-rate-limit";
-import request from "supertest";
+import request from "../../../helpers/request.js";
 import { mountHttpPipeline } from "@/shared/middleware/http-pipeline.js";
 
 // ADR-0061 (register row B-06). The integration suite runs with rate limiting

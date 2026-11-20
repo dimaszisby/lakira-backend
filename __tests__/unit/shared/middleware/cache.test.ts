@@ -1,6 +1,6 @@
 import { describe, beforeEach, it, expect, jest } from "@jest/globals";
 import express, { type Response } from "express";
-import request from "supertest";
+import request from "../../../helpers/request.js";
 import { cacheMiddleware } from "@/shared/middleware/cache.js";
 import { sendError } from "@/shared/utils/error-envelope.js";
 import { drainBackgroundTasks } from "@/utils/background-tasks.js";
