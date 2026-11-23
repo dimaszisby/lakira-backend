@@ -1,5 +1,10 @@
 # SaaS Readiness — Final Audit Summary (Gone-Gold Closeout)
 
+**Current verdict (dated run of 2026-11-14): NOT FORK-READY.** ADR-001 criterion 3 fails on
+category 1, at 67%, and X62 is open at P3. See the paragraph dated 2026-11-14 below and
+[`audit-2026-11-14.md`](./audit-2026-11-14.md). The paragraphs that follow are the history of the
+verdict, oldest first.
+
 **Status:** **GOLD WITH CAVEATS** — the N1+N2+F1 downgrade is **lifted as of 2026-08-23**.
 N1, N2, N3 and F1 all landed together (tenant-scoped cache keys per ADR-0035, production-unsafe
 env refusal per ADR-0036, both now Accepted). Of the original C1–C6 caveats, **C1 and C3 are closed** (`8adf7b8` and `75cfdaa`);
@@ -90,6 +95,22 @@ confirmed yet.** The Closed table of the backend debt register
 owed". GOLD is not restated until a dated run confirms them. The paragraph above is left as that
 run wrote it.
 
+**2026-11-14 re-audit: NOT FORK-READY; the fixes of 2026-10-20 are confirmed, and two new
+account-security findings take category 1 below the gate.** [`audit-2026-11-14.md`](./audit-2026-11-14.md)
+grades a window of 51 commits (#198 to #298) with four graders, from a session that wrote none of
+it (issue #299). **X60 is confirmed closed**: after SIGTERM the broker listed no consumer within
+1.1 s and nothing new was delivered. **All six P2 findings of 2026-10-20 are confirmed closed**,
+each reproduced: X1, X20, X40, X41, X61, X63. C1 to C6, S1 and S2 are confirmed closed again, C1
+by a fork run through every printed step. **X62 is narrowed, not closed**: no job waits on a second
+connection any more, but an email is still sent inside the job's transaction, so with a slow sender
+and a small pool jobs fail into retry at the 60 s acquire timeout (reproduced; graded P3, down from
+P1). **ADR-001 fails on criterion 3**: the security grader's fresh pass found that a password reset
+or change revokes no session (Y6) and that the email changes on a bearer token alone and stays
+verified (Y7), both P2 and both reproduced, which takes category 1 to 67%. Asked how D-01 read
+that case, the owner chose ADR-001 as written: **NOT FORK-READY** (kit D-08). Eight new P2
+findings are open in all: Y6, Y7, Y11, Y20, Y22, Y61, Y62, Y64. Next step: Y6, Y7 and X62, then
+another dated run.
+
 The **Status** paragraph at the top records the closures as they stood on 2026-09-24, when all six
 were believed closed.
 
@@ -99,10 +120,11 @@ audits) but surfaced two **NEW P0** (cache-layer cross-tenant scoping) and one *
 (`DISABLE_RATE_LIMITING` has no production guard) findings that all three prior audits missed.
 The repo is **not safely shippable** as a SaaS base until N1+N2+F1 land (cumulative ≤2h);
 the original C1–C6 caveats remain open-unchanged.
-**As of:** 2026-10-12 · **Branch:** `docs/saas-reaudit-2026-10-12` @ `5bb4e3a`
-**Authoritative audit:** [`audit-2026-10-12.md`](./audit-2026-10-12.md) (a grade for every
-caveat, fork dry-run, live reproductions and full 65-item re-grade, on Node 24).
-Prior authoritative audits: [`audit-2026-10-10.md`](./audit-2026-10-10.md),
+**As of:** 2026-11-14 · **Branch:** `docs/299-saas-reaudit-2026-11-14` @ `6a0eb2a`
+**Authoritative audit:** [`audit-2026-11-14.md`](./audit-2026-11-14.md) (a grade for every
+condition, fork dry-run, live reproductions and full 65-item re-grade, on Node 24).
+Prior authoritative audits: [`audit-2026-10-20.md`](./audit-2026-10-20.md),
+[`audit-2026-10-12.md`](./audit-2026-10-12.md), [`audit-2026-10-10.md`](./audit-2026-10-10.md),
 [`audit-2026-10-05-b.md`](./audit-2026-10-05-b.md),
 [`audit-2026-10-05.md`](./audit-2026-10-05.md),
 [`audit-2026-10-03.md`](./audit-2026-10-03.md),
@@ -558,6 +580,12 @@ names for it, graded by its grader and reproduced. The whole-purpose passes foun
 the lists, filed as new findings that reopen nothing: X3, X4, X5 and X13 beside C5 and C6, and X40
 and X41 (P2) beside C4. Clean GOLD is held by X60 and X62, two P1 findings that are not caveats.
 
+**C1 to C6 — confirmed closed a third time (2026-11-14).** The dated run
+[`audit-2026-11-14.md`](./audit-2026-11-14.md) § 4.1. Each caveat graded on its named routes and
+reproduced. Routes found beside them are new P3 findings that reopen nothing: Y1 and Y2 beside C5,
+Y3 beside C6, Y40 and Y42 beside C4, Y23 beside C1. No caveat blocks the verdict; ADR-001's
+criterion 3 and X62 do.
+
 ---
 
 ## 5. Possible issues — needs human judgment (not blockers)
@@ -596,6 +624,7 @@ defects to fix blindly:
 | 2026-10-10     | [`audit-2026-10-10.md`](./audit-2026-10-10.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C6, C5, C4, C3)                   | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; U1, U2 and C2 closed; C6 and C5 open P2, C4 and C3 open P3; 0 P0, 0 P1, 3 P2 findings |
 | 2026-10-12     | [`audit-2026-10-12.md`](./audit-2026-10-12.md)                         | **GOLD WITH CAVEATS** (reconfirmed; clean GOLD blocked by C5)                               | ADR-001 gate **PASS** on Node 24; 50 pass / 11 partial / 4 fail; C6, C4, C3 and S9 closed; C5 open P2; 0 P0, 0 P1, 3 P2 findings (W1 to W3)            |
 | 2026-10-20     | [`audit-2026-10-20.md`](./audit-2026-10-20.md)                         | **GOLD WITH CAVEATS** (reconfirmed; every caveat closed; clean GOLD blocked by X62 and X60) | ADR-001 gate **PASS** on Node 24; 53 pass / 8 partial / 4 fail; C5 closed, C1 to C4 and C6 confirmed; 0 P0, 2 P1 (X60, X62), 6 P2 findings             |
+| 2026-11-14     | [`audit-2026-11-14.md`](./audit-2026-11-14.md)                         | **NOT FORK-READY** (ADR-001 criterion 3 fails on category 1; clean GOLD blocked by X62)     | ADR-001 gate **FAIL** (category 1 at 67%); 49 pass / 12 partial / 4 fail; X60 and the six P2 closed; X62 open at P3; 0 P0, 0 P1, 8 new P2 findings     |
 
 **Key disagreements the independent run raised with the 05-20 self-audit** (full evidence in
 the dated file): security findings 1→8 medium; `svix` present transitively via `resend`;
@@ -751,13 +780,23 @@ the list still reads as the history it is.
     which can restate GOLD. After that X1, X61, X63, X20, and X40 with X41. The run's other
     findings are in its § 6; each has a row in the backend debt register. **Since then (2026-10-25):**
     X60, X62 and the six P2 findings are fixed (#198 to #203, register rows B-74 to B-80); a dated
-    run is owed to confirm them.
+    run is owed to confirm them. Done, see item 14.
+14. **Dated run of 2026-11-14** — [`audit-2026-11-14.md`](./audit-2026-11-14.md), issue #299. X60
+    and the six P2 findings of 2026-10-20 are confirmed closed; X62 is narrowed to a P3. The verdict
+    falls to **NOT FORK-READY**: ADR-001 criterion 3 fails on category 1, at 67%, on Y6 (a password
+    change revokes no session) and Y7 (the email changes on a bearer token alone and stays
+    verified). **Next, in this order:** Y6 (#308), Y7 (#309) and X62 (#310), **then** another
+    dated run, which can restate GOLD if all three close. After that the other P2 findings: Y61
+    (#312), Y62 (#313), Y20 (#314), Y22 (#315), Y11 (#311) and Y64 (#316); the P3 findings are
+    bundled in #317 to #320. Each finding is a GitHub issue (ADR-0085); the run's § 6 lists them,
+    and "what's next" is the issue query, not this list.
 
 ---
 
 ## 9. Related documents
 
-- [`audit-2026-10-20.md`](./audit-2026-10-20.md) — **current authoritative audit** (four graders, every caveat closed, fork dry-run, live reproductions, full re-grade on Node 24)
+- [`audit-2026-11-14.md`](./audit-2026-11-14.md) — **current authoritative audit** (four graders from a session that wrote none of the window, fork dry-run, live reproductions, full re-grade on Node 24)
+- [`audit-2026-10-20.md`](./audit-2026-10-20.md) — prior authoritative audit
 - [`audit-2026-10-12.md`](./audit-2026-10-12.md) — prior authoritative audit
 - [`audit-2026-10-10.md`](./audit-2026-10-10.md) — prior authoritative audit
 - [`audit-2026-10-05-b.md`](./audit-2026-10-05-b.md) — prior authoritative audit
