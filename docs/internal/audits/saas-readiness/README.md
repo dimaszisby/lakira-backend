@@ -16,7 +16,7 @@ The audit grades against the project's own intended standard (`.claude/rules/*`,
 - `README.md` — this file.
 - `FINAL-AUDIT-SUMMARY.md` — **the live status.** Verdict, open caveats and findings, and the lineage of audit runs. Start here.
 - `audit-2026-05-01.md` — baseline audit run. Contains the scorecard, gap entries (P0/P1/P2), evidence, and recommended fixes.
-- `audit-2026-05-20.md`, `audit-2026-05-24-independent.md`, `audit-2026-06-05.md`, `audit-2026-09-29.md`, `audit-2026-10-03.md`, `audit-2026-10-05.md`, `audit-2026-10-05-b.md`, `audit-2026-10-10.md`, `audit-2026-10-12.md`, `audit-2026-10-20.md` — later dated runs; each is a record of its date. The latest is the authoritative one.
+- `audit-2026-05-20.md`, `audit-2026-05-24-independent.md`, `audit-2026-06-05.md`, `audit-2026-09-29.md`, `audit-2026-10-03.md`, `audit-2026-10-05.md`, `audit-2026-10-05-b.md`, `audit-2026-10-10.md`, `audit-2026-10-12.md`, `audit-2026-10-20.md`, `audit-2026-11-14.md` — later dated runs; each is a record of its date. The latest is the authoritative one.
 - `iteration-plan.md` — master roadmap mapping each remediation phase to its own architecture-folder kit. Read this to know which kit to open when picking up a phase.
 - `decisions.md` — ADR entries for any standards adopted in response to the audit. New decisions append here; do not rewrite history.
 
@@ -69,7 +69,7 @@ The repo is fork-ready only when **all four** conditions hold:
 3. Categories 1 (Auth), 4 (Security), 6 (DX), 7 (Testing), 8 (CI/CD), 11 (Forkability) at ≥80% Yes.
 4. `LICENSE` and `.env.example` present.
 
-At the 2026-05-01 baseline: condition 1 failed (7 P0s), condition 3 failed (5 of 6 categories below 80%), condition 4 failed (both files missing). Condition 2 held. All four have held since the 2026-05-24 independent audit; current status is in `FINAL-AUDIT-SUMMARY.md`.
+At the 2026-05-01 baseline: condition 1 failed (7 P0s), condition 3 failed (5 of 6 categories below 80%), condition 4 failed (both files missing). Condition 2 held. All four held from the 2026-05-24 independent audit to the run of 2026-10-20; the run of 2026-11-14 found condition 3 failing on category 1 (67%). Current status is in `FINAL-AUDIT-SUMMARY.md`.
 
 ## References
 

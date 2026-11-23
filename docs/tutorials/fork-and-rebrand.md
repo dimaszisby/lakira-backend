@@ -144,19 +144,20 @@ docs/explanation/product-requirements.md
 The script removed `docs/internal/`, which held the upstream SaaS-readiness audit — the honest
 assessment of this template. To read it, re-run step 2 with `--keep-internal` on a fresh copy, or
 read it in the upstream repository; its live status is
-`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of 2026-10-20 it lists
-**no open P0 finding**, and all six of its caveats are closed, each confirmed by an independent
-grader and a reproduction. Two **P1** findings are open, both in the queue worker, and matter only
-if you run it (`RABBITMQ_ENABLED=true`). Concurrent email jobs can stall for a minute on the
-database connection pool, which has Sequelize's default of five connections. And a stopping worker
-keeps taking messages until its channel closes. Six P2 findings are open. A production database
-connection may run with TLS verification off, and `.env.example` sets
-`DB_SSL_REJECT_UNAUTHORIZED=false`, so set it to `true` wherever the database has a certificate. A
-database failure inside the auth middleware answers 401 rather than 5xx. A broker whose queue
-declarations differ from the code's takes the API process down. `/metric-logs/stats` fails past
-about 150,000 logs. And two lint rules that guard the domain layer can be stepped around. The
-script generates `JWT_SECRET`, the database password and the broker login, not a Redis password
-(step 3). Other open findings are P3 hardening.
+`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md`. As of the run of 2026-11-14 the
+verdict is **not fork-ready**: no P0 or P1 is open, and all six caveats hold closed, but two P2
+account-security findings take the authentication category below the gate. A password reset or
+change does not end existing sessions, so a stolen refresh cookie keeps working; and
+`PUT /auth/profile` changes the email or the password on an access token alone, with a changed
+address still marked verified. Fix both before you ship. Six other P2 findings are open. With the
+queue on (`RABBITMQ_ENABLED=true`): a channel the broker closes is not reopened, so the worker can
+sit idle while alive, and the worker reports to no error monitor; a slow mail provider can push
+email jobs past the pool's 60 s wait (a P3, sized by `DB_POOL_MAX`). Elsewhere: `GET /metrics`
+reports every goal type as "Not Set"; three operations' spec admits values the API refuses; an
+invitation carries the inviter's username, which has no length or character rule, into its
+subject; and the production deploy gate cannot be passed by a pull-request merge. The script
+generates `JWT_SECRET`, the database password and the broker login, not a Redis password (step 3).
+Other open findings are P3 hardening.
 
 The two findings that used to sit here are **closed**:
 
