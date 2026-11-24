@@ -33,8 +33,12 @@ export class DomainError extends Error {
 
 /** A value the domain refuses. The adapter renders this as 400. */
 export class ValidationError extends DomainError {
-  constructor(message: string) {
+  /** The request field it refuses, as the route names it (`currentPassword`), when one is to blame. */
+  readonly field?: string;
+
+  constructor(message: string, options: { field?: string } = {}) {
     super(message, "validation");
+    this.field = options.field;
   }
 }
 

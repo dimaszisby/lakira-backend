@@ -74,14 +74,23 @@ const resetTokenFor = async (email: string): Promise<string> => {
   return decodeURIComponent(match[1]);
 };
 
+/** `POST /auth/change-password` (credential-changes D-01), with the right current password. */
+const changePassword = (accessToken: string, currentPassword: string) =>
+  api
+    .post("/api/v1/auth/change-password")
+    .set("Authorization", authHeader(accessToken))
+    .send({
+      currentPassword,
+      password: NEW_PASSWORD,
+      passwordConfirmation: NEW_PASSWORD,
+    });
+
 describe("A password change ends every other session (ADR-0097)", () => {
   it("revokes every earlier refresh cookie and sends this session a new one", async () => {
-    const { accessToken, cookieA, cookieB } = await userWithTwoSessions();
+    const { payload, accessToken, cookieA, cookieB } =
+      await userWithTwoSessions();
 
-    const changed = await api
-      .put("/api/v1/auth/profile")
-      .set("Authorization", authHeader(accessToken))
-      .send({ password: NEW_PASSWORD });
+    const changed = await changePassword(accessToken, payload.password);
 
     expect(changed.status).toBe(200);
     const cookieC = refreshCookieOf(changed);
@@ -100,34 +109,26 @@ describe("A password change ends every other session (ADR-0097)", () => {
     const changer = await userWithTwoSessions();
     const bystander = await userWithTwoSessions();
 
-    await api
-      .put("/api/v1/auth/profile")
-      .set("Authorization", authHeader(changer.accessToken))
-      .send({ password: NEW_PASSWORD })
-      .expect(200);
+    await changePassword(changer.accessToken, changer.payload.password).expect(
+      200,
+    );
 
     expect((await refreshWith(changer.cookieA)).status).toBe(401);
     expect((await refreshWith(bystander.cookieA)).status).toBe(200);
     expect((await refreshWith(bystander.cookieB)).status).toBe(200);
   });
 
-  it("a password and an email changed together still end the sessions", async () => {
+  it("a refused change ends no session", async () => {
     const { accessToken, cookieA } = await userWithTwoSessions();
 
-    const changed = await api
-      .put("/api/v1/auth/profile")
-      .set("Authorization", authHeader(accessToken))
-      .send({
-        email: buildUserPayload().email,
-        password: NEW_PASSWORD,
-      });
+    const refused = await changePassword(accessToken, "not-the-password");
 
-    expect(changed.status).toBe(200);
-    expect(refreshCookieOf(changed)).toBeDefined();
-    expect((await refreshWith(cookieA)).status).toBe(401);
+    expect(refused.status).toBe(400);
+    expect(refreshCookieOf(refused)).toBeUndefined();
+    expect((await refreshWith(cookieA)).status).toBe(200);
   });
 
-  it("a profile change with no password ends no session and sets no cookie", async () => {
+  it("a profile change ends no session and sets no cookie", async () => {
     const { accessToken, cookieA } = await userWithTwoSessions();
 
     const changed = await api
@@ -141,13 +142,9 @@ describe("A password change ends every other session (ADR-0097)", () => {
   });
 
   it("leaves an access token already issued valid until it expires (the accepted window)", async () => {
-    const { accessToken } = await userWithTwoSessions();
+    const { payload, accessToken } = await userWithTwoSessions();
 
-    await api
-      .put("/api/v1/auth/profile")
-      .set("Authorization", authHeader(accessToken))
-      .send({ password: NEW_PASSWORD })
-      .expect(200);
+    await changePassword(accessToken, payload.password).expect(200);
 
     const profile = await api
       .get("/api/v1/auth/profile")

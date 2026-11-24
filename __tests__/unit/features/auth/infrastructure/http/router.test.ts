@@ -57,6 +57,7 @@ jest.mock("@/features/auth/infrastructure/http/controller.js", () => {
     login: "login",
     getProfile: "getProfile",
     updateProfile: "updateProfile",
+    changePassword: "changePassword",
     logout: "logout",
     refresh: "refresh",
     forgotPassword: "forgotPassword",
@@ -132,6 +133,7 @@ describe("auth router", () => {
   // register-rate-limiter, D-06).
   it.each<["put" | "post", string, string, string]>([
     ["put", "/profile", "userRateLimiter", "updateProfile"],
+    ["post", "/change-password", "userRateLimiter", "changePassword"],
     ["post", "/switch-org", "switchOrgRateLimiter", "switchOrg"],
   ])(
     "runs authMiddleware ahead of the limiter on %s %s",

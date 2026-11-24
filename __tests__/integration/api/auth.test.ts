@@ -80,7 +80,6 @@ describe("Auth API", () => {
       .set("Authorization", authHeader(token))
       .send({
         username: "updated-username",
-        email: `updated-${Date.now()}@example.com`,
         isPublicProfile: false,
       });
 

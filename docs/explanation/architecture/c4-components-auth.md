@@ -14,7 +14,7 @@ graph TB
     end
 
     subgraph app ["application — orchestration"]
-        uc["use-cases/<br/><small>RegisterUser · LoginUser<br/>RotateRefreshToken · AcceptInvite<br/>SwitchOrganization · VerifyEmail…</small>"]
+        uc["use-cases/<br/><small>RegisterUser · LoginUser<br/>RotateRefreshToken · AcceptInvite<br/>SwitchOrganization · ChangePassword<br/>VerifyEmail…</small>"]
         q["queries/<br/><small>GetProfile<br/>ListOrganizationMembers</small>"]
         ports["ports/<br/><small>TokenProvider · PasswordHasher<br/>TokenHasher · EmailSender</small>"]
     end
