@@ -142,17 +142,27 @@ const updateProfile = (feature: AuthFeature) =>
     const {
       body: { email, username, password, isPublicProfile },
     } = pickUpdateUser(req);
-    const updated = await feature.updateProfile.execute({
+    const result = await feature.updateProfile.execute({
       userId: req.user.id,
+      organizationId: req.organizationId,
+      userAgent: req.headers["user-agent"] ?? null,
+      ip: req.ip ?? null,
       email,
       username,
       password,
       isPublicProfile,
     });
+
+    // A new password ended every session; this one continues on a new cookie
+    // (ADR-0097).
+    if (result.rawRefreshToken) {
+      setRefreshCookie(res, result.rawRefreshToken);
+    }
+
     successResponse(
       res,
       200,
-      { user: toUserResponseDTO(updated) },
+      { user: toUserResponseDTO(result.user) },
       "Profile updated successfully",
     );
   });

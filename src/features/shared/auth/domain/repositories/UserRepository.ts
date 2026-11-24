@@ -16,5 +16,5 @@ export interface UserRepository {
   findByIds(ids: string[]): Promise<AuthUser[]>;
   findByEmail(email: string): Promise<AuthUser | null>;
   create(data: CreateUserDTO, tx?: PersistenceTransaction): Promise<AuthUser>;
-  save(user: AuthUser): Promise<AuthUser>;
+  save(user: AuthUser, tx?: PersistenceTransaction): Promise<AuthUser>;
 }

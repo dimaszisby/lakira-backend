@@ -906,10 +906,10 @@ describeTemplate("bootstrap-fork.sh (SaaS-readiness C1)", () => {
       });
 
       it("names the refresh cookie the server sets, in both places", () => {
-        // In the refresh and logout routes' descriptions and in each of the two
-        // cookie header components; and as the cookie parameter of both routes
-        // (logout declares it since ADR-0096).
-        expect(raw.split(`\`${derived.short}_refresh\``)).toHaveLength(5);
+        // In the refresh and logout routes' descriptions and in each of the three
+        // cookie header components (the re-issued one since ADR-0097); and as the
+        // cookie parameter of both routes (logout declares it since ADR-0096).
+        expect(raw.split(`\`${derived.short}_refresh\``)).toHaveLength(6);
         expect(raw.split(`"name": "${derived.short}_refresh"`)).toHaveLength(3);
       });
 

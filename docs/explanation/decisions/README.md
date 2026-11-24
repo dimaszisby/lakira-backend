@@ -134,10 +134,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0094](./adr-0094-ci-runs-unit-tests-on-workers-from-a-cached-install.md)      | CI runs the unit suite on workers, from a cached install, once per commit (updates ADR-0081's reasoning on `--runInBand`) | Accepted                                            | 2026-11-11 | issue #286                                        |
 | [ADR-0095](./adr-0095-the-deploy-smoke-logs-in-as-a-dedicated-account.md)          | The deploy smoke logs in as a dedicated account, whose credentials are CI secrets                                         | Accepted                                            | 2026-11-12 | issue #258                                        |
 | [ADR-0096](./adr-0096-the-refresh-cookie-is-scoped-to-the-auth-routes.md)          | The refresh cookie is scoped to the auth routes, so logout can revoke (amends ADR-0019's cookie path)                     | Accepted                                            | 2026-11-13 | issue #290                                        |
+| [ADR-0097](./adr-0097-a-password-reset-or-change-ends-every-other-session.md)      | A password reset or change ends every other session; the changing one continues on a new refresh token                    | Accepted                                            | 2026-11-24 | issue #308                                        |
 
 ## Adding one
 
-Take the next free number — **ADR-0097** as of 2026-11-13 — copy the shape of an existing record, and write `Status: Accepted` in the pull request that
+Take the next free number — **ADR-0098** as of 2026-11-24 — copy the shape of an existing record, and write `Status: Accepted` in the pull request that
 makes it, once the owner has approved it; `Proposed` only while it waits for that (ADR-0085).
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
