@@ -157,6 +157,12 @@ Items name the artifact. Acceptance points at the plan's AC ids, and gates point
       scope, predates the kit; noted in D-04 and ADR-0098 for #349's race-condition control
 - [x] Found in Phase 1: `auth.test.ts` updated a profile with an `email`, which is now refused →
       in scope, Phase 1 (the test sends only the profile fields)
+- [x] Found in PR 1's CI (`contract_local`): the contract hook still sent the seeded user's
+      `email` to `PUT /auth/profile`, which now refuses it → in scope, Phase 1
+      (`tests/contract/hooks/seeded_ids.py` strips `email` as it strips `password`).
+      `POST /auth/change-password` joins the "mostly rejected generated data" warning, as
+      `/reset-password` and `/verify-email` do: each needs a secret Schemathesis cannot guess;
+      a warning only, under #248
 
 ## Acceptance
 
