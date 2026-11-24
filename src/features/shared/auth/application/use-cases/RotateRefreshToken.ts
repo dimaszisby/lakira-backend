@@ -22,7 +22,8 @@ export type RotateRefreshTokenResult = {
 type RevokeAndReject = {
   kind: "revoke";
   familyId: string;
-  reason: string;
+  /** `reuse`: rotated away, then presented again. `revoked`: a session that ended. */
+  reason: "reuse" | "revoked" | "expired";
   ip?: string | null;
   userAgent?: string | null;
   userId?: string;
@@ -57,10 +58,13 @@ export class RotateRefreshToken {
       }
 
       if (existing.isRevoked()) {
+        // Only a token that was rotated away is evidence of theft. One revoked
+        // where it stood, by logout, an organization switch, or a password
+        // reset or change, is a session that ended (ADR-0097).
         return {
           kind: "revoke",
           familyId: existing.familyId,
-          reason: "reuse",
+          reason: existing.replacedById === null ? "revoked" : "reuse",
           ip: input.ip,
           userAgent: input.userAgent,
           userId: existing.userId,
@@ -142,6 +146,11 @@ export class RotateRefreshToken {
           familyId: result.familyId,
           ip: result.ip,
           userAgent: result.userAgent,
+        });
+      } else if (result.reason === "revoked") {
+        logger.info("auth.refresh.session_ended", {
+          userId: result.userId,
+          familyId: result.familyId,
         });
       }
       await this.refreshTokenRepo.revokeFamily(result.familyId);

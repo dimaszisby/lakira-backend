@@ -70,6 +70,7 @@ const build = () => {
     findByTokenHash: jest.fn(),
     findByTokenHashForUpdate: jest.fn(),
     revokeFamily: jest.fn(),
+    revokeAllForUser: jest.fn(),
     findActiveByUser: jest.fn(),
   };
   const tokenHasher: jest.Mocked<TokenHasher> = {

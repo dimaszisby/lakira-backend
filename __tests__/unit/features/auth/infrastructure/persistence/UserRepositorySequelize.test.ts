@@ -109,15 +109,37 @@ describe("UserRepositorySequelize", () => {
     user.setPasswordHash("next");
     const saved = await repo.save(user);
 
-    expect(instance.update).toHaveBeenCalledWith({
-      email: "new@example.com",
-      username: "new",
-      password: "next",
-      isPublicProfile: false,
-      emailVerifiedAt: null,
-    });
+    expect(instance.update).toHaveBeenCalledWith(
+      {
+        email: "new@example.com",
+        username: "new",
+        password: "next",
+        isPublicProfile: false,
+        emailVerifiedAt: null,
+      },
+      { transaction: undefined },
+    );
     expect(instance.reload).toHaveBeenCalled();
     expect(saved.email).toBe("user@example.com");
+  });
+
+  // ADR-0097: a password reset or change saves the user in the transaction
+  // that ends the user's sessions.
+  it("saves through a transaction it is given: the read, the write and the reload", async () => {
+    const instance = makeRow();
+    const findByPkSpy = jest.spyOn(models.User, "findByPk") as any;
+    findByPkSpy.mockResolvedValue(instance);
+    const repo = new UserRepositorySequelize();
+    const tx = { fake: "transaction" };
+    const user = await repo.findById("user-1");
+
+    await repo.save(user!, tx);
+
+    expect(findByPkSpy).toHaveBeenLastCalledWith("user-1", { transaction: tx });
+    expect(instance.update).toHaveBeenCalledWith(expect.any(Object), {
+      transaction: tx,
+    });
+    expect(instance.reload).toHaveBeenCalledWith({ transaction: tx });
   });
 
   it("finds users by id and email", async () => {

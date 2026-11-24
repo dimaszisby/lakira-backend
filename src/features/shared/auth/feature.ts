@@ -223,13 +223,25 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
       loginAttempts,
     ),
     getProfile: new GetProfile(repo),
-    updateProfile: new UpdateProfile(repo, hasher),
+    updateProfile: new UpdateProfile(
+      repo,
+      hasher,
+      refreshTokenRepo,
+      issueRefreshToken,
+      tx,
+    ),
     requestPasswordReset,
     sendPasswordResetEmailHandler: new SendPasswordResetEmailHandler(
       requestPasswordReset,
       idempotency,
     ),
-    resetPassword: new ResetPassword(repo, resetTokenRepo, hasher),
+    resetPassword: new ResetPassword(
+      repo,
+      resetTokenRepo,
+      hasher,
+      refreshTokenRepo,
+      tx,
+    ),
     requestEmailVerification,
     scheduleEmailVerification,
     sendVerificationEmailHandler: new SendVerificationEmailHandler(

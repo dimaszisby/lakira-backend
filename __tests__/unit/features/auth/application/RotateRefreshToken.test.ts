@@ -12,6 +12,7 @@ import { RefreshToken } from "@/features/auth/domain/entities/RefreshToken.js";
 import { AuthUser } from "@/features/auth/domain/entities/AuthUser.js";
 import { Membership } from "@/features/auth/domain/entities/Membership.js";
 import crypto from "node:crypto";
+import logger from "@/utils/logger.js";
 
 const RAW_TOKEN = "test-raw-token-base64url";
 const TOKEN_HASH = crypto.createHash("sha256").update(RAW_TOKEN).digest("hex");
@@ -66,6 +67,7 @@ const build = () => {
     revokeFamily: jest
       .fn<RefreshTokenRepository["revokeFamily"]>()
       .mockResolvedValue(undefined),
+    revokeAllForUser: jest.fn(),
     findActiveByUser: jest.fn(),
   };
   const tx = {
@@ -153,14 +155,53 @@ describe("RotateRefreshToken use case", () => {
 
   it("revokes entire family on reuse detection", async () => {
     const { sut, refreshTokenRepo } = build();
-    const revoked = makeRefreshToken({ revokedAt: new Date() });
-    refreshTokenRepo.findByTokenHashForUpdate.mockResolvedValue(revoked);
+    const warn = jest.spyOn(logger, "warn").mockImplementation(() => logger);
+    // Rotated away earlier: presenting it again is the theft signal.
+    const rotated = makeRefreshToken({
+      revokedAt: new Date(),
+      replacedById: "rt-2",
+    });
+    refreshTokenRepo.findByTokenHashForUpdate.mockResolvedValue(rotated);
 
     await expect(sut.execute({ rawToken: RAW_TOKEN })).rejects.toMatchObject({
       kind: "unauthorized",
     });
 
     expect(refreshTokenRepo.revokeFamily).toHaveBeenCalledWith("fam-1");
+    expect(warn).toHaveBeenCalledWith(
+      "auth.refresh.reuse_detected",
+      expect.objectContaining({ familyId: "fam-1" }),
+    );
+    warn.mockRestore();
+  });
+
+  it("answers 401 for a token revoked where it stood, without reporting reuse (ADR-0097)", async () => {
+    const { sut, refreshTokenRepo } = build();
+    const warn = jest.spyOn(logger, "warn").mockImplementation(() => logger);
+    const info = jest.spyOn(logger, "info").mockImplementation(() => logger);
+    // Never rotated, then revoked: logout, or every session ended by a
+    // password reset or change.
+    const ended = makeRefreshToken({
+      revokedAt: new Date(),
+      replacedById: null,
+    });
+    refreshTokenRepo.findByTokenHashForUpdate.mockResolvedValue(ended);
+
+    await expect(sut.execute({ rawToken: RAW_TOKEN })).rejects.toMatchObject({
+      kind: "unauthorized",
+    });
+
+    expect(warn).not.toHaveBeenCalledWith(
+      "auth.refresh.reuse_detected",
+      expect.anything(),
+    );
+    expect(info).toHaveBeenCalledWith("auth.refresh.session_ended", {
+      userId: "user-1",
+      familyId: "fam-1",
+    });
+    expect(refreshTokenRepo.revokeFamily).toHaveBeenCalledWith("fam-1");
+    warn.mockRestore();
+    info.mockRestore();
   });
 
   it("revokes family and throws 401 when token is expired", async () => {

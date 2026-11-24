@@ -101,6 +101,10 @@ compromise yields no usable tokens
 Refresh tokens add rotation with reuse detection. Each token belongs to a `family_id`; rotating
 marks the old row `replaced_by_id`. Presenting an already-replaced token means it leaked, so the
 whole family is revoked ([ADR-0019](../decisions/adr-0019-refresh-token-storage-and-rotation.md)).
+A token revoked without being replaced is a session that ended (logout, an organization switch,
+a password reset or change) and is refused without that alarm. A password reset or change revokes
+every token the user has, and a change issues the session making it a new one
+([ADR-0097](../decisions/adr-0097-a-password-reset-or-change-ends-every-other-session.md)).
 
 ## Known drift
 

@@ -76,6 +76,9 @@ const REFRESH_COOKIE_HEADERS = {
 const CLEARED_REFRESH_COOKIE_HEADERS = {
   "Set-Cookie": { $ref: "#/components/headers/ClearedRefreshCookie" },
 };
+const REISSUED_REFRESH_COOKIE_HEADERS = {
+  "Set-Cookie": { $ref: "#/components/headers/ReissuedRefreshCookie" },
+};
 // Every limiter, and the login lockout, sends Retry-After with its 429
 // (kit release-and-retry-after, D-02).
 const RETRY_AFTER_HEADER = {
@@ -222,6 +225,10 @@ registry.registerPath({
   path: "/auth/profile",
   tags: ["Auth"],
   summary: "Update current user's profile",
+  description:
+    "A new `password` ends every session the user has: each refresh token issued before it answers 401 " +
+    "at `POST /auth/refresh`. The session making the change continues on a new refresh cookie, sent " +
+    "with the 200. An access token already issued stays valid until it expires.",
   security: [{ BearerAuth: [] }],
   request: {
     body: {
@@ -236,6 +243,7 @@ registry.registerPath({
   responses: {
     200: {
       description: "User profile updated successfully",
+      headers: REISSUED_REFRESH_COOKIE_HEADERS,
       content: {
         "application/json": {
           schema: UpdateUserResponseSchema,
@@ -387,7 +395,8 @@ registry.registerPath({
   description:
     "Consumes a reset token sent via email and sets a new password. Returns a generic " +
     "400 for unknown, used, expired, or otherwise invalid tokens to avoid information leak. " +
-    "Caller must log in via /auth/login afterwards.",
+    "A reset ends every session the user had: each refresh token issued before it answers 401 at " +
+    "`POST /auth/refresh`. Caller must log in via /auth/login afterwards.",
   request: {
     body: {
       required: true,

@@ -64,6 +64,12 @@ Secret naming already used in docs:
   server-side, and clears the cookie. Without the cookie it revokes nothing; a browser on the API's
   origin sends it, and a server-side caller sends it itself (ADR-0096).
   The FE should also drop its in-memory access token.
+- A password reset (`POST /api/v1/auth/reset-password`) or a password change
+  (`PUT /api/v1/auth/profile` with `password`) ends every session the user has: each refresh
+  cookie issued before it answers `401` at `/auth/refresh`. A change sends the session making it a
+  new refresh cookie with its `200`, so that session continues; whatever relays the backend's
+  `Set-Cookie` must relay this one too, or the session ends when its access token expires.
+  Access tokens already issued stay valid until they expire (ADR-0097).
 - Other auth routes: `/forgot-password`, `/reset-password`, `/verify-email`,
   `/resend-verification`, `/switch-org` (all under `/api/v1/auth`).
 - `GET /api/v1/organizations` lists the caller's organizations, each with `organizationId`,

@@ -60,6 +60,19 @@ describe("response headers in the OpenAPI spec", () => {
     });
   });
 
+  // ADR-0097: only a password change re-issues the session, so the header is
+  // declared but not required; a required one would fail the contract gate on
+  // every other profile update.
+  it("PUT /auth/profile declares the refresh cookie a password change re-issues", () => {
+    expect(spec.paths["/auth/profile"].put.responses["200"].headers).toEqual({
+      "Set-Cookie": ref("ReissuedRefreshCookie"),
+    });
+    const reissued = spec.components.headers?.ReissuedRefreshCookie;
+    expect(reissued?.required).toBe(false);
+    expect(reissued?.description).toMatch(/`\w[\w-]*_refresh`/);
+    expect(reissued?.description).toContain("changes the password");
+  });
+
   it("describes the cookie by name, with the attributes a client depends on", () => {
     const cookie = spec.components.headers?.RefreshCookie;
 
@@ -107,7 +120,7 @@ describe("response headers in the OpenAPI spec", () => {
     },
   );
 
-  it("declares a response header on those seven operations and no other, 429s aside", () => {
+  it("declares a response header on those eight operations and no other, 429s aside", () => {
     const withHeaders = Object.entries(spec.paths).flatMap(([route, item]) =>
       Object.entries(item)
         .filter(([, operation]) =>
@@ -126,6 +139,7 @@ describe("response headers in the OpenAPI spec", () => {
       "POST /auth/refresh",
       "POST /auth/register",
       "POST /auth/switch-org",
+      "PUT /auth/profile",
     ]);
   });
 

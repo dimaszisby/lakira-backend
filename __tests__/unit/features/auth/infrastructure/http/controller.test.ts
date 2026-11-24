@@ -277,19 +277,19 @@ describe("Auth HTTP controller", () => {
     );
   });
 
-  it("updates profile using feature use case", async () => {
-    updateProfileExecute.mockResolvedValue({
-      id: "user-1",
-      email: "new@example.com",
-      username: "new",
-      isPublicProfile: false,
-      passwordHash: "hash",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    });
+  const profileUser = {
+    id: "user-1",
+    email: "new@example.com",
+    username: "new",
+    isPublicProfile: false,
+    passwordHash: "hash",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+  };
 
-    const req = {
+  const profileRequest = (body: Record<string, unknown>) =>
+    ({
       user: { id: "user-1" },
       organizationId: "org-1",
       membership: {
@@ -298,19 +298,34 @@ describe("Auth HTTP controller", () => {
         organizationId: "org-1",
         userId: "user-1",
       },
-      body: {
+      headers: { "user-agent": "jest-agent" },
+      ip: "203.0.113.7",
+      body,
+    }) as unknown as AuthRequest;
+
+  it("updates profile using feature use case", async () => {
+    updateProfileExecute.mockResolvedValue({
+      user: profileUser,
+      rawRefreshToken: "new-raw-refresh",
+    });
+
+    const response = res();
+    await updateProfile(
+      profileRequest({
         email: "new@example.com",
         username: "new",
         password: "Password123!",
         isPublicProfile: false,
-      },
-    } as unknown as AuthRequest;
-
-    const response = res();
-    await updateProfile(req, response, next);
+      }),
+      response,
+      next,
+    );
 
     expect(updateProfileExecute).toHaveBeenCalledWith({
       userId: "user-1",
+      organizationId: "org-1",
+      userAgent: "jest-agent",
+      ip: "203.0.113.7",
       email: "new@example.com",
       username: "new",
       password: "Password123!",
@@ -325,6 +340,43 @@ describe("Auth HTTP controller", () => {
         }),
       }),
     );
+  });
+
+  it("sets the new refresh cookie when a password change re-issued the session (ADR-0097)", async () => {
+    updateProfileExecute.mockResolvedValue({
+      user: profileUser,
+      rawRefreshToken: "new-raw-refresh",
+    });
+
+    const response = res();
+    await updateProfile(
+      profileRequest({ password: "Password123!" }),
+      response,
+      next,
+    );
+
+    expect(response.cookie).toHaveBeenCalledWith(
+      expect.stringMatching(/_refresh$/),
+      "new-raw-refresh",
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: "strict",
+        path: "/api/v1/auth",
+      }),
+    );
+  });
+
+  it("sets no cookie when the profile change re-issued nothing", async () => {
+    updateProfileExecute.mockResolvedValue({
+      user: profileUser,
+      rawRefreshToken: null,
+    });
+
+    const response = res();
+    await updateProfile(profileRequest({ username: "new" }), response, next);
+
+    expect(response.cookie).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(200);
   });
 
   it("requires authentication before fetching profile", async () => {

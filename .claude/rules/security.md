@@ -92,6 +92,11 @@ and limits stop being shared across instances (twelve-factor TF-12).
 5. Protected routes use `assertAuthenticated(req)` to narrow the type; role checks use
    `requireOrgRole` / `assertHasOrgRole`
 
+A password reset or change revokes every refresh token the user has, in the transaction that
+writes the new hash; a change then issues the session making it a new one (ADR-0097). A new code
+path that sets a password does the same, through `RefreshTokenRepository.revokeAllForUser`.
+Access tokens already issued live out `ACCESS_TOKEN_TTL_SEC`.
+
 ## Sensitive Data Handling
 
 - A `pre-commit` hook refuses any staged `.env*` path other than `*.example`. It inspects the

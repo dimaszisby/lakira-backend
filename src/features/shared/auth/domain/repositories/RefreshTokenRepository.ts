@@ -13,5 +13,11 @@ export interface RefreshTokenRepository {
     now?: Date,
     tx?: PersistenceTransaction,
   ): Promise<void>;
+  /** Every unrevoked token of the user, in one statement: ends all their sessions (ADR-0097). */
+  revokeAllForUser(
+    userId: string,
+    now?: Date,
+    tx?: PersistenceTransaction,
+  ): Promise<void>;
   findActiveByUser(userId: string): Promise<RefreshToken[]>;
 }
