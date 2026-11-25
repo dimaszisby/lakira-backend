@@ -48,6 +48,7 @@ describe("response headers in the OpenAPI spec", () => {
     ["/auth/login", "200"],
     ["/auth/refresh", "200"],
     ["/auth/switch-org", "200"],
+    ["/auth/change-password", "200"],
   ])("POST %s declares the refresh cookie it sets", (route, status) => {
     expect(spec.paths[route].post.responses[status].headers).toEqual({
       "Set-Cookie": ref("RefreshCookie"),
@@ -107,7 +108,7 @@ describe("response headers in the OpenAPI spec", () => {
     },
   );
 
-  it("declares a response header on those seven operations and no other, 429s aside", () => {
+  it("declares a response header on those eight operations and no other, 429s aside", () => {
     const withHeaders = Object.entries(spec.paths).flatMap(([route, item]) =>
       Object.entries(item)
         .filter(([, operation]) =>
@@ -121,6 +122,7 @@ describe("response headers in the OpenAPI spec", () => {
     expect(withHeaders.sort()).toEqual([
       "GET /analytics/dashboard",
       "GET /analytics/metrics/{metricId}",
+      "POST /auth/change-password",
       "POST /auth/login",
       "POST /auth/logout",
       "POST /auth/refresh",

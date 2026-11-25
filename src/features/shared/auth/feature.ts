@@ -27,6 +27,10 @@ import { RegisterUser } from "./application/use-cases/RegisterUser.js";
 import { LoginUser } from "./application/use-cases/LoginUser.js";
 import { GetProfile } from "./application/queries/GetProfile.js";
 import { UpdateProfile } from "./application/use-cases/UpdateProfile.js";
+import { ChangePassword } from "./application/use-cases/ChangePassword.js";
+import { ConfirmCurrentPassword } from "./application/use-cases/ConfirmCurrentPassword.js";
+import type { CredentialAttemptsPort } from "./application/ports/CredentialAttemptsPort.js";
+import { credentialAttemptCounter } from "./infrastructure/http/credentialAttempts.js";
 import { RequestPasswordReset } from "./application/use-cases/RequestPasswordReset.js";
 import { ResetPassword } from "./application/use-cases/ResetPassword.js";
 import { RequestEmailVerification } from "./application/use-cases/RequestEmailVerification.js";
@@ -93,6 +97,15 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
   const loginAttempts: LoginAttemptsPort = {
     recordFailure: (email) => recordFailedAttempt(email, lockoutRedis),
     reset: (email) => resetLockout(email, lockoutRedis),
+  };
+  // Wrong current passwords at the credential routes, per user, on the same
+  // store (credential-changes D-04). Reserved at the edge, cleared by the use case.
+  const credentialAttempts = {
+    reserve: (userId: string) =>
+      credentialAttemptCounter.reserve(userId, lockoutRedis),
+  };
+  const credentialAttemptsPort: CredentialAttemptsPort = {
+    reset: (userId) => credentialAttemptCounter.reset(userId, lockoutRedis),
   };
   const repo = new UserRepositorySequelize();
   const orgRepo = new OrganizationRepositorySequelize();
@@ -223,13 +236,29 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
       loginAttempts,
     ),
     getProfile: new GetProfile(repo),
-    updateProfile: new UpdateProfile(repo, hasher),
+    updateProfile: new UpdateProfile(repo),
+    changePassword: new ChangePassword(
+      repo,
+      resetTokenRepo,
+      refreshTokenRepo,
+      hasher,
+      issueRefreshToken,
+      new ConfirmCurrentPassword(hasher, credentialAttemptsPort),
+      tx,
+    ),
+    credentialAttempts,
     requestPasswordReset,
     sendPasswordResetEmailHandler: new SendPasswordResetEmailHandler(
       requestPasswordReset,
       idempotency,
     ),
-    resetPassword: new ResetPassword(repo, resetTokenRepo, hasher),
+    resetPassword: new ResetPassword(
+      repo,
+      resetTokenRepo,
+      hasher,
+      refreshTokenRepo,
+      tx,
+    ),
     requestEmailVerification,
     scheduleEmailVerification,
     sendVerificationEmailHandler: new SendVerificationEmailHandler(

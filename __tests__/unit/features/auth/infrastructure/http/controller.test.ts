@@ -10,6 +10,7 @@ let register: Handlers["register"];
 let login: Handlers["login"];
 let getProfile: Handlers["getProfile"];
 let updateProfile: Handlers["updateProfile"];
+let changePassword: Handlers["changePassword"];
 let logout: Handlers["logout"];
 let verifyEmail: Handlers["verifyEmail"];
 let resendVerification: Handlers["resendVerification"];
@@ -23,6 +24,7 @@ const registerExecute: AsyncMock = jest.fn();
 const loginExecute: AsyncMock = jest.fn();
 const getProfileExecute: AsyncMock = jest.fn();
 const updateProfileExecute: AsyncMock = jest.fn();
+const changePasswordExecute: AsyncMock = jest.fn();
 const rotateRefreshTokenExecute: AsyncMock = jest.fn();
 const revokeRefreshTokenFamilyExecute: AsyncMock = jest.fn();
 const scheduleEmailVerificationExecute: AsyncMock = jest.fn(
@@ -34,6 +36,9 @@ const switchOrganizationExecute: AsyncMock = jest.fn();
 const assertAuthenticatedMock = jest.fn();
 
 const checkLockoutMock: AsyncMock = jest.fn(async () => undefined) as AsyncMock;
+const checkCredentialAttemptsMock: AsyncMock = jest.fn(
+  async () => undefined,
+) as AsyncMock;
 
 jest.mock("@/utils/auth-guards.js", () => ({
   assertAuthenticated: assertAuthenticatedMock,
@@ -51,6 +56,8 @@ const buildFeatureMocks = (): AuthFeature =>
     loginUser: { execute: loginExecute },
     getProfile: { execute: getProfileExecute },
     updateProfile: { execute: updateProfileExecute },
+    changePassword: { execute: changePasswordExecute },
+    credentialAttempts: { reserve: checkCredentialAttemptsMock },
     rotateRefreshToken: { execute: rotateRefreshTokenExecute },
     revokeRefreshTokenFamily: { execute: revokeRefreshTokenFamilyExecute },
     scheduleEmailVerification: { execute: scheduleEmailVerificationExecute },
@@ -85,6 +92,7 @@ describe("Auth HTTP controller", () => {
       login,
       getProfile,
       updateProfile,
+      changePassword,
       logout,
       verifyEmail,
       resendVerification,
@@ -277,19 +285,19 @@ describe("Auth HTTP controller", () => {
     );
   });
 
-  it("updates profile using feature use case", async () => {
-    updateProfileExecute.mockResolvedValue({
-      id: "user-1",
-      email: "new@example.com",
-      username: "new",
-      isPublicProfile: false,
-      passwordHash: "hash",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    });
+  const profileUser = {
+    id: "user-1",
+    email: "new@example.com",
+    username: "new",
+    isPublicProfile: false,
+    passwordHash: "hash",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+  };
 
-    const req = {
+  const profileRequest = (body: Record<string, unknown>) =>
+    ({
       user: { id: "user-1" },
       organizationId: "org-1",
       membership: {
@@ -298,24 +306,28 @@ describe("Auth HTTP controller", () => {
         organizationId: "org-1",
         userId: "user-1",
       },
-      body: {
-        email: "new@example.com",
-        username: "new",
-        password: "Password123!",
-        isPublicProfile: false,
-      },
-    } as unknown as AuthRequest;
+      headers: { "user-agent": "jest-agent" },
+      ip: "203.0.113.7",
+      body,
+    }) as unknown as AuthRequest;
+
+  it("updates profile using feature use case", async () => {
+    updateProfileExecute.mockResolvedValue(profileUser);
 
     const response = res();
-    await updateProfile(req, response, next);
+    await updateProfile(
+      profileRequest({ username: "new", isPublicProfile: false }),
+      response,
+      next,
+    );
 
     expect(updateProfileExecute).toHaveBeenCalledWith({
       userId: "user-1",
-      email: "new@example.com",
       username: "new",
-      password: "Password123!",
       isPublicProfile: false,
     });
+    // A profile edit touches no session (credential-changes D-01).
+    expect(response.cookie).not.toHaveBeenCalled();
     expect(response.status).toHaveBeenCalledWith(200);
     expect(response.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -324,6 +336,73 @@ describe("Auth HTTP controller", () => {
           user: expect.objectContaining({ id: "user-1" }),
         }),
       }),
+    );
+  });
+
+  it("changes the password and sets this session's new refresh cookie (ADR-0097)", async () => {
+    changePasswordExecute.mockResolvedValue({
+      rawRefreshToken: "new-raw-refresh",
+    });
+
+    const response = res();
+    await changePassword(
+      profileRequest({
+        currentPassword: "OldPassword1!",
+        password: "NewPassword1!",
+        passwordConfirmation: "NewPassword1!",
+      }),
+      response,
+      next,
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(checkCredentialAttemptsMock).toHaveBeenCalledWith("user-1");
+    expect(changePasswordExecute).toHaveBeenCalledWith({
+      userId: "user-1",
+      organizationId: "org-1",
+      userAgent: "jest-agent",
+      ip: "203.0.113.7",
+      currentPassword: "OldPassword1!",
+      password: "NewPassword1!",
+    });
+    expect(response.cookie).toHaveBeenCalledWith(
+      expect.stringMatching(/_refresh$/),
+      "new-raw-refresh",
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: "strict",
+        path: "/api/v1/auth",
+      }),
+    );
+    expect(response.status).toHaveBeenCalledWith(200);
+  });
+
+  it("answers the credential counter's 429 with Retry-After, before any check of the password", async () => {
+    const AppError = (await import("@/utils/AppError.js")).default;
+    checkCredentialAttemptsMock.mockRejectedValueOnce(
+      new AppError(
+        "Too many incorrect passwords. Please try again later.",
+        429,
+      ),
+    );
+
+    const response = res();
+    const errorNext = jest.fn();
+    await changePassword(
+      profileRequest({
+        currentPassword: "guess",
+        password: "NewPassword1!",
+        passwordConfirmation: "NewPassword1!",
+      }),
+      response,
+      errorNext,
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(response.setHeader).toHaveBeenCalledWith("Retry-After", "900");
+    expect(changePasswordExecute).not.toHaveBeenCalled();
+    expect(errorNext).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 429 }),
     );
   });
 

@@ -61,6 +61,23 @@ export class RefreshTokenRepositorySequelize implements RefreshTokenRepository {
     );
   }
 
+  async revokeAllForUser(
+    userId: string,
+    now: Date = new Date(),
+    tx?: PersistenceTransaction,
+  ): Promise<void> {
+    await models.RefreshToken.update(
+      { revokedAt: now },
+      {
+        where: {
+          userId,
+          revokedAt: { [Op.is]: null },
+        },
+        transaction: tx as Transaction | undefined,
+      },
+    );
+  }
+
   async findActiveByUser(userId: string): Promise<RefreshToken[]> {
     const rows = await models.RefreshToken.findAll({
       where: {

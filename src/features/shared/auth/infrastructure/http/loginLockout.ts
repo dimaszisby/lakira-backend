@@ -1,6 +1,10 @@
-import AppError from "@/utils/AppError.js";
 import { hashEmail } from "@/utils/email-hash.js";
-import logger from "@/utils/logger.js";
+import {
+  makeAttemptCounter,
+  type LockoutRedisClient,
+} from "./attemptCounter.js";
+
+export type { LockoutRedisClient } from "./attemptCounter.js";
 
 // Semantics: the Nth failed attempt is allowed through (returns 401) and
 // causes the counter to reach LOCKOUT_THRESHOLD. The (N+1)th request — and
@@ -8,72 +12,29 @@ import logger from "@/utils/logger.js";
 export const LOCKOUT_THRESHOLD = 5;
 export const LOCKOUT_TTL_SECONDS = 15 * 60;
 
-export interface LockoutRedisClient {
-  readonly isOpen: boolean;
-  get(key: string): Promise<string | null>;
-  incr(key: string): Promise<number>;
-  expire(key: string, seconds: number): Promise<unknown>;
-  del(key: string | string[]): Promise<unknown>;
-}
+const loginCounter = makeAttemptCounter({
+  keyOf: (email) => `auth:lockout:${hashEmail(email)}`,
+  threshold: LOCKOUT_THRESHOLD,
+  ttlSeconds: LOCKOUT_TTL_SECONDS,
+  message: "Too many failed login attempts. Please try again later.",
+  events: {
+    triggered: "auth.lockout.triggered",
+    unavailable: "auth.lockout.redis_unavailable",
+  },
+  meta: (email) => ({ emailHash: hashEmail(email) }),
+});
 
-const keyFor = (email: string): string => `auth:lockout:${hashEmail(email)}`;
-
-const logRedisUnavailable = (op: string, err: unknown) => {
-  logger.warn("auth.lockout.redis_unavailable", {
-    op,
-    // The error itself, reduced by the logger (log-and-ci-leaks D-01).
-    err,
-  });
-};
-
-export async function checkLockout(
+export const checkLockout = (
   email: string,
   redis: LockoutRedisClient,
-): Promise<void> {
-  let count = 0;
-  try {
-    if (!redis.isOpen) return;
-    const raw = await redis.get(keyFor(email));
-    count = raw ? Number.parseInt(raw, 10) : 0;
-  } catch (err) {
-    logRedisUnavailable("check", err);
-    return;
-  }
-  if (count >= LOCKOUT_THRESHOLD) {
-    throw new AppError(
-      "Too many failed login attempts. Please try again later.",
-      429,
-    );
-  }
-}
+): Promise<void> => loginCounter.check(email, redis);
 
-export async function recordFailedAttempt(
+export const recordFailedAttempt = (
   email: string,
   redis: LockoutRedisClient,
-): Promise<void> {
-  try {
-    if (!redis.isOpen) return;
-    const key = keyFor(email);
-    const count = await redis.incr(key);
-    if (count === 1) {
-      await redis.expire(key, LOCKOUT_TTL_SECONDS);
-    }
-    if (count === LOCKOUT_THRESHOLD) {
-      logger.warn("auth.lockout.triggered", { emailHash: hashEmail(email) });
-    }
-  } catch (err) {
-    logRedisUnavailable("record", err);
-  }
-}
+): Promise<void> => loginCounter.recordFailure(email, redis);
 
-export async function resetLockout(
+export const resetLockout = (
   email: string,
   redis: LockoutRedisClient,
-): Promise<void> {
-  try {
-    if (!redis.isOpen) return;
-    await redis.del(keyFor(email));
-  } catch (err) {
-    logRedisUnavailable("reset", err);
-  }
-}
+): Promise<void> => loginCounter.reset(email, redis);

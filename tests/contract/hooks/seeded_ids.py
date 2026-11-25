@@ -485,11 +485,13 @@ def inject_seeded_ids(context, case, kwargs) -> None:  # kwargs unused but requi
         username = PRIMARY_USER.get("username")
         if isinstance(username, str) and username:
             body["username"] = username
-        if isinstance(PRIMARY_USER_EMAIL, str) and PRIMARY_USER_EMAIL:
-            body["email"] = PRIMARY_USER_EMAIL
         body["isPublicProfile"] = bool(PRIMARY_USER.get("isPublicProfile", True))
-        # Keep the credential baseline stable across generated auth flows.
+        # The route changes the profile only, and refuses a credential with a 400
+        # (credential-changes D-01, ADR-0098): the password and the email have
+        # their own routes. Keeping them out also keeps the credential baseline
+        # stable across generated auth flows.
         body.pop("password", None)
+        body.pop("email", None)
         body.pop("role", None)
         _set_case_body(case, body)
 

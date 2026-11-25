@@ -92,6 +92,19 @@ and limits stop being shared across instances (twelve-factor TF-12).
 5. Protected routes use `assertAuthenticated(req)` to narrow the type; role checks use
    `requireOrgRole` / `assertHasOrgRole`
 
+A password reset or change revokes every refresh token the user has, in the transaction that
+writes the new hash; a change then issues the session making it a new one (ADR-0097). A new code
+path that sets a password does the same, through `RefreshTokenRepository.revokeAllForUser`.
+Access tokens already issued live out `ACCESS_TOKEN_TTL_SEC`.
+
+A credential changes only through its own route, which asks for the current password through
+`ConfirmCurrentPassword`: `POST /auth/change-password`; `PUT /auth/profile` refuses `password` and
+`email` (ADR-0098). A wrong current password is a 400 on `currentPassword`, never a 401. Wrong
+guesses are bounded per user by `credentialAttemptCounter` (`auth:credential-attempts:<userId>`, 5
+in 15 minutes, apart from the login lockout): the edge reserves each attempt before it is judged
+and answers 429 past the limit, so parallel guesses cannot outrun it. A new credential route goes
+through both.
+
 ## Sensitive Data Handling
 
 - A `pre-commit` hook refuses any staged `.env*` path other than `*.example`. It inspects the

@@ -5,7 +5,6 @@ import {
 } from "@/shared/domain/errors/DomainError.js";
 import { UpdateProfile } from "@/features/auth/application/use-cases/UpdateProfile.js";
 import { UserRepository } from "@/features/auth/domain/repositories/UserRepository.js";
-import { PasswordHasher } from "@/features/auth/application/ports/PasswordHasher.js";
 import { AuthUser } from "@/features/auth/domain/entities/AuthUser.js";
 
 const makeUser = () =>
@@ -30,12 +29,8 @@ const build = () => {
     create: jest.fn(),
     save: jest.fn(),
   };
-  const hasher: jest.Mocked<PasswordHasher> = {
-    hash: jest.fn(),
-    compare: jest.fn(),
-  };
-  const sut = new UpdateProfile(repo, hasher);
-  return { sut, repo, hasher };
+  const sut = new UpdateProfile(repo);
+  return { sut, repo };
 };
 
 describe("UpdateProfile use case", () => {
@@ -43,28 +38,26 @@ describe("UpdateProfile use case", () => {
     jest.resetAllMocks();
   });
 
-  it("updates provided fields and persists user", async () => {
-    const { sut, repo, hasher } = build();
+  it("updates the profile fields and persists the user", async () => {
+    const { sut, repo } = build();
     const user = makeUser();
     repo.findById.mockResolvedValue(user);
-    repo.existsByEmail.mockResolvedValue(false);
     repo.existsByUsername.mockResolvedValue(false);
-    hasher.hash.mockResolvedValue("next-hash");
     repo.save.mockImplementation(async () => user);
 
-    await sut.execute({
+    const result = await sut.execute({
       userId: "user-1",
-      email: " New@Example.com ",
       username: "new-user",
-      password: "Password123!",
       isPublicProfile: false,
     });
 
     const savedUser = repo.save.mock.calls[0][0];
-    expect(savedUser.email).toBe("new@example.com");
     expect(savedUser.username).toBe("new-user");
     expect(savedUser.isPublicProfile).toBe(false);
-    expect(savedUser.passwordHash).toBe("next-hash");
+    // The credentials are untouched: they have their own routes (credential-changes D-01).
+    expect(savedUser.email).toBe("user@example.com");
+    expect(savedUser.passwordHash).toBe("hash");
+    expect(result).toBe(user);
   });
 
   it("throws when user cannot be found", async () => {
@@ -72,17 +65,18 @@ describe("UpdateProfile use case", () => {
     repo.findById.mockResolvedValue(null);
 
     await expect(
-      sut.execute({ userId: "missing", email: "user@example.com" }),
+      sut.execute({ userId: "missing", username: "someone" }),
     ).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it("throws when email already taken", async () => {
+  it("throws when the username is already taken", async () => {
     const { sut, repo } = build();
     repo.findById.mockResolvedValue(makeUser());
-    repo.existsByEmail.mockResolvedValue(true);
+    repo.existsByUsername.mockResolvedValue(true);
 
     await expect(
-      sut.execute({ userId: "user-1", email: "new@example.com" }),
+      sut.execute({ userId: "user-1", username: "taken" }),
     ).rejects.toBeInstanceOf(ConflictError);
+    expect(repo.save).not.toHaveBeenCalled();
   });
 });

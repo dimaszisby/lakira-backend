@@ -13,7 +13,11 @@ export interface PasswordResetTokenRepository {
     data: CreatePasswordResetTokenDTO,
     tx?: PersistenceTransaction,
   ): Promise<PasswordResetToken>;
-  markUsed(id: string, usedAt: Date): Promise<void>;
+  markUsed(
+    id: string,
+    usedAt: Date,
+    tx?: PersistenceTransaction,
+  ): Promise<void>;
   invalidateAllForUser(
     userId: string,
     now?: Date,

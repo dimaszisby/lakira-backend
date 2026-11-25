@@ -10,6 +10,7 @@ import {
   UserResponseSchema,
   UpdateUserResponseSchema,
   UpdateUserRequestSchema,
+  ChangePasswordRequestSchema,
   ForgotPasswordRequestSchema,
   ResetPasswordRequestSchema,
   RateLimitErrorSchema,
@@ -222,6 +223,10 @@ registry.registerPath({
   path: "/auth/profile",
   tags: ["Auth"],
   summary: "Update current user's profile",
+  description:
+    "Changes the username and whether the profile is public. A body carrying `password` or `email` " +
+    "is refused with 400: the password is changed with `POST /auth/change-password`, which asks " +
+    "for the current one.",
   security: [{ BearerAuth: [] }],
   request: {
     body: {
@@ -250,6 +255,63 @@ registry.registerPath({
     },
     409: {
       $ref: "#/components/responses/ConflictError",
+    },
+    500: {
+      $ref: "#/components/responses/InternalServerError",
+    },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/auth/change-password",
+  tags: ["Auth"],
+  summary: "Change the password",
+  description:
+    "Asks for the current password. A wrong one answers 400 with an error on `currentPassword`, " +
+    "never 401, and counts toward a per-user limit: after 5 wrong ones within 15 minutes the route " +
+    "answers 429 until the window passes. A new password equal to the current one answers 400 on " +
+    "`password`. On success every session the user has ends: each refresh token issued before " +
+    "the change answers 401 at `POST /auth/refresh`, and the session making the change continues on " +
+    "the new refresh cookie sent with the 200. An access token already issued stays valid until it " +
+    "expires. Reset links sent before the change stop working.",
+  security: [{ BearerAuth: [] }],
+  request: {
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: ChangePasswordRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Password changed; other devices signed out",
+      headers: REFRESH_COOKIE_HEADERS,
+      content: {
+        "application/json": {
+          schema: SuccessResponseSchema,
+        },
+      },
+    },
+    400: {
+      $ref: "#/components/responses/BadRequestError",
+    },
+    401: {
+      $ref: "#/components/responses/UnauthorizedError",
+    },
+    429: {
+      description:
+        "Too many wrong current passwords for this user (5 within 15 minutes), or too many requests " +
+        "(RATE_LIMIT_USER_MAX per 15 minutes)",
+      headers: RETRY_AFTER_HEADER,
+      content: {
+        "application/json": {
+          schema: RateLimitErrorSchema,
+        },
+      },
     },
     500: {
       $ref: "#/components/responses/InternalServerError",
@@ -387,7 +449,8 @@ registry.registerPath({
   description:
     "Consumes a reset token sent via email and sets a new password. Returns a generic " +
     "400 for unknown, used, expired, or otherwise invalid tokens to avoid information leak. " +
-    "Caller must log in via /auth/login afterwards.",
+    "A reset ends every session the user had: each refresh token issued before it answers 401 at " +
+    "`POST /auth/refresh`. Caller must log in via /auth/login afterwards.",
   request: {
     body: {
       required: true,

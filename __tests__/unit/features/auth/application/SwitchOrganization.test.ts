@@ -82,6 +82,7 @@ const build = () => {
     revokeFamily: jest
       .fn<RefreshTokenRepository["revokeFamily"]>()
       .mockResolvedValue(undefined),
+    revokeAllForUser: jest.fn(),
     findActiveByUser: jest
       .fn<RefreshTokenRepository["findActiveByUser"]>()
       .mockResolvedValue([]),

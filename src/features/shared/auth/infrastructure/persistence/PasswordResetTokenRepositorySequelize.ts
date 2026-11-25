@@ -34,8 +34,15 @@ export class PasswordResetTokenRepositorySequelize implements PasswordResetToken
     return toDomainPasswordResetToken(created);
   }
 
-  async markUsed(id: string, usedAt: Date): Promise<void> {
-    await models.PasswordResetToken.update({ usedAt }, { where: { id } });
+  async markUsed(
+    id: string,
+    usedAt: Date,
+    tx?: PersistenceTransaction,
+  ): Promise<void> {
+    await models.PasswordResetToken.update(
+      { usedAt },
+      { where: { id }, transaction: tx as Transaction | undefined },
+    );
   }
 
   async invalidateAllForUser(

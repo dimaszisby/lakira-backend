@@ -51,10 +51,10 @@ Frequently needed:
   table maps each old `B-NN` and `O-NN` to its issue
 - `docs/reference/commands.md` — canonical npm scripts (do not keep a second copy elsewhere)
 - `docs/reference/configuration.md` — all 74 env vars
-- `docs/explanation/decisions/` — 96 ADRs, one per file; check **Status** before trusting one
+- `docs/explanation/decisions/` — 98 ADRs, one per file; check **Status** before trusting one
 - `docs/reference/api/lakira-backend-openapi.json` — generated, CI-drift-gated, never hand-edited
 
-`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` is the live risk status (as of 2026-10-25: GOLD WITH CAVEATS; no open P0; every caveat, C1 to C6, is confirmed closed on the routes ADR-012 names. The dated run of 2026-10-20 held back a clean GOLD on two P1 findings in the queue worker, X62 (B-75, email jobs stalled on the connection pool) and X60 (B-74, the consumer cancel did nothing), and listed six open P2 findings: X1, X20, X40, X41, X61, X63. All eight are fixed (#198 to #203, register rows B-74 to B-80) but none is confirmed by a dated run yet, so GOLD is not restated until one is run).
+`docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` is the live risk status (as of the dated run of 2026-11-14, issue #299: NOT FORK-READY. ADR-001 criterion 3 fails on category 1, at 67%, on two P2 findings: a password reset or change revokes no session (Y6), and the email changes on a bearer token alone and stays verified (Y7). X62 is narrowed to a P3 and still gates GOLD. X60 and the six P2 findings of 2026-10-20 are confirmed closed; every caveat, C1 to C6, holds closed on the routes ADR-012 names; no open P0 or P1. Next: Y6, Y7 and X62, then another dated run).
 
 ## Task Defaults
 

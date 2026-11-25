@@ -578,14 +578,25 @@ export const UpdateUserRequestSchema = registerSchema(
   "UpdateUserRequest",
   z.object({
     username: z.string().min(3).optional().openapi({ example: "updateduser" }),
-    email: emailSchema("updated@example.com").optional(),
-    password: z
-      .string()
-      .min(6)
-      .optional()
-      .openapi({ example: "updatedpassword" }),
     isPublicProfile: z.boolean().optional().openapi({ example: false }),
   }),
+);
+
+export const ChangePasswordRequestSchema = registerSchema(
+  "ChangePasswordRequest",
+  z
+    .object({
+      currentPassword: z.string().min(1).openapi({ example: "OldPass123!" }),
+      password: z.string().min(6).openapi({ example: "BrandNewPass123!" }),
+      passwordConfirmation: z
+        .string()
+        .min(6)
+        .openapi({ example: "BrandNewPass123!" }),
+    })
+    .refine((data) => data.password === data.passwordConfirmation, {
+      message: "Passwords do not match",
+      path: ["passwordConfirmation"],
+    }),
 );
 
 export const ForgotPasswordRequestSchema = registerSchema(

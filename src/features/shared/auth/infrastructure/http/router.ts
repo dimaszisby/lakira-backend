@@ -20,6 +20,7 @@ import {
   loginUserSchema,
   resetPasswordSchema,
   updateUserSchema,
+  changePasswordSchema,
   verifyEmailSchema,
   switchOrgSchema,
 } from "./schema.zod.js";
@@ -53,6 +54,16 @@ export const createAuthRouter = (feature: AuthFeature) => {
     requireJsonObjectBody(),
     validate(updateUserSchema),
     controller.updateProfile,
+  );
+  // Asks for the current password; wrong ones are bounded per user by the
+  // credential counter the controller checks (credential-changes D-01, D-04).
+  router.post(
+    "/change-password",
+    authMiddleware,
+    userRateLimiter,
+    requireJsonObjectBody(),
+    validate(changePasswordSchema),
+    controller.changePassword,
   );
   // Neither has a user to key on: limited by address, apart from login's budget
   // (api-tooling-residuals D-08).
@@ -103,6 +114,7 @@ export const createAuthRouter = (feature: AuthFeature) => {
   router.all("/register", methodNotAllowed(["POST"]));
   router.all("/login", methodNotAllowed(["POST"]));
   router.all("/profile", methodNotAllowed(["GET", "PUT"]));
+  router.all("/change-password", methodNotAllowed(["POST"]));
   router.all("/logout", methodNotAllowed(["POST"]));
   router.all("/refresh", methodNotAllowed(["POST"]));
   router.all("/forgot-password", methodNotAllowed(["POST"]));

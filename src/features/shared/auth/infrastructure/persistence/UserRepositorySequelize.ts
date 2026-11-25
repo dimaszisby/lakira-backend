@@ -73,17 +73,21 @@ export class UserRepositorySequelize implements UserRepository {
     return toDomain(created);
   }
 
-  async save(user: AuthUser): Promise<AuthUser> {
-    const row = await models.User.findByPk(user.id);
+  async save(user: AuthUser, tx?: PersistenceTransaction): Promise<AuthUser> {
+    const transaction = tx as Transaction | undefined;
+    const row = await models.User.findByPk(user.id, { transaction });
     if (!row) throw new Error("User not found");
-    await row.update({
-      email: user.email,
-      username: user.username,
-      password: user.passwordHash,
-      isPublicProfile: user.isPublicProfile,
-      emailVerifiedAt: user.emailVerifiedAt,
-    });
-    await row.reload();
+    await row.update(
+      {
+        email: user.email,
+        username: user.username,
+        password: user.passwordHash,
+        isPublicProfile: user.isPublicProfile,
+        emailVerifiedAt: user.emailVerifiedAt,
+      },
+      { transaction },
+    );
+    await row.reload({ transaction });
     return toDomain(row);
   }
 }
