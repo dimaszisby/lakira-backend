@@ -48,6 +48,7 @@ describe("response headers in the OpenAPI spec", () => {
     ["/auth/login", "200"],
     ["/auth/refresh", "200"],
     ["/auth/switch-org", "200"],
+    ["/auth/change-password", "200"],
   ])("POST %s declares the refresh cookie it sets", (route, status) => {
     expect(spec.paths[route].post.responses[status].headers).toEqual({
       "Set-Cookie": ref("RefreshCookie"),
@@ -58,19 +59,6 @@ describe("response headers in the OpenAPI spec", () => {
     expect(spec.paths["/auth/logout"].post.responses["200"].headers).toEqual({
       "Set-Cookie": ref("ClearedRefreshCookie"),
     });
-  });
-
-  // ADR-0097: only a password change re-issues the session, so the header is
-  // declared but not required; a required one would fail the contract gate on
-  // every other profile update.
-  it("PUT /auth/profile declares the refresh cookie a password change re-issues", () => {
-    expect(spec.paths["/auth/profile"].put.responses["200"].headers).toEqual({
-      "Set-Cookie": ref("ReissuedRefreshCookie"),
-    });
-    const reissued = spec.components.headers?.ReissuedRefreshCookie;
-    expect(reissued?.required).toBe(false);
-    expect(reissued?.description).toMatch(/`\w[\w-]*_refresh`/);
-    expect(reissued?.description).toContain("changes the password");
   });
 
   it("describes the cookie by name, with the attributes a client depends on", () => {
@@ -134,12 +122,12 @@ describe("response headers in the OpenAPI spec", () => {
     expect(withHeaders.sort()).toEqual([
       "GET /analytics/dashboard",
       "GET /analytics/metrics/{metricId}",
+      "POST /auth/change-password",
       "POST /auth/login",
       "POST /auth/logout",
       "POST /auth/refresh",
       "POST /auth/register",
       "POST /auth/switch-org",
-      "PUT /auth/profile",
     ]);
   });
 

@@ -6,6 +6,7 @@ import catchAsync from "@/utils/catch-async.js";
 import AppError from "@/utils/AppError.js";
 import logger from "@/utils/logger.js";
 import { LOCKOUT_TTL_SECONDS } from "./loginLockout.js";
+import { CREDENTIAL_ATTEMPTS_TTL_SECONDS } from "./credentialAttempts.js";
 import { toUserResponseDTO } from "../../infrastructure/mappers/UserMapper.js";
 import type { AuthFeature } from "../../feature.js";
 import { AuthRequest } from "@/types/request.context.js";
@@ -17,6 +18,7 @@ import {
   loginUserBody,
   resetPasswordBody,
   updateUserBody,
+  changePasswordBody,
   verifyEmailBody,
   switchOrgBody,
 } from "./schema.zod.js";
@@ -49,6 +51,9 @@ const clearRefreshCookie = (res: Response) => {
 const pickCreateUser = pickValidated(z.object({ body: createUserBody }));
 const pickLoginUser = pickValidated(z.object({ body: loginUserBody }));
 const pickUpdateUser = pickValidated(z.object({ body: updateUserBody }));
+const pickChangePassword = pickValidated(
+  z.object({ body: changePasswordBody }),
+);
 const pickForgotPassword = pickValidated(
   z.object({ body: forgotPasswordBody }),
 );
@@ -140,30 +145,55 @@ const updateProfile = (feature: AuthFeature) =>
   catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
     const {
-      body: { email, username, password, isPublicProfile },
+      body: { username, isPublicProfile },
     } = pickUpdateUser(req);
-    const result = await feature.updateProfile.execute({
+    const updated = await feature.updateProfile.execute({
+      userId: req.user.id,
+      username,
+      isPublicProfile,
+    });
+    successResponse(
+      res,
+      200,
+      { user: toUserResponseDTO(updated) },
+      "Profile updated successfully",
+    );
+  });
+
+const changePassword = (feature: AuthFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
+    assertAuthenticated(req);
+    const {
+      body: { currentPassword, password },
+    } = pickChangePassword(req);
+
+    // Each attempt is counted before it is judged; past the limit it gets a 429
+    // and no password comparison, as the login lockout answers (credential-changes D-04).
+    try {
+      await feature.credentialAttempts.reserve(req.user.id);
+    } catch (err) {
+      if (err instanceof AppError && err.statusCode === 429) {
+        res.setHeader("Retry-After", String(CREDENTIAL_ATTEMPTS_TTL_SECONDS));
+      }
+      throw err;
+    }
+
+    const result = await feature.changePassword.execute({
       userId: req.user.id,
       organizationId: req.organizationId,
       userAgent: req.headers["user-agent"] ?? null,
       ip: req.ip ?? null,
-      email,
-      username,
+      currentPassword,
       password,
-      isPublicProfile,
     });
 
-    // A new password ended every session; this one continues on a new cookie
-    // (ADR-0097).
-    if (result.rawRefreshToken) {
-      setRefreshCookie(res, result.rawRefreshToken);
-    }
-
+    // Every other session ended; this one continues on a new cookie (ADR-0097).
+    setRefreshCookie(res, result.rawRefreshToken);
     successResponse(
       res,
       200,
-      { user: toUserResponseDTO(result.user) },
-      "Profile updated successfully",
+      null,
+      "Password changed. Other devices have been signed out.",
     );
   });
 
@@ -268,6 +298,7 @@ export const createAuthController = (feature: AuthFeature) => ({
   login: login(feature),
   getProfile: getProfile(feature),
   updateProfile: updateProfile(feature),
+  changePassword: changePassword(feature),
   refresh: refresh(feature),
   logout: logout(feature),
   forgotPassword: forgotPassword(feature),

@@ -8,6 +8,12 @@
   cookie reaches every `/auth/*` route)
 - **Origin:** the owner chose the two options below on 2026-11-24, in the plan for #308
 
+> **Status note (2026-11-24).** The password change moved from `PUT /auth/profile` to
+> `POST /auth/change-password`, which asks for the current password
+> ([ADR-0098](./adr-0098-credential-changes-ask-for-the-current-password.md)).
+> The re-issued cookie moved with it, now `RefreshCookie` on that route's 200;
+> `ReissuedRefreshCookie` is gone. The decision below is unchanged.
+
 ---
 
 ## Context

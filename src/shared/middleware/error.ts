@@ -2,6 +2,7 @@ import { Response, NextFunction } from "express";
 import AppError from "@/utils/AppError.js";
 import {
   DomainError,
+  ValidationError,
   type DomainErrorKind,
 } from "@/shared/domain/errors/DomainError.js";
 import logger, { loggableErrorMessage } from "@/utils/logger.js";
@@ -113,6 +114,18 @@ export const createErrorHandler =
       logger.warn("Validation Errors:", { issues: describeZodIssues(err) });
       sendError(res, 400, VALIDATION_FAILED_MESSAGE, {
         errors: formattedErrors,
+      });
+      return;
+    }
+
+    // A refusal that names its field is answered as a schema failure would be,
+    // so a client marks the field (credential-changes D-08).
+    if (err instanceof ValidationError && err.field) {
+      logger.warn("Validation Errors:", {
+        issues: [{ field: err.field, code: "domain" }],
+      });
+      sendError(res, 400, VALIDATION_FAILED_MESSAGE, {
+        errors: [{ field: err.field, message: err.message }],
       });
       return;
     }

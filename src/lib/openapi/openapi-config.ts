@@ -83,17 +83,6 @@ export const openApiDocument = {
         schema: { type: "string" },
         example: `${APP_SHORT_NAME}_refresh=dGVzdC1yZWZyZXNoLXRva2Vu; Max-Age=604800; Path=/api/v1/auth; HttpOnly; SameSite=Strict`,
       },
-      // Not `required`: the route sends it only when the request changes the
-      // password (ADR-0097).
-      ReissuedRefreshCookie: {
-        description:
-          "Sent only when the request changes the password. Every session the user had is ended, this one included, " +
-          `and this one continues on a new refresh token: the \`${APP_SHORT_NAME}_refresh\` cookie is set as \`RefreshCookie\` describes. ` +
-          "A refresh cookie issued before the change answers 401 at `POST /auth/refresh`.",
-        required: false,
-        schema: { type: "string" },
-        example: `${APP_SHORT_NAME}_refresh=dGVzdC1yZWZyZXNoLXRva2Vu; Max-Age=604800; Path=/api/v1/auth; HttpOnly; SameSite=Strict`,
-      },
       ClearedRefreshCookie: {
         description:
           `Clears the \`${APP_SHORT_NAME}_refresh\` cookie: an empty value with an expiry in the past, ` +

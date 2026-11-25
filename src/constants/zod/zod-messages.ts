@@ -21,6 +21,10 @@ export const ZodMessages = {
     passwordMin: "Password must be at least 6 characters",
     passwordConfirmMin: "Password confirmation must be at least 6 characters",
     passwordMismatch: "Passwords do not match",
+    currentPasswordRequired: "Current password is required",
+    passwordChangedElsewhere:
+      "The password is changed with POST /auth/change-password",
+    emailNotChangedHere: "The email cannot be changed here",
   },
   metricCategory: {
     invalidId: "Invalid Metric Category ID",

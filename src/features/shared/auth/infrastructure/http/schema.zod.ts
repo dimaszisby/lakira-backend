@@ -25,12 +25,45 @@ export const createUserBody = z
     path: ["passwordConfirmation"],
   });
 
-export const updateUserBody = z.object({
-  username: zUsername.optional(),
-  email: zEmail.optional(),
-  password: zPassword.optional(),
-  isPublicProfile: zPublicProfile.optional(),
-});
+// Credentials have their own routes (credential-changes D-01). The two keys are
+// named here only to refuse them: left out, Zod would drop them, and a client
+// sending one would read a 200 for a change that never happened.
+export const updateUserBody = z
+  .object({
+    username: zUsername.optional(),
+    isPublicProfile: zPublicProfile.optional(),
+    email: z.unknown().optional(),
+    password: z.unknown().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.password !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["password"],
+        message: ZodMessages.user.passwordChangedElsewhere,
+      });
+    }
+    if (data.email !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["email"],
+        message: ZodMessages.user.emailNotChangedHere,
+      });
+    }
+  });
+
+export const changePasswordBody = z
+  .object({
+    currentPassword: z
+      .string()
+      .min(1, { message: ZodMessages.user.currentPasswordRequired }),
+    password: zPassword,
+    passwordConfirmation: zPasswordConfirmation,
+  })
+  .refine((data) => data.password === data.passwordConfirmation, {
+    message: ZodMessages.user.passwordMismatch,
+    path: ["passwordConfirmation"],
+  });
 
 export const loginUserBody = z.object({
   email: zEmail,
@@ -67,6 +100,7 @@ export const switchOrgBody = z.object({
 
 export const createUserSchema = { body: createUserBody };
 export const updateUserSchema = { body: updateUserBody };
+export const changePasswordSchema = { body: changePasswordBody };
 export const loginUserSchema = { body: loginUserBody };
 export const forgotPasswordSchema = { body: forgotPasswordBody };
 export const resetPasswordSchema = { body: resetPasswordBody };

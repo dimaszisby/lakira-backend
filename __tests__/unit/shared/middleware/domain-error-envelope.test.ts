@@ -190,4 +190,23 @@ describe("domain throws produce a stable error envelope", () => {
     expect(status).toBe(expected);
     expect(body).toMatchObject({ status: "fail", message });
   });
+
+  // credential-changes D-08: a refusal that names its field is answered as a
+  // schema failure, so a client can mark the field.
+  it("a ValidationError with a field → 400 with that field in errors", () => {
+    const { status, body } = envelopeFor(() => {
+      throw new ValidationError("Current password is incorrect", {
+        field: "currentPassword",
+      });
+    });
+
+    expect(status).toBe(400);
+    expect(body).toEqual({
+      status: "fail",
+      message: "Validation failed",
+      errors: [
+        { field: "currentPassword", message: "Current password is incorrect" },
+      ],
+    });
+  });
 });
