@@ -72,68 +72,68 @@ Items name the artifact. Acceptance points at the plan's AC ids, and gates point
 
 ## Phase 2: the pending email change (PR 2, `fix/309-credential-changes-email`)
 
-- [ ] Migration `src/migrations/2026MMDDHHMMSS-create-email-change-tokens.cjs` with a working
+- [x] Migration `src/migrations/20261125000001-create-email-change-tokens.cjs` with a working
       `down`:
   - columns: `id`, `user_id` (users, CASCADE), `new_email`, `old_email`, `token_hash` (unique,
     nullable until the job mints it), `expires_at`, `used_at`, timestamps;
   - index `(user_id, used_at)`.
-- [ ] Model `models/email-change-token.sequelize.ts`, registered in `registerAuthModels` and
+- [x] Model `models/email-change-token.sequelize.ts`, registered in `registerAuthModels` and
       `associateAuthModels` (`user.sequelize.ts`, with `User.hasMany`); `src/infrastructure/db/types.ts`
       gains the `DbModels` key.
-- [ ] Entity `domain/entities/EmailChangeToken.ts`, mapper `EmailChangeTokenMapper.ts`,
+- [x] Entity `domain/entities/EmailChangeToken.ts`, mapper `EmailChangeTokenMapper.ts`,
       repository `EmailChangeTokenRepository.ts` and its Sequelize implementation:
   - `create`, `supersedeAllForUser`, `findById(id, tx)`, `setTokenHash(id, hash, tx)`,
     `findByTokenHash`;
   - `spend(id, now, tx)`, a conditional update reporting whether it spent the token.
-- [ ] `application/use-cases/RequestEmailChange.ts`:
+- [x] `application/use-cases/RequestEmailChange.ts`:
   - confirm, then refuse the same address (400) or one in use (409);
   - in one transaction, supersede the user's pending rows and create the new row;
   - publish both jobs. The confirmation's fallback runs in the request (ADR-0069, ADR-0080). The
     notice's runs in the background (ADR-0067).
-- [ ] `application/use-cases/ConfirmEmailChange.ts`. In one transaction:
+- [x] `application/use-cases/ConfirmEmailChange.ts`. In one transaction:
   - `spend`, with a generic 400 when it did not spend;
   - re-check the address (409 rolls back);
   - `changeEmail` and `setEmailVerifiedAt`, then `save`;
   - revoke the user's verification and reset tokens;
   - log `auth.email_change.confirmed`.
-- [ ] Jobs, each with its handler and its `parseJob` through `readJobBody` and `isUuid`:
+- [x] Jobs, each with its handler and its `parseJob` through `readJobBody` and `isUuid`:
   - `SendEmailChangeEmailHandler`: `{ requestId }`; mints the token, stores its hash, and sends
     inside `runOnce`;
   - `SendAccountNoticeHandler`: `{ userId, notice, requestId? }`.
-- [ ] Wiring for both jobs:
+- [x] Wiring for both jobs:
   - `src/shared/application/messaging/job-routes.ts`: two `QUEUES` and two `ROUTING_KEYS`;
   - `src/shared/infrastructure/queue/topology.ts`: two `assertWorkQueue`;
   - `src/worker.ts`: two `RabbitMQConsumer`;
   - `feature.ts`: return entries;
   - `__tests__/unit/shared/infrastructure/queue/topology.test.ts`: `WORK_QUEUES`;
   - `docs/explanation/architecture/c4-containers.md`: the queue count.
-- [ ] Templates `email-change-confirm.ts`, `email-change-notice.ts` (masked new address) and
+- [x] Templates `email-change-confirm.ts`, `email-change-notice.ts` (masked new address) and
       `password-changed.ts`. Each escapes HTML and carries no user-chosen text beyond the address.
-- [ ] `ChangePassword` and `ResetPassword` publish the `password_changed` notice.
-- [ ] `src/config/zodEnv.ts`:
+- [x] `ChangePassword` and `ResetPassword` publish the `password_changed` notice.
+- [x] `src/config/zodEnv.ts`:
   - `FRONTEND_EMAIL_CHANGE_URL`, with production refusing the localhost default and staging
     warning;
   - `RATE_LIMIT_EMAIL_CHANGE_USER_MAX`;
   - cases in `__tests__/unit/config/zodEnv.production-guard.test.ts`.
-- [ ] `src/shared/middleware/rate-limiter.ts`: `createEmailChangeRateLimiter`, keyed by user,
+- [x] `src/shared/middleware/rate-limiter.ts`: `createEmailChangeRateLimiter`, keyed by user,
       with its own store name. The lists it must join:
   - `architecture.test.ts`: the limiter count (11 → 12) and the `USER_KEYED_LIMITER` regex;
   - `rate-limiter.envelope.test.ts`: `LIMITERS`;
   - `rate-limiter.test.ts`: the prefix and IPv6 lists;
   - `router.test.ts`: the mock sentinels.
-- [ ] Router:
+- [x] Router:
   - `POST /change-email`: `authMiddleware`, the new limiter, body checks, `validate`;
   - `POST /confirm-email-change`: the verify-email per-IP limiter first, then body checks;
   - `methodNotAllowed` entries for both.
-- [ ] Spec: both routes, regenerated. The pinned counts are rechecked.
-- [ ] Tests:
+- [x] Spec: both routes, regenerated. The pinned counts are rechecked.
+- [x] Tests:
   - unit: each use case and each handler;
   - integration: `auth-credential-changes.test.ts` covers AC-6 to AC-10;
   - `fallback-sends-once.integration.test.ts` and `email-jobs-concurrency.integration.test.ts`
     gain the two jobs (AC-11).
-- [ ] ADR-0099, promoted from D-02, plus its registry row; the next free number moves to
+- [x] ADR-0099, promoted from D-02, plus its registry row; the next free number moves to
       ADR-0100; the ADR count moves to 99.
-- [ ] Docs, after review:
+- [x] Docs, after review:
   - `docs/reference/configuration.md` (two rows, the worker's list, and the count of 74 → 76 in
     `CLAUDE.md`);
   - `.env.example`;
@@ -163,16 +163,40 @@ Items name the artifact. Acceptance points at the plan's AC ids, and gates point
       `POST /auth/change-password` joins the "mostly rejected generated data" warning, as
       `/reset-password` and `/verify-email` do: each needs a secret Schemathesis cannot guess;
       a warning only, under #248
+- [x] Found while planning Phase 2: a pending email change survived a password change, so the
+      notice's advice did not stop it → in scope, Phase 2, as D-09
+- [x] Found while planning Phase 2: D-02, D-06 and D-07 left the link's lifetime, the limiter's
+      window and default, and "localhost" undefined → in scope, Phase 2, as D-10
+- [x] Found while planning Phase 2: the image smoke runs as production, which now refuses the
+      loopback default → in scope, Phase 2 (`scripts/image-smoke.sh` passes a real-looking URL)
+- [x] Found in Phase 2's review (M1): `save` wrote every field, so a password change, reset,
+      verification or profile edit racing a confirmation put the old email back, and a reset link
+      the confirmation revoked could still set the password → in scope, Phase 2, as D-11 (`save`
+      writes only changed fields; the reset token is spent conditionally, last). This is #351's
+      fix, so PR 2 closes #351
+- [x] Found in Phase 2's review (L1): two change requests at once each left a working link → in
+      scope, Phase 2, as D-11 (a partial unique index; the loser answers 409; a confirmation
+      supersedes any other pending row)
+- [x] Found in Phase 2's review (L2): the notice said the change "happens only once confirmed",
+      false after a quick confirmation → in scope, Phase 2 (reworded); the way back after a
+      confirmation is the undo link, #352
+- [x] Found in Phase 2's review (info): production accepts an `http://` link setting, for this and
+      the three existing `FRONTEND_*_URL` → out of scope; it belongs with the still unfiled issue
+      for those settings' localhost defaults (the owner's)
+- [x] Found in Phase 2's contract run: `POST /auth/change-email` and
+      `POST /auth/confirm-email-change` join the "mostly rejected generated data" warning, each
+      needing a secret Schemathesis cannot guess → a warning only, under #248
 
 ## Acceptance
 
 - [x] AC-1 to AC-5: verified by `auth-credential-changes.test.ts` and the unit tests (PR 1)
-- [ ] AC-6 to AC-14: verified by `auth-credential-changes.test.ts`, the two email-job suites,
+- [x] AC-6 to AC-14: verified by `auth-credential-changes.test.ts`, the two email-job suites,
       `zodEnv.production-guard.test.ts` and `docs:openapi:check` (PR 2)
 
 ## Gates (per PR)
 
-- [ ] typecheck · lint · format · unit · integration · build · OpenAPI
-- [ ] image smoke: PR 2 (worker inputs, migration)
-- [ ] security delta: only if a dependency changes
-- [ ] review: the `security-reviewer` agent on the diff, then fixes, then docs
+- [x] typecheck · lint · format · unit · integration · build · OpenAPI (PR 1 and PR 2)
+- [x] image smoke: PR 2 (worker inputs, migration), all 7 checks pass
+- [x] security delta: skipped in both PRs, no dependency changed
+- [x] review: the `security-reviewer` agent on each diff, then fixes, then docs (PR 2: no critical
+      or high; M1, L1 and L2 fixed, as D-11)

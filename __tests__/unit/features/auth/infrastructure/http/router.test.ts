@@ -36,6 +36,7 @@ jest.mock("@/shared/middleware/rate-limiter.js", () => ({
   switchOrgRateLimiter: "switchOrgRateLimiter",
   emailVerificationEmailRateLimiter: "emailVerificationEmailRateLimiter",
   emailVerificationIpRateLimiter: "emailVerificationIpRateLimiter",
+  emailChangeRateLimiter: "emailChangeRateLimiter",
 }));
 
 jest.mock("@/shared/middleware/require-json-object.js", () => ({
@@ -58,6 +59,8 @@ jest.mock("@/features/auth/infrastructure/http/controller.js", () => {
     getProfile: "getProfile",
     updateProfile: "updateProfile",
     changePassword: "changePassword",
+    changeEmail: "changeEmail",
+    confirmEmailChange: "confirmEmailChange",
     logout: "logout",
     refresh: "refresh",
     forgotPassword: "forgotPassword",
@@ -104,6 +107,12 @@ describe("auth router", () => {
   it.each([
     ["/reset-password", "passwordResetIpRateLimiter", "resetPassword"],
     ["/verify-email", "emailVerificationIpRateLimiter", "verifyEmail"],
+    // An emailed token too, under the same budget (credential-changes D-06).
+    [
+      "/confirm-email-change",
+      "emailVerificationIpRateLimiter",
+      "confirmEmailChange",
+    ],
   ])("puts the per-IP limiter first on POST %s", (path, limiter, handler) => {
     const router = routerFor();
     const call = router.post.mock.calls.find(([p]) => p === path);
@@ -134,6 +143,7 @@ describe("auth router", () => {
   it.each<["put" | "post", string, string, string]>([
     ["put", "/profile", "userRateLimiter", "updateProfile"],
     ["post", "/change-password", "userRateLimiter", "changePassword"],
+    ["post", "/change-email", "emailChangeRateLimiter", "changeEmail"],
     ["post", "/switch-org", "switchOrgRateLimiter", "switchOrg"],
   ])(
     "runs authMiddleware ahead of the limiter on %s %s",

@@ -55,6 +55,8 @@ const startWorker = async (): Promise<void> => {
     sendVerificationEmailHandler,
     sendPasswordResetEmailHandler,
     sendInviteEmailHandler,
+    sendEmailChangeEmailHandler,
+    sendAccountNoticeHandler,
   } = buildWiredAuthFeature();
 
   retryPublisher = new RabbitMQPublisher();
@@ -83,6 +85,19 @@ const startWorker = async (): Promise<void> => {
     new RabbitMQConsumer({
       queue: QUEUES.AUTH_SEND_INVITE_EMAIL,
       handler: (msg, context) => sendInviteEmailHandler.handle(msg, context),
+      publisher: retryPublisher,
+    }),
+    // The email-change confirmation link (credential-changes D-05, ADR-0099).
+    new RabbitMQConsumer({
+      queue: QUEUES.AUTH_SEND_EMAIL_CHANGE_EMAIL,
+      handler: (msg, context) =>
+        sendEmailChangeEmailHandler.handle(msg, context),
+      publisher: retryPublisher,
+    }),
+    // The account notices: an email change asked for, a password changed (D-05).
+    new RabbitMQConsumer({
+      queue: QUEUES.AUTH_SEND_ACCOUNT_NOTICE,
+      handler: (msg, context) => sendAccountNoticeHandler.handle(msg, context),
       publisher: retryPublisher,
     }),
   );

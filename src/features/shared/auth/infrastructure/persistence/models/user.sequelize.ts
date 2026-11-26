@@ -18,6 +18,11 @@ import {
   EmailVerificationToken,
 } from "./email-verification-token.sequelize.js";
 import {
+  initEmailChangeToken,
+  associateEmailChangeToken,
+  EmailChangeToken,
+} from "./email-change-token.sequelize.js";
+import {
   initOrganization,
   associateOrganization,
   Organization,
@@ -163,6 +168,12 @@ export class User
       onDelete: "CASCADE",
     });
 
+    User.hasMany(models.EmailChangeToken, {
+      as: "emailChangeTokens",
+      foreignKey: { name: "userId", field: "user_id", allowNull: false },
+      onDelete: "CASCADE",
+    });
+
     User.hasMany(models.Membership, {
       as: "memberships",
       foreignKey: { name: "userId", field: "user_id", allowNull: false },
@@ -187,6 +198,7 @@ export const registerAuthModels = (sequelize: Sequelize) => {
   initPasswordResetToken(sequelize);
   initRefreshToken(sequelize);
   initEmailVerificationToken(sequelize);
+  initEmailChangeToken(sequelize);
   initOrganization(sequelize);
   initMembership(sequelize);
   initOrganizationInvite(sequelize);
@@ -195,6 +207,7 @@ export const registerAuthModels = (sequelize: Sequelize) => {
     PasswordResetToken,
     RefreshToken,
     EmailVerificationToken,
+    EmailChangeToken,
     Organization,
     Membership,
     OrganizationInvite,
@@ -206,6 +219,7 @@ export const associateAuthModels = (models: DbModels) => {
   associatePasswordResetToken(models);
   associateRefreshToken(models);
   associateEmailVerificationToken(models);
+  associateEmailChangeToken(models);
   associateOrganization(models);
   associateMembership(models);
   associateOrganizationInvite(models);

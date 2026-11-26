@@ -1,3 +1,6 @@
+import { env } from "@/config/envManager.js";
+import { warnWhenEmailChangeUrlIsLocal } from "@/config/frontend-urls.js";
+import logger from "@/utils/logger.js";
 import {
   buildAuthFeature,
   type AuthFeatureOverrides,
@@ -17,5 +20,12 @@ import {
  * `overrides` is for what legitimately differs per process: the server passes
  * its message queue, the worker enqueues nothing.
  */
-export const buildWiredAuthFeature = (overrides: AuthFeatureOverrides = {}) =>
-  buildAuthFeature(overrides);
+export const buildWiredAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
+  // Each process builds auth once, so each says it once (credential-changes D-07).
+  warnWhenEmailChangeUrlIsLocal(
+    env.NODE_ENV,
+    env.FRONTEND_EMAIL_CHANGE_URL,
+    (message) => logger.warn(message),
+  );
+  return buildAuthFeature(overrides);
+};

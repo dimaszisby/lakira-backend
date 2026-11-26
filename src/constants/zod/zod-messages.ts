@@ -24,7 +24,8 @@ export const ZodMessages = {
     currentPasswordRequired: "Current password is required",
     passwordChangedElsewhere:
       "The password is changed with POST /auth/change-password",
-    emailNotChangedHere: "The email cannot be changed here",
+    emailNotChangedHere: "The email is changed with POST /auth/change-email",
+    emailChangeTokenRequired: "Email change token is required",
   },
   metricCategory: {
     invalidId: "Invalid Metric Category ID",

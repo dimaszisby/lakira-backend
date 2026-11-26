@@ -46,6 +46,10 @@ Per route (`src/shared/middleware/rate-limiter.ts`):
 - **User**: 50 req / 15 min (user ID or IP fallback), `RATE_LIMIT_USER_MAX`
 - **Analytics**: 30 req / 1 min (user ID or IP fallback), `RATE_LIMIT_ANALYTICS_MAX`
 - **Switch org**: per 15 min, `RATE_LIMIT_SWITCH_ORG_MAX`
+- **Email change**: per user per hour, after `authMiddleware` on `POST /auth/change-email`,
+  `RATE_LIMIT_EMAIL_CHANGE_USER_MAX`: each request mails an address the caller names. The
+  confirmation, `POST /auth/confirm-email-change`, goes through the verify-email per-IP limiter,
+  first in its chain (ADR-0099)
 - **Registration**: per hour, per client IP, first in the `POST /auth/register` chain,
   `RATE_LIMIT_REGISTER_IP_MAX` (ADR-0053)
 - **Login**: 50 req / 15 min per client IP, `RATE_LIMIT_LOGIN_MAX`; **refresh and logout**
@@ -98,12 +102,22 @@ path that sets a password does the same, through `RefreshTokenRepository.revokeA
 Access tokens already issued live out `ACCESS_TOKEN_TTL_SEC`.
 
 A credential changes only through its own route, which asks for the current password through
-`ConfirmCurrentPassword`: `POST /auth/change-password`; `PUT /auth/profile` refuses `password` and
-`email` (ADR-0098). A wrong current password is a 400 on `currentPassword`, never a 401. Wrong
+`ConfirmCurrentPassword`: `POST /auth/change-password` and `POST /auth/change-email`;
+`PUT /auth/profile` refuses `password` and `email` (ADR-0098). A wrong current password is a 400 on `currentPassword`, never a 401. Wrong
 guesses are bounded per user by `credentialAttemptCounter` (`auth:credential-attempts:<userId>`, 5
 in 15 minutes, apart from the login lockout): the edge reserves each attempt before it is judged
 and answers 429 past the limit, so parallel guesses cannot outrun it. A new credential route goes
 through both.
+
+An email change waits for the new address to confirm it (ADR-0099): the pending row keeps both
+addresses, the link's token is minted by its job and stored only as a hash, and confirming spends
+it with one conditional update, marks the address verified and spends the user's verification and
+reset links. The old address is told, naming the new one masked. A password change or reset
+cancels a pending change first in its transaction, and tells the account's address after it
+commits. `UserRepository.save` writes only the fields the entity's methods changed, so a use case
+that read the user before another request changed it never writes the old value back; a new
+token that sets a credential is spent by a conditional update, as the reset token is
+(`credential-changes` D-11).
 
 ## Sensitive Data Handling
 

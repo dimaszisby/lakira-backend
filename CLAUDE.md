@@ -50,8 +50,8 @@ Frequently needed:
 - `docs/internal/initiatives/backend-debt-register/register.md` — frozen on 2026-10-29; its first
   table maps each old `B-NN` and `O-NN` to its issue
 - `docs/reference/commands.md` — canonical npm scripts (do not keep a second copy elsewhere)
-- `docs/reference/configuration.md` — all 74 env vars
-- `docs/explanation/decisions/` — 98 ADRs, one per file; check **Status** before trusting one
+- `docs/reference/configuration.md` — all 76 env vars
+- `docs/explanation/decisions/` — 99 ADRs, one per file; check **Status** before trusting one
 - `docs/reference/api/lakira-backend-openapi.json` — generated, CI-drift-gated, never hand-edited
 
 `docs/internal/audits/saas-readiness/FINAL-AUDIT-SUMMARY.md` is the live risk status (as of the dated run of 2026-11-14, issue #299: NOT FORK-READY. ADR-001 criterion 3 fails on category 1, at 67%, on two P2 findings: a password reset or change revokes no session (Y6), and the email changes on a bearer token alone and stays verified (Y7). X62 is narrowed to a P3 and still gates GOLD. X60 and the six P2 findings of 2026-10-20 are confirmed closed; every caveat, C1 to C6, holds closed on the routes ADR-012 names; no open P0 or P1. Next: Y6, Y7 and X62, then another dated run).

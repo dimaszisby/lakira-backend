@@ -2,6 +2,7 @@ import type { User } from "@/features/auth/infrastructure/persistence/models/use
 import type { PasswordResetToken } from "@/features/auth/infrastructure/persistence/models/password-reset-token.sequelize.js";
 import type { RefreshToken } from "@/features/auth/infrastructure/persistence/models/refresh-token.sequelize.js";
 import type { EmailVerificationToken } from "@/features/auth/infrastructure/persistence/models/email-verification-token.sequelize.js";
+import type { EmailChangeToken } from "@/features/auth/infrastructure/persistence/models/email-change-token.sequelize.js";
 import type { Organization } from "@/features/auth/infrastructure/persistence/models/organization.sequelize.js";
 import type { Membership } from "@/features/auth/infrastructure/persistence/models/membership.sequelize.js";
 import type { OrganizationInvite } from "@/features/auth/infrastructure/persistence/models/organization-invite.sequelize.js";
@@ -16,6 +17,7 @@ export type DbModels = {
   PasswordResetToken: typeof PasswordResetToken;
   RefreshToken: typeof RefreshToken;
   EmailVerificationToken: typeof EmailVerificationToken;
+  EmailChangeToken: typeof EmailChangeToken;
   Organization: typeof Organization;
   Membership: typeof Membership;
   OrganizationInvite: typeof OrganizationInvite;

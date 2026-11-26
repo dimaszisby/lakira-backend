@@ -74,4 +74,22 @@ describe("UserRepositorySequelize (integration)", () => {
     expect(row?.isPublicProfile).toBe(false);
     expect(saved.passwordHash).toBe(row?.password);
   });
+
+  // credential-changes D-11: an entity read before another request changed the
+  // email does not write the old one back when it saves its own change.
+  it("leaves a field it did not change as another write left it", async () => {
+    const row = await createUserRow({ email: "before@example.com" });
+    const stale = await repo.findById(row.id);
+    await models.User.update(
+      { email: "after@example.com" },
+      { where: { id: row.id } },
+    );
+
+    stale!.setPasswordHash("NewPassword123!");
+    await repo.save(stale!);
+
+    const reloaded = await models.User.findByPk(row.id);
+    expect(reloaded?.email).toBe("after@example.com");
+    expect(reloaded?.password).toMatch(/^\$2[aby]\$\d{2}\$/);
+  });
 });

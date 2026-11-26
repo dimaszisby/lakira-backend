@@ -19,6 +19,8 @@ import {
   resetPasswordBody,
   updateUserBody,
   changePasswordBody,
+  changeEmailBody,
+  confirmEmailChangeBody,
   verifyEmailBody,
   switchOrgBody,
 } from "./schema.zod.js";
@@ -53,6 +55,10 @@ const pickLoginUser = pickValidated(z.object({ body: loginUserBody }));
 const pickUpdateUser = pickValidated(z.object({ body: updateUserBody }));
 const pickChangePassword = pickValidated(
   z.object({ body: changePasswordBody }),
+);
+const pickChangeEmail = pickValidated(z.object({ body: changeEmailBody }));
+const pickConfirmEmailChange = pickValidated(
+  z.object({ body: confirmEmailChangeBody }),
 );
 const pickForgotPassword = pickValidated(
   z.object({ body: forgotPasswordBody }),
@@ -160,6 +166,26 @@ const updateProfile = (feature: AuthFeature) =>
     );
   });
 
+/**
+ * Each attempt at a credential route is counted before it is judged; past the
+ * limit it gets a 429 and no password comparison, as the login lockout answers
+ * (credential-changes D-04). Both routes share one count per user.
+ */
+const reserveCredentialAttempt = async (
+  feature: AuthFeature,
+  userId: string,
+  res: Response,
+): Promise<void> => {
+  try {
+    await feature.credentialAttempts.reserve(userId);
+  } catch (err) {
+    if (err instanceof AppError && err.statusCode === 429) {
+      res.setHeader("Retry-After", String(CREDENTIAL_ATTEMPTS_TTL_SECONDS));
+    }
+    throw err;
+  }
+};
+
 const changePassword = (feature: AuthFeature) =>
   catchAsync(async (req: AuthRequest, res: Response) => {
     assertAuthenticated(req);
@@ -167,16 +193,7 @@ const changePassword = (feature: AuthFeature) =>
       body: { currentPassword, password },
     } = pickChangePassword(req);
 
-    // Each attempt is counted before it is judged; past the limit it gets a 429
-    // and no password comparison, as the login lockout answers (credential-changes D-04).
-    try {
-      await feature.credentialAttempts.reserve(req.user.id);
-    } catch (err) {
-      if (err instanceof AppError && err.statusCode === 429) {
-        res.setHeader("Retry-After", String(CREDENTIAL_ATTEMPTS_TTL_SECONDS));
-      }
-      throw err;
-    }
+    await reserveCredentialAttempt(feature, req.user.id, res);
 
     const result = await feature.changePassword.execute({
       userId: req.user.id,
@@ -195,6 +212,39 @@ const changePassword = (feature: AuthFeature) =>
       null,
       "Password changed. Other devices have been signed out.",
     );
+  });
+
+const changeEmail = (feature: AuthFeature) =>
+  catchAsync(async (req: AuthRequest, res: Response) => {
+    assertAuthenticated(req);
+    const {
+      body: { currentPassword, email },
+    } = pickChangeEmail(req);
+
+    await reserveCredentialAttempt(feature, req.user.id, res);
+
+    await feature.requestEmailChange.execute({
+      userId: req.user.id,
+      currentPassword,
+      email,
+    });
+
+    // Accepted, not done: the address changes once the new inbox confirms it (D-02).
+    successResponse(
+      res,
+      202,
+      null,
+      "Check the new address for a link to confirm the change.",
+    );
+  });
+
+const confirmEmailChange = (feature: AuthFeature) =>
+  catchAsync(async (req: Request, res: Response) => {
+    const {
+      body: { token },
+    } = pickConfirmEmailChange(req);
+    await feature.confirmEmailChange.execute({ token });
+    successResponse(res, 200, null, "Email changed.");
   });
 
 const refresh = (feature: AuthFeature) =>
@@ -299,6 +349,8 @@ export const createAuthController = (feature: AuthFeature) => ({
   getProfile: getProfile(feature),
   updateProfile: updateProfile(feature),
   changePassword: changePassword(feature),
+  changeEmail: changeEmail(feature),
+  confirmEmailChange: confirmEmailChange(feature),
   refresh: refresh(feature),
   logout: logout(feature),
   forgotPassword: forgotPassword(feature),

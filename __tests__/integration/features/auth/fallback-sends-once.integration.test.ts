@@ -178,4 +178,96 @@ describe("an email whose publish timed out after reaching the broker", () => {
       expect(sender.sent).toHaveLength(1);
     });
   });
+
+  // credential-changes D-05 (AC-11). The request publishes the confirmation
+  // and the notice; both time out here, so each falls back.
+  describe("the email-change confirmation", () => {
+    const worker = (
+      feature: ReturnType<typeof setup>["feature"],
+      job: Published,
+    ) =>
+      feature.sendEmailChangeEmailHandler.handle(delivered(job), {
+        queue: QUEUES.AUTH_SEND_EMAIL_CHANGE_EMAIL,
+      });
+
+    const confirmations = (sender: RecordingEmailSender, to: string) =>
+      sender.sent.filter((message) => message.to === to);
+
+    const request = async (feature: ReturnType<typeof setup>["feature"]) => {
+      const user = await createUserRow({ password: "Current1!" });
+      const email = `moved-${user.id}@example.com`;
+      await feature.requestEmailChange.execute({
+        userId: user.id,
+        currentPassword: "Current1!",
+        email,
+      });
+      await drainBackgroundTasks();
+      return email;
+    };
+
+    const confirmationJob = (queue: TimedOutQueue) =>
+      queue.published.find(
+        ({ options }) => options.routingKey === "auth.send-email-change-email",
+      )!;
+
+    it("is sent once when the fallback runs first", async () => {
+      const { sender, queue, feature } = setup();
+
+      const email = await request(feature);
+      await worker(feature, confirmationJob(queue));
+
+      expect(confirmations(sender, email)).toHaveLength(1);
+    });
+
+    it("is sent once when the worker runs first", async () => {
+      const { sender, queue, feature } = setup();
+      queue.beforeTimeout = async (job) => {
+        if (job.options.routingKey === "auth.send-email-change-email") {
+          await worker(feature, job);
+        }
+      };
+
+      const email = await request(feature);
+
+      expect(confirmations(sender, email)).toHaveLength(1);
+    });
+  });
+
+  describe("an account notice", () => {
+    const worker = (
+      feature: ReturnType<typeof setup>["feature"],
+      job: Published,
+    ) =>
+      feature.sendAccountNoticeHandler.handle(delivered(job), {
+        queue: QUEUES.AUTH_SEND_ACCOUNT_NOTICE,
+      });
+
+    it("is sent once when the fallback runs first", async () => {
+      const { sender, queue, feature } = setup();
+      const user = await createUserRow();
+
+      await feature.scheduleAccountNotice.execute({
+        userId: user.id,
+        notice: "password_changed",
+      });
+      await drainBackgroundTasks();
+      await worker(feature, queue.published[0]);
+
+      expect(sender.sent).toHaveLength(1);
+    });
+
+    it("is sent once when the worker runs first", async () => {
+      const { sender, queue, feature } = setup();
+      queue.beforeTimeout = (job) => worker(feature, job);
+      const user = await createUserRow();
+
+      await feature.scheduleAccountNotice.execute({
+        userId: user.id,
+        notice: "password_changed",
+      });
+      await drainBackgroundTasks();
+
+      expect(sender.sent).toHaveLength(1);
+    });
+  });
 });

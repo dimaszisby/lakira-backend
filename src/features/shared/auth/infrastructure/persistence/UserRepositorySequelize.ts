@@ -22,8 +22,14 @@ const toDomain = (row: User): AuthUser =>
   });
 
 export class UserRepositorySequelize implements UserRepository {
-  async existsByEmail(email: string): Promise<boolean> {
-    const count = await models.User.count({ where: { email } });
+  async existsByEmail(
+    email: string,
+    tx?: PersistenceTransaction,
+  ): Promise<boolean> {
+    const count = await models.User.count({
+      where: { email },
+      transaction: tx as Transaction | undefined,
+    });
     return count > 0;
   }
 
@@ -77,16 +83,31 @@ export class UserRepositorySequelize implements UserRepository {
     const transaction = tx as Transaction | undefined;
     const row = await models.User.findByPk(user.id, { transaction });
     if (!row) throw new Error("User not found");
-    await row.update(
-      {
-        email: user.email,
-        username: user.username,
-        password: user.passwordHash,
-        isPublicProfile: user.isPublicProfile,
-        emailVerifiedAt: user.emailVerifiedAt,
-      },
-      { transaction },
-    );
+    // Only what the use case changed: a field it merely read may have been
+    // changed since by another request, and writing it would undo that
+    // (credential-changes D-11).
+    const changes: Partial<
+      Pick<
+        User,
+        | "email"
+        | "username"
+        | "password"
+        | "isPublicProfile"
+        | "emailVerifiedAt"
+      >
+    > = {};
+    for (const field of user.changedFields) {
+      if (field === "email") changes.email = user.email;
+      if (field === "username") changes.username = user.username;
+      if (field === "passwordHash") changes.password = user.passwordHash;
+      if (field === "isPublicProfile")
+        changes.isPublicProfile = user.isPublicProfile;
+      if (field === "emailVerifiedAt")
+        changes.emailVerifiedAt = user.emailVerifiedAt;
+    }
+    if (Object.keys(changes).length > 0) {
+      await row.update(changes, { transaction });
+    }
     await row.reload({ transaction });
     return toDomain(row);
   }

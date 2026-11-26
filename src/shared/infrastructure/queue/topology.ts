@@ -87,6 +87,16 @@ export const assertTopology = async (channel: Channel): Promise<void> => {
     QUEUES.AUTH_SEND_INVITE_EMAIL,
     ROUTING_KEYS.AUTH_SEND_INVITE_EMAIL,
   );
+  await assertWorkQueue(
+    channel,
+    QUEUES.AUTH_SEND_EMAIL_CHANGE_EMAIL,
+    ROUTING_KEYS.AUTH_SEND_EMAIL_CHANGE_EMAIL,
+  );
+  await assertWorkQueue(
+    channel,
+    QUEUES.AUTH_SEND_ACCOUNT_NOTICE,
+    ROUTING_KEYS.AUTH_SEND_ACCOUNT_NOTICE,
+  );
 
   // Parking lot — no consumer, monitored for depth > 0
   await channel.assertQueue(QUEUES.PARKING, { durable: true });

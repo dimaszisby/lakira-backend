@@ -62,7 +62,7 @@ const build = ({ queueEnabled = false } = {}) => {
   const tokenRepo: jest.Mocked<PasswordResetTokenRepository> = {
     findByTokenHash: jest.fn(),
     create: jest.fn(),
-    markUsed: jest.fn(),
+    spend: jest.fn(),
     invalidateAllForUser: jest.fn(),
   };
   const emailSender: jest.Mocked<EmailSender> = {

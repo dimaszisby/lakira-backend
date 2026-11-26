@@ -724,8 +724,9 @@ describe("Architecture enforcement", () => {
       expect(offenders).toEqual([]);
       expect(
         limiterCalls(fs.readFileSync(path.join(SRC, LIMITER_FILE), "utf-8")),
-        // 11: login and auth-session (api-tooling-residuals D-08).
-      ).toHaveLength(11);
+        // 12: login and auth-session (api-tooling-residuals D-08), and
+        // change-email (credential-changes D-06).
+      ).toHaveLength(12);
     });
 
     it("only rate-limiter.ts imports express-rate-limit", () => {
@@ -844,7 +845,7 @@ describe("Architecture enforcement", () => {
   // every request by IP. Reads source text, one entry per router call.
   describe("a limiter keyed by user runs after auth", () => {
     const USER_KEYED_LIMITER =
-      /\b(?:userRateLimiter|switchOrgRateLimiter|analyticsRateLimiter)\b/;
+      /\b(?:userRateLimiter|switchOrgRateLimiter|analyticsRateLimiter|emailChangeRateLimiter)\b/;
 
     const routerCalls = (content: string): string[] =>
       content

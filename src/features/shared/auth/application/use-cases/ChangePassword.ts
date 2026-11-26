@@ -7,7 +7,9 @@ import logger from "@/utils/logger.js";
 import { UserRepository } from "../../domain/repositories/UserRepository.js";
 import { RefreshTokenRepository } from "../../domain/repositories/RefreshTokenRepository.js";
 import { PasswordResetTokenRepository } from "../../domain/repositories/PasswordResetTokenRepository.js";
+import { EmailChangeTokenRepository } from "../../domain/repositories/EmailChangeTokenRepository.js";
 import { PasswordHasher } from "../ports/PasswordHasher.js";
+import { ScheduleAccountNotice } from "./ScheduleAccountNotice.js";
 import { IssueRefreshToken } from "./IssueRefreshToken.js";
 import { ConfirmCurrentPassword } from "./ConfirmCurrentPassword.js";
 
@@ -47,6 +49,8 @@ export class ChangePassword {
     private issueRefreshToken: IssueRefreshToken,
     private confirmCurrentPassword: ConfirmCurrentPassword,
     private tx: TransactionPort,
+    private emailChangeTokenRepo: EmailChangeTokenRepository,
+    private scheduleAccountNotice: ScheduleAccountNotice,
     private deps: ChangePasswordDeps = {},
   ) {}
 
@@ -69,8 +73,11 @@ export class ChangePassword {
     // ADR-0097's order: sessions end before the user row is written, so a
     // concurrent refresh cannot deadlock with it, and the new token is issued
     // last, or it would be revoked with the rest. A reset link sent before the
-    // change is spent with it (credential-changes AC-5).
+    // change is spent with it (credential-changes AC-5). Before all of it, a
+    // pending email change is cancelled (D-09), so this path, a reset and a
+    // confirmation all lock email-change rows ahead of the user's.
     const rawRefreshToken = await this.tx.runInTransaction(async (tx) => {
+      await this.emailChangeTokenRepo.supersedeAllForUser(user.id, now, tx);
       await this.refreshTokenRepo.revokeAllForUser(user.id, now, tx);
       await this.userRepo.save(user, tx);
       await this.resetTokenRepo.invalidateAllForUser(user.id, now, tx);
@@ -89,6 +96,11 @@ export class ChangePassword {
     logger.info("auth.sessions.revoked", {
       userId: user.id,
       reason: "password_change",
+    });
+    // After the commit, so the notice never reports a change that rolled back (AC-10).
+    await this.scheduleAccountNotice.execute({
+      userId: user.id,
+      notice: "password_changed",
     });
     return { rawRefreshToken };
   }

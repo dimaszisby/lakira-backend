@@ -158,13 +158,14 @@ own `environment:`, so the `app` service keeps the synchronous fallback. Only th
 the queue.
 
 **Do not set `RABBITMQ_ENABLED=true` on the server where no worker runs.** The server then queues
-the verification, password-reset and invite emails for the worker to send (ADR-0067, ADR-0069,
-ADR-0070), and without a consumer nobody receives them. The worker sends them with the email
-settings above, so it needs the same `EMAIL_PROVIDER`, its key, `EMAIL_FROM`, `FRONTEND_VERIFY_URL`,
-`FRONTEND_RESET_URL`, `FRONTEND_INVITE_URL`, `EMAIL_VERIFICATION_TTL_SEC` and
-`INVITE_TOKEN_TTL_DAYS` as the server. Every publish gives up after 3 seconds; register and resend
-then send the email in process, and forgot-password and the invite send it in the request, as with
-the queue off.
+the verification, password-reset, invite and email-change emails and the account notices for the
+worker to send (ADR-0067, ADR-0069, ADR-0070, ADR-0099), and without a consumer nobody receives
+them. The worker sends them with the email settings above, so it needs the same `EMAIL_PROVIDER`,
+its key, `EMAIL_FROM`, `FRONTEND_VERIFY_URL`, `FRONTEND_RESET_URL`, `FRONTEND_INVITE_URL`,
+`FRONTEND_EMAIL_CHANGE_URL`, `EMAIL_VERIFICATION_TTL_SEC` and `INVITE_TOKEN_TTL_DAYS` as the
+server. Every publish gives up after 3 seconds; register, resend and the account notices then send
+in process after the response, and forgot-password, the invite and the email-change confirmation
+send in the request, as with the queue off.
 
 The integration suite needs a reachable broker at the default address even though
 `RABBITMQ_ENABLED` stays `false`. The queued-path test runs the consumer in-process and turns
@@ -186,11 +187,17 @@ worker before `npm test`, because it would consume the test's messages.
 | `RATE_LIMIT_REGISTER_IP_MAX`              | number  | `10`    | 1 h, per IP      |
 | `RATE_LIMIT_LOGIN_MAX`                    | number  | `50`    | 15 min, per IP   |
 | `RATE_LIMIT_AUTH_SESSION_MAX`             | number  | `50`    | 15 min, per IP   |
+| `RATE_LIMIT_EMAIL_CHANGE_USER_MAX`        | number  | `5`     | 1 h, per user    |
 | `DISABLE_RATE_LIMITING`                   | boolean | `false` |                  |
 
 > `RATE_LIMIT_LOGIN_MAX` bounds `POST /auth/login`, and `RATE_LIMIT_AUTH_SESSION_MAX` bounds
 > `POST /auth/refresh` and `POST /auth/logout` together, each per client IP in a bucket of its own:
 > none of the three has a user to count by (`api-tooling-residuals` D-08).
+>
+> `RATE_LIMIT_EMAIL_CHANGE_USER_MAX` bounds `POST /auth/change-email` per user, since each request
+> mails an address the caller names; `POST /auth/confirm-email-change` shares
+> `RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX` with `POST /auth/verify-email` (`credential-changes` D-06,
+> D-10).
 >
 > `RATE_LIMIT_REGISTER_IP_MAX` bounds `POST /auth/register` per client IP (ADR-0053). Every per-IP
 > limit is only as good as `req.ip`, which depends on `TRUST_PROXY` matching the real number of
@@ -203,7 +210,7 @@ worker before `npm test`, because it would consume the test's messages.
 > production-unsafe switches listed in
 > [ADR-0036](../explanation/decisions/adr-0036-refuse-production-unsafe-env-switches.md):
 > `ALLOW_TEST_HTTP_SERVER=true`, `SWAGGER_REQUIRE_AUTH=false`, `SKIP_DB_LIFECYCLE=true`,
-> `LOG_LEVEL=silly`, `DB_LOGGING=true`, `DB_SSL_REJECT_UNAUTHORIZED=false` (production only), `EMAIL_PROVIDER=mailpit` (ADR-0048; production only), `EMAIL_PROVIDER=console` (ADR-0049), and default `guest` RabbitMQ credentials when `RABBITMQ_ENABLED=true`. Every one of them is refused in staging too, except the two marked production only. The process exits before binding a
+> `LOG_LEVEL=silly`, `DB_LOGGING=true`, `DB_SSL_REJECT_UNAUTHORIZED=false` (production only), `EMAIL_PROVIDER=mailpit` (ADR-0048; production only), a loopback `FRONTEND_EMAIL_CHANGE_URL` (ADR-0099; production only, staging warns), `EMAIL_PROVIDER=console` (ADR-0049), and default `guest` RabbitMQ credentials when `RABBITMQ_ENABLED=true`. Every one of them is refused in staging too, except the three marked production only. The process exits before binding a
 > listener and logs a structured `[ENV_ERROR]` line naming the offending variable.
 >
 > `JWT_SECRET` is on the same list for its strength: when `NODE_ENV` is `production` or `staging`,
@@ -223,6 +230,7 @@ worker before `npm test`, because it would consume the test's messages.
 | `FRONTEND_RESET_URL`         | string                             | `http://localhost:3000/reset-password`                    |
 | `FRONTEND_VERIFY_URL`        | string                             | `http://localhost:3000/verify-email`                      |
 | `FRONTEND_INVITE_URL`        | string                             | `http://localhost:3000/invites/accept`                    |
+| `FRONTEND_EMAIL_CHANGE_URL`  | string                             | `http://localhost:3000/confirm-email-change`              |
 | `EMAIL_VERIFICATION_TTL_SEC` | number                             | `86400` (24 h)                                            |
 | `INVITE_TOKEN_TTL_DAYS`      | number                             | `7`                                                       |
 
