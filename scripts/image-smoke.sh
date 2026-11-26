@@ -45,7 +45,8 @@ DB_NAME="smoke"
 
 # Enough to pass startup validation in production mode. Nothing here is a real
 # credential, and the smoke sends no email. Production refuses a JWT_SECRET
-# shorter than 32 characters, so this one is padded past that.
+# shorter than 32 characters, so this one is padded past that, and a loopback
+# FRONTEND_EMAIL_CHANGE_URL (credential-changes D-07), so this one is not.
 APP_ENV=(
   -e "JWT_SECRET=smoke-only-not-a-secret-padded-past-32-characters"
   -e "DB_HOST=${PG}"
@@ -56,6 +57,7 @@ APP_ENV=(
   -e "REDIS_URL=redis://${REDIS}:6379"
   -e "EMAIL_PROVIDER=resend"
   -e "RESEND_API_KEY=smoke-only-not-a-secret"
+  -e "FRONTEND_EMAIL_CHANGE_URL=https://smoke.invalid/confirm-email-change"
   -e "APP_RELEASE=${RELEASE}"
   -e "PORT=5000"
 )

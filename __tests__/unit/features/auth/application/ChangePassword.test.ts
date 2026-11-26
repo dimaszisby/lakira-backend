@@ -9,6 +9,8 @@ import { IssueRefreshToken } from "@/features/auth/application/use-cases/IssueRe
 import { UserRepository } from "@/features/auth/domain/repositories/UserRepository.js";
 import { RefreshTokenRepository } from "@/features/auth/domain/repositories/RefreshTokenRepository.js";
 import { PasswordResetTokenRepository } from "@/features/auth/domain/repositories/PasswordResetTokenRepository.js";
+import { EmailChangeTokenRepository } from "@/features/auth/domain/repositories/EmailChangeTokenRepository.js";
+import { ScheduleAccountNotice } from "@/features/auth/application/use-cases/ScheduleAccountNotice.js";
 import { PasswordHasher } from "@/features/auth/application/ports/PasswordHasher.js";
 import { AuthUser } from "@/features/auth/domain/entities/AuthUser.js";
 import type { TransactionPort } from "@/shared/application/ports/TransactionPort.js";
@@ -50,7 +52,7 @@ const build = () => {
   const resetTokenRepo: jest.Mocked<PasswordResetTokenRepository> = {
     findByTokenHash: jest.fn(),
     create: jest.fn(),
-    markUsed: jest.fn(),
+    spend: jest.fn(),
     invalidateAllForUser: jest.fn(),
   };
   const refreshTokenRepo: jest.Mocked<RefreshTokenRepository> = {
@@ -77,6 +79,17 @@ const build = () => {
   const tx = {
     runInTransaction: jest.fn().mockImplementation((fn: any) => fn("fake-tx")),
   } as unknown as jest.Mocked<TransactionPort>;
+  const emailChangeTokenRepo: jest.Mocked<EmailChangeTokenRepository> = {
+    create: jest.fn(),
+    supersedeAllForUser: jest.fn(),
+    findById: jest.fn(),
+    setTokenHash: jest.fn(),
+    findByTokenHash: jest.fn(),
+    spend: jest.fn(),
+  };
+  const notices = {
+    execute: jest.fn<ScheduleAccountNotice["execute"]>(),
+  } as unknown as jest.Mocked<ScheduleAccountNotice>;
   const sut = new ChangePassword(
     userRepo,
     resetTokenRepo,
@@ -85,6 +98,8 @@ const build = () => {
     issueRefreshToken,
     confirm,
     tx,
+    emailChangeTokenRepo,
+    notices,
     { now: () => NOW },
   );
   return {
@@ -96,6 +111,8 @@ const build = () => {
     issueRefreshToken,
     confirm,
     tx,
+    emailChangeTokenRepo,
+    notices,
   };
 };
 
@@ -112,6 +129,8 @@ describe("ChangePassword (credential-changes D-01, ADR-0097)", () => {
       issueRefreshToken,
       confirm,
       tx,
+      emailChangeTokenRepo,
+      notices,
     } = build();
     const info = jest.spyOn(logger, "info").mockImplementation(() => logger);
     const user = makeUser();
@@ -119,6 +138,12 @@ describe("ChangePassword (credential-changes D-01, ADR-0097)", () => {
     hasher.compare.mockResolvedValue(false); // the new password differs
     hasher.hash.mockResolvedValue("new-hash");
     const writes: string[] = [];
+    emailChangeTokenRepo.supersedeAllForUser.mockImplementation(async () => {
+      writes.push("supersedeEmailChanges");
+    });
+    notices.execute.mockImplementation(async () => {
+      writes.push("notice");
+    });
     refreshTokenRepo.revokeAllForUser.mockImplementation(async () => {
       writes.push("revokeAllForUser");
     });
@@ -142,13 +167,25 @@ describe("ChangePassword (credential-changes D-01, ADR-0097)", () => {
     expect(confirm.execute).toHaveBeenCalledWith(user, "OldPassword1!");
     expect(user.passwordHash).toBe("new-hash");
     expect(tx.runInTransaction).toHaveBeenCalledTimes(1);
-    // ADR-0097's lock order, AC-5's spent reset links, and the new token last.
+    // D-09's cancelled email change first, ADR-0097's lock order, AC-5's
+    // spent reset links, the new token last, and the notice after the commit.
     expect(writes).toEqual([
+      "supersedeEmailChanges",
       "revokeAllForUser",
       "save",
       "invalidateResetTokens",
       "issue",
+      "notice",
     ]);
+    expect(emailChangeTokenRepo.supersedeAllForUser).toHaveBeenCalledWith(
+      "user-1",
+      NOW,
+      "fake-tx",
+    );
+    expect(notices.execute).toHaveBeenCalledWith({
+      userId: "user-1",
+      notice: "password_changed",
+    });
     expect(refreshTokenRepo.revokeAllForUser).toHaveBeenCalledWith(
       "user-1",
       NOW,
@@ -191,6 +228,17 @@ describe("ChangePassword (credential-changes D-01, ADR-0097)", () => {
       field: "currentPassword",
     });
     expect(tx.runInTransaction).not.toHaveBeenCalled();
+  });
+
+  it("sends no notice when the transaction fails", async () => {
+    const { sut, userRepo, hasher, refreshTokenRepo, notices } = build();
+    userRepo.findById.mockResolvedValue(makeUser());
+    hasher.compare.mockResolvedValue(false);
+    hasher.hash.mockResolvedValue("new-hash");
+    refreshTokenRepo.revokeAllForUser.mockRejectedValue(new Error("deadlock"));
+
+    await expect(sut.execute(INPUT)).rejects.toThrow("deadlock");
+    expect(notices.execute).not.toHaveBeenCalled();
   });
 
   it("refuses a new password equal to the current one, on the field", async () => {

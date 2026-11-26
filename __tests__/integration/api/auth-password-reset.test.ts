@@ -186,6 +186,38 @@ describe("Password reset API", () => {
       expect(replay.body.message).toBe("Invalid or expired reset token");
     });
 
+    // #351, credential-changes D-11: the token is spent by one conditional
+    // update, so two resets racing with it set one password.
+    it("sets one password when two resets race with the same token", async () => {
+      const sender = installCapturingSender();
+      const { payload } = await createTestUser({}, api);
+      await api
+        .post("/api/v1/auth/forgot-password")
+        .send({ email: payload.email });
+      const rawToken = extractTokenFromLink(findResetEmail(sender).text);
+      const reset = (password: string) =>
+        api.post("/api/v1/auth/reset-password").send({
+          token: rawToken,
+          password,
+          passwordConfirmation: password,
+        });
+
+      const [first, second] = await Promise.all([
+        reset("RaceWinnerOne123!"),
+        reset("RaceWinnerTwo123!"),
+      ]);
+
+      expect([first.status, second.status].sort()).toEqual([200, 400]);
+      const winner =
+        first.status === 200 ? "RaceWinnerOne123!" : "RaceWinnerTwo123!";
+      const loser =
+        first.status === 200 ? "RaceWinnerTwo123!" : "RaceWinnerOne123!";
+      const login = (password: string) =>
+        api.post("/api/v1/auth/login").send({ email: payload.email, password });
+      expect((await login(winner)).status).toBe(200);
+      expect((await login(loser)).status).toBe(401);
+    });
+
     it("rejects an expired token with the same generic 400", async () => {
       const sender = installCapturingSender();
       const { payload } = await createTestUser({}, api);

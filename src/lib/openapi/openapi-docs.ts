@@ -11,6 +11,8 @@ import {
   UpdateUserResponseSchema,
   UpdateUserRequestSchema,
   ChangePasswordRequestSchema,
+  ChangeEmailRequestSchema,
+  ConfirmEmailChangeRequestSchema,
   ForgotPasswordRequestSchema,
   ResetPasswordRequestSchema,
   RateLimitErrorSchema,
@@ -225,8 +227,8 @@ registry.registerPath({
   summary: "Update current user's profile",
   description:
     "Changes the username and whether the profile is public. A body carrying `password` or `email` " +
-    "is refused with 400: the password is changed with `POST /auth/change-password`, which asks " +
-    "for the current one.",
+    "is refused with 400: the password is changed with `POST /auth/change-password` and the email " +
+    "with `POST /auth/change-email`, each of which asks for the current password.",
   security: [{ BearerAuth: [] }],
   request: {
     body: {
@@ -306,6 +308,117 @@ registry.registerPath({
       description:
         "Too many wrong current passwords for this user (5 within 15 minutes), or too many requests " +
         "(RATE_LIMIT_USER_MAX per 15 minutes)",
+      headers: RETRY_AFTER_HEADER,
+      content: {
+        "application/json": {
+          schema: RateLimitErrorSchema,
+        },
+      },
+    },
+    500: {
+      $ref: "#/components/responses/InternalServerError",
+    },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/auth/change-email",
+  tags: ["Auth"],
+  summary: "Ask to change the email",
+  description:
+    "Asks for the current password, as `POST /auth/change-password` does, and shares its per-user " +
+    "count of wrong ones: after 5 within 15 minutes either route answers 429. The new address must " +
+    "differ from the current one (400 on `email`) and not belong to another account (409). " +
+    "The account's email does not change here: a 202 stores a pending change, sends a confirmation " +
+    "link to the new address, valid for 24 hours, and tells the old address, naming the new one " +
+    "masked. A new request replaces a pending one, and a password change or reset cancels it.",
+  security: [{ BearerAuth: [] }],
+  request: {
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: ChangeEmailRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    202: {
+      description: "Pending; the new address must confirm the change",
+      content: {
+        "application/json": {
+          schema: SuccessResponseSchema,
+        },
+      },
+    },
+    400: {
+      $ref: "#/components/responses/BadRequestError",
+    },
+    401: {
+      $ref: "#/components/responses/UnauthorizedError",
+    },
+    409: {
+      $ref: "#/components/responses/ConflictError",
+    },
+    429: {
+      description:
+        "Too many wrong current passwords for this user (5 within 15 minutes, shared with " +
+        "`POST /auth/change-password`), or too many requests (RATE_LIMIT_EMAIL_CHANGE_USER_MAX per hour)",
+      headers: RETRY_AFTER_HEADER,
+      content: {
+        "application/json": {
+          schema: RateLimitErrorSchema,
+        },
+      },
+    },
+    500: {
+      $ref: "#/components/responses/InternalServerError",
+    },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/auth/confirm-email-change",
+  tags: ["Auth"],
+  summary: "Confirm an email change",
+  description:
+    "Takes the single-use token from the link sent to the new address. The account's email " +
+    "becomes that address, marked verified, and verification and reset links sent before it stop " +
+    "working. Returns a generic 400 for an unknown, used, replaced or expired token, and 409 when " +
+    "the address has been taken since the request. No JWT required: the link may be opened on " +
+    "another device.",
+  request: {
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: ConfirmEmailChangeRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Email changed and verified",
+      content: {
+        "application/json": {
+          schema: SuccessResponseSchema,
+        },
+      },
+    },
+    400: {
+      $ref: "#/components/responses/BadRequestError",
+    },
+    409: {
+      $ref: "#/components/responses/ConflictError",
+    },
+    429: {
+      description:
+        "Too many token submissions from this address (RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX per hour, " +
+        "shared with `POST /auth/verify-email`)",
       headers: RETRY_AFTER_HEADER,
       content: {
         "application/json": {

@@ -12,6 +12,7 @@ import { UserRepositorySequelize } from "./infrastructure/persistence/UserReposi
 import { PasswordResetTokenRepositorySequelize } from "./infrastructure/persistence/PasswordResetTokenRepositorySequelize.js";
 import { RefreshTokenRepositorySequelize } from "./infrastructure/persistence/RefreshTokenRepositorySequelize.js";
 import { EmailVerificationTokenRepositorySequelize } from "./infrastructure/persistence/EmailVerificationTokenRepositorySequelize.js";
+import { EmailChangeTokenRepositorySequelize } from "./infrastructure/persistence/EmailChangeTokenRepositorySequelize.js";
 import { BcryptPasswordHasher } from "./infrastructure/providers/BcryptPasswordHasher.js";
 import { JwtTokenProvider } from "./infrastructure/providers/JwtTokenProvider.js";
 import { ConsoleEmailSender } from "./infrastructure/providers/ConsoleEmailSender.js";
@@ -54,6 +55,15 @@ import { ScheduleEmailVerification } from "./application/use-cases/ScheduleEmail
 import { SendVerificationEmailHandler } from "./application/use-cases/SendVerificationEmailHandler.js";
 import { SendPasswordResetEmailHandler } from "./application/use-cases/SendPasswordResetEmailHandler.js";
 import { SendInviteEmailHandler } from "./application/use-cases/SendInviteEmailHandler.js";
+import { RequestEmailChange } from "./application/use-cases/RequestEmailChange.js";
+import { SendEmailChangeEmailHandler } from "./application/use-cases/SendEmailChangeEmailHandler.js";
+import { ConfirmEmailChange } from "./application/use-cases/ConfirmEmailChange.js";
+import { ScheduleAccountNotice } from "./application/use-cases/ScheduleAccountNotice.js";
+import { SendAccountNotice } from "./application/use-cases/SendAccountNotice.js";
+import { SendAccountNoticeHandler } from "./application/use-cases/SendAccountNoticeHandler.js";
+import { buildEmailChangeConfirmEmail } from "./infrastructure/email/templates/email-change-confirm.js";
+import { buildEmailChangeNoticeEmail } from "./infrastructure/email/templates/email-change-notice.js";
+import { buildPasswordChangedEmail } from "./infrastructure/email/templates/password-changed.js";
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
 import type { MessageIdempotencyPort } from "@/shared/application/ports/MessageIdempotencyPort.js";
 import { NoopMessageQueue } from "@/shared/infrastructure/queue/NoopMessageQueue.js";
@@ -79,8 +89,8 @@ export type AuthFeatureOverrides = {
   emailSender?: EmailSender;
   lockoutRedis?: LockoutRedisClient;
   /**
-   * Where the verification, password-reset and invite emails are queued; the
-   * server passes its publisher.
+   * Where the auth emails are queued (verification, password reset, invite,
+   * email change, account notices); the server passes its publisher.
    */
   messageQueue?: MessageQueuePort;
   idempotency?: MessageIdempotencyPort;
@@ -115,6 +125,7 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
   const refreshTokenRepo = new RefreshTokenRepositorySequelize();
   const emailVerificationTokenRepo =
     new EmailVerificationTokenRepositorySequelize();
+  const emailChangeTokenRepo = new EmailChangeTokenRepositorySequelize();
   const hasher = new BcryptPasswordHasher();
   const token = new JwtTokenProvider();
   // Bounded: a queued email is sent inside its job's transaction (ADR-0077).
@@ -187,6 +198,67 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
     },
   );
 
+  // Account notices go to the worker as the verification email does; otherwise,
+  // and when a publish fails, they are sent after the response (credential-changes D-05).
+  const sendAccountNotice = new SendAccountNotice(
+    repo,
+    emailChangeTokenRepo,
+    emailSender,
+    {
+      buildEmailChangeNotice: buildEmailChangeNoticeEmail,
+      buildPasswordChanged: buildPasswordChangedEmail,
+    },
+  );
+  const scheduleAccountNotice = new ScheduleAccountNotice(messageQueue, {
+    sendInProcess: (job) =>
+      runInBackground(
+        `account-notice:${job.notice}`,
+        () => sendAccountNotice.execute(job),
+        { userId: job.userId },
+      ),
+    sendJobInProcess: ({ messageId, ...job }) =>
+      runInBackground(
+        `account-notice:${job.notice}`,
+        async () => {
+          const outcome = await idempotency.runOnce(
+            { messageId, queue: QUEUES.AUTH_SEND_ACCOUNT_NOTICE },
+            (tx) => sendAccountNotice.executeInTransaction(job, tx),
+          );
+          if (outcome === "duplicate") {
+            logger.info(
+              "[RABBITMQ] Account notice already sent by the worker.",
+              {
+                userId: job.userId,
+                messageId,
+              },
+            );
+          }
+        },
+        { userId: job.userId },
+      ),
+  });
+  // One proof for every credential route (credential-changes D-01).
+  const confirmCurrentPassword = new ConfirmCurrentPassword(
+    hasher,
+    credentialAttemptsPort,
+  );
+  // The confirmation is queued as the reset email is; otherwise, and when a
+  // publish fails, it is sent in the request (credential-changes D-05).
+  const requestEmailChange = new RequestEmailChange(
+    repo,
+    emailChangeTokenRepo,
+    emailSender,
+    messageQueue,
+    idempotency,
+    confirmCurrentPassword,
+    scheduleAccountNotice,
+    tx,
+    {
+      frontendEmailChangeUrl: env.FRONTEND_EMAIL_CHANGE_URL,
+      buildEmail: buildEmailChangeConfirmEmail,
+    },
+  );
+
   // Queued when the server passes a queue; otherwise, and when a publish fails,
   // sent in the request, as before (ADR-0069).
   const requestPasswordReset = new RequestPasswordReset(
@@ -243,8 +315,10 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
       refreshTokenRepo,
       hasher,
       issueRefreshToken,
-      new ConfirmCurrentPassword(hasher, credentialAttemptsPort),
+      confirmCurrentPassword,
       tx,
+      emailChangeTokenRepo,
+      scheduleAccountNotice,
     ),
     credentialAttempts,
     requestPasswordReset,
@@ -258,6 +332,25 @@ export const buildAuthFeature = (overrides: AuthFeatureOverrides = {}) => {
       hasher,
       refreshTokenRepo,
       tx,
+      emailChangeTokenRepo,
+      scheduleAccountNotice,
+    ),
+    requestEmailChange,
+    sendEmailChangeEmailHandler: new SendEmailChangeEmailHandler(
+      requestEmailChange,
+      idempotency,
+    ),
+    confirmEmailChange: new ConfirmEmailChange(
+      repo,
+      emailChangeTokenRepo,
+      emailVerificationTokenRepo,
+      resetTokenRepo,
+      tx,
+    ),
+    scheduleAccountNotice,
+    sendAccountNoticeHandler: new SendAccountNoticeHandler(
+      sendAccountNotice,
+      idempotency,
     ),
     requestEmailVerification,
     scheduleEmailVerification,

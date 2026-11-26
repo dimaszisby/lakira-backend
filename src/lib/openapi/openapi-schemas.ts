@@ -599,6 +599,24 @@ export const ChangePasswordRequestSchema = registerSchema(
     }),
 );
 
+export const ChangeEmailRequestSchema = registerSchema(
+  "ChangeEmailRequest",
+  z.object({
+    currentPassword: z.string().min(1).openapi({ example: "OldPass123!" }),
+    email: emailSchema("new-address@example.com"),
+  }),
+);
+
+export const ConfirmEmailChangeRequestSchema = registerSchema(
+  "ConfirmEmailChangeRequest",
+  z.object({
+    token: z
+      .string()
+      .min(1)
+      .openapi({ example: "AbCdEf0123456789AbCdEf0123456789AbCdEf01" }),
+  }),
+);
+
 export const ForgotPasswordRequestSchema = registerSchema(
   "ForgotPasswordRequest",
   z.object({

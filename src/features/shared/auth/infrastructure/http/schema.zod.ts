@@ -65,6 +65,19 @@ export const changePasswordBody = z
     path: ["passwordConfirmation"],
   });
 
+export const changeEmailBody = z.object({
+  currentPassword: z
+    .string()
+    .min(1, { message: ZodMessages.user.currentPasswordRequired }),
+  email: zEmail,
+});
+
+export const confirmEmailChangeBody = z.object({
+  token: z
+    .string()
+    .min(1, { message: ZodMessages.user.emailChangeTokenRequired }),
+});
+
 export const loginUserBody = z.object({
   email: zEmail,
   password: zPassword,
@@ -101,6 +114,8 @@ export const switchOrgBody = z.object({
 export const createUserSchema = { body: createUserBody };
 export const updateUserSchema = { body: updateUserBody };
 export const changePasswordSchema = { body: changePasswordBody };
+export const changeEmailSchema = { body: changeEmailBody };
+export const confirmEmailChangeSchema = { body: confirmEmailChangeBody };
 export const loginUserSchema = { body: loginUserBody };
 export const forgotPasswordSchema = { body: forgotPasswordBody };
 export const resetPasswordSchema = { body: resetPasswordBody };

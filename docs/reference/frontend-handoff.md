@@ -69,12 +69,24 @@ Secret naming already used in docs:
   `isPublicProfile`, and answers `400` to a body carrying `password` or `email`. A wrong current
   password is a `400` with `errors: [{ field: "currentPassword", ... }]`, never a `401`, so the
   session survives a typo; after 5 wrong ones within 15 minutes the route answers `429` with
-  `Retry-After`. The email cannot be changed until the email-change routes land (#309).
+  `Retry-After`.
+- An email change is `POST /api/v1/auth/change-email` with `currentPassword` and `email`
+  (ADR-0099). It shares change-password's count of wrong current passwords and answers the same
+  `400` on `currentPassword`; the account's own address is a `400` on `email`, one another account
+  holds is a `409`. A `202` means pending, not done: the account keeps its address until the link
+  sent to the new one is opened. The link goes to `FRONTEND_EMAIL_CHANGE_URL?token=...`, a page
+  the frontend serves, which posts `{ token }` to `POST /api/v1/auth/confirm-email-change` with no
+  session needed (the link may be opened on another device). That answers `200` once the email has
+  changed and is verified, a generic `400` for an unknown, used, replaced or expired link (24
+  hours), and `409` if the address was taken meanwhile. The old address is sent a notice naming
+  the new one masked. A new request replaces a pending one, and a password change or reset
+  cancels it. Sessions continue; a profile fetched after the confirmation shows the new address.
 - A password reset (`POST /api/v1/auth/reset-password`) or a password change ends every session
   the user has: each refresh cookie issued before it answers `401` at `/auth/refresh`. A change
   sends the session making it a new refresh cookie with its `200`, so that session continues;
   whatever relays the backend's `Set-Cookie` must relay this one too, or the session ends when its
   access token expires. Access tokens already issued stay valid until they expire (ADR-0097).
+  A change or reset also emails the account's address that its password was changed (ADR-0099).
 - Other auth routes: `/forgot-password`, `/reset-password`, `/verify-email`,
   `/resend-verification`, `/switch-org` (all under `/api/v1/auth`).
 - `GET /api/v1/organizations` lists the caller's organizations, each with `organizationId`,

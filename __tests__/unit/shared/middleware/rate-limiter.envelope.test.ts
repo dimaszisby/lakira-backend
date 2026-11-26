@@ -23,6 +23,7 @@ jest.mock("@/config/envManager.js", () => ({
     RATE_LIMIT_REGISTER_IP_MAX: 1,
     RATE_LIMIT_LOGIN_MAX: 1,
     RATE_LIMIT_AUTH_SESSION_MAX: 1,
+    RATE_LIMIT_EMAIL_CHANGE_USER_MAX: 1,
   },
 }));
 
@@ -104,6 +105,11 @@ const LIMITERS: [FactoryName, string, string][] = [
     "createAuthSessionRateLimiter",
     "Too many requests, please try again later.",
     "Session rate limit hit for ",
+  ],
+  [
+    "createEmailChangeRateLimiter",
+    "Too many email change requests, please try again later.",
+    "Email change rate limit exceeded for ",
   ],
 ];
 

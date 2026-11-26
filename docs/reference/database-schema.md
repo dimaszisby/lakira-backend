@@ -2,8 +2,9 @@
 
 PostgreSQL. Managed by Sequelize migrations in `src/migrations/`.
 
-**As of migration `20260816000001-drop-duplicate-org-fks-and-orphan-enums.cjs` (27 applied).**
-Verified by introspecting a migrated database (re-checked 2026-09-24), not by reading migration files.
+**As of migration `20261125000001-create-email-change-tokens.cjs` (30 applied).**
+Verified by introspecting a migrated database (re-checked 2026-09-24; `email_change_tokens` and the
+count on 2026-11-25), not by reading migration files.
 
 All timestamps are `timestamptz`. `created_at` / `updated_at` default to `now()`.
 Tables with `deleted_at` are Sequelize-paranoid (soft delete).
@@ -92,7 +93,7 @@ Unique on `(user_id, organization_id)` — one membership per user per organizat
 
 ## Tokens
 
-All three token tables store **only a SHA-256 hash**. The raw token exists in the delivery
+All four token tables store **only a SHA-256 hash**. The raw token exists in the delivery
 email and nowhere else, so a database compromise does not yield usable tokens.
 
 ### `refresh_tokens`
@@ -120,6 +121,24 @@ Same shape: `id`, `user_id` (**CASCADE**), `token_hash` (unique), `expires_at`, 
 timestamps. Both are indexed on `(user_id, used_at)` for the "is there a live token" lookup.
 `password_reset_tokens.token_hash` is `varchar(64)`; `email_verification_tokens.token_hash` is
 `char(64)` — a cosmetic inconsistency, both hold the same hex digest.
+
+### `email_change_tokens`
+
+A pending email change (ADR-0099). The account's address changes only when the link sent to
+`new_email` is confirmed.
+
+| Column       | Type         | Null | Default              | Notes                                                                              |
+| ------------ | ------------ | ---- | -------------------- | ---------------------------------------------------------------------------------- |
+| `id`         | uuid         | no   | `uuid_generate_v4()` | PK                                                                                 |
+| `user_id`    | uuid         | no   |                      | → `users` **CASCADE**; one pending row per user (see below)                        |
+| `new_email`  | varchar(255) | no   |                      | where the confirmation link goes                                                   |
+| `old_email`  | varchar(255) | no   |                      | where the notice goes, even after a confirmation                                   |
+| `token_hash` | varchar(64)  | yes  |                      | unique; null until the job mints the token                                         |
+| `expires_at` | timestamptz  | no   |                      | 24 h after the request                                                             |
+| `used_at`    | timestamptz  | yes  |                      | set when confirmed, or superseded by a later request, a password change or a reset |
+
+Indexed on `(user_id, used_at)`, and `uq_email_change_tokens_pending_user` is a unique index on
+`user_id` where `used_at` is null: of two racing requests, the second answers 409.
 
 ---
 

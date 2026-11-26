@@ -11,6 +11,8 @@ let login: Handlers["login"];
 let getProfile: Handlers["getProfile"];
 let updateProfile: Handlers["updateProfile"];
 let changePassword: Handlers["changePassword"];
+let changeEmail: Handlers["changeEmail"];
+let confirmEmailChange: Handlers["confirmEmailChange"];
 let logout: Handlers["logout"];
 let verifyEmail: Handlers["verifyEmail"];
 let resendVerification: Handlers["resendVerification"];
@@ -25,6 +27,8 @@ const loginExecute: AsyncMock = jest.fn();
 const getProfileExecute: AsyncMock = jest.fn();
 const updateProfileExecute: AsyncMock = jest.fn();
 const changePasswordExecute: AsyncMock = jest.fn();
+const requestEmailChangeExecute: AsyncMock = jest.fn();
+const confirmEmailChangeExecute: AsyncMock = jest.fn();
 const rotateRefreshTokenExecute: AsyncMock = jest.fn();
 const revokeRefreshTokenFamilyExecute: AsyncMock = jest.fn();
 const scheduleEmailVerificationExecute: AsyncMock = jest.fn(
@@ -57,6 +61,8 @@ const buildFeatureMocks = (): AuthFeature =>
     getProfile: { execute: getProfileExecute },
     updateProfile: { execute: updateProfileExecute },
     changePassword: { execute: changePasswordExecute },
+    requestEmailChange: { execute: requestEmailChangeExecute },
+    confirmEmailChange: { execute: confirmEmailChangeExecute },
     credentialAttempts: { reserve: checkCredentialAttemptsMock },
     rotateRefreshToken: { execute: rotateRefreshTokenExecute },
     revokeRefreshTokenFamily: { execute: revokeRefreshTokenFamilyExecute },
@@ -93,6 +99,8 @@ describe("Auth HTTP controller", () => {
       getProfile,
       updateProfile,
       changePassword,
+      changeEmail,
+      confirmEmailChange,
       logout,
       verifyEmail,
       resendVerification,
@@ -404,6 +412,76 @@ describe("Auth HTTP controller", () => {
     expect(errorNext).toHaveBeenCalledWith(
       expect.objectContaining({ statusCode: 429 }),
     );
+  });
+
+  it("asks for an email change with 202, counting the attempt first (credential-changes D-02, D-04)", async () => {
+    requestEmailChangeExecute.mockResolvedValue(undefined);
+
+    const response = res();
+    await changeEmail(
+      profileRequest({
+        currentPassword: "Current1!",
+        email: "new@example.com",
+      }),
+      response,
+      next,
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(checkCredentialAttemptsMock).toHaveBeenCalledWith("user-1");
+    expect(
+      checkCredentialAttemptsMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(requestEmailChangeExecute.mock.invocationCallOrder[0]);
+    expect(requestEmailChangeExecute).toHaveBeenCalledWith({
+      userId: "user-1",
+      currentPassword: "Current1!",
+      email: "new@example.com",
+    });
+    expect(response.cookie).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(202);
+    expect(response.json).toHaveBeenCalledWith(
+      expect.objectContaining({ data: null }),
+    );
+  });
+
+  it("answers an email change past the shared counter with 429 and Retry-After", async () => {
+    const AppError = (await import("@/utils/AppError.js")).default;
+    checkCredentialAttemptsMock.mockRejectedValueOnce(
+      new AppError(
+        "Too many incorrect passwords. Please try again later.",
+        429,
+      ),
+    );
+
+    const response = res();
+    const errorNext = jest.fn();
+    await changeEmail(
+      profileRequest({ currentPassword: "guess", email: "new@example.com" }),
+      response,
+      errorNext,
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(response.setHeader).toHaveBeenCalledWith("Retry-After", "900");
+    expect(requestEmailChangeExecute).not.toHaveBeenCalled();
+  });
+
+  it("confirms an email change without a session", async () => {
+    confirmEmailChangeExecute.mockResolvedValue(undefined);
+
+    const response = res();
+    await confirmEmailChange(
+      { body: { token: "raw-token" } } as unknown as AuthRequest,
+      response,
+      next,
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(assertAuthenticatedMock).not.toHaveBeenCalled();
+    expect(confirmEmailChangeExecute).toHaveBeenCalledWith({
+      token: "raw-token",
+    });
+    expect(response.status).toHaveBeenCalledWith(200);
   });
 
   it("requires authentication before fetching profile", async () => {
