@@ -18,6 +18,8 @@ jest.mock("@/shared/infrastructure/queue/RabbitMQConnection.js", () => ({
       setup = options.setup;
       return channel;
     },
+    // Down, so a pending reopen does nothing here (ReopeningChannel.test.ts covers it).
+    isConnected: () => false,
   }),
 }));
 
@@ -27,10 +29,6 @@ jest.mock("@/shared/infrastructure/queue/topology.js", () => ({
   retryQueueFor: (queue: string, delayMs: number) =>
     `${queue}.retry.${delayMs}`,
 }));
-
-const topologyMock = jest.requireMock(
-  "@/shared/infrastructure/queue/topology.js",
-) as { assertTopology: jest.Mock };
 
 /** The amqplib channel `setup` is handed, as the library hands it. */
 const rawChannel = (consumerTag: string) => {
@@ -46,6 +44,7 @@ const rawChannel = (consumerTag: string) => {
       void count;
     }),
     consume: jest.fn(async () => ({ consumerTag })),
+    close: jest.fn(async () => undefined),
     cancel: jest.fn(async (tag: string) => {
       void tag;
     }),
@@ -106,9 +105,8 @@ describe("RabbitMQConsumer", () => {
     const afterReconnect = rawChannel("tag-2");
     await setup!(afterReconnect);
 
-    expect(topologyMock.assertTopology).toHaveBeenLastCalledWith(
-      afterReconnect,
-    );
+    // Stopping, it closes the channel rather than declaring anything on it (ADR-0102).
+    expect(afterReconnect.close).toHaveBeenCalledTimes(1);
     expect(afterReconnect.consume).not.toHaveBeenCalled();
   });
 
@@ -123,6 +121,41 @@ describe("RabbitMQConsumer", () => {
 
     expect(second.cancel).toHaveBeenCalledWith("tag-2");
     expect(first.cancel).not.toHaveBeenCalled();
+  });
+
+  // #312 (audit 2026-11-14 Y61): the broker closed the channel, and its consumer with it.
+  it("forgets the consumer of a channel the broker closed", async () => {
+    const consumer = await build();
+    const raw = rawChannel("tag-1");
+    await setup!(raw);
+
+    raw.fireClose();
+    await consumer.cancel();
+
+    expect(raw.cancel).not.toHaveBeenCalled();
+  });
+
+  // Review M2 on #312: a deleted queue cancels its consumer and leaves the channel open,
+  // so nothing would reopen it.
+  it("closes its channel when the broker cancels the consumer, so it is reopened", async () => {
+    const consumer = await build();
+    const raw = rawChannel("tag-1");
+    let onMessage: ((msg: unknown) => void) | undefined;
+    raw.consume.mockImplementationOnce((async (
+      queue: string,
+      callback: (msg: unknown) => void,
+    ) => {
+      void queue;
+      onMessage = callback;
+      return { consumerTag: "tag-1" };
+    }) as never);
+    await setup!(raw);
+
+    onMessage!(null);
+    expect(raw.close).toHaveBeenCalledTimes(1);
+
+    await consumer.cancel();
+    expect(raw.cancel).not.toHaveBeenCalled();
   });
 
   it("cancels a consumer whose registration finishes after cancel", async () => {

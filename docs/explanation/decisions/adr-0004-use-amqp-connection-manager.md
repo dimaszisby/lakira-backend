@@ -4,6 +4,10 @@
 - **Date:** 2026-04-20
 - **Origin:** `ADR-001` in the RabbitMQ kit — [`rabbitmq`](../../internal/initiatives/rabbitmq/decisions.md)
 
+> **Status note (2026-11-28).** The library re-runs a channel's setup only when the whole
+> connection reconnects, not when the broker closes one channel. Such a channel is reopened by
+> `ReopeningChannel` ([ADR-0102](./adr-0102-a-channel-the-broker-closes-is-reopened.md), #312).
+
 ---
 
 ## Context

@@ -47,10 +47,11 @@ export const connectRabbitMQ = (): AmqpConnectionManager => {
 
 /**
  * Listens on a raw channel for the `error` amqplib emits when the broker closes it, a 406 from
- * a declaration with other arguments for one. `amqp-connection-manager` listens for the close,
- * and reopens the channel, but not for the error, and an `error` nobody listens to is thrown
- * inside amqplib's frame handling, which takes the whole connection down with it (audit
- * 2026-10-20 X63; ADR-0080). Every channel's `setup` calls this first.
+ * a declaration with other arguments for one. `amqp-connection-manager` listens for the close
+ * but not for the error, and an `error` nobody listens to is thrown inside amqplib's frame
+ * handling, which takes the whole connection down with it (audit 2026-10-20 X63; ADR-0080).
+ * Every channel's `setup` calls this first. The library does not reopen the closed channel
+ * while the connection stays up; `ReopeningChannel` does (ADR-0102).
  */
 export const absorbChannelErrors = (
   channel: {
