@@ -20,6 +20,7 @@ import type {
   MessageQueuePort,
 } from "@/shared/application/ports/MessageQueuePort.js";
 import type { MessageHandler } from "@/shared/application/ports/MessageHandlerPort.js";
+import type { JobSlots } from "./JobSlots.js";
 
 /**
  * The id a job is handled under: the publishing request's, when the header holds one the HTTP
@@ -38,6 +39,12 @@ export interface ConsumerOptions {
   handler: MessageHandler;
   /** Republishes a failed message to the queue's retry queue. */
   publisher: MessageQueuePort;
+  /**
+   * The worker's slots, shared by every consumer it holds: a job runs only
+   * when one is free, so jobs never outnumber the pool's connections (ADR-0100).
+   * Required, so no consumer can be built without them.
+   */
+  slots: JobSlots;
   prefetch?: number;
   /** Retries before parking. 0 parks on the first failure. */
   maxRetries?: number;
@@ -54,11 +61,19 @@ export class RabbitMQConsumer {
   private stopping = false;
   private inFlight = 0;
   private drainResolvers: Array<() => void> = [];
+  // Aborted by cancel(): a message still waiting for a slot then goes back to
+  // the queue unstarted, and the drain does not wait on it (ADR-0100).
+  private readonly stop = new AbortController();
   private readonly maxRetries: number;
   private readonly retryBaseDelayMs: number;
 
   constructor(private readonly options: ConsumerOptions) {
-    const prefetch = options.prefetch ?? env.RABBITMQ_PREFETCH;
+    // No more held than could run: a message prefetched past the slots only
+    // waits here, unacked, where another worker cannot take it (ADR-0100).
+    const prefetch = Math.min(
+      options.prefetch ?? env.RABBITMQ_PREFETCH,
+      options.slots.size,
+    );
     this.maxRetries = options.maxRetries ?? env.RABBITMQ_MAX_RETRIES;
     this.retryBaseDelayMs =
       options.retryBaseDelayMs ?? env.RABBITMQ_RETRY_BASE_DELAY_MS;
@@ -72,12 +87,19 @@ export class RabbitMQConsumer {
         // A reconnect during the drain re-runs setup: it must not consume again.
         if (this.stopping) return;
         await ch.prefetch(prefetch);
+        // A message delivered on this channel and still waiting for a slot
+        // when the channel closes was requeued by the broker with it: it must
+        // not run here, where its ack can no longer land (ADR-0100).
+        const channelGone = new AbortController();
+        ch.once("close", () =>
+          channelGone.abort(new Error("consumer channel closed")),
+        );
 
         const { consumerTag } = await ch.consume(
           options.queue,
           (msg) => {
             if (!msg) return;
-            this.dispatch(ch, msg);
+            this.dispatch(ch, msg, channelGone.signal);
           },
           { noAck: false },
         );
@@ -108,25 +130,26 @@ export class RabbitMQConsumer {
     });
   }
 
-  private dispatch(ch: Channel, msg: ConsumeMessage): void {
-    requestIdStorage.run(requestIdOf(msg), () => this.handle(ch, msg));
+  private dispatch(
+    ch: Channel,
+    msg: ConsumeMessage,
+    channelGone: AbortSignal,
+  ): void {
+    requestIdStorage.run(requestIdOf(msg), () =>
+      this.handle(ch, msg, channelGone),
+    );
   }
 
-  private handle(ch: Channel, msg: ConsumeMessage): void {
+  private handle(
+    ch: Channel,
+    msg: ConsumeMessage,
+    channelGone: AbortSignal,
+  ): void {
     this.inFlight++;
 
     const retryCount = readRetryCount(msg.properties.headers);
 
-    this.options
-      .handler(msg, { queue: this.options.queue })
-      .then(() => {
-        ch.ack(msg);
-        logger.info("[RABBITMQ] Message acked.", {
-          messageId: msg.properties.messageId,
-          queue: this.options.queue,
-        });
-      })
-      .catch((error: unknown) => this.onFailure(ch, msg, retryCount, error))
+    this.runInSlot(ch, msg, retryCount, channelGone)
       .catch((error: unknown) => {
         // The channel closed under an ack or nack. The broker redelivers the message,
         // so log rather than let the rejection take the worker down.
@@ -143,6 +166,75 @@ export class RabbitMQConsumer {
           this.drainResolvers = [];
         }
       });
+  }
+
+  /**
+   * Waits for one of the worker's slots, runs the handler, frees the slot as
+   * soon as the handler settles (its transaction has committed or rolled
+   * back), then acks the message or hands the failure to onFailure.
+   */
+  private async runInSlot(
+    ch: Channel,
+    msg: ConsumeMessage,
+    retryCount: number,
+    channelGone: AbortSignal,
+  ): Promise<void> {
+    const { slots } = this.options;
+    if (slots.running >= slots.size) {
+      logger.debug("[RABBITMQ] Message waiting for a job slot.", {
+        queue: this.options.queue,
+        running: slots.running,
+        waiting: slots.waiting + 1,
+      });
+    }
+
+    let release: () => void;
+    try {
+      // One signal per message, so waiters add no listeners to a shared one.
+      release = await slots.acquire(
+        AbortSignal.any([this.stop.signal, channelGone]),
+      );
+    } catch {
+      if (channelGone.aborted) {
+        // The broker requeued it when the channel closed; a new channel
+        // delivers it again.
+        logger.debug(
+          "[RABBITMQ] Message dropped unstarted: its channel closed.",
+          {
+            messageId: msg.properties.messageId,
+            queue: this.options.queue,
+          },
+        );
+        return;
+      }
+      // Stopping. It never started, so it goes back to the queue as it came,
+      // with no retry counted; the broker delivers it again later.
+      ch.nack(msg, false, true);
+      logger.info("[RABBITMQ] Message returned unstarted at shutdown.", {
+        messageId: msg.properties.messageId,
+        queue: this.options.queue,
+      });
+      return;
+    }
+
+    let failure: { error: unknown } | null = null;
+    try {
+      await this.options.handler(msg, { queue: this.options.queue });
+    } catch (error) {
+      failure = { error };
+    } finally {
+      release();
+    }
+
+    if (failure) {
+      await this.onFailure(ch, msg, retryCount, failure.error);
+      return;
+    }
+    ch.ack(msg);
+    logger.info("[RABBITMQ] Message acked.", {
+      messageId: msg.properties.messageId,
+      queue: this.options.queue,
+    });
   }
 
   private async onFailure(
@@ -224,6 +316,7 @@ export class RabbitMQConsumer {
 
   async cancel(): Promise<void> {
     this.stopping = true;
+    this.stop.abort(new Error("consumer stopping"));
     const ch = this.consumerChannel;
     const tag = this.consumerTag;
     this.consumerChannel = null;

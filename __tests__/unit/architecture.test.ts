@@ -442,6 +442,22 @@ describe("Architecture enforcement", () => {
       ]);
     });
 
+    // ADR-0100 (#310): the slots bound the jobs the whole worker runs at once,
+    // so every consumer takes the one instance, sized from the pool.
+    it("src/worker.ts gives every consumer the one set of job slots", () => {
+      const worker = read("worker.ts");
+      const consumers = worker.split("new RabbitMQConsumer({").slice(1);
+
+      expect(worker.match(/new JobSlots\(/g)).toHaveLength(1);
+      expect(worker).toContain("new JobSlots(env.DB_POOL_MAX)");
+      expect(consumers.length).toBeGreaterThan(0);
+      for (const options of consumers) {
+        expect(options.slice(0, options.indexOf("})"))).toMatch(
+          /^\s*slots,\s*$/m,
+        );
+      }
+    });
+
     it("src/worker.ts imports no feature internals", () => {
       expect(featureInternalImports(read("worker.ts"))).toEqual([]);
     });

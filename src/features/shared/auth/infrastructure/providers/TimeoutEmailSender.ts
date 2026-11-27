@@ -8,7 +8,9 @@ import {
 /**
  * How long a send may take. A queued email is sent inside its job's
  * transaction (ADR-0067), so a provider that hangs would hold that
- * transaction's connection for as long as it hangs (ADR-0077).
+ * transaction's connection for as long as it hangs (ADR-0077). The worker
+ * runs no more jobs than its pool holds, so a slow send makes the next job
+ * wait for a slot, not on the pool (ADR-0100).
  */
 export const EMAIL_SEND_TIMEOUT_MS = 10_000;
 

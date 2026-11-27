@@ -76,6 +76,10 @@ lost survives a crash. Today it consumes six queues:
 
 With the queue on and no worker running, nobody receives any of the auth emails.
 
+Each job holds one database connection while it runs, so the worker runs at most `DB_POOL_MAX`
+jobs at once across all six queues, and the rest wait for a free slot holding nothing
+([ADR-0100](../decisions/adr-0100-the-worker-runs-no-more-jobs-than-its-pool-holds.md)).
+
 ## Request path through the API server
 
 Middleware order in `mountHttpPipeline` (`src/shared/middleware/http-pipeline.ts`, ADR-0061) is

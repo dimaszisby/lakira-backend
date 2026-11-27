@@ -28,6 +28,7 @@ import { env } from "@/config/envManager.js";
 import { drainBackgroundTasks } from "@/utils/background-tasks.js";
 import { models } from "@/infrastructure/db/models.js";
 import { awaitBroker } from "../../helpers/broker.js";
+import { JobSlots } from "@/shared/infrastructure/queue/JobSlots.js";
 
 /**
  * The queued password-reset email (ADR-0069): POST /auth/forgot-password → jobs
@@ -124,6 +125,7 @@ describe("The password-reset email via RabbitMQ", () => {
       emailSender: sender,
     });
     consumer = new RabbitMQConsumer({
+      slots: new JobSlots(10),
       queue: QUEUE,
       handler: (msg, context) => {
         invocations++;

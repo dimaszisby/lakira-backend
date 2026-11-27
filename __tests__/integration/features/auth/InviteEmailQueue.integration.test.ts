@@ -31,6 +31,7 @@ import { env } from "@/config/envManager.js";
 import { models } from "@/infrastructure/db/models.js";
 import { createHash } from "node:crypto";
 import { awaitBroker } from "../../helpers/broker.js";
+import { JobSlots } from "@/shared/infrastructure/queue/JobSlots.js";
 
 /**
  * The queued invite email (ADR-0070): POST /organizations/:id/invites → jobs
@@ -137,6 +138,7 @@ describe("The invite email via RabbitMQ", () => {
       emailSender: sender,
     });
     consumer = new RabbitMQConsumer({
+      slots: new JobSlots(10),
       queue: QUEUE,
       handler: (msg, context) => {
         invocations++;
