@@ -42,10 +42,13 @@ describe("email jobs, more at once than the pool holds", () => {
         sendVerificationEmailHandler,
         sendPasswordResetEmailHandler,
         sendInviteEmailHandler,
+        sendEmailChangeEmailHandler,
+        sendAccountNoticeHandler,
       } = buildWiredAuthFeature({ emailSender: sender });
 
+      // Verification, reset, and the password notice each take a user of their own.
       const users = [];
-      for (let i = 0; i < JOBS_PER_KIND * 2; i++) {
+      for (let i = 0; i < JOBS_PER_KIND * 3; i++) {
         users.push(await createUserRow());
       }
       const invites = [];
@@ -62,6 +65,20 @@ describe("email jobs, more at once than the pool holds", () => {
         );
       }
 
+      // Pending email changes, each to an address no other job sends to.
+      const requests = [];
+      for (let i = 0; i < JOBS_PER_KIND; i++) {
+        const owner = await createUserRow();
+        requests.push(
+          await models.EmailChangeToken.create({
+            userId: owner.id,
+            newEmail: `moved-${i}-${randomUUID()}@example.com`,
+            oldEmail: owner.email,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          }),
+        );
+      }
+
       const started = Date.now();
       await Promise.all([
         ...users.slice(0, JOBS_PER_KIND).map((user) =>
@@ -69,7 +86,7 @@ describe("email jobs, more at once than the pool holds", () => {
             queue: QUEUES.AUTH_SEND_VERIFICATION_EMAIL,
           }),
         ),
-        ...users.slice(JOBS_PER_KIND).map((user) =>
+        ...users.slice(JOBS_PER_KIND, JOBS_PER_KIND * 2).map((user) =>
           sendPasswordResetEmailHandler.handle(job({ userId: user.id }), {
             queue: QUEUES.AUTH_SEND_PASSWORD_RESET_EMAIL,
           }),
@@ -79,13 +96,26 @@ describe("email jobs, more at once than the pool holds", () => {
             queue: QUEUES.AUTH_SEND_INVITE_EMAIL,
           }),
         ),
+        ...requests.map((request) =>
+          sendEmailChangeEmailHandler.handle(job({ requestId: request.id }), {
+            queue: QUEUES.AUTH_SEND_EMAIL_CHANGE_EMAIL,
+          }),
+        ),
+        ...users
+          .slice(JOBS_PER_KIND * 2)
+          .map((user) =>
+            sendAccountNoticeHandler.handle(
+              job({ userId: user.id, notice: "password_changed" }),
+              { queue: QUEUES.AUTH_SEND_ACCOUNT_NOTICE },
+            ),
+          ),
       ]);
       const elapsed = Date.now() - started;
 
       expect(elapsed).toBeLessThan(WITHIN_MS);
-      expect(sender.sent).toHaveLength(JOBS_PER_KIND * 3);
+      expect(sender.sent).toHaveLength(JOBS_PER_KIND * 5);
       const recipients = new Set(sender.sent.map((message) => message.to));
-      expect(recipients.size).toBe(JOBS_PER_KIND * 3);
+      expect(recipients.size).toBe(JOBS_PER_KIND * 5);
     },
     WITHIN_MS * 2,
   );

@@ -24,7 +24,8 @@ and reset log `[EMAIL:MAILPIT] failed to send email`. Start Mailpit, or set
 
 ## Read a token by hand
 
-Register, request a reset or send an invite, then open the newest message in the inbox. The link
+Register, request a reset or send an invite, then open the newest message in the inbox. Sending
+an invite needs a verified address (ADR-0101): verify the inviter's first, from its email. The link
 in the body carries the token: `...verify-email?token=<token>`, `...reset-password?token=<token>`,
 `...invites/accept?token=<token>`. Post that value to `POST /api/v1/auth/verify-email`,
 `POST /api/v1/auth/reset-password` or `POST /api/v1/invites/accept`.

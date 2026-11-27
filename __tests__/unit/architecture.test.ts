@@ -442,6 +442,22 @@ describe("Architecture enforcement", () => {
       ]);
     });
 
+    // ADR-0100 (#310): the slots bound the jobs the whole worker runs at once,
+    // so every consumer takes the one instance, sized from the pool.
+    it("src/worker.ts gives every consumer the one set of job slots", () => {
+      const worker = read("worker.ts");
+      const consumers = worker.split("new RabbitMQConsumer({").slice(1);
+
+      expect(worker.match(/new JobSlots\(/g)).toHaveLength(1);
+      expect(worker).toContain("new JobSlots(env.DB_POOL_MAX)");
+      expect(consumers.length).toBeGreaterThan(0);
+      for (const options of consumers) {
+        expect(options.slice(0, options.indexOf("})"))).toMatch(
+          /^\s*slots,\s*$/m,
+        );
+      }
+    });
+
     it("src/worker.ts imports no feature internals", () => {
       expect(featureInternalImports(read("worker.ts"))).toEqual([]);
     });
@@ -724,8 +740,9 @@ describe("Architecture enforcement", () => {
       expect(offenders).toEqual([]);
       expect(
         limiterCalls(fs.readFileSync(path.join(SRC, LIMITER_FILE), "utf-8")),
-        // 11: login and auth-session (api-tooling-residuals D-08).
-      ).toHaveLength(11);
+        // 12: login and auth-session (api-tooling-residuals D-08), and
+        // change-email (credential-changes D-06).
+      ).toHaveLength(12);
     });
 
     it("only rate-limiter.ts imports express-rate-limit", () => {
@@ -844,7 +861,7 @@ describe("Architecture enforcement", () => {
   // every request by IP. Reads source text, one entry per router call.
   describe("a limiter keyed by user runs after auth", () => {
     const USER_KEYED_LIMITER =
-      /\b(?:userRateLimiter|switchOrgRateLimiter|analyticsRateLimiter)\b/;
+      /\b(?:userRateLimiter|switchOrgRateLimiter|analyticsRateLimiter|emailChangeRateLimiter)\b/;
 
     const routerCalls = (content: string): string[] =>
       content
@@ -918,6 +935,56 @@ describe("Architecture enforcement", () => {
         .map((file) => ({
           file: path.relative(SRC_FEATURES, file).split(path.sep).join("/"),
           calls: limitersWithoutAuth(fs.readFileSync(file, "utf-8")).length,
+        }))
+        .filter(({ calls }) => calls !== 0);
+
+      expect(offenders).toEqual([]);
+    });
+
+    // #311 (audit 2026-11-14, Y11; ADR-0101). An invite emails an address the
+    // caller names, so it needs a verified address. requireVerifiedEmail reads
+    // req.user: ahead of authMiddleware it would answer 401 to everyone.
+    // Judged within one router call: a router that mounts either through
+    // router.use() is not read here, and none does today.
+    const verifiedAfterAuth = (call: string): boolean => {
+      const auth = call.search(/\bauthMiddleware\b/);
+      const verified = call.search(/\brequireVerifiedEmail\b/);
+      return auth !== -1 && verified > auth;
+    };
+
+    it("tells requireVerifiedEmail after authMiddleware from one ahead of it", () => {
+      expect(
+        verifiedAfterAuth(
+          '"/x", authMiddleware, userRateLimiter, requireVerifiedEmail, x);',
+        ),
+      ).toBe(true);
+      expect(
+        verifiedAfterAuth('"/x", requireVerifiedEmail, authMiddleware, x);'),
+      ).toBe(false);
+      expect(verifiedAfterAuth('"/x", authMiddleware, x);')).toBe(false);
+    });
+
+    it("the invite route requires a verified address, after authMiddleware", () => {
+      const file = path.join(
+        SRC_FEATURES,
+        "shared/auth/infrastructure/http/organization.router.ts",
+      );
+      const invite = routerCalls(fs.readFileSync(file, "utf-8")).filter(
+        (call) => call.trimStart().startsWith('"/:id/invites"'),
+      );
+
+      expect(invite).toHaveLength(2); // the POST and its methodNotAllowed
+      expect(invite.filter(verifiedAfterAuth)).toHaveLength(1);
+    });
+
+    it("finds no requireVerifiedEmail ahead of authMiddleware in src/features", () => {
+      const offenders = routerFiles()
+        .map((file) => ({
+          file: path.relative(SRC_FEATURES, file).split(path.sep).join("/"),
+          calls: routerCalls(fs.readFileSync(file, "utf-8")).filter(
+            (call) =>
+              /\brequireVerifiedEmail\b/.test(call) && !verifiedAfterAuth(call),
+          ).length,
         }))
         .filter(({ calls }) => calls !== 0);
 

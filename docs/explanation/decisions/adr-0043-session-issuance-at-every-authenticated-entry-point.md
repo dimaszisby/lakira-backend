@@ -5,6 +5,10 @@
 - **Origin:** `D-01` in the registration-session kit —
   [`registration-session`](../../internal/initiatives/registration-session/decisions.md)
 
+> **Status note (2026-11-27).** ADR-0018 now gates one route itself, inviting
+> ([ADR-0101](./adr-0101-an-invite-carries-no-inviter-text-and-needs-a-verified-address.md)).
+> Registration and login are still gated on nothing, so the decision below is unchanged.
+
 ---
 
 ## Context

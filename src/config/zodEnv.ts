@@ -2,6 +2,7 @@ import "./loadEnv.js";
 import { z } from "zod";
 import { isIanaTimeZone } from "@/utils/time-zone.js";
 import { zod3Messages } from "@/shared/utils/zod3-messages.js";
+import { isLoopbackUrl } from "./frontend-urls.js";
 
 // Tokens are HS256, so the secret's strength is the signature's. Both are checked in
 // the superRefine below, in production and staging (ADR-0036; kit
@@ -292,6 +293,20 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
         })
         .prefault("10"),
 
+      // POST /auth/change-email, per user per hour (credential-changes D-06, D-10).
+      RATE_LIMIT_EMAIL_CHANGE_USER_MAX: z
+        .string()
+        .transform((val) => {
+          const parsed = parseInt(val, 10);
+          if (isNaN(parsed) || parsed <= 0) {
+            throw new Error(
+              "RATE_LIMIT_EMAIL_CHANGE_USER_MAX must be a positive number",
+            );
+          }
+          return parsed;
+        })
+        .prefault("5"),
+
       DISABLE_RATE_LIMITING: z
         .string()
         .transform((val) => val === "true")
@@ -443,6 +458,12 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
         .string()
         .url()
         .default("http://localhost:3000/invites/accept"),
+      // The page an email-change confirmation link opens. Production refuses a
+      // loopback host; staging warns (credential-changes D-07, D-10).
+      FRONTEND_EMAIL_CHANGE_URL: z
+        .string()
+        .url()
+        .default("http://localhost:3000/confirm-email-change"),
       INVITE_TOKEN_TTL_DAYS: z
         .string()
         .transform((val) => {
@@ -637,6 +658,16 @@ const buildEnvSchema = (nodeEnv: NodeEnv) =>
         refuse(
           "DB_SSL_REJECT_UNAUTHORIZED",
           "DB_SSL_REJECT_UNAUTHORIZED cannot be false when NODE_ENV=production — the database connection would accept any certificate.",
+        );
+      }
+
+      if (
+        data.NODE_ENV === "production" &&
+        isLoopbackUrl(data.FRONTEND_EMAIL_CHANGE_URL)
+      ) {
+        refuse(
+          "FRONTEND_EMAIL_CHANGE_URL",
+          "FRONTEND_EMAIL_CHANGE_URL cannot point at localhost when NODE_ENV=production — email-change confirmation links would open nothing.",
         );
       }
 

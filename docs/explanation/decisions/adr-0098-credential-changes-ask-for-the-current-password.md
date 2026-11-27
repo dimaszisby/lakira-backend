@@ -10,6 +10,11 @@
   kit, with D-04 (the guess counter) and D-08 (a refusal that names its field); the owner chose it
   on 2026-11-24
 
+> **Status note (2026-11-25).** `POST /auth/change-email` now exists, with the same proof and the
+> same count of wrong passwords; the change it asks for waits for the new address to confirm it
+> ([ADR-0099](./adr-0099-an-email-change-waits-for-the-new-address.md)). A password change also
+> cancels a pending email change and sends a notice. The decision below is unchanged.
+
 ---
 
 ## Context

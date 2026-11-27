@@ -14,7 +14,7 @@ graph TB
     end
 
     subgraph app ["application — orchestration"]
-        uc["use-cases/<br/><small>RegisterUser · LoginUser<br/>RotateRefreshToken · AcceptInvite<br/>SwitchOrganization · ChangePassword<br/>VerifyEmail…</small>"]
+        uc["use-cases/<br/><small>RegisterUser · LoginUser<br/>RotateRefreshToken · AcceptInvite<br/>SwitchOrganization · ChangePassword<br/>RequestEmailChange · ConfirmEmailChange<br/>VerifyEmail…</small>"]
         q["queries/<br/><small>GetProfile<br/>ListOrganizationMembers</small>"]
         ports["ports/<br/><small>TokenProvider · PasswordHasher<br/>TokenHasher · EmailSender</small>"]
     end
@@ -93,7 +93,7 @@ be a member of another — see
 
 ## Token handling
 
-Three token types — refresh, password-reset, email-verification — share one shape: generate a
+Four token types — refresh, password-reset, email-verification, email-change — share one shape: generate a
 random value, email or return the raw token, and persist **only its SHA-256 hash**. A database
 compromise yields no usable tokens
 ([ADR-0008](../decisions/adr-0008-hash-reset-tokens-never-store-raw.md)).
@@ -105,6 +105,11 @@ A token revoked without being replaced is a session that ended (logout, an organ
 a password reset or change) and is refused without that alarm. A password reset or change revokes
 every token the user has, and a change issues the session making it a new one
 ([ADR-0097](../decisions/adr-0097-a-password-reset-or-change-ends-every-other-session.md)).
+
+An email-change token is minted by its job, not the request, so the raw token never travels on
+the queue, and it is spent by one conditional update. The pending row keeps the old address, so
+the notice reaches it even after a quick confirmation
+([ADR-0099](../decisions/adr-0099-an-email-change-waits-for-the-new-address.md)).
 
 ## Known drift
 

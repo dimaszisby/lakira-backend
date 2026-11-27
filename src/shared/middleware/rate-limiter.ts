@@ -189,6 +189,31 @@ export const createSwitchOrgRateLimiter = () =>
 
 export const switchOrgRateLimiter = createSwitchOrgRateLimiter();
 
+// POST /auth/change-email sends mail to an address the caller names, so it has a
+// budget of its own, per user per hour (credential-changes D-06, D-10).
+export const createEmailChangeRateLimiter = () =>
+  env.DISABLE_RATE_LIMITING
+    ? (maybeLogDisableNotice(), noopRateLimiter)
+    : rateLimit({
+        keyGenerator: (req: AuthRequest): string => {
+          return req.user?.id
+            ? `email-change:${req.user.id}`
+            : clientIpKey(req.ip);
+        },
+        store: maybeCreateStore("email-change"),
+        windowMs: 60 * 60 * 1000,
+        max: env.RATE_LIMIT_EMAIL_CHANGE_USER_MAX,
+        standardHeaders: true,
+        legacyHeaders: false,
+        ...limitExceeded(
+          "Too many email change requests, please try again later.",
+          (req) =>
+            `Email change rate limit exceeded for ${req.user?.id ?? req.ip ?? "anonymous"}`,
+        ),
+      });
+
+export const emailChangeRateLimiter = createEmailChangeRateLimiter();
+
 const normalizeEmailKey = (email: unknown): string | null => {
   if (typeof email !== "string") return null;
   const trimmed = email.trim().toLowerCase();

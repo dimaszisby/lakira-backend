@@ -16,7 +16,9 @@ Each feature's HTTP layer has a `schema.zod.ts` file defining request validation
 
 Atomic field validators use `z` prefix:
 
-- `zUUID`, `zEmail`, `zPassword`, `zUsername` — user fields
+- `zUUID`, `zEmail`, `zPassword`, `zUsername` — user fields. `zUsername` is a handle, built from
+  `USERNAME_RULE` (`src/shared/constants/username-rule.ts`), which the spec's request schemas use
+  too. A profile save checks it in `UpdateProfile`, only when the name changes (ADR-0101)
 - `zMetricName`, `zMetricDescription`, `zMetricDefaultUnit` — metric fields
 - `zGoalEnabled`, `zGoalType`, `zGoalValue` — metric settings
 - `zPositiveFloat`, `zLogType` — metric log fields

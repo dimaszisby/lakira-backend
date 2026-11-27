@@ -708,6 +708,8 @@
           "username": {
             "type": "string",
             "minLength": 3,
+            "maxLength": 50,
+            "pattern": "^(?=.*[A-Za-z0-9])[A-Za-z0-9._-]+$",
             "example": "newuser"
           },
           "email": {
@@ -739,6 +741,8 @@
           "username": {
             "type": "string",
             "minLength": 3,
+            "maxLength": 50,
+            "pattern": "^(?=.*[A-Za-z0-9])[A-Za-z0-9._-]+$",
             "example": "updateduser"
           },
           "isPublicProfile": {
@@ -767,6 +771,34 @@
           }
         },
         "required": ["currentPassword", "password", "passwordConfirmation"]
+      },
+      "ChangeEmailRequest": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1,
+            "example": "OldPass123!"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "pattern": "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$",
+            "example": "new-address@example.com"
+          }
+        },
+        "required": ["currentPassword", "email"]
+      },
+      "ConfirmEmailChangeRequest": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "example": "AbCdEf0123456789AbCdEf0123456789AbCdEf01"
+          }
+        },
+        "required": ["token"]
       },
       "ForgotPasswordRequest": {
         "type": "object",
@@ -2495,7 +2527,7 @@
       "put": {
         "tags": ["Auth"],
         "summary": "Update current user's profile",
-        "description": "Changes the username and whether the profile is public. A body carrying `password` or `email` is refused with 400: the password is changed with `POST /auth/change-password`, which asks for the current one.",
+        "description": "Changes the username and whether the profile is public. A body carrying `password` or `email` is refused with 400: the password is changed with `POST /auth/change-password` and the email with `POST /auth/change-email`, each of which asks for the current password. A new username follows the registration rule; the current one, sent back unchanged, is accepted as it is, even one registered before the rule.",
         "security": [
           {
             "BearerAuth": []
@@ -2596,6 +2628,132 @@
           },
           "429": {
             "description": "Too many wrong current passwords for this user (5 within 15 minutes), or too many requests (RATE_LIMIT_USER_MAX per 15 minutes)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitError"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/auth/change-email": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Ask to change the email",
+        "description": "Asks for the current password, as `POST /auth/change-password` does, and shares its per-user count of wrong ones: after 5 within 15 minutes either route answers 429. The new address must differ from the current one (400 on `email`) and not belong to another account (409). The account's email does not change here: a 202 stores a pending change, sends a confirmation link to the new address, valid for 24 hours, and tells the old address, naming the new one masked. A new request replaces a pending one, and a password change or reset cancels it.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeEmailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Pending; the new address must confirm the change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ConflictError"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
+          "429": {
+            "description": "Too many wrong current passwords for this user (5 within 15 minutes, shared with `POST /auth/change-password`), or too many requests (RATE_LIMIT_EMAIL_CHANGE_USER_MAX per hour)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitError"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/auth/confirm-email-change": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Confirm an email change",
+        "description": "Takes the single-use token from the link sent to the new address. The account's email becomes that address, marked verified, and verification and reset links sent before it stop working. Returns a generic 400 for an unknown, used, replaced or expired token, and 409 when the address has been taken since the request. No JWT required: the link may be opened on another device.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmEmailChangeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email changed and verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequestError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ConflictError"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLargeError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaTypeError"
+          },
+          "429": {
+            "description": "Too many token submissions from this address (RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX per hour, shared with `POST /auth/verify-email`)",
             "headers": {
               "Retry-After": {
                 "$ref": "#/components/headers/RetryAfter"
@@ -2990,7 +3148,7 @@
       "post": {
         "tags": ["Organizations"],
         "summary": "Invite a user to the organization",
-        "description": "Sends an invitation email with a single-use token. Only owners and admins can invite. Inviting an address that already has a pending invite replaces it: a new token and expiry, the email sent again, the earlier link no longer accepted, and the newer role applies. A 409 means only that two invites for the same address raced.",
+        "description": "Sends an invitation email with a single-use token. Only owners and admins can invite, and only once their own email address is verified: an unverified inviter is answered 403. Inviting an address that already has a pending invite replaces it: a new token and expiry, the email sent again, the earlier link no longer accepted, and the newer role applies. A 409 means only that two invites for the same address raced.",
         "security": [
           {
             "BearerAuth": []

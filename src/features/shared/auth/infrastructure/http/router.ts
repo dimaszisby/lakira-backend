@@ -12,6 +12,7 @@ import {
   registerIpRateLimiter,
   loginRateLimiter,
   authSessionRateLimiter,
+  emailChangeRateLimiter,
 } from "@/shared/middleware/rate-limiter.js";
 import { validate } from "@/shared/middleware/validation.js";
 import {
@@ -21,6 +22,8 @@ import {
   resetPasswordSchema,
   updateUserSchema,
   changePasswordSchema,
+  changeEmailSchema,
+  confirmEmailChangeSchema,
   verifyEmailSchema,
   switchOrgSchema,
 } from "./schema.zod.js";
@@ -64,6 +67,24 @@ export const createAuthRouter = (feature: AuthFeature) => {
     requireJsonObjectBody(),
     validate(changePasswordSchema),
     controller.changePassword,
+  );
+  // The same proof and counter; it mails an address the caller names, so it has
+  // a per-user budget of its own (credential-changes D-01, D-06).
+  router.post(
+    "/change-email",
+    authMiddleware,
+    emailChangeRateLimiter,
+    requireJsonObjectBody(),
+    validate(changeEmailSchema),
+    controller.changeEmail,
+  );
+  // An emailed token and no session, as /verify-email: its per-IP limiter first.
+  router.post(
+    "/confirm-email-change",
+    emailVerificationIpRateLimiter,
+    requireJsonObjectBody(),
+    validate(confirmEmailChangeSchema),
+    controller.confirmEmailChange,
   );
   // Neither has a user to key on: limited by address, apart from login's budget
   // (api-tooling-residuals D-08).
@@ -115,6 +136,8 @@ export const createAuthRouter = (feature: AuthFeature) => {
   router.all("/login", methodNotAllowed(["POST"]));
   router.all("/profile", methodNotAllowed(["GET", "PUT"]));
   router.all("/change-password", methodNotAllowed(["POST"]));
+  router.all("/change-email", methodNotAllowed(["POST"]));
+  router.all("/confirm-email-change", methodNotAllowed(["POST"]));
   router.all("/logout", methodNotAllowed(["POST"]));
   router.all("/refresh", methodNotAllowed(["POST"]));
   router.all("/forgot-password", methodNotAllowed(["POST"]));

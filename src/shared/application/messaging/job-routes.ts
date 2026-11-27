@@ -21,6 +21,8 @@ export const QUEUES = {
   AUTH_SEND_VERIFICATION_EMAIL: `${APP_SHORT_NAME}.auth.send-verification-email`,
   AUTH_SEND_PASSWORD_RESET_EMAIL: `${APP_SHORT_NAME}.auth.send-password-reset-email`,
   AUTH_SEND_INVITE_EMAIL: `${APP_SHORT_NAME}.auth.send-invite-email`,
+  AUTH_SEND_EMAIL_CHANGE_EMAIL: `${APP_SHORT_NAME}.auth.send-email-change-email`,
+  AUTH_SEND_ACCOUNT_NOTICE: `${APP_SHORT_NAME}.auth.send-account-notice`,
   PARKING: `${APP_SHORT_NAME}.jobs.parking.queue`,
 } as const;
 
@@ -29,4 +31,6 @@ export const ROUTING_KEYS = {
   AUTH_SEND_VERIFICATION_EMAIL: "auth.send-verification-email",
   AUTH_SEND_PASSWORD_RESET_EMAIL: "auth.send-password-reset-email",
   AUTH_SEND_INVITE_EMAIL: "auth.send-invite-email",
+  AUTH_SEND_EMAIL_CHANGE_EMAIL: "auth.send-email-change-email",
+  AUTH_SEND_ACCOUNT_NOTICE: "auth.send-account-notice",
 } as const;

@@ -7,11 +7,13 @@ import {
 } from "@/features/auth/application/ports/EmailSender.js";
 import type { LockoutRedisClient } from "@/features/auth/infrastructure/http/attemptCounter.js";
 import { models } from "@/infrastructure/db/models.js";
+import { drainBackgroundTasks } from "@/utils/background-tasks.js";
 
 /**
  * #309 (audit 2026-11-14, Y7), kit `credential-changes`, Phase 1: the password
  * leaves `PUT /auth/profile` for `POST /auth/change-password`, which asks for the
  * current one (D-01) and bounds wrong guesses per user (D-04). AC-1 to AC-5.
+ * Phase 2: the pending email change (D-02, D-05, D-09). AC-6 to AC-10.
  */
 
 const NEW_PASSWORD = "BrandNewPass123!";
@@ -79,7 +81,7 @@ const login = (email: string, password: string) =>
 describe("PUT /auth/profile refuses the credentials (AC-1)", () => {
   it.each([
     ["password", { password: NEW_PASSWORD }, /change-password/],
-    ["email", { email: "elsewhere@example.com" }, /cannot be changed here/],
+    ["email", { email: "elsewhere@example.com" }, /change-email/],
   ])(
     "a body carrying %s answers 400 on that field, and changes nothing",
     async (field, body, message) => {
@@ -293,5 +295,356 @@ describe("A password change spends reset links sent before it (AC-5)", () => {
     });
     expect(reset.status).toBe(400);
     expect((await login(payload.email, NEW_PASSWORD)).status).toBe(200);
+  });
+});
+
+// --- Phase 2: the pending email change ---
+
+const changeEmail = (accessToken: string, body: Record<string, unknown>) =>
+  api
+    .post("/api/v1/auth/change-email")
+    .set("Authorization", authHeader(accessToken))
+    .send(body);
+
+const confirmEmailChange = (token: string) =>
+  api.post("/api/v1/auth/confirm-email-change").send({ token });
+
+const tokenIn = (text: string | undefined) =>
+  decodeURIComponent((text?.match(/[?&]token=([^&\s"]+)/) ?? [])[1] ?? "");
+
+/** The raw token of the newest confirmation sent to `address`. */
+const confirmationTokenFor = (address: string) => {
+  const sent = sender.messages.filter(
+    (m) => m.to === address && /Confirm your new/.test(m.subject),
+  );
+  return tokenIn(sent[sent.length - 1]?.text);
+};
+
+const newAddress = () => `changed-${Date.now()}-${Math.random()}@example.com`;
+
+const userRow = (id: string) => models.User.findByPk(id);
+
+const registeredWithId = async () => {
+  const account = await registered();
+  const row = await models.User.findOne({
+    where: { email: account.payload.email },
+  });
+  return { ...account, userId: row!.id };
+};
+
+describe("POST /auth/change-email (AC-6, AC-7)", () => {
+  it("with the current password: 202, the account keeps its address, and both emails go out", async () => {
+    const { payload, accessToken, userId } = await registeredWithId();
+    const target = newAddress();
+
+    const res = await changeEmail(accessToken, {
+      currentPassword: payload.password,
+      email: target,
+    });
+    await drainBackgroundTasks();
+
+    expect(res.status).toBe(202);
+    expect((await userRow(userId))!.email).toBe(payload.email);
+
+    // AC-7: a link to the new address, a masked notice to the old one.
+    expect(confirmationTokenFor(target)).not.toBe("");
+    const notice = sender.messages.find(
+      (m) => m.to === payload.email && /being changed/.test(m.subject),
+    );
+    expect(notice?.text).toContain(`${target.charAt(0)}•••@example.com`);
+    expect(notice?.text).not.toContain(target);
+  });
+
+  it("a wrong current password answers 400 on the field and stores nothing", async () => {
+    const { accessToken } = await registered();
+
+    const res = await changeEmail(accessToken, {
+      currentPassword: "not-the-password",
+      email: newAddress(),
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.errors).toEqual([
+      { field: "currentPassword", message: "Current password is incorrect" },
+    ]);
+    expect(await models.EmailChangeToken.count()).toBe(0);
+  });
+
+  it("the account's own address answers 400 on email", async () => {
+    const { payload, accessToken } = await registered();
+
+    const res = await changeEmail(accessToken, {
+      currentPassword: payload.password,
+      email: payload.email.toUpperCase(),
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.errors).toEqual([
+      expect.objectContaining({ field: "email" }),
+    ]);
+  });
+
+  it("an address another account holds answers 409", async () => {
+    const { payload, accessToken } = await registered();
+    const other = await registered();
+
+    const res = await changeEmail(accessToken, {
+      currentPassword: payload.password,
+      email: other.payload.email,
+    });
+
+    expect(res.status).toBe(409);
+    expect(await models.EmailChangeToken.count()).toBe(0);
+  });
+
+  it("shares the wrong-password count with change-password (AC-4, AC-6)", async () => {
+    const { payload, accessToken } = await registered();
+    for (let i = 0; i < 5; i += 1) {
+      await changeEmail(accessToken, {
+        currentPassword: "not-the-password",
+        email: newAddress(),
+      }).expect(400);
+    }
+
+    const blocked = await changePassword(accessToken, {
+      currentPassword: payload.password,
+      password: NEW_PASSWORD,
+      passwordConfirmation: NEW_PASSWORD,
+    });
+
+    expect(blocked.status).toBe(429);
+  });
+});
+
+describe("POST /auth/confirm-email-change (AC-8, AC-9)", () => {
+  const requested = async () => {
+    const account = await registeredWithId();
+    const target = newAddress();
+    await changeEmail(account.accessToken, {
+      currentPassword: account.payload.password,
+      email: target,
+    }).expect(202);
+    await drainBackgroundTasks();
+    return { ...account, target, token: confirmationTokenFor(target) };
+  };
+
+  it("changes the email, marks it verified, and the new address logs in; no session needed", async () => {
+    const { payload, userId, target, token } = await requested();
+
+    const res = await confirmEmailChange(token);
+
+    expect(res.status).toBe(200);
+    const row = await userRow(userId);
+    expect(row!.email).toBe(target);
+    expect(row!.emailVerifiedAt).not.toBeNull();
+    expect((await login(target, payload.password)).status).toBe(200);
+    expect((await login(payload.email, payload.password)).status).toBe(401);
+  });
+
+  it("revokes the verification and reset links sent before it", async () => {
+    const { payload, target, token, userId } = await requested();
+    await api
+      .post("/api/v1/auth/forgot-password")
+      .send({ email: payload.email })
+      .expect(200);
+    const resetToken = tokenIn(
+      sender.messages.find((m) => /reset/i.test(m.subject))?.text,
+    );
+
+    await confirmEmailChange(token).expect(200);
+
+    const reset = await api.post("/api/v1/auth/reset-password").send({
+      token: resetToken,
+      password: NEW_PASSWORD,
+      passwordConfirmation: NEW_PASSWORD,
+    });
+    expect(reset.status).toBe(400);
+    expect(
+      await models.EmailVerificationToken.count({
+        where: { userId, usedAt: null },
+      }),
+    ).toBe(0);
+    expect((await login(target, payload.password)).status).toBe(200);
+  });
+
+  it("a spent token answers the generic 400", async () => {
+    const { token } = await requested();
+    await confirmEmailChange(token).expect(200);
+
+    const again = await confirmEmailChange(token);
+
+    expect(again.status).toBe(400);
+    expect(again.body.message).toBe(
+      "Email change link is invalid or has expired.",
+    );
+  });
+
+  it("an expired token answers the same 400 and changes nothing", async () => {
+    const { payload, userId, token } = await requested();
+    await models.EmailChangeToken.update(
+      { expiresAt: new Date(Date.now() - 1000) },
+      { where: { userId } },
+    );
+
+    expect((await confirmEmailChange(token)).status).toBe(400);
+    expect((await userRow(userId))!.email).toBe(payload.email);
+  });
+
+  it("an unknown token answers the same 400", async () => {
+    expect((await confirmEmailChange("not-a-real-token")).status).toBe(400);
+  });
+
+  it("two confirmations racing each other change the email once", async () => {
+    const { token, userId, target } = await requested();
+
+    const statuses = (
+      await Promise.all([confirmEmailChange(token), confirmEmailChange(token)])
+    ).map((res) => res.status);
+
+    expect(statuses.sort()).toEqual([200, 400]);
+    expect((await userRow(userId))!.email).toBe(target);
+  });
+
+  it("an address taken since the request answers 409, and nothing changes", async () => {
+    const { payload, userId, target, token } = await requested();
+    await api
+      .post("/api/v1/auth/register")
+      .send({ ...buildUserPayload(), email: target })
+      .expect(201);
+
+    const res = await confirmEmailChange(token);
+
+    expect(res.status).toBe(409);
+    expect((await userRow(userId))!.email).toBe(payload.email);
+  });
+
+  it("a new request replaces a pending one, and the earlier link stops working (AC-9)", async () => {
+    const { payload, accessToken, userId, token: first } = await requested();
+    const second = newAddress();
+    await changeEmail(accessToken, {
+      currentPassword: payload.password,
+      email: second,
+    }).expect(202);
+    await drainBackgroundTasks();
+
+    expect((await confirmEmailChange(first)).status).toBe(400);
+    expect(
+      (await confirmEmailChange(confirmationTokenFor(second))).status,
+    ).toBe(200);
+    expect((await userRow(userId))!.email).toBe(second);
+  });
+
+  it("two requests at once leave one working link: the other answers 409 (D-11)", async () => {
+    const { payload, accessToken, userId } = await registeredWithId();
+
+    const statuses = (
+      await Promise.all([
+        changeEmail(accessToken, {
+          currentPassword: payload.password,
+          email: newAddress(),
+        }),
+        changeEmail(accessToken, {
+          currentPassword: payload.password,
+          email: newAddress(),
+        }),
+      ])
+    ).map((res) => res.status);
+
+    // Either both serialised (the second superseded the first) or one lost
+    // the race on the index; never two pending rows.
+    expect(statuses.every((s) => s === 202 || s === 409)).toBe(true);
+    expect(
+      await models.EmailChangeToken.count({ where: { userId, usedAt: null } }),
+    ).toBe(1);
+  });
+
+  it("a password change cancels a pending email change (D-09)", async () => {
+    const { payload, accessToken, userId, token } = await requested();
+    await changePassword(accessToken, {
+      currentPassword: payload.password,
+      password: NEW_PASSWORD,
+      passwordConfirmation: NEW_PASSWORD,
+    }).expect(200);
+
+    expect((await confirmEmailChange(token)).status).toBe(400);
+    expect((await userRow(userId))!.email).toBe(payload.email);
+  });
+
+  it("a password reset cancels a pending email change (D-09)", async () => {
+    const { payload, userId, token } = await requested();
+    await api
+      .post("/api/v1/auth/forgot-password")
+      .send({ email: payload.email })
+      .expect(200);
+    const resetToken = tokenIn(
+      sender.messages.find((m) => /reset/i.test(m.subject))?.text,
+    );
+    await api
+      .post("/api/v1/auth/reset-password")
+      .send({
+        token: resetToken,
+        password: NEW_PASSWORD,
+        passwordConfirmation: NEW_PASSWORD,
+      })
+      .expect(200);
+
+    expect((await confirmEmailChange(token)).status).toBe(400);
+    expect((await userRow(userId))!.email).toBe(payload.email);
+  });
+});
+
+describe("A password change or reset tells the account's address (AC-10)", () => {
+  const passwordNotices = (address: string) =>
+    sender.messages.filter(
+      (m) => m.to === address && /password was changed/.test(m.subject),
+    );
+
+  it("after a change", async () => {
+    const { payload, accessToken } = await registered();
+
+    await changePassword(accessToken, {
+      currentPassword: payload.password,
+      password: NEW_PASSWORD,
+      passwordConfirmation: NEW_PASSWORD,
+    }).expect(200);
+    await drainBackgroundTasks();
+
+    expect(passwordNotices(payload.email)).toHaveLength(1);
+  });
+
+  it("after a reset", async () => {
+    const { payload } = await registered();
+    await api
+      .post("/api/v1/auth/forgot-password")
+      .send({ email: payload.email })
+      .expect(200);
+    const resetToken = tokenIn(
+      sender.messages.find((m) => /reset/i.test(m.subject))?.text,
+    );
+
+    await api
+      .post("/api/v1/auth/reset-password")
+      .send({
+        token: resetToken,
+        password: NEW_PASSWORD,
+        passwordConfirmation: NEW_PASSWORD,
+      })
+      .expect(200);
+    await drainBackgroundTasks();
+
+    expect(passwordNotices(payload.email)).toHaveLength(1);
+  });
+
+  it("not after a wrong current password", async () => {
+    const { payload, accessToken } = await registered();
+
+    await changePassword(accessToken, {
+      currentPassword: "not-the-password",
+      password: NEW_PASSWORD,
+      passwordConfirmation: NEW_PASSWORD,
+    }).expect(400);
+    await drainBackgroundTasks();
+
+    expect(passwordNotices(payload.email)).toHaveLength(0);
   });
 });

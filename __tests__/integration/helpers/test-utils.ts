@@ -1,5 +1,6 @@
 import request from "../../helpers/request.js";
 import app from "@/server.js";
+import { models } from "@/infrastructure/db/models.js";
 
 export const api = request(app);
 
@@ -57,6 +58,28 @@ export const createTestUser = async (
 };
 
 export const authHeader = (token: string) => `Bearer ${token}`;
+
+/** Marks the user's address verified, as following the emailed link would. */
+export const markEmailVerified = async (userId: string) => {
+  await models.User.update(
+    { emailVerifiedAt: new Date() },
+    { where: { id: userId } },
+  );
+};
+
+/**
+ * A registered user whose address is verified: inviting needs one (#311,
+ * ADR-0101). `authMiddleware` reads the user on each request, so the token
+ * issued at registration carries the change.
+ */
+export const createVerifiedTestUser = async (
+  overrides: Partial<Record<string, any>> = {},
+  agent: typeof api = api,
+) => {
+  const created = await createTestUser(overrides, agent);
+  await markEmailVerified(created.user.id as string);
+  return created;
+};
 
 export const buildCategoryPayload = (
   overrides: Partial<Record<string, any>> = {},

@@ -37,6 +37,8 @@ const PRODUCTION_BASE: Record<string, string> = {
   // A developer's .env commonly sets this false for a local database, and production
   // refuses it (database-tls-and-staging-refusals D-01).
   DB_SSL_REJECT_UNAUTHORIZED: "true",
+  // Its default points at localhost, which production refuses (credential-changes D-07).
+  FRONTEND_EMAIL_CHANGE_URL: "https://app.example.com/confirm-email-change",
 };
 
 const inProduction = (overrides: Record<string, string>) =>
@@ -421,6 +423,49 @@ describe("DB_SSL_REJECT_UNAUTHORIZED", () => {
   it("is accepted as true in production", async () => {
     await expect(
       inProduction({ DB_SSL_REJECT_UNAUTHORIZED: "true" }),
+    ).resolves.toBeUndefined();
+  });
+});
+
+// Kit credential-changes, D-07 and D-10: a confirmation link to this machine opens nothing.
+describe("FRONTEND_EMAIL_CHANGE_URL", () => {
+  it.each([
+    "http://localhost:3000/confirm-email-change",
+    "https://app.localhost/confirm-email-change",
+    "http://127.0.0.1:3000/confirm-email-change",
+    "http://[::1]:3000/confirm-email-change",
+  ])("is refused in production as %s", async (url) => {
+    await expect(
+      inProduction({ FRONTEND_EMAIL_CHANGE_URL: url }),
+    ).rejects.toMatchObject({
+      issues: expect.arrayContaining([
+        expect.objectContaining({
+          path: ["FRONTEND_EMAIL_CHANGE_URL"],
+          message: expect.not.stringContaining(url),
+        }),
+      ]),
+    });
+  });
+
+  it("is accepted in staging as its localhost default, with a warning at start", async () => {
+    await expect(
+      withTestEnv(noop, {
+        overrides: {
+          ...PRODUCTION_BASE,
+          NODE_ENV: "staging",
+          FRONTEND_EMAIL_CHANGE_URL:
+            "http://localhost:3000/confirm-email-change",
+        },
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("is accepted in production on a real host", async () => {
+    await expect(
+      inProduction({
+        FRONTEND_EMAIL_CHANGE_URL:
+          "https://app.example.com/confirm-email-change",
+      }),
     ).resolves.toBeUndefined();
   });
 });

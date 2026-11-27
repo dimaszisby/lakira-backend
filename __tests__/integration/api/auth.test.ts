@@ -4,6 +4,7 @@ import {
   createTestUser,
   authHeader,
 } from "../helpers/test-utils.js";
+import { models } from "@/infrastructure/db/models.js";
 
 describe("Auth API", () => {
   it("registers a new user", async () => {
@@ -17,6 +18,56 @@ describe("Auth API", () => {
     expect(res.body.data.user).toMatchObject({
       email: payload.email,
       username: payload.username,
+    });
+  });
+
+  // #311 (audit 2026-11-14, Y11; ADR-0101): the username names the user's
+  // organization, which the invite email quotes, so it is a handle, not a sentence.
+  it("refuses a username that is not a handle, at registration and on a change", async () => {
+    const lure = "Your invoice is overdue, pay at example.test";
+    const registered = await api
+      .post("/api/v1/auth/register")
+      .send(buildUserPayload({ username: lure }));
+    expect(registered.status).toBe(400);
+    expect(registered.body.errors).toEqual([
+      {
+        field: "username",
+        message:
+          "Username may contain only letters, digits, '.', '_' and '-', and needs a letter or digit",
+      },
+    ]);
+
+    const { token } = await createTestUser();
+    const changed = await api
+      .put("/api/v1/auth/profile")
+      .set("Authorization", authHeader(token))
+      .send({ username: "a".repeat(51) });
+    expect(changed.status).toBe(400);
+    expect(changed.body.errors).toEqual([
+      {
+        field: "username",
+        message: "Username must be at most 50 characters",
+      },
+    ]);
+  });
+
+  // A username from before the rule, sent back unchanged, is no change (#311).
+  it("saves a profile that sends back a username from before the rule", async () => {
+    const { token, user } = await createTestUser();
+    await models.User.update(
+      { username: "John Smith" },
+      { where: { id: user.id } },
+    );
+
+    const res = await api
+      .put("/api/v1/auth/profile")
+      .set("Authorization", authHeader(token))
+      .send({ username: "John Smith", isPublicProfile: false });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.user).toMatchObject({
+      username: "John Smith",
+      isPublicProfile: false,
     });
   });
 

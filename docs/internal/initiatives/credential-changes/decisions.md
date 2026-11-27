@@ -14,25 +14,11 @@ That file is authoritative; this entry is a pointer.
 
 ## D-02 — An email change is pending until the new address confirms it; the old address is told
 
-- **Status:** Accepted — to be promoted to ADR-0099 in PR 2
+- **Status:** Accepted
 - **Date:** 2026-11-24
 
-**Context.** `AuthUser.changeEmail` changed the address at once and left `emailVerifiedAt` set, and
-no message went to either address. A verification token names only its user, so a link sent to an
-earlier address could mark a later one verified.
-**Decision.** `POST /auth/change-email` stores a pending change, `email_change_tokens`: the new and
-the old address, an expiry, and a token kept only as a hash and spent once. A confirmation link
-goes to the new address, and a notice to the old one naming the new address masked. The account's
-email changes only when the link is confirmed (`POST /auth/confirm-email-change { token }`, no
-session needed), and then it is verified, and the user's unused verification and reset tokens are
-revoked. A new request replaces a pending one.
-**Options considered.** _Change at once and mark the address unverified, sending a verification:_
-no new table, but a mistyped address takes over recovery until it is fixed, and once #311 gates
-inviting on a verified address, every email change would block inviting until verified.
-_Bind verification tokens to an address instead:_ fixes only the leftover-link hole, not the typo.
-**Consequences.** A migration, a model and a repository, two email templates and a confirm route.
-Storing the old address on the row lets the notice reach it even after a quick confirmation, and
-lets a later undo restore it (the undo-link issue). The frontend needs a page for the link.
+Promoted to the architecture decision registry as **[ADR-0099](../../../explanation/decisions/adr-0099-an-email-change-waits-for-the-new-address.md)**.
+That file is authoritative; this entry is a pointer.
 
 ## D-03 — ADR-0018 stands; #309's gating expectation moves to #311
 
@@ -142,3 +128,69 @@ field as it answers a Zod failure: `VALIDATION_FAILED_MESSAGE`, with
 **Options considered.** _Throw a `ZodError` from the use case:_ the application layer may import no
 third-party package. _Message only:_ the client would have to guess the field from the text.
 **Consequences.** A small, additive change in the shared kernel, and one test in the error handler's.
+
+## D-09 — A password change or reset cancels a pending email change
+
+- **Status:** Accepted — found while planning Phase 2, approved with that plan
+- **Date:** 2026-11-25
+
+**Context.** The notice to the old address tells its owner to change their password if they did
+not ask for the change. A pending change survived a password change, so following that advice left
+the link in the new inbox working: whoever had the current password could still move the account.
+**Decision.** `ChangePassword` and `ResetPassword` supersede the user's pending
+`email_change_tokens` rows in the transaction that writes the new hash, as the first statement.
+Both those paths and `ConfirmEmailChange` then lock `email_change_tokens` ahead of `users`, so a
+reset racing a confirmation cannot deadlock; ADR-0097's order (refresh tokens before the user row)
+follows.
+**Options considered.** _Leave pending changes alone:_ the notice's advice would not stop the
+change, and only the undo link of #352 would. _End the pending change only on a reset:_ a change
+made from a session the owner still holds is the same signal.
+**Consequences.** One more statement in both transactions, and a sentence in the notice saying a
+password change cancels the request.
+
+## D-10 — The numbers D-02, D-06 and D-07 left open
+
+- **Status:** Accepted — found while planning Phase 2, approved with that plan
+- **Date:** 2026-11-25
+
+**Context.** D-02 named no lifetime for the confirmation link, D-06 no window or default for the
+change-email limiter, and D-07 not how "the localhost default" is recognised.
+**Decision.** The link lives 24 hours, as a verification link does, since both prove control of an
+inbox; it is a constant, `EMAIL_CHANGE_TOKEN_TTL_HOURS`, and `expires_at` is set when the request
+is made, so a slow job cannot extend it. The limiter allows `RATE_LIMIT_EMAIL_CHANGE_USER_MAX`
+requests (default 5) per user per hour. Production refuses `FRONTEND_EMAIL_CHANGE_URL` when its
+host is a loopback name or address (`localhost`, `127.0.0.1`, `::1`), not only the literal default.
+**Options considered.** _15 minutes, as a reset link:_ a reset link replaces a password, and the
+new inbox may be one the user opens later. _A setting for the lifetime:_ one more variable for a
+number no deploy has asked to change. _Refuse only the literal default:_ `http://localhost:3001/...`
+would pass.
+**Consequences.** The image smoke, which runs as production, passes a real-looking URL.
+
+## D-11 — Writes that race an email change cannot undo it
+
+- **Status:** Accepted — found in Phase 2's review (the `security-reviewer` agent, M1 and L1)
+- **Date:** 2026-11-25
+
+**Context.** `UserRepositorySequelize.save` wrote every field of the entity it was given. A password
+change, a reset, a verification or a profile edit read the user before a confirmation committed and
+saved after it, so it wrote the old email back: the confirmation answered 200 and the account was
+silently on the old address again. A reset token checked before a confirmation still set the
+password after it, because `markUsed` spent the token unconditionally (#351). Two change requests
+at the same moment each superseded nothing the other had committed, so both links worked.
+**Decision.** Three parts.
+
+1. `AuthUser` records which fields its methods changed, and `save` writes only those, so each use
+   case writes what it decided and nothing it merely read.
+2. A reset token is spent with one conditional update (`used_at IS NULL AND expires_at > now`),
+   the last statement of the reset's transaction; when it spends nothing the reset rolls back with
+   the generic 400. Last, not first: first would lock reset tokens ahead of `users`, the opposite of
+   a confirmation, and the two could deadlock. This is #351's fix.
+3. A partial unique index allows one pending change per user (`user_id WHERE used_at IS NULL`); the
+   loser of two racing requests answers 409, and a confirmation also supersedes any other pending
+   row of the user.
+   **Options considered.** _Targeted writes per use case (`setPasswordHash(id, hash)`):_ the same
+   effect, with a repository method per field and every new use case free to forget it. _Lock the
+   user row first everywhere:_ inverts the order the confirmation takes. _Leave #351 to its own
+   branch:_ the confirmation's guarantee needs the same line.
+   **Consequences.** `save` issues a narrower `UPDATE`; a use case that changes nothing writes
+   nothing. The migration gains an index. #351 closes with this pull request.

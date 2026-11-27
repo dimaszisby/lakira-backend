@@ -6,6 +6,8 @@ import { UserRepository } from "@/features/auth/domain/repositories/UserReposito
 import { PasswordResetTokenRepository } from "@/features/auth/domain/repositories/PasswordResetTokenRepository.js";
 import { PasswordHasher } from "@/features/auth/application/ports/PasswordHasher.js";
 import { RefreshTokenRepository } from "@/features/auth/domain/repositories/RefreshTokenRepository.js";
+import { EmailChangeTokenRepository } from "@/features/auth/domain/repositories/EmailChangeTokenRepository.js";
+import { ScheduleAccountNotice } from "@/features/auth/application/use-cases/ScheduleAccountNotice.js";
 import type { TransactionPort } from "@/shared/application/ports/TransactionPort.js";
 import logger from "@/utils/logger.js";
 import { AuthUser } from "@/features/auth/domain/entities/AuthUser.js";
@@ -57,7 +59,7 @@ const build = () => {
   const tokenRepo: jest.Mocked<PasswordResetTokenRepository> = {
     findByTokenHash: jest.fn(),
     create: jest.fn(),
-    markUsed: jest.fn(),
+    spend: jest.fn(),
     invalidateAllForUser: jest.fn(),
   };
   const hasher: jest.Mocked<PasswordHasher> = {
@@ -75,15 +77,38 @@ const build = () => {
   const tx = {
     runInTransaction: jest.fn().mockImplementation((fn: any) => fn("fake-tx")),
   } as unknown as jest.Mocked<TransactionPort>;
+  const emailChangeTokenRepo: jest.Mocked<EmailChangeTokenRepository> = {
+    create: jest.fn(),
+    supersedeAllForUser: jest.fn(),
+    findById: jest.fn(),
+    setTokenHash: jest.fn(),
+    findByTokenHash: jest.fn(),
+    spend: jest.fn(),
+  };
+  const notices = {
+    execute: jest.fn<ScheduleAccountNotice["execute"]>(),
+  } as unknown as jest.Mocked<ScheduleAccountNotice>;
+  tokenRepo.spend.mockResolvedValue(true);
   const sut = new ResetPassword(
     userRepo,
     tokenRepo,
     hasher,
     refreshTokenRepo,
     tx,
+    emailChangeTokenRepo,
+    notices,
     { now: () => FROZEN_NOW },
   );
-  return { sut, userRepo, tokenRepo, hasher, refreshTokenRepo, tx };
+  return {
+    sut,
+    userRepo,
+    tokenRepo,
+    hasher,
+    refreshTokenRepo,
+    tx,
+    emailChangeTokenRepo,
+    notices,
+  };
 };
 
 const VALID_INPUT = {
@@ -111,7 +136,7 @@ describe("ResetPassword use case", () => {
     expect(hasher.hash).toHaveBeenCalledWith("NewPassword123!");
     expect(userRepo.save).toHaveBeenCalledWith(user, "fake-tx");
     expect(user.passwordHash).toBe("new-hash");
-    expect(tokenRepo.markUsed).toHaveBeenCalledWith(
+    expect(tokenRepo.spend).toHaveBeenCalledWith(
       "token-1",
       FROZEN_NOW,
       "fake-tx",
@@ -119,13 +144,28 @@ describe("ResetPassword use case", () => {
   });
 
   it("ends every session of the user in the transaction that saves the password (ADR-0097)", async () => {
-    const { sut, userRepo, tokenRepo, hasher, refreshTokenRepo, tx } = build();
+    const {
+      sut,
+      userRepo,
+      tokenRepo,
+      hasher,
+      refreshTokenRepo,
+      tx,
+      emailChangeTokenRepo,
+      notices,
+    } = build();
     const info = jest.spyOn(logger, "info").mockImplementation(() => logger);
     const user = makeUser();
     userRepo.findById.mockResolvedValue(user);
     tokenRepo.findByTokenHash.mockResolvedValue(makeToken());
     hasher.hash.mockResolvedValue("new-hash");
     const writes: string[] = [];
+    emailChangeTokenRepo.supersedeAllForUser.mockImplementation(async () => {
+      writes.push("supersedeEmailChanges");
+    });
+    notices.execute.mockImplementation(async () => {
+      writes.push("notice");
+    });
     userRepo.save.mockImplementation(async () => {
       writes.push("save");
       return user;
@@ -133,8 +173,9 @@ describe("ResetPassword use case", () => {
     refreshTokenRepo.revokeAllForUser.mockImplementation(async () => {
       writes.push("revokeAllForUser");
     });
-    tokenRepo.markUsed.mockImplementation(async () => {
-      writes.push("markUsed");
+    tokenRepo.spend.mockImplementation(async () => {
+      writes.push("spend");
+      return true;
     });
 
     await sut.execute(VALID_INPUT);
@@ -145,8 +186,25 @@ describe("ResetPassword use case", () => {
       FROZEN_NOW,
       "fake-tx",
     );
-    // Sessions end before the user row is written, in UpdateProfile's lock order.
-    expect(writes).toEqual(["revokeAllForUser", "save", "markUsed"]);
+    // A pending email change is cancelled first (credential-changes D-09),
+    // sessions end before the user row is written, as ChangePassword orders
+    // them, and the notice goes out after the commit (AC-10).
+    expect(writes).toEqual([
+      "supersedeEmailChanges",
+      "revokeAllForUser",
+      "save",
+      "spend",
+      "notice",
+    ]);
+    expect(emailChangeTokenRepo.supersedeAllForUser).toHaveBeenCalledWith(
+      "user-1",
+      FROZEN_NOW,
+      "fake-tx",
+    );
+    expect(notices.execute).toHaveBeenCalledWith({
+      userId: "user-1",
+      notice: "password_changed",
+    });
     expect(info).toHaveBeenCalledWith("auth.sessions.revoked", {
       userId: "user-1",
       reason: "password_reset",
@@ -176,7 +234,22 @@ describe("ResetPassword use case", () => {
 
     await expect(sut.execute(VALID_INPUT)).rejects.toThrow("db down");
     expect(userRepo.save).not.toHaveBeenCalled();
-    expect(tokenRepo.markUsed).not.toHaveBeenCalled();
+    expect(tokenRepo.spend).not.toHaveBeenCalled();
+  });
+
+  // #351, credential-changes D-11: a racing reset, or a confirmed email change
+  // that revoked the link, leaves nothing to spend.
+  it("rolls back with the generic 400 when the token was spent meanwhile, and sends no notice", async () => {
+    const { sut, userRepo, tokenRepo, hasher, notices } = build();
+    userRepo.findById.mockResolvedValue(makeUser());
+    tokenRepo.findByTokenHash.mockResolvedValue(makeToken());
+    hasher.hash.mockResolvedValue("new-hash");
+    tokenRepo.spend.mockResolvedValue(false);
+
+    await expect(sut.execute(VALID_INPUT)).rejects.toThrow(
+      "Invalid or expired reset token",
+    );
+    expect(notices.execute).not.toHaveBeenCalled();
   });
 
   it("throws when password and confirmation mismatch", async () => {

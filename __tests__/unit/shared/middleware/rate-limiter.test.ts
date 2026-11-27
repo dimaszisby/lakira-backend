@@ -13,6 +13,7 @@ import {
   createEmailVerificationEmailRateLimiter,
   createEmailVerificationIpRateLimiter,
   createRegisterIpRateLimiter,
+  createEmailChangeRateLimiter,
 } from "@/shared/middleware/rate-limiter.js";
 
 // Replace the real middleware factories with simple stubs so we can assert on the config that's passed in.
@@ -50,6 +51,7 @@ jest.mock("@/config/envManager.js", () => ({
     RATE_LIMIT_EMAIL_VERIFICATION_EMAIL_MAX: 3,
     RATE_LIMIT_EMAIL_VERIFICATION_IP_MAX: 10,
     RATE_LIMIT_REGISTER_IP_MAX: 7,
+    RATE_LIMIT_EMAIL_CHANGE_USER_MAX: 5,
     DISABLE_RATE_LIMITING: false,
   },
 }));
@@ -158,13 +160,14 @@ describe("rate limiter middleware", () => {
       createEmailVerificationEmailRateLimiter,
       createEmailVerificationIpRateLimiter,
       createRegisterIpRateLimiter,
+      createEmailChangeRateLimiter,
     ];
 
     const prefixes = factories.map(
       (create) => unwrapLimiter(create()).store.storeOptions.prefix,
     );
 
-    expect(prefixes).toHaveLength(9);
+    expect(prefixes).toHaveLength(10);
     for (const prefix of prefixes) {
       expect(prefix).toMatch(/^rl:[a-z-]+:$/);
     }
@@ -436,6 +439,7 @@ describe("every per-IP key groups an IPv6 /64 (ADR-0063)", () => {
       "email-verification-ip:",
     ],
     ["register", createRegisterIpRateLimiter, "register-ip:"],
+    ["email change", createEmailChangeRateLimiter, ""],
   ])("the %s limiter", (_name, create, prefix) => {
     const limiter = unwrapLimiter(create());
     const keyOf = (ip: string) =>

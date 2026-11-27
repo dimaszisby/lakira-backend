@@ -115,12 +115,39 @@ describe("UserRepositorySequelize", () => {
         username: "new",
         password: "next",
         isPublicProfile: false,
-        emailVerifiedAt: null,
       },
       { transaction: undefined },
     );
     expect(instance.reload).toHaveBeenCalled();
     expect(saved.email).toBe("user@example.com");
+  });
+
+  // credential-changes D-11: a field the use case only read is never written,
+  // so a password change cannot put back an email changed meanwhile.
+  it("writes only the fields the use case changed", async () => {
+    const instance = makeRow();
+    jest.spyOn(models.User, "findByPk").mockResolvedValue(instance as any);
+    const repo = new UserRepositorySequelize();
+    const user = await repo.findById("user-1");
+
+    user!.setPasswordHash("next");
+    await repo.save(user!);
+
+    expect(instance.update).toHaveBeenCalledWith(
+      { password: "next" },
+      { transaction: undefined },
+    );
+  });
+
+  it("writes nothing when nothing changed", async () => {
+    const instance = makeRow();
+    jest.spyOn(models.User, "findByPk").mockResolvedValue(instance as any);
+    const repo = new UserRepositorySequelize();
+    const user = await repo.findById("user-1");
+
+    await repo.save(user!);
+
+    expect(instance.update).not.toHaveBeenCalled();
   });
 
   // ADR-0097: a password reset or change saves the user in the transaction
@@ -132,6 +159,7 @@ describe("UserRepositorySequelize", () => {
     const repo = new UserRepositorySequelize();
     const tx = { fake: "transaction" };
     const user = await repo.findById("user-1");
+    user!.setPasswordHash("next");
 
     await repo.save(user!, tx);
 

@@ -13,11 +13,12 @@ export interface PasswordResetTokenRepository {
     data: CreatePasswordResetTokenDTO,
     tx?: PersistenceTransaction,
   ): Promise<PasswordResetToken>;
-  markUsed(
-    id: string,
-    usedAt: Date,
-    tx?: PersistenceTransaction,
-  ): Promise<void>;
+  /**
+   * Spends the token if it is still unused and unexpired, in one conditional
+   * update. True when this call spent it: of two racing resets, or a reset
+   * racing a confirmed email change, one gets false (#351, credential-changes D-11).
+   */
+  spend(id: string, now: Date, tx?: PersistenceTransaction): Promise<boolean>;
   invalidateAllForUser(
     userId: string,
     now?: Date,

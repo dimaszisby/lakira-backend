@@ -15,6 +15,7 @@ import {
   requestIdStorage,
 } from "@/shared/middleware/request-id.js";
 import { awaitBroker } from "../helpers/broker.js";
+import { JobSlots } from "@/shared/infrastructure/queue/JobSlots.js";
 
 /**
  * Kit queue-failure-paths, against a broker (audit 2026-10-20): a channel whose setup fails
@@ -127,6 +128,7 @@ describe("the queue's failure paths against a broker", () => {
     const seen: (string | undefined)[] = [];
     const publisher = new RabbitMQPublisher();
     const consumer = new RabbitMQConsumer({
+      slots: new JobSlots(10),
       queue,
       handler: async () => {
         seen.push(getRequestId());

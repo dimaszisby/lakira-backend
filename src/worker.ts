@@ -6,6 +6,7 @@ import {
 } from "./shared/infrastructure/queue/RabbitMQConnection.js";
 import { RabbitMQConsumer } from "./shared/infrastructure/queue/RabbitMQConsumer.js";
 import { RabbitMQPublisher } from "./shared/infrastructure/queue/RabbitMQPublisher.js";
+import { JobSlots } from "./shared/infrastructure/queue/JobSlots.js";
 import { QUEUES } from "./shared/infrastructure/queue/topology.js";
 import { loadModels } from "./infrastructure/db/models.js";
 import sequelize from "./config/db.js";
@@ -55,15 +56,26 @@ const startWorker = async (): Promise<void> => {
     sendVerificationEmailHandler,
     sendPasswordResetEmailHandler,
     sendInviteEmailHandler,
+    sendEmailChangeEmailHandler,
+    sendAccountNoticeHandler,
   } = buildWiredAuthFeature();
 
   retryPublisher = new RabbitMQPublisher();
+
+  // One set of slots for every consumer: a job holds one connection for its
+  // transaction (ADR-0077), so no more run at once than the pool holds, and a
+  // slow provider makes jobs wait here rather than on the pool (ADR-0100).
+  const slots = new JobSlots(env.DB_POOL_MAX);
+  logger.info(
+    `[WORKER] Running at most ${slots.size} jobs at once (DB_POOL_MAX).`,
+  );
 
   workers.push(
     new RabbitMQConsumer({
       queue: QUEUES.METRIC_LOG_GENERATE_DUMMY,
       handler: (msg, context) => dummyLogsHandler.handle(msg, context),
       publisher: retryPublisher,
+      slots,
     }),
     // The verification email (ADR-0067).
     new RabbitMQConsumer({
@@ -71,6 +83,7 @@ const startWorker = async (): Promise<void> => {
       handler: (msg, context) =>
         sendVerificationEmailHandler.handle(msg, context),
       publisher: retryPublisher,
+      slots,
     }),
     // The password-reset email (ADR-0069).
     new RabbitMQConsumer({
@@ -78,12 +91,29 @@ const startWorker = async (): Promise<void> => {
       handler: (msg, context) =>
         sendPasswordResetEmailHandler.handle(msg, context),
       publisher: retryPublisher,
+      slots,
     }),
     // The invite email (ADR-0070).
     new RabbitMQConsumer({
       queue: QUEUES.AUTH_SEND_INVITE_EMAIL,
       handler: (msg, context) => sendInviteEmailHandler.handle(msg, context),
       publisher: retryPublisher,
+      slots,
+    }),
+    // The email-change confirmation link (credential-changes D-05, ADR-0099).
+    new RabbitMQConsumer({
+      queue: QUEUES.AUTH_SEND_EMAIL_CHANGE_EMAIL,
+      handler: (msg, context) =>
+        sendEmailChangeEmailHandler.handle(msg, context),
+      publisher: retryPublisher,
+      slots,
+    }),
+    // The account notices: an email change asked for, a password changed (D-05).
+    new RabbitMQConsumer({
+      queue: QUEUES.AUTH_SEND_ACCOUNT_NOTICE,
+      handler: (msg, context) => sendAccountNoticeHandler.handle(msg, context),
+      publisher: retryPublisher,
+      slots,
     }),
   );
 

@@ -19,6 +19,7 @@ import {
   retryQueueFor,
 } from "@/shared/infrastructure/queue/topology.js";
 import { awaitBroker } from "../helpers/broker.js";
+import { JobSlots } from "@/shared/infrastructure/queue/JobSlots.js";
 
 /**
  * Kit queue-design-hardening, D-02 (audit 2026-09-29, R8). RabbitMQ expires only the
@@ -73,6 +74,7 @@ describe("retries wait in a queue per delay", () => {
     const retried: string[] = [];
 
     consumer = new RabbitMQConsumer({
+      slots: new JobSlots(10),
       queue: QUEUE,
       publisher,
       maxRetries: MAX_RETRIES,

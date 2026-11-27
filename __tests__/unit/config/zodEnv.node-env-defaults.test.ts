@@ -30,6 +30,7 @@ const PRODUCTION_SAFE = {
   DISABLE_RATE_LIMITING: "false",
   ALLOW_TEST_HTTP_SERVER: "false",
   SKIP_DB_LIFECYCLE: "false",
+  FRONTEND_EMAIL_CHANGE_URL: "https://app.example.com/confirm-email-change",
 };
 
 const envWith = (nodeEnv: string) =>

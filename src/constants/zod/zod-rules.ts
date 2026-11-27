@@ -7,6 +7,7 @@ import {
   METRIC_NAME_RULE,
   METRIC_UNIT_RULE,
 } from "@/shared/constants/metric-constraints.js";
+import { USERNAME_RULE } from "@/shared/constants/username-rule.js";
 import {
   getUnicodeLength,
   hasInvalidControlChars,
@@ -50,9 +51,15 @@ export const zISOTime = z.string().regex(/^\d{2}:\d{2}:\d{2}$/);
 /**
  * export const zMetricCategoryId = zUUID.optional().nullable();
  */
+// A handle, not a sentence: it names the user's organization (#311, ADR-0101).
 export const zUsername = z
   .string()
-  .min(3, { message: ZodMessages.user.usernameMin });
+  .min(USERNAME_RULE.min, { message: ZodMessages.user.usernameMin })
+  .max(USERNAME_RULE.max, { message: ZodMessages.user.usernameMax })
+  .regex(new RegExp(USERNAME_RULE.pattern), {
+    message: ZodMessages.user.usernameCharacters,
+  })
+  .openapi({ example: "jane.doe" });
 export const zEmail = z
   .string()
   .email({ message: ZodMessages.user.emailInvalid });

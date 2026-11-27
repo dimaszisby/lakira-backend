@@ -31,12 +31,12 @@ graph TB
     api -->|"read / write"| pg
     api <-->|"cache, counters"| redis
     api -->|"publish job"| mq
-    api -->|"verification · reset · invite"| mail
+    api -->|"auth emails, when not queued"| mail
 
     mq -->|"consume, prefetch 10"| worker
     worker -->|"write results"| pg
     worker -->|"invalidate cache"| redis
-    worker -->|"verification · reset · invite, when queued"| mail
+    worker -->|"auth emails, when queued"| mail
 
     classDef proc fill:#1f6feb,stroke:#1a4f8a,color:#fff
     classDef undeployed fill:#1f6feb,stroke:#f0883e,stroke-width:2px,stroke-dasharray:5 3,color:#fff
@@ -60,7 +60,7 @@ graph TB
 
 They share the same `src/`, the same models, and the same database. The worker exists so that
 slow or fire-and-forget work does not occupy a request thread, and so that work which must not be
-lost survives a crash. Today it consumes four queues:
+lost survives a crash. Today it consumes six queues:
 
 - `QUEUES.METRIC_LOG_GENERATE_DUMMY`: dummy metric-log generation;
 - `QUEUES.AUTH_SEND_VERIFICATION_EMAIL`: the verification email, retried and parked on failure
@@ -68,9 +68,17 @@ lost survives a crash. Today it consumes four queues:
 - `QUEUES.AUTH_SEND_PASSWORD_RESET_EMAIL`: the password-reset email, the same way
   ([ADR-0069](../decisions/adr-0069-the-password-reset-email-is-a-queued-job.md));
 - `QUEUES.AUTH_SEND_INVITE_EMAIL`: the invite email, the same way
-  ([ADR-0070](../decisions/adr-0070-the-invite-email-is-a-queued-job.md)).
+  ([ADR-0070](../decisions/adr-0070-the-invite-email-is-a-queued-job.md));
+- `QUEUES.AUTH_SEND_EMAIL_CHANGE_EMAIL`: the email-change confirmation link, the same way
+  ([ADR-0099](../decisions/adr-0099-an-email-change-waits-for-the-new-address.md));
+- `QUEUES.AUTH_SEND_ACCOUNT_NOTICE`: the notices to an account's owner, an email change asked for
+  and a password changed, the same way (ADR-0099).
 
-With the queue on and no worker running, nobody receives any of the three emails.
+With the queue on and no worker running, nobody receives any of the auth emails.
+
+Each job holds one database connection while it runs, so the worker runs at most `DB_POOL_MAX`
+jobs at once across all six queues, and the rest wait for a free slot holding nothing
+([ADR-0100](../decisions/adr-0100-the-worker-runs-no-more-jobs-than-its-pool-holds.md)).
 
 ## Request path through the API server
 

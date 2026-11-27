@@ -9,7 +9,7 @@ export type CreateUserDTO = {
 };
 
 export interface UserRepository {
-  existsByEmail(email: string): Promise<boolean>;
+  existsByEmail(email: string, tx?: PersistenceTransaction): Promise<boolean>;
   existsByUsername(username: string): Promise<boolean>;
   /** Pass `tx` inside a transaction: a job holds one connection (ADR-0077). */
   findById(id: string, tx?: PersistenceTransaction): Promise<AuthUser | null>;

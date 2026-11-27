@@ -14,18 +14,22 @@ export type OrganizationInviteEmail = {
   html: string;
 };
 
+/**
+ * Names no organization: its name is the inviter's own text, sent to an address
+ * the inviter chose, so the email carries nothing the inviter wrote (#311,
+ * ADR-0101). The invitee sees which organization in the app, after following
+ * the link.
+ */
 export const buildOrganizationInviteEmail = (
   inviteLink: string,
-  organizationName: string,
   expiresInDays: number,
 ): OrganizationInviteEmail => {
   const safeLink = escapeHtml(inviteLink);
-  const safeName = escapeHtml(organizationName);
-  const subject = `You've been invited to join ${organizationName} on ${APP_DISPLAY_NAME}`;
+  const subject = `You've been invited to join an organization on ${APP_DISPLAY_NAME}`;
   const text = [
     "Hi,",
     "",
-    `You've been invited to join the organization "${organizationName}" on ${APP_DISPLAY_NAME}.`,
+    `You've been invited to join an organization on ${APP_DISPLAY_NAME}.`,
     `Click the link below within ${expiresInDays} days to accept the invitation:`,
     "",
     inviteLink,
@@ -41,7 +45,7 @@ export const buildOrganizationInviteEmail = (
 <html lang="en">
   <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1f2937; line-height: 1.5;">
     <p>Hi,</p>
-    <p>You've been invited to join the organization <strong>${safeName}</strong> on ${APP_DISPLAY_NAME}.</p>
+    <p>You've been invited to join an organization on ${APP_DISPLAY_NAME}.</p>
     <p>Click the button below within <strong>${expiresInDays} days</strong> to accept the invitation:</p>
     <p>
       <a href="${safeLink}" style="display:inline-block;padding:10px 18px;background:#2563eb;color:#ffffff;border-radius:6px;text-decoration:none;">Accept invitation</a>

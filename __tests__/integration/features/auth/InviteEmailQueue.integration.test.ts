@@ -4,6 +4,7 @@ import {
   authHeader,
   buildUserPayload,
   createTestUser,
+  createVerifiedTestUser,
 } from "../../helpers/test-utils.js";
 import { appWith } from "../../helpers/app-with.js";
 import { buildWiredAuthFeature } from "@/composition/auth.js";
@@ -31,6 +32,7 @@ import { env } from "@/config/envManager.js";
 import { models } from "@/infrastructure/db/models.js";
 import { createHash } from "node:crypto";
 import { awaitBroker } from "../../helpers/broker.js";
+import { JobSlots } from "@/shared/infrastructure/queue/JobSlots.js";
 
 /**
  * The queued invite email (ADR-0070): POST /organizations/:id/invites → jobs
@@ -137,6 +139,7 @@ describe("The invite email via RabbitMQ", () => {
       emailSender: sender,
     });
     consumer = new RabbitMQConsumer({
+      slots: new JobSlots(10),
       queue: QUEUE,
       handler: (msg, context) => {
         invocations++;
@@ -167,7 +170,7 @@ describe("The invite email via RabbitMQ", () => {
 
   /** An owner, the organization their token names, and an address to invite. */
   const owner = async () => {
-    const { token } = await createTestUser();
+    const { token } = await createVerifiedTestUser();
     const invitee = buildUserPayload();
     return {
       token,
