@@ -230,6 +230,21 @@ describe("ReopeningChannel (#312, ADR-0102)", () => {
     expect(createChannel).toHaveBeenCalledTimes(1);
   });
 
+  // PR #358's CI: the broker cancelled the consumer and its channel was still closing
+  // when close() ran, so amqplib refused the second close.
+  it("closes cleanly when the channel is already closing", async () => {
+    const { channel } = build();
+    const closing = Object.assign(new Error("Channel closing"), {
+      name: "IllegalOperationError",
+    });
+    wrappers[0]!.close.mockRejectedValueOnce(closing as never);
+    await expect(channel.close()).resolves.toBeUndefined();
+
+    const other = build();
+    wrappers[1]!.close.mockRejectedValueOnce(new Error("boom") as never);
+    await expect(other.channel.close()).rejects.toThrow("boom");
+  });
+
   it("hands each wrapper's error and connect to the caller, the replacement's too", async () => {
     const { onError, onConnect } = build();
     const failure = new Error("PRECONDITION_FAILED");

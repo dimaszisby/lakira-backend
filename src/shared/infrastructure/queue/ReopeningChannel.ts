@@ -173,6 +173,14 @@ export class ReopeningChannel<C extends Channel> {
 
   async close(): Promise<void> {
     this.stopReopening();
-    await this.wrapper.close();
+    // A channel already closing, the broker's doing or a cancelled consumer's, is
+    // refused by amqplib with IllegalOperationError: it is closed all the same.
+    await this.wrapper.close().catch((error: unknown) => {
+      if (
+        (error as { name?: unknown } | null)?.name === "IllegalOperationError"
+      )
+        return;
+      throw error;
+    });
   }
 }
