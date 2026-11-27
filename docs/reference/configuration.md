@@ -96,9 +96,9 @@ the per-environment URL is selected by `NODE_ENV`.
 > every worker holds its own (ADR-0086). Two rules size it. (1) The pools together must stay under
 > the database's connection limit: (server instances + worker instances) × `DB_POOL_MAX`, with room
 > left for migrations and an admin session. (2) A worker job holds one connection for its whole run,
-> so a worker's `DB_POOL_MAX` should be at least the number of jobs it runs at once, which
-> `RABBITMQ_PREFETCH` decides per queue; a job that finds the pool full waits up to 60 s and then
-> fails. Both must be whole numbers, `DB_POOL_MAX` 1 or more, and `DB_POOL_MIN` cannot be more than
+> so a worker runs at most `DB_POOL_MAX` jobs at once, across all its queues, and each queue
+> prefetches no more than that (ADR-0100): the pool sets the worker's throughput, and a slow email
+> provider makes jobs wait for a slot, never on the pool. Both must be whole numbers, `DB_POOL_MAX` 1 or more, and `DB_POOL_MIN` cannot be more than
 > `DB_POOL_MAX`; startup refuses otherwise. The migrations (`config.cjs`) open one connection and
 > do not read them.
 

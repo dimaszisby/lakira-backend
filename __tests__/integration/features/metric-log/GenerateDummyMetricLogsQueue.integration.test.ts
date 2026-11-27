@@ -30,6 +30,7 @@ import {
 } from "@/shared/infrastructure/queue/topology.js";
 import { retryDelaysMs } from "@/shared/infrastructure/queue/retryPolicy.js";
 import { awaitBroker } from "../../helpers/broker.js";
+import { JobSlots } from "@/shared/infrastructure/queue/JobSlots.js";
 
 /**
  * The queued path of POST /metric-logs/:metricId/dummy: publisher → jobs exchange →
@@ -94,6 +95,7 @@ describe("GenerateDummyMetricLogs via RabbitMQ", () => {
   ): RabbitMQConsumer => {
     const { dummyLogsHandler: handler } = buildWiredMetricLogFeature();
     consumer = new RabbitMQConsumer({
+      slots: new JobSlots(10),
       queue: QUEUES.METRIC_LOG_GENERATE_DUMMY,
       handler: (msg, context) => {
         invocations++;

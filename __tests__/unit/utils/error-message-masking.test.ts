@@ -16,6 +16,7 @@ import {
   runInBackground,
 } from "@/utils/background-tasks.js";
 import { ScheduleEmailVerification } from "@/features/auth/application/use-cases/ScheduleEmailVerification.js";
+import { JobSlots } from "@/shared/infrastructure/queue/JobSlots.js";
 
 type Setup = (ch: unknown) => Promise<void>;
 let consumerSetup: Setup | undefined;
@@ -113,6 +114,7 @@ describe("an error's message that quotes a submitted value", () => {
     const { RabbitMQConsumer } =
       await import("@/shared/infrastructure/queue/RabbitMQConsumer.js");
     new RabbitMQConsumer({
+      slots: new JobSlots(10),
       queue: "test.queue",
       handler: async () => {
         throw quotingDatabaseError();
@@ -128,6 +130,7 @@ describe("an error's message that quotes a submitted value", () => {
     const nack = jest.fn();
     await consumerSetup!({
       on: jest.fn(),
+      once: jest.fn(),
       prefetch: jest.fn(async () => undefined),
       consume: jest.fn(
         async (_queue: string, onMessage: (m: unknown) => void) => {

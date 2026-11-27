@@ -12,6 +12,7 @@ import {
   assertTopology,
 } from "@/shared/infrastructure/queue/topology.js";
 import { awaitBroker } from "../helpers/broker.js";
+import { JobSlots } from "@/shared/infrastructure/queue/JobSlots.js";
 
 /**
  * worker-cancel-and-one-connection-per-job D-01 (audit 2026-10-20, X60). The
@@ -67,6 +68,7 @@ describe("RabbitMQConsumer.cancel against a broker", () => {
       );
     }
     consumer = new RabbitMQConsumer({
+      slots: new JobSlots(10),
       queue: QUEUE,
       handler: async () => {
         handled++;

@@ -11,6 +11,12 @@
   [`worker-cancel-and-one-connection-per-job`](../../internal/initiatives/worker-cancel-and-one-connection-per-job/decisions.md);
   register row B-75 (finding X62 of the dated run of 2026-10-20)
 
+> **Status note (2026-11-26).** "With a send bounded at 10 s the wait is bounded" held only while
+> no more jobs ran than the pool holds, which nothing enforced (X62 of the dated run of
+> 2026-11-14). The worker now runs at most `DB_POOL_MAX` jobs at once, across its consumers
+> ([ADR-0100](./adr-0100-the-worker-runs-no-more-jobs-than-its-pool-holds.md)). The decision below
+> is unchanged.
+
 ---
 
 ## Context
