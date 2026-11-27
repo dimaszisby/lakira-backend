@@ -14,6 +14,13 @@
   rows B-78 (finding X63 of the dated run of 2026-10-20) and B-84 (X64 to X68, N4), bundled by
   register D-10
 
+> **Status note (2026-11-28).** Decision 1 is amended by
+> [ADR-0102](./adr-0102-a-channel-the-broker-closes-is-reopened.md): a channel the broker closes
+> is reopened with backoff, since the library sets a channel up again only on a reconnect of the
+> whole connection (#312). The publisher reports itself disabled from a close as well as from an
+> `error`, and the consumer consumes nothing until its channel is reopened, not "until the
+> library's next setup succeeds".
+
 ---
 
 ## Context

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Channel, ConsumeMessage } from "amqplib";
-import type { ChannelWrapper } from "amqp-connection-manager";
 import { absorbChannelErrors, connectRabbitMQ } from "./RabbitMQConnection.js";
+import { ReopeningChannel } from "./ReopeningChannel.js";
 import { assertRetryTier, assertTopology, retryQueueFor } from "./topology.js";
 import {
   RETRY_COUNT_HEADER,
@@ -53,7 +53,7 @@ export interface ConsumerOptions {
 }
 
 export class RabbitMQConsumer {
-  private channel: ChannelWrapper;
+  private channel: ReopeningChannel<Channel>;
   // The consumer is registered on the raw channel, which the wrapper does not
   // track, so only that channel can cancel it (worker-cancel-and-one-connection-per-job D-01).
   private consumerChannel: Channel | null = null;
@@ -77,14 +77,14 @@ export class RabbitMQConsumer {
     this.maxRetries = options.maxRetries ?? env.RABBITMQ_MAX_RETRIES;
     this.retryBaseDelayMs =
       options.retryBaseDelayMs ?? env.RABBITMQ_RETRY_BASE_DELAY_MS;
-    const connection = connectRabbitMQ();
-
-    this.channel = connection.createChannel({
+    // Opened again when the broker closes it; the library alone would wait for a
+    // reconnect that never comes while the connection stays up (ADR-0102).
+    this.channel = new ReopeningChannel<Channel>(connectRabbitMQ(), {
       name: `consumer:${options.queue}`,
-      setup: async (ch: Channel) => {
+      setup: async (ch) => {
         absorbChannelErrors(ch, `consumer:${options.queue}`);
         await assertTopology(ch);
-        // A reconnect during the drain re-runs setup: it must not consume again.
+        // A reconnect or a reopen during the drain re-runs setup: it must not consume again.
         if (this.stopping) return;
         await ch.prefetch(prefetch);
         // A message delivered on this channel and still waiting for a slot
@@ -98,7 +98,10 @@ export class RabbitMQConsumer {
         const { consumerTag } = await ch.consume(
           options.queue,
           (msg) => {
-            if (!msg) return;
+            if (!msg) {
+              this.onBrokerCancel(ch);
+              return;
+            }
             this.dispatch(ch, msg, channelGone.signal);
           },
           { noAck: false },
@@ -118,14 +121,43 @@ export class RabbitMQConsumer {
           maxRetries: this.maxRetries,
         });
       },
+      // A failed setup is emitted here; with no listener it took the worker down (audit
+      // 2026-10-20 X63). The broker closes such a channel, and it is reopened (ADR-0102).
+      onError: (error) => {
+        logger.error(
+          "[RABBITMQ] Consumer channel failed; consuming nothing until it reopens.",
+          { queue: options.queue, error },
+        );
+      },
+      // Its consumer went with the channel; cancel() has nothing left to cancel.
+      onLost: () => {
+        this.consumerChannel = null;
+        this.consumerTag = null;
+      },
     });
+  }
 
-    // A failed setup is emitted here; with no listener it took the worker down (audit
-    // 2026-10-20 X63). The library runs setup again on the next reconnect (ADR-0080, D-01).
-    this.channel.on("error", (error: unknown) => {
-      logger.error(
-        "[RABBITMQ] Consumer channel failed; consuming nothing until it reconnects.",
-        { queue: options.queue, error },
+  /**
+   * The broker cancelled the consumer: its queue was deleted. The channel stays open, so
+   * nothing would reopen it, and the worker would consume nothing from the queue (#312).
+   * Closing the channel hands it to the reopen, whose setup declares the queue again.
+   */
+  private onBrokerCancel(ch: Channel): void {
+    if (this.stopping) return;
+    if (this.consumerChannel === ch) {
+      this.consumerChannel = null;
+      this.consumerTag = null;
+    }
+    logger.warn("[RABBITMQ] Consumer cancelled by the broker; reopening.", {
+      queue: this.options.queue,
+    });
+    ch.close().catch((error: unknown) => {
+      logger.warn(
+        "[RABBITMQ] Could not close a cancelled consumer's channel.",
+        {
+          queue: this.options.queue,
+          error,
+        },
       );
     });
   }
@@ -316,6 +348,8 @@ export class RabbitMQConsumer {
 
   async cancel(): Promise<void> {
     this.stopping = true;
+    // No reopen during the drain: it would declare the topology and consume nothing.
+    this.channel.stopReopening();
     this.stop.abort(new Error("consumer stopping"));
     const ch = this.consumerChannel;
     const tag = this.consumerTag;

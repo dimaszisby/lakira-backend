@@ -1,3 +1,4 @@
+import { jest } from "@jest/globals";
 import type { ChannelWrapper } from "amqp-connection-manager";
 import { randomUUID } from "node:crypto";
 import amqplib from "amqplib";
@@ -19,13 +20,18 @@ import { JobSlots } from "@/shared/infrastructure/queue/JobSlots.js";
 
 /**
  * Kit queue-failure-paths, against a broker (audit 2026-10-20): a channel whose setup fails
- * (X63), a publish nothing routes (X64), and a request id carried over the queue (N4).
+ * (X63), a publish nothing routes (X64), and a request id carried over the queue (N4). Then
+ * #312 (audit 2026-11-14 Y61): a channel the broker closes is opened again (ADR-0102).
  */
 const TIMEOUT_MS = 5_000;
 const POLL_INTERVAL_MS = 50;
 
-const until = async (check: () => boolean | Promise<boolean>, what: string) => {
-  const deadline = Date.now() + TIMEOUT_MS;
+const until = async (
+  check: () => boolean | Promise<boolean>,
+  what: string,
+  timeoutMs = TIMEOUT_MS,
+) => {
+  const deadline = Date.now() + timeoutMs;
   while (!(await check())) {
     if (Date.now() > deadline)
       throw new Error(`Timed out waiting for ${what}.`);
@@ -49,6 +55,37 @@ const deleteQueueDirectly = async (queue: string) => {
   }
 };
 
+/**
+ * The queue's consumer count, or null when it does not exist, over a connection of its own:
+ * a passive check of a missing queue closes the channel it runs on.
+ */
+const consumersOf = async (queue: string): Promise<number | null> => {
+  const connection = await amqplib.connect(buildAmqpUrl(env));
+  try {
+    const channel = await connection.createChannel();
+    channel.on("error", () => undefined);
+    try {
+      return (await channel.checkQueue(queue)).consumerCount;
+    } catch {
+      return null;
+    }
+  } finally {
+    await connection.close();
+  }
+};
+
+/** Declares `queue` with another dead-letter exchange, so assertTopology's 406s on it. */
+const mismatch = async (inspector: ChannelWrapper, queue: string) => {
+  await deleteQueueDirectly(queue);
+  await inspector.assertQueue(queue, {
+    durable: true,
+    deadLetterExchange: "some.other.exchange",
+  });
+};
+
+// The first reopen waits 1 s; a few attempts fit in this.
+const REOPEN_TIMEOUT_MS = 10_000;
+
 describe("the queue's failure paths against a broker", () => {
   let inspector: ChannelWrapper;
   const closing: Array<{ close: () => Promise<void> }> = [];
@@ -67,7 +104,14 @@ describe("the queue's failure paths against a broker", () => {
     await inspector.waitForConnect();
   });
 
+  // RABBITMQ_ENABLED is false in test, and isEnabled() reads it: with it off, a test that
+  // waits for the publisher to give up passed without its channel failing at all.
+  beforeEach(() => {
+    jest.replaceProperty(env, "RABBITMQ_ENABLED", true);
+  });
+
   afterEach(async () => {
+    jest.restoreAllMocks();
     while (closing.length) await closing.pop()!.close();
   });
 
@@ -152,5 +196,187 @@ describe("the queue's failure paths against a broker", () => {
     await until(() => seen.length === 1, "the job to be handled");
 
     expect(seen).toEqual(["req-n4-1"]);
+  });
+  // Y61, the issue's repro: the worker consumed nothing once the broker closed its channel.
+  it("reopens a consumer's channel once the broker accepts its declarations again", async () => {
+    const queue = QUEUES.METRIC_LOG_GENERATE_DUMMY;
+    const handled: unknown[] = [];
+    try {
+      await mismatch(inspector, queue);
+      const consumer = new RabbitMQConsumer({
+        slots: new JobSlots(10),
+        queue,
+        handler: async (msg) => {
+          handled.push(msg.properties.messageId);
+        },
+        publisher: {
+          isEnabled: () => false,
+          publish: async () => undefined,
+          close: async () => undefined,
+        },
+        maxRetries: 0,
+      });
+      closing.push({ close: () => consumer.close(1_000) });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      expect(await consumersOf(queue)).toBe(0);
+
+      await deleteQueueDirectly(queue);
+      await until(
+        async () => (await consumersOf(queue)) === 1,
+        "the consumer to declare its queue and consume again",
+        REOPEN_TIMEOUT_MS,
+      );
+
+      const messageId = randomUUID();
+      await inspector.sendToQueue(queue, Buffer.from("{}"), { messageId });
+      await until(() => handled.includes(messageId), "the job to be handled");
+      // One consumer, not one per attempt.
+      expect(await consumersOf(queue)).toBe(1);
+    } finally {
+      await deleteQueueDirectly(queue);
+    }
+  });
+
+  /** A consumer on the dummy-logs queue that records each message id it handles. */
+  const recordingConsumer = (queue: string, handled: unknown[]) => {
+    const consumer = new RabbitMQConsumer({
+      slots: new JobSlots(10),
+      queue,
+      handler: async (msg) => {
+        handled.push(msg.properties.messageId);
+      },
+      publisher: {
+        isEnabled: () => false,
+        publish: async () => undefined,
+        close: async () => undefined,
+      },
+      maxRetries: 0,
+    });
+    closing.push({ close: () => consumer.close(1_000) });
+    return consumer;
+  };
+
+  // Review M2: a consumed queue deleted at runtime cancels its consumer and leaves the
+  // channel open, so before this the worker consumed nothing from it again.
+  it("consumes again after the broker cancels the consumer by deleting its queue", async () => {
+    const queue = QUEUES.METRIC_LOG_GENERATE_DUMMY;
+    const handled: unknown[] = [];
+    try {
+      recordingConsumer(queue, handled);
+      await until(
+        async () => (await consumersOf(queue)) === 1,
+        "the consumer to register",
+      );
+
+      await deleteQueueDirectly(queue);
+      await until(
+        async () => (await consumersOf(queue)) === 1,
+        "the consumer to declare its queue and consume again",
+        REOPEN_TIMEOUT_MS,
+      );
+
+      const messageId = randomUUID();
+      await inspector.sendToQueue(queue, Buffer.from("{}"), { messageId });
+      await until(() => handled.includes(messageId), "the job to be handled");
+      expect(await consumersOf(queue)).toBe(1);
+    } finally {
+      await deleteQueueDirectly(queue);
+    }
+  });
+
+  // Review L4: on a reconnect of the whole connection the library sets the channel up
+  // itself, and the reopen must not open a second one beside it.
+  it("leaves one consumer after the whole connection reconnects", async () => {
+    const queue = QUEUES.METRIC_LOG_GENERATE_DUMMY;
+    const handled: unknown[] = [];
+    try {
+      recordingConsumer(queue, handled);
+      await until(
+        async () => (await consumersOf(queue)) === 1,
+        "the consumer to register",
+      );
+
+      connectRabbitMQ().reconnect();
+      await until(
+        async () => (await consumersOf(queue)) === 1,
+        "the consumer to register again",
+        REOPEN_TIMEOUT_MS,
+      );
+      // Past the first reopen's wait, and the next.
+      await new Promise((resolve) => setTimeout(resolve, 3_500));
+      expect(await consumersOf(queue)).toBe(1);
+
+      const messageId = randomUUID();
+      await inspector.sendToQueue(queue, Buffer.from("{}"), { messageId });
+      await until(() => handled.includes(messageId), "the job to be handled");
+    } finally {
+      await deleteQueueDirectly(queue);
+    }
+  });
+
+  // Y61: the API's publisher did not redeclare the queue either.
+  it("reopens the publisher's channel once the broker accepts its declarations again", async () => {
+    const queue = QUEUES.METRIC_LOG_GENERATE_DUMMY;
+    try {
+      await mismatch(inspector, queue);
+      const publisher = new RabbitMQPublisher();
+      closing.push(publisher);
+      await until(() => !publisher.isEnabled(), "the publisher to give up");
+
+      await deleteQueueDirectly(queue);
+      await until(
+        () => publisher.isEnabled(),
+        "the publisher to connect again",
+        REOPEN_TIMEOUT_MS,
+      );
+
+      await expect(
+        publisher.publish(
+          "",
+          { probe: true },
+          { routingKey: queue, messageId: randomUUID() },
+        ),
+      ).resolves.toBeUndefined();
+    } finally {
+      await deleteQueueDirectly(queue);
+    }
+  });
+
+  // Y61: after a close at runtime the publisher stayed available, and each publish waited
+  // out its timeout before the caller fell back.
+  it("reports the publisher unavailable once the broker closes its channel, then reopens it", async () => {
+    const queue = `test.reopen.${randomUUID()}`;
+    await inspector.assertQueue(queue, { durable: false, autoDelete: false });
+    const publisher = new RabbitMQPublisher();
+    closing.push(publisher, { close: () => deleteQueueDirectly(queue) });
+    // Resolves once the channel is up.
+    await publisher.publish(
+      "",
+      { probe: true },
+      { routingKey: queue, messageId: randomUUID() },
+    );
+
+    // A publish to an exchange that does not exist: the broker closes the channel (404).
+    await expect(
+      publisher.publish(
+        `no.such.exchange.${randomUUID()}`,
+        { probe: true },
+        { routingKey: "x", messageId: randomUUID() },
+      ),
+    ).rejects.toBeDefined();
+    await until(() => !publisher.isEnabled(), "the publisher to give up");
+
+    await until(
+      () => publisher.isEnabled(),
+      "the publisher to connect again",
+      REOPEN_TIMEOUT_MS,
+    );
+    await expect(
+      publisher.publish(
+        "",
+        { probe: true },
+        { routingKey: queue, messageId: randomUUID() },
+      ),
+    ).resolves.toBeUndefined();
   });
 });
