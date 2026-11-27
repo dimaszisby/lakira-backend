@@ -4,6 +4,7 @@ import {
   authHeader,
   buildUserPayload,
   createTestUser,
+  createVerifiedTestUser,
 } from "../../helpers/test-utils.js";
 import { appWith } from "../../helpers/app-with.js";
 import { buildWiredAuthFeature } from "@/composition/auth.js";
@@ -169,7 +170,7 @@ describe("The invite email via RabbitMQ", () => {
 
   /** An owner, the organization their token names, and an address to invite. */
   const owner = async () => {
-    const { token } = await createTestUser();
+    const { token } = await createVerifiedTestUser();
     const invitee = buildUserPayload();
     return {
       token,

@@ -139,6 +139,8 @@ async function seedData(transaction: Transaction) {
       username: "contract_primary",
       password: "ContractPrimary!123",
       isPublicProfile: true,
+      // Inviting needs a verified address (#311, ADR-0101).
+      emailVerifiedAt: now,
       createdAt: now,
       updatedAt: now,
     },

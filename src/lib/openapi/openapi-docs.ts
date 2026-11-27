@@ -228,7 +228,9 @@ registry.registerPath({
   description:
     "Changes the username and whether the profile is public. A body carrying `password` or `email` " +
     "is refused with 400: the password is changed with `POST /auth/change-password` and the email " +
-    "with `POST /auth/change-email`, each of which asks for the current password.",
+    "with `POST /auth/change-email`, each of which asks for the current password. A new username " +
+    "follows the registration rule; the current one, sent back unchanged, is accepted as it is, " +
+    "even one registered before the rule.",
   security: [{ BearerAuth: [] }],
   request: {
     body: {
@@ -739,7 +741,8 @@ registry.registerPath({
   summary: "Invite a user to the organization",
   description:
     "Sends an invitation email with a single-use token. " +
-    "Only owners and admins can invite. Inviting an address that already has a pending invite replaces it: " +
+    "Only owners and admins can invite, and only once their own email address is verified: " +
+    "an unverified inviter is answered 403. Inviting an address that already has a pending invite replaces it: " +
     "a new token and expiry, the email sent again, the earlier link no longer accepted, and the newer role applies. " +
     "A 409 means only that two invites for the same address raced.",
   security: [{ BearerAuth: [] }],

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { createOrganizationController } from "./organization.controller.js";
 import type { AuthFeature } from "../../feature.js";
 import { authMiddleware } from "./authMiddleware.js";
+import { requireVerifiedEmail } from "./requireVerifiedEmail.js";
 import { userRateLimiter } from "@/shared/middleware/rate-limiter.js";
 import { validate } from "@/shared/middleware/validation.js";
 import {
@@ -31,6 +32,9 @@ export const createOrganizationRouter = (feature: AuthFeature) => {
     "/:id/invites",
     authMiddleware,
     userRateLimiter,
+    // An invite emails an address the caller names: only from a verified address
+    // (#311, ADR-0101, amending ADR-0018 for this route).
+    requireVerifiedEmail,
     requireJsonObjectBody(),
     validate(createInviteSchema),
     controller.createInvite,

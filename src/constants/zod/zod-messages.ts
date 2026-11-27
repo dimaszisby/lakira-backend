@@ -1,3 +1,5 @@
+import { USERNAME_RULE } from "@/shared/constants/username-rule.js";
+
 export const ZodMessages = {
   common: {
     invalidUUID: "Invalid UUID",
@@ -16,7 +18,9 @@ export const ZodMessages = {
     invalidAuthHeader: 'Authorization header must start with "Bearer ".',
   },
   user: {
-    usernameMin: "Username must be at least 3 characters",
+    usernameMin: USERNAME_RULE.messages.min,
+    usernameMax: USERNAME_RULE.messages.max,
+    usernameCharacters: USERNAME_RULE.messages.characters,
     emailInvalid: "Invalid email address",
     passwordMin: "Password must be at least 6 characters",
     passwordConfirmMin: "Password confirmation must be at least 6 characters",

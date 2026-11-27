@@ -460,7 +460,8 @@ describe("InviteUserToOrganization", () => {
         sha256(tokenInLink(buildEmailMock)),
         TX,
       );
-      expect(buildEmailMock.mock.calls[0][1]).toBe("Acme Corp");
+      // The template is handed no organization name (#311, ADR-0101).
+      expect(buildEmailMock.mock.calls[0]).toHaveLength(2);
       expect(emailSender.send.mock.calls[0][0].to).toBe("invited@example.com");
     });
 

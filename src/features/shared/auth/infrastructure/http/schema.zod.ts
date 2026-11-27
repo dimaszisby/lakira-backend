@@ -30,7 +30,10 @@ export const createUserBody = z
 // sending one would read a 200 for a change that never happened.
 export const updateUserBody = z
   .object({
-    username: zUsername.optional(),
+    // Any string here: UpdateProfile applies the handle rule only when the name
+    // changes, so a username from before the rule can be sent back as it is
+    // (#311, ADR-0101).
+    username: z.string().optional(),
     isPublicProfile: zPublicProfile.optional(),
     email: z.unknown().optional(),
     password: z.unknown().optional(),

@@ -940,6 +940,56 @@ describe("Architecture enforcement", () => {
 
       expect(offenders).toEqual([]);
     });
+
+    // #311 (audit 2026-11-14, Y11; ADR-0101). An invite emails an address the
+    // caller names, so it needs a verified address. requireVerifiedEmail reads
+    // req.user: ahead of authMiddleware it would answer 401 to everyone.
+    // Judged within one router call: a router that mounts either through
+    // router.use() is not read here, and none does today.
+    const verifiedAfterAuth = (call: string): boolean => {
+      const auth = call.search(/\bauthMiddleware\b/);
+      const verified = call.search(/\brequireVerifiedEmail\b/);
+      return auth !== -1 && verified > auth;
+    };
+
+    it("tells requireVerifiedEmail after authMiddleware from one ahead of it", () => {
+      expect(
+        verifiedAfterAuth(
+          '"/x", authMiddleware, userRateLimiter, requireVerifiedEmail, x);',
+        ),
+      ).toBe(true);
+      expect(
+        verifiedAfterAuth('"/x", requireVerifiedEmail, authMiddleware, x);'),
+      ).toBe(false);
+      expect(verifiedAfterAuth('"/x", authMiddleware, x);')).toBe(false);
+    });
+
+    it("the invite route requires a verified address, after authMiddleware", () => {
+      const file = path.join(
+        SRC_FEATURES,
+        "shared/auth/infrastructure/http/organization.router.ts",
+      );
+      const invite = routerCalls(fs.readFileSync(file, "utf-8")).filter(
+        (call) => call.trimStart().startsWith('"/:id/invites"'),
+      );
+
+      expect(invite).toHaveLength(2); // the POST and its methodNotAllowed
+      expect(invite.filter(verifiedAfterAuth)).toHaveLength(1);
+    });
+
+    it("finds no requireVerifiedEmail ahead of authMiddleware in src/features", () => {
+      const offenders = routerFiles()
+        .map((file) => ({
+          file: path.relative(SRC_FEATURES, file).split(path.sep).join("/"),
+          calls: routerCalls(fs.readFileSync(file, "utf-8")).filter(
+            (call) =>
+              /\brequireVerifiedEmail\b/.test(call) && !verifiedAfterAuth(call),
+          ).length,
+        }))
+        .filter(({ calls }) => calls !== 0);
+
+      expect(offenders).toEqual([]);
+    });
   });
 
   // inner-layers-reach-infrastructure D-03 (X44): the reader took `.ts` only, so a `.mts`, `.js`
