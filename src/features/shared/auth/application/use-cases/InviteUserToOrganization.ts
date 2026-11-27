@@ -41,9 +41,12 @@ export type InviteEmailJob = { inviteId: string };
 
 export type InviteUserToOrganizationDeps = {
   frontendInviteUrl: string;
+  /**
+   * Names no organization: its name is the inviter's own text (#311, ADR-0101).
+   * The invitee sees which organization in the app, after following the link.
+   */
   buildEmail: (
     inviteLink: string,
-    organizationName: string,
     expiresInDays: number,
   ) => { subject: string; text: string; html: string };
   ttlDays?: number;
@@ -108,7 +111,7 @@ export class InviteUserToOrganization {
     if (!this.queue.isEnabled()) {
       await this.tx.runInTransaction(async (tx) => {
         await replace(tx);
-        await this.emailSender.send(this.message(email, org.name, rawToken));
+        await this.emailSender.send(this.message(email, rawToken));
       });
       return;
     }
@@ -169,35 +172,25 @@ export class InviteUserToOrganization {
     if (!invite || invite.isAccepted() || invite.isExpired(this.now())) return;
 
     const org = await this.orgRepo.findById(invite.organizationId, tx);
+    // A deleted organization's invite sends nothing.
     if (!org) return;
 
-    await this.sendFor(invite, org.name, tx);
+    await this.sendFor(invite, tx);
   }
 
   /** Replaces the invite's token with one minted here, then sends its link. */
   private async sendFor(
     invite: OrganizationInvite,
-    organizationName: string,
     tx: PersistenceTransaction,
   ): Promise<void> {
     const { rawToken, tokenHash } = mintToken();
     await this.inviteRepo.replaceTokenHash(invite.id, tokenHash, tx);
-    await this.emailSender.send(
-      this.message(invite.email, organizationName, rawToken),
-    );
+    await this.emailSender.send(this.message(invite.email, rawToken));
   }
 
-  private message(
-    to: string,
-    organizationName: string,
-    rawToken: string,
-  ): EmailMessage {
+  private message(to: string, rawToken: string): EmailMessage {
     const link = this.buildInviteLink(rawToken);
-    const message = this.deps.buildEmail(
-      link,
-      organizationName,
-      this.ttlDays(),
-    );
+    const message = this.deps.buildEmail(link, this.ttlDays());
     return {
       to,
       subject: message.subject,

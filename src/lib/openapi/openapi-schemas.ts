@@ -19,6 +19,7 @@ import {
   generateDummyMetricLogsBody,
 } from "@/features/metric-log/infrastructure/http/schema.zod.js";
 import { isIanaTimeZone, TZ_REGEX } from "@/utils/time-zone.js";
+import { zUsername } from "@/constants/zod/zod-rules.js";
 
 // Common Schemas
 const EMAIL_PATTERN = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
@@ -559,7 +560,8 @@ export const RegisterRequestSchema = registerSchema(
   "RegisterRequest",
   z
     .object({
-      username: z.string().min(3).openapi({ example: "newuser" }),
+      // The request schema's own rule, so the spec cannot drift from it (#311).
+      username: zUsername.openapi({ example: "newuser" }),
       email: emailSchema("newuser@example.com"),
       password: z.string().min(6).openapi({ example: "newpassword123" }),
       passwordConfirmation: z
@@ -577,7 +579,7 @@ export const RegisterRequestSchema = registerSchema(
 export const UpdateUserRequestSchema = registerSchema(
   "UpdateUserRequest",
   z.object({
-    username: z.string().min(3).optional().openapi({ example: "updateduser" }),
+    username: zUsername.optional().openapi({ example: "updateduser" }),
     isPublicProfile: z.boolean().optional().openapi({ example: false }),
   }),
 );

@@ -101,6 +101,13 @@ writes the new hash; a change then issues the session making it a new one (ADR-0
 path that sets a password does the same, through `RefreshTokenRepository.revokeAllForUser`.
 Access tokens already issued live out `ACCESS_TOKEN_TTL_SEC`.
 
+Inviting is the one route the base gates on a verified address: `POST /organizations/:id/invites`
+runs `requireVerifiedEmail` after `authMiddleware` and the per-user limiter, because it emails an
+address the caller names. The invite email names no organization, whose name is the inviter's
+username, so nothing the inviter wrote reaches that address. A username is a handle
+(`USERNAME_RULE`): registration checks it, and a profile save checks it only when the name changes
+(ADR-0101). Every other route leaves the gate to forks (ADR-0018).
+
 A credential changes only through its own route, which asks for the current password through
 `ConfirmCurrentPassword`: `POST /auth/change-password` and `POST /auth/change-email`;
 `PUT /auth/profile` refuses `password` and `email` (ADR-0098). A wrong current password is a 400 on `currentPassword`, never a 401. Wrong

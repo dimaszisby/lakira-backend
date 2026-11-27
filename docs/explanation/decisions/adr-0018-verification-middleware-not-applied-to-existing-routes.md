@@ -11,6 +11,12 @@
 > which is exactly this decision. [ADR-0043](./adr-0043-session-issuance-at-every-authenticated-entry-point.md)
 > relies on it: there is no verification wall to hold registration behind.
 
+> **Status note (2026-11-27).** Amended for one route by
+> [ADR-0101](./adr-0101-an-invite-carries-no-inviter-text-and-needs-a-verified-address.md):
+> `POST /organizations/:id/invites` runs `requireVerifiedEmail`, because it emails an address the
+> caller names (Y11 of the dated run of 2026-11-14, #311). Every other route keeps the decision
+> below, and registration is still held behind nothing.
+
 ---
 
 ## Context

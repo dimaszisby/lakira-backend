@@ -2,7 +2,9 @@ import {
   ConflictError,
   NotFoundError,
   UnauthorizedError,
+  ValidationError,
 } from "@/shared/domain/errors/DomainError.js";
+import { usernameRuleViolation } from "@/shared/constants/username-rule.js";
 import { UserRepository } from "../../domain/repositories/UserRepository.js";
 import { AuthUser } from "../../domain/entities/AuthUser.js";
 
@@ -27,7 +29,12 @@ export class UpdateProfile {
     const user = await this.repo.findById(userId);
     if (!user) throw new NotFoundError("User not found");
 
-    if (input.username && input.username !== user.username) {
+    // The handle rule applies to a new username only: one registered before the
+    // rule, sent back unchanged with another field, is no change (#311, ADR-0101).
+    if (input.username !== undefined && input.username !== user.username) {
+      const violation = usernameRuleViolation(input.username);
+      if (violation)
+        throw new ValidationError(violation, { field: "username" });
       if (await this.repo.existsByUsername(input.username))
         throw new ConflictError("Username already in use");
       user.changeUsername(input.username);

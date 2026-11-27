@@ -1,6 +1,8 @@
 import {
   buildUserPayload,
   createTestUser,
+  createVerifiedTestUser,
+  markEmailVerified,
   authHeader,
 } from "../helpers/test-utils.js";
 import { appWith } from "../helpers/app-with.js";
@@ -53,7 +55,7 @@ beforeEach(() => {
 describe("Organization Membership API", () => {
   describe("POST /api/v1/organizations/:id/invites", () => {
     it("creates an invite and returns 201", async () => {
-      const { token } = await createTestUser();
+      const { token } = await createVerifiedTestUser();
       const orgId = decodeOrgId(token);
 
       const res = await api
@@ -65,6 +67,43 @@ describe("Organization Membership API", () => {
       expect(res.body.message).toBe("Invitation sent successfully");
       expect(emailCapture.sent).toHaveLength(1);
       expect(emailCapture.sent[0].to).toBe("invitee@example.com");
+    });
+
+    // #311 (audit 2026-11-14, Y11; ADR-0101): an invite emails an address the
+    // caller names, so it needs a verified address. Refused before the body is
+    // read: no invite is saved and nothing is sent.
+    it("refuses an unverified inviter with 403, then invites once verified", async () => {
+      const { token, user } = await createTestUser();
+      const orgId = decodeOrgId(token);
+      const send = () =>
+        api
+          .post(`/api/v1/organizations/${orgId}/invites`)
+          .set("Authorization", authHeader(token))
+          .send({ email: "unverified-invitee@example.com", role: "member" });
+
+      const refused = await send();
+      expect(refused.status).toBe(403);
+      expect(refused.body).toEqual({
+        status: "fail",
+        message: "Email address is not verified",
+      });
+      expect(emailCapture.sent).toHaveLength(0);
+      expect(
+        await models.OrganizationInvite.count({
+          where: { organizationId: orgId },
+        }),
+      ).toBe(0);
+
+      await markEmailVerified(user.id);
+      const accepted = await send();
+      expect(accepted.status).toBe(201);
+      expect(emailCapture.sent).toHaveLength(1);
+      // The organization is named after the inviter's username: none of the
+      // email carries it.
+      const [sent] = emailCapture.sent;
+      for (const part of [sent.subject, sent.text, sent.html]) {
+        expect(part).not.toContain(user.username);
+      }
     });
 
     // Issue #249, ADR-0093: re-inviting replaces a pending invite (the frontend's
@@ -83,7 +122,7 @@ describe("Organization Membership API", () => {
           .send({ email, role });
 
       it("replaces it: 201, one invite with the newer role, and only the new link accepts", async () => {
-        const owner = await createTestUser();
+        const owner = await createVerifiedTestUser();
         const orgId = decodeOrgId(owner.token);
         const invitee = buildUserPayload();
 
@@ -133,7 +172,7 @@ describe("Organization Membership API", () => {
       // The replacement and its send share one transaction: a failed send leaves
       // the earlier invite, and its link, as they were.
       it("keeps the earlier invite and its link when the new send fails", async () => {
-        const owner = await createTestUser();
+        const owner = await createVerifiedTestUser();
         const orgId = decodeOrgId(owner.token);
         const invitee = buildUserPayload();
         expect(
@@ -173,7 +212,7 @@ describe("Organization Membership API", () => {
     // durable-invite-email D-03, AC-5: with the queue off, the invite and the
     // send share one transaction, so a failed send leaves nothing to answer 409.
     it("leaves no invite when the send fails, so a retry succeeds", async () => {
-      const { token } = await createTestUser();
+      const { token } = await createVerifiedTestUser();
       const orgId = decodeOrgId(token);
       const email = buildUserPayload().email;
       let calls = 0;
@@ -232,7 +271,7 @@ describe("Organization Membership API", () => {
       // loses at the index (409), or it replaces the first once committed (201).
       // Either way one invite remains.
       it("AC-1: two concurrent invites leave one invite", async () => {
-        const { token } = await createTestUser();
+        const { token } = await createVerifiedTestUser();
         const orgId = decodeOrgId(token);
         const email = buildUserPayload().email;
 
@@ -274,7 +313,7 @@ describe("Organization Membership API", () => {
       });
 
       it("AC-2: re-inviting after expiry succeeds and removes the expired invite", async () => {
-        const { token } = await createTestUser();
+        const { token } = await createVerifiedTestUser();
         const orgId = decodeOrgId(token);
         const email = buildUserPayload().email;
 
@@ -291,7 +330,7 @@ describe("Organization Membership API", () => {
       });
 
       it("AC-3: an accepted invite does not block a new one", async () => {
-        const { token } = await createTestUser();
+        const { token } = await createVerifiedTestUser();
         const orgId = decodeOrgId(token);
         const email = buildUserPayload().email;
 
@@ -307,7 +346,7 @@ describe("Organization Membership API", () => {
 
       // Since #249 it is replaced, matched as the index matches.
       it("AC-5: an invite stored in another case is replaced", async () => {
-        const { token } = await createTestUser();
+        const { token } = await createVerifiedTestUser();
         const orgId = decodeOrgId(token);
         await models.OrganizationInvite.create({
           organizationId: orgId,
@@ -330,7 +369,7 @@ describe("Organization Membership API", () => {
 
   describe("POST /api/v1/invites/accept", () => {
     it("full flow: invite → accept → membership created", async () => {
-      const owner = await createTestUser();
+      const owner = await createVerifiedTestUser();
       const ownerOrgId = decodeOrgId(owner.token);
 
       const inviteePayload = buildUserPayload();
@@ -402,7 +441,7 @@ describe("Organization Membership API", () => {
 
   describe("PATCH /api/v1/memberships/:id", () => {
     it("changes a member role", async () => {
-      const owner = await createTestUser();
+      const owner = await createVerifiedTestUser();
       const ownerOrgId = decodeOrgId(owner.token);
       const inviteePayload = buildUserPayload();
 
@@ -451,7 +490,7 @@ describe("Organization Membership API", () => {
 
   describe("DELETE /api/v1/memberships/:id", () => {
     it("removes a member from the organization", async () => {
-      const owner = await createTestUser();
+      const owner = await createVerifiedTestUser();
       const ownerOrgId = decodeOrgId(owner.token);
       const inviteePayload = buildUserPayload();
 
@@ -494,7 +533,7 @@ describe("Organization Membership API", () => {
     });
 
     it("returns 404 when user tries to remove a member from a different org", async () => {
-      const owner = await createTestUser();
+      const owner = await createVerifiedTestUser();
       const ownerOrgId = decodeOrgId(owner.token);
       const inviteePayload = buildUserPayload();
 
@@ -534,7 +573,7 @@ describe("Organization Membership API", () => {
     // The owner invites a fresh user, who registers and accepts: the invitee
     // then belongs to their own personal organization and to the owner's.
     const joinOwnerOrg = async () => {
-      const owner = await createTestUser();
+      const owner = await createVerifiedTestUser();
       const ownerOrgId = decodeOrgId(owner.token);
       const inviteePayload = buildUserPayload();
 
