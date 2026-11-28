@@ -9,6 +9,10 @@ import {
 } from "@jest/globals";
 import type { Channel } from "amqplib";
 import { ReopeningChannel } from "@/shared/infrastructure/queue/ReopeningChannel.js";
+import { reportError } from "@/utils/error-report.js";
+
+jest.mock("@/utils/error-report.js", () => ({ reportError: jest.fn() }));
+const reported = reportError as jest.MockedFunction<typeof reportError>;
 
 type Setup = (ch: Channel) => Promise<void>;
 
@@ -255,5 +259,63 @@ describe("ReopeningChannel (#312, ADR-0102)", () => {
     await jest.advanceTimersByTimeAsync(1_000);
     wrappers[1]!.emit("connect");
     expect(onConnect).toHaveBeenCalledTimes(1);
+  });
+
+  // #313 (audit 2026-11-14 Y62): reported once per outage, not on every attempt.
+  describe("reporting to Sentry (ADR-0103)", () => {
+    const refusal = () =>
+      Object.assign(new Error("PRECONDITION_FAILED"), { code: 406 });
+
+    it("reports a refused setup once, though it arrives on the raw channel and the wrapper", async () => {
+      build();
+      const ch = await setUpLatest();
+      const error = refusal();
+      ch.emit("error", error);
+      wrappers[0]!.emit("error", error);
+
+      expect(reported).toHaveBeenCalledTimes(1);
+      expect(reported).toHaveBeenCalledWith(error, { channel: "test" });
+    });
+
+    it("reports nothing more while every reopen fails the same way", async () => {
+      build();
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const ch = await setUpLatest();
+        ch.emit("error", refusal());
+        wrappers.at(-1)!.emit("error", refusal());
+        ch.brokerClose();
+        await jest.advanceTimersByTimeAsync(30_000);
+      }
+      expect(createChannel.mock.calls.length).toBeGreaterThan(2);
+      expect(reported).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports again once the channel has stayed up the stability window", async () => {
+      build();
+      const first = await setUpLatest();
+      first.emit("error", refusal());
+      first.brokerClose();
+      await jest.advanceTimersByTimeAsync(1_000);
+
+      const second = await setUpLatest();
+      wrappers.at(-1)!.emit("connect");
+      await jest.advanceTimersByTimeAsync(30_000);
+      second.emit("error", refusal());
+
+      expect(reported).toHaveBeenCalledTimes(2);
+    });
+
+    // Review M5: a close that recurs right after every connect is one outage.
+    it("reports once while each channel connects and is closed again at once", async () => {
+      build();
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const ch = await setUpLatest();
+        wrappers.at(-1)!.emit("connect");
+        ch.emit("error", refusal());
+        ch.brokerClose();
+        await jest.advanceTimersByTimeAsync(30_000);
+      }
+      expect(reported).toHaveBeenCalledTimes(1);
+    });
   });
 });

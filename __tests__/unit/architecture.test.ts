@@ -1036,6 +1036,43 @@ describe("Architecture enforcement", () => {
     }
   });
 
+  // #313 (audit 2026-11-14 Y62): the worker started no error monitor. Both entry points start
+  // Sentry through initSentry, so they share its settings and scrub hooks (ADR-0103).
+  describe("Sentry is started in one place, by both entry points", () => {
+    const SRC = path.resolve(__dirname, "../../src");
+    const sources = (): [string, string][] => {
+      const out: [string, string][] = [];
+      const walk = (dir: string) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) walk(full);
+          else if (/\.(ts|js|mjs|cjs)$/.test(entry.name)) {
+            out.push([
+              path.relative(SRC, full).split(path.sep).join("/"),
+              fs.readFileSync(full, "utf-8"),
+            ]);
+          }
+        }
+      };
+      walk(SRC);
+      return out;
+    };
+
+    it("nothing but utils/sentry-init.ts calls Sentry.init", () => {
+      const callers = sources()
+        .filter(([, text]) => /\bSentry\.init\(/.test(text))
+        .map(([file]) => file);
+      expect(callers).toEqual(["utils/sentry-init.ts"]);
+    });
+
+    for (const entry of ["server.ts", "worker.ts"]) {
+      it(`${entry} calls initSentry`, () => {
+        const text = fs.readFileSync(path.join(SRC, entry), "utf-8");
+        expect(text).toMatch(/^initSentry\(/m);
+      });
+    }
+  });
+
   // log-and-ci-leaks D-01 (audit 2026-10-20 X3): the logger masks a database error's quoted
   // values only when it is handed the error. A message passed as a string skipped it.
   describe("an error reaches the logger as the object", () => {

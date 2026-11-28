@@ -19,10 +19,7 @@ import sequelize from "./config/db.js";
 import { loadModels } from "./infrastructure/db/models.js";
 import { attachClientErrorHandler } from "@/shared/middleware/client-error.js";
 import * as Sentry from "@sentry/node";
-import {
-  SENTRY_DATA_COLLECTION,
-  SENTRY_SCRUB_HOOKS,
-} from "./utils/sentry-scrub.js";
+import { initSentry } from "./utils/sentry-init.js";
 import {
   SHUTDOWN_DRAIN_TIMEOUT_MS,
   drainBackgroundTasks,
@@ -34,31 +31,14 @@ import { closeHttpServer, createShutdown } from "./utils/shutdown.js";
 const messageQueue = env.RABBITMQ_ENABLED ? new RabbitMQPublisher() : undefined;
 const features = buildWiredFeatures({ messageQueue });
 
-if (env.SENTRY_DSN) {
-  Sentry.init({
-    dsn: env.SENTRY_DSN,
-    tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE,
-    environment: env.NODE_ENV,
-    release: env.APP_RELEASE,
-    // Sentry 11 collects every data category it is not told to leave alone; each
-    // is named and off (ADR-0071). The hooks then clean an error's message and
-    // what application code passes. Spans and logs never reach beforeSend, so each
-    // has its own hook; the app sends no logs, and the hook is set so starting to
-    // cannot skip it.
-    dataCollection: SENTRY_DATA_COLLECTION,
-    ...SENTRY_SCRUB_HOOKS,
-    // Pinned, not inherited: the span hook is written for streamed spans, and a
-    // static lifecycle would never call it (sentry-11-data-collection D-03).
-    traceLifecycle: "stream",
-    // 10's default. 11 turns it on, which attaches a stack to captured messages
-    // and changes how issues group (D-05).
-    attachStacktrace: false,
-    // One capture path for a server error: errorHandler's, which knows a domain
-    // error is a 4xx. The integration would capture at the throw, before that
-    // handler runs, and send an error with no status code as a 5xx (D-04).
-    integrations: [Sentry.expressIntegration({ shouldHandleError: false })],
-  });
-}
+// The settings are initSentry's, shared with the worker (ADR-0103). One capture path for a
+// server error: errorHandler's, which knows a domain error is a 4xx. The integration would
+// capture at the throw, before that handler runs, and send an error with no status code as a
+// 5xx (sentry-11-data-collection D-04).
+initSentry({
+  processName: "api",
+  integrations: [Sentry.expressIntegration({ shouldHandleError: false })],
+});
 
 /**
  * * App Entry

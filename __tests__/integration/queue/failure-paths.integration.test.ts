@@ -342,6 +342,50 @@ describe("the queue's failure paths against a broker", () => {
     }
   });
 
+  // #313 (audit 2026-11-14 Y62): a refused channel is reported once per outage, though
+  // every reopen attempt fails the same way.
+  it("reports a refused publisher channel once while every reopen fails", async () => {
+    const queue = QUEUES.METRIC_LOG_GENERATE_DUMMY;
+    try {
+      await mismatch(inspector, queue);
+      // A fresh publisher, connection and all, whose reportError is recorded: the app the
+      // setup loads already holds the real one. Nothing is sent.
+      const report = jest.fn();
+      let failures: ReturnType<typeof jest.spyOn> | undefined;
+      await jest.isolateModulesAsync(async () => {
+        jest.doMock("@/utils/error-report.js", () => ({
+          reportError: report,
+          flushErrorReports: jest.fn(async () => undefined),
+        }));
+        const isolated =
+          await import("@/shared/infrastructure/queue/RabbitMQConnection.js");
+        const { RabbitMQPublisher: IsolatedPublisher } =
+          await import("@/shared/infrastructure/queue/RabbitMQPublisher.js");
+        // Every failed setup logs, reported or not: it counts the attempts.
+        const { default: isolatedLogger } = await import("@/utils/logger.js");
+        failures = jest.spyOn(isolatedLogger, "error");
+        closing.push({ close: isolated.disconnectRabbitMQ });
+        closing.push(new IsolatedPublisher());
+      });
+      // The first setup, then attempts after 1 s and 2 s more.
+      await new Promise((resolve) => setTimeout(resolve, 3_500));
+
+      const forPublisher = report.mock.calls.filter(
+        ([, tags]) => (tags as Record<string, string>).channel === "publisher",
+      );
+      expect(forPublisher).toHaveLength(1);
+      expect(forPublisher[0]![0]).toMatchObject({ code: 406 });
+      // The window held the reopens whose failures it absorbed.
+      const attempts = failures!.mock.calls.filter(([message]: unknown[]) =>
+        String(message).startsWith("[RABBITMQ] Publisher channel failed"),
+      );
+      expect(attempts.length).toBeGreaterThanOrEqual(3);
+    } finally {
+      jest.dontMock("@/utils/error-report.js");
+      await deleteQueueDirectly(queue);
+    }
+  });
+
   // Y61: after a close at runtime the publisher stayed available, and each publish waited
   // out its timeout before the caller fell back.
   it("reports the publisher unavailable once the broker closes its channel, then reopens it", async () => {

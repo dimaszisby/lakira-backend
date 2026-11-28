@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import type { ConfirmChannel } from "amqplib";
-import { absorbChannelErrors, connectRabbitMQ } from "./RabbitMQConnection.js";
+import { connectRabbitMQ } from "./RabbitMQConnection.js";
 import { ReopeningChannel } from "./ReopeningChannel.js";
 import { assertTopology } from "./topology.js";
 import { env } from "@/config/envManager.js";
@@ -51,7 +51,6 @@ export class RabbitMQPublisher implements MessageQueuePort {
       confirm: true,
       publishTimeout: PUBLISH_TIMEOUT_MS,
       setup: async (ch) => {
-        absorbChannelErrors(ch, "publisher");
         // RabbitMQ sends basic.return before the confirm, so the publish sees it.
         ch.on("return", (msg) => {
           const { messageId } = msg.properties;

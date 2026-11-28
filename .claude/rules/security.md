@@ -140,6 +140,10 @@ token that sets a credential is spent by a conditional update, as the reset toke
 - The logger masks metadata before it formats the message, so a `%j` or `%o` token prints the
   masked copy. Metadata nested deeper than five levels is written as `[Truncated]`, never passed
   through (ADR-0059)
+- Sentry starts in one place, `initSentry` (`src/utils/sentry-init.ts`), which the server and the
+  worker both call; `architecture.test.ts` fails on another `Sentry.init`. A report from queue
+  code goes through `reportError`, tagged with ids only: a queue, a channel, a message id, a
+  reason (ADR-0103)
 - What Sentry collects on its own is set by `SENTRY_DATA_COLLECTION` in
   `src/utils/sentry-scrub.ts`: every category of `@sentry/node` 11's `dataCollection`, named and
   off (ADR-0071). An unnamed one is on, bound query parameters included, so a new category the

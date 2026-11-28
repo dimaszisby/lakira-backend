@@ -30,6 +30,11 @@ jest.mock("@/shared/infrastructure/queue/topology.js", () => ({
     `${queue}.retry.${delayMs}`,
 }));
 
+jest.mock("@/utils/error-report.js", () => ({ reportError: jest.fn() }));
+const errorReportMock = jest.requireMock("@/utils/error-report.js") as {
+  reportError: jest.Mock;
+};
+
 /** The amqplib channel `setup` is handed, as the library hands it. */
 const rawChannel = (consumerTag: string) => {
   const closeListeners: Array<() => void> = [];
@@ -351,6 +356,59 @@ describe("RabbitMQConsumer job slots", () => {
     expect(started).toEqual(["m-1", "m-2"]);
     expect(publish).toHaveBeenCalledTimes(1); // m-1 went to its retry queue
     expect(raw.ack).toHaveBeenCalledTimes(2); // m-1 after the republish, m-2 done
+  });
+
+  // #313 (audit 2026-11-14 Y62): a parked job reached stdout only.
+  describe("parking (ADR-0103)", () => {
+    const parkOnce = async (id: string, error: Error, publishFails = false) => {
+      const { raw, publish, deliver } = await start(
+        new JobSlots(1),
+        async () => {
+          throw error;
+        },
+      );
+      if (publishFails) publish.mockRejectedValueOnce(new Error("broker gone"));
+      deliver(id);
+      await flush();
+      await flush();
+      return raw;
+    };
+
+    it.each(["terminal", "retry-publish-failed", "no-message-id"] as const)(
+      "nacks to parking, and reports it once, when the reason is %s",
+      async (reason) => {
+        errorReportMock.reportError.mockClear();
+        const { TerminalMessageError } =
+          await import("@/shared/application/errors/TerminalMessageError.js");
+        const error =
+          reason === "terminal"
+            ? new TerminalMessageError("bad body")
+            : new Error("smtp down");
+        const id = reason === "no-message-id" ? "" : "m-1";
+        const raw = await parkOnce(
+          id,
+          error,
+          reason === "retry-publish-failed",
+        );
+
+        expect(raw.nack).toHaveBeenCalledWith(expect.anything(), false, false);
+        expect(raw.ack).not.toHaveBeenCalled();
+        expect(errorReportMock.reportError).toHaveBeenCalledTimes(1);
+        // A failed retry publish is reported as itself, the handler's error kept apart.
+        const expected =
+          reason === "retry-publish-failed"
+            ? expect.objectContaining({
+                message: "Retry publish failed",
+                cause: expect.objectContaining({ message: "broker gone" }),
+              })
+            : error;
+        expect(errorReportMock.reportError).toHaveBeenCalledWith(expected, {
+          queue: "test.queue",
+          messageId: id === "" ? undefined : id,
+          reason,
+        });
+      },
+    );
   });
 
   it("on cancel, returns a job still waiting for a slot to the queue unstarted", async () => {

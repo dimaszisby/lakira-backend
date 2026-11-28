@@ -140,10 +140,11 @@ promoted from kit `D-NN` entries again (ADR-0043 from `registration-session`, AD
 | [ADR-0100](./adr-0100-the-worker-runs-no-more-jobs-than-its-pool-holds.md)               | The worker runs no more jobs at once than its pool holds                                                                  | Accepted                                            | 2026-11-26 | issue #310                                        |
 | [ADR-0101](./adr-0101-an-invite-carries-no-inviter-text-and-needs-a-verified-address.md) | An invite carries no text of the inviter's, and needs a verified address                                                  | Accepted                                            | 2026-11-27 | issue #311                                        |
 | [ADR-0102](./adr-0102-a-channel-the-broker-closes-is-reopened.md)                        | A channel the broker closes is reopened                                                                                   | Accepted                                            | 2026-11-28 | issue #312                                        |
+| [ADR-0103](./adr-0103-the-worker-reports-to-sentry.md)                                   | The worker reports to Sentry: once per parked job, once per channel outage                                                | Accepted                                            | 2026-11-28 | issue #313                                        |
 
 ## Adding one
 
-Take the next free number — **ADR-0103** as of 2026-11-28 — copy the shape of an existing record, and write `Status: Accepted` in the pull request that
+Take the next free number — **ADR-0104** as of 2026-11-28 — copy the shape of an existing record, and write `Status: Accepted` in the pull request that
 makes it, once the owner has approved it; `Proposed` only while it waits for that (ADR-0085).
 Flip to `Accepted` in the same PR that implements it — a registry full of stale `Proposed` entries
 is worse than no registry, because readers cannot tell intent from fact.
