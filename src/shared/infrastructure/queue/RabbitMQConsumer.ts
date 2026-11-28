@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Channel, ConsumeMessage } from "amqplib";
-import { absorbChannelErrors, connectRabbitMQ } from "./RabbitMQConnection.js";
+import { connectRabbitMQ } from "./RabbitMQConnection.js";
 import { ReopeningChannel } from "./ReopeningChannel.js";
 import { assertRetryTier, assertTopology, retryQueueFor } from "./topology.js";
 import {
@@ -9,6 +9,7 @@ import {
   readRetryCount,
 } from "./retryPolicy.js";
 import { env } from "@/config/envManager.js";
+import { reportError } from "@/utils/error-report.js";
 import logger from "@/utils/logger.js";
 import {
   REQUEST_ID_HEADER,
@@ -33,6 +34,13 @@ const requestIdOf = (msg: ConsumeMessage): string => {
     ? header
     : randomUUID();
 };
+
+/** Why a message went to the parking queue: the retry policy's verdict, or a path of ours. */
+type ParkReason =
+  | "terminal"
+  | "exhausted"
+  | "no-message-id"
+  | "retry-publish-failed";
 
 export interface ConsumerOptions {
   queue: string;
@@ -82,7 +90,6 @@ export class RabbitMQConsumer {
     this.channel = new ReopeningChannel<Channel>(connectRabbitMQ(), {
       name: `consumer:${options.queue}`,
       setup: async (ch) => {
-        absorbChannelErrors(ch, `consumer:${options.queue}`);
         await assertTopology(ch);
         // A reconnect or a reopen during the drain re-runs setup: it must not consume again.
         if (this.stopping) return;
@@ -289,12 +296,7 @@ export class RabbitMQConsumer {
     };
 
     if (decision.action === "park") {
-      logger.error("[RABBITMQ] Handler failed — sending to parking.", {
-        ...context,
-        reason: decision.reason,
-      });
-      // nack without requeue → DLX routes to parking lot
-      ch.nack(msg, false, false);
+      this.park(ch, msg, decision.reason, context);
       return;
     }
 
@@ -302,11 +304,7 @@ export class RabbitMQConsumer {
     if (typeof messageId !== "string" || messageId.length === 0) {
       // The publisher would mint an id, giving the retry an identity the original never had
       // and slipping past the idempotency guard's refusal of unidentifiable messages.
-      logger.error(
-        "[RABBITMQ] Handler failed on a message with no messageId — sending to parking.",
-        context,
-      );
-      ch.nack(msg, false, false);
+      this.park(ch, msg, "no-message-id", context);
       return;
     }
 
@@ -330,11 +328,14 @@ export class RabbitMQConsumer {
       );
     } catch (publishError) {
       // Never requeue: headers cannot change on redelivery, so that would loop forever.
-      logger.error("[RABBITMQ] Retry publish failed — sending to parking.", {
+      // Reported with the publish failure, the reason it parked; the handler's error is
+      // its cause.
+      this.park(ch, msg, "retry-publish-failed", {
         ...context,
+        error: new Error("Retry publish failed", { cause: publishError }),
+        handlerError: context.error,
         publishError,
       });
-      ch.nack(msg, false, false);
       return;
     }
 
@@ -343,6 +344,30 @@ export class RabbitMQConsumer {
       ...context,
       nextRetryCount: decision.nextRetryCount,
       delayMs: decision.delayMs,
+    });
+  }
+
+  /**
+   * Sends a message to the parking queue: nack without requeue, which the dead-letter
+   * exchange routes there. One log line for every path, so the parking queue's growth can be
+   * counted from the logs, and one report to Sentry (audit 2026-11-14 Y62, ADR-0103). The
+   * report carries ids and the reason, never the body.
+   */
+  private park(
+    ch: Channel,
+    msg: ConsumeMessage,
+    reason: ParkReason,
+    context: { messageId: unknown; error: unknown } & Record<string, unknown>,
+  ): void {
+    ch.nack(msg, false, false);
+    logger.error("[RABBITMQ] Message parked.", { ...context, reason });
+    reportError(context.error, {
+      queue: this.options.queue,
+      messageId:
+        typeof context.messageId === "string" && context.messageId.length > 0
+          ? context.messageId
+          : undefined,
+      reason,
     });
   }
 

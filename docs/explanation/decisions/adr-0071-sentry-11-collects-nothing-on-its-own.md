@@ -9,6 +9,11 @@
   [`sentry-11-data-collection`](../../internal/initiatives/sentry-11-data-collection/decisions.md);
   register row B-66, raised by lakira-frontend on the Notion page "FE and BE messages", Part 1
 
+> **Status note (2026-11-28).** The worker now sends to Sentry too, under these same settings:
+> `Sentry.init` lives in `initSentry` (`src/utils/sentry-init.ts`), which both entry points call
+> ([ADR-0103](./adr-0103-the-worker-reports-to-sentry.md), #313). Both run the unhandled-rejection
+> integration in mode `none`, and the worker runs without `Dedupe`.
+
 ---
 
 ## Context

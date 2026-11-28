@@ -4,6 +4,8 @@ import type {
 } from "amqp-connection-manager";
 import type { Channel } from "amqplib";
 import logger from "@/utils/logger.js";
+import { reportError } from "@/utils/error-report.js";
+import { absorbChannelErrors } from "./RabbitMQConnection.js";
 
 // The first wait before a channel the broker closed is reopened, doubled on each
 // attempt up to the cap (ADR-0102).
@@ -56,6 +58,9 @@ export class ReopeningChannel<C extends Channel> {
   private delayMs: number;
   // When the current channel last connected, for the stability window.
   private connectedAt: number | null = null;
+  // Reported since the channel was last up: a refused setup comes as a raw error and a
+  // wrapper error, and every reopen attempt fails the same way (ADR-0103).
+  private reported = false;
   private readonly baseDelayMs: number;
   private readonly maxDelayMs: number;
   private readonly stableMs: number;
@@ -95,17 +100,38 @@ export class ReopeningChannel<C extends Channel> {
           return;
         }
         this.raw = ch;
+        // The broker's error on the raw channel is logged and kept off the connection
+        // (ADR-0080), and reported once per outage (ADR-0103).
+        absorbChannelErrors(ch, name);
+        ch.on("error", (error: unknown) => this.reportOnce(error));
         ch.once("close", () => this.onClose(ch));
         await this.options.setup(ch);
       },
     });
 
-    wrapper.on("error", (error: unknown) => this.options.onError(error));
+    wrapper.on("error", (error: unknown) => {
+      this.reportOnce(error);
+      this.options.onError(error);
+    });
     wrapper.on("connect", () => {
       this.connectedAt = Date.now();
       this.options.onConnect?.();
     });
     return wrapper;
+  }
+
+  /**
+   * The first failure of an outage goes to Sentry; the rest are logged only. An outage ends
+   * once the channel has stayed up the stability window: one closed again soon after it
+   * connects, by a poisoned message say, is the same outage (ADR-0103).
+   */
+  private reportOnce(error: unknown): void {
+    const stable =
+      this.connectedAt !== null &&
+      Date.now() - this.connectedAt >= this.stableMs;
+    if (this.reported && !stable) return;
+    this.reported = true;
+    reportError(error, { channel: this.options.name });
   }
 
   private onClose(ch: C): void {

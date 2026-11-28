@@ -6,6 +6,10 @@ import { withTestEnv } from "../../helpers/env-test-utils.js";
 // this test's env overrides, then assert on the call args — no event is ever sent.
 jest.mock("@sentry/node", () => ({
   init: jest.fn(),
+  onUnhandledRejectionIntegration: jest.fn((options: unknown) => ({
+    name: "OnUnhandledRejection",
+    options,
+  })),
   expressIntegration: jest.fn((options: unknown) => ({
     name: "Express",
     options,
@@ -76,7 +80,13 @@ describe("Sentry.init on 11 (sentry-11-data-collection)", () => {
   });
 
   it("leaves capturing a server error to errorHandler (D-04)", async () => {
-    expect((await initOptions()).integrations).toEqual([
+    // A function of the defaults since ADR-0103; the API keeps Dedupe.
+    const integrations = (await initOptions()).integrations as (
+      defaults: { name: string }[],
+    ) => unknown[];
+    expect(integrations([{ name: "Dedupe" }])).toEqual([
+      { name: "Dedupe" },
+      { name: "OnUnhandledRejection", options: { mode: "none" } },
       { name: "Express", options: { shouldHandleError: false } },
     ]);
   });

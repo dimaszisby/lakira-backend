@@ -150,7 +150,7 @@ describe("an error's message that quotes a submitted value", () => {
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(nack).toHaveBeenCalled();
-    expect(written()).toContain("parking");
+    expect(written()).toContain("[RABBITMQ] Message parked.");
     expect(written()).not.toContain(EMAIL);
   });
 });
