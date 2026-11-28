@@ -206,5 +206,7 @@ failure, or marked `void` with a comment saying why nothing awaits it. Shutdown 
   `runOnce` under the `messageId` it tried to publish and the job's queue (`QUEUES` in
   `job-routes.ts`), so whichever of it and the worker runs second sends nothing. An unroutable
   publish rejects, and a channel the broker refuses makes the publisher report itself off, so the
-  caller takes its queue-off path instead of the process stopping (ADR-0080). A new job's fallback
+  caller takes its queue-off path instead of the process stopping (ADR-0080). A channel the broker
+  closes, or whose consumer it cancels, is reopened with backoff through `ReopeningChannel`, which
+  every publisher and consumer channel is built on (ADR-0102). A new job's fallback
   follows the same rule.

@@ -37,7 +37,8 @@ jest.mock("@/shared/infrastructure/queue/RabbitMQConnection.js", () => ({
   ...(jest.requireActual(
     "@/shared/infrastructure/queue/RabbitMQConnection.js",
   ) as object),
-  connectRabbitMQ: () => ({ createChannel }),
+  // Down, so a pending reopen does nothing here (ReopeningChannel.test.ts covers it).
+  connectRabbitMQ: () => ({ createChannel, isConnected: () => false }),
 }));
 
 jest.mock("@/shared/infrastructure/queue/topology.js", () => ({
@@ -106,6 +107,18 @@ describe("RabbitMQPublisher", () => {
         name: "publisher",
       }),
     ).not.toThrow();
+    expect(publisher.isEnabled()).toBe(false);
+
+    wrapper.emit("connect");
+    expect(publisher.isEnabled()).toBe(true);
+  });
+
+  // #312 (audit 2026-11-14 Y61): after a close, each publish waited out its timeout.
+  it("reports the queue unavailable from the moment its channel closes until it connects", async () => {
+    const { publisher, raw } = await build();
+    expect(publisher.isEnabled()).toBe(true);
+
+    raw.emit("close");
     expect(publisher.isEnabled()).toBe(false);
 
     wrapper.emit("connect");

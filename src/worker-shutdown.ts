@@ -12,6 +12,26 @@ export type WorkerResources = {
   closeDatabase: () => Promise<void>;
 };
 
+/** How long the worker's flush gives Sentry; the deadline's own flush cuts it to 1 s. */
+export const ERROR_REPORT_FLUSH_MS = 2_000;
+
+/**
+ * The worker's flush for `createShutdown`: its logs and what Sentry holds, side by side
+ * (ADR-0103). `createShutdown` runs it after the steps whether or not they threw, and again
+ * when the deadline passes, so a crash's report goes even when a close fails or hangs.
+ */
+export const buildWorkerFlush =
+  (deps: {
+    flushLogs: () => Promise<void>;
+    flushErrorReports: (timeoutMs: number) => Promise<void>;
+  }) =>
+  async (): Promise<void> => {
+    await Promise.allSettled([
+      deps.flushErrorReports(ERROR_REPORT_FLUSH_MS),
+      deps.flushLogs(),
+    ]);
+  };
+
 /**
  * The worker's shutdown steps, for `createShutdown` (ADR-0076). Read lazily: the consumers
  * exist only once the worker has started.

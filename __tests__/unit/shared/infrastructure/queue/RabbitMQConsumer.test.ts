@@ -18,6 +18,8 @@ jest.mock("@/shared/infrastructure/queue/RabbitMQConnection.js", () => ({
       setup = options.setup;
       return channel;
     },
+    // Down, so a pending reopen does nothing here (ReopeningChannel.test.ts covers it).
+    isConnected: () => false,
   }),
 }));
 
@@ -28,9 +30,10 @@ jest.mock("@/shared/infrastructure/queue/topology.js", () => ({
     `${queue}.retry.${delayMs}`,
 }));
 
-const topologyMock = jest.requireMock(
-  "@/shared/infrastructure/queue/topology.js",
-) as { assertTopology: jest.Mock };
+jest.mock("@/utils/error-report.js", () => ({ reportError: jest.fn() }));
+const errorReportMock = jest.requireMock("@/utils/error-report.js") as {
+  reportError: jest.Mock;
+};
 
 /** The amqplib channel `setup` is handed, as the library hands it. */
 const rawChannel = (consumerTag: string) => {
@@ -46,6 +49,7 @@ const rawChannel = (consumerTag: string) => {
       void count;
     }),
     consume: jest.fn(async () => ({ consumerTag })),
+    close: jest.fn(async () => undefined),
     cancel: jest.fn(async (tag: string) => {
       void tag;
     }),
@@ -106,9 +110,8 @@ describe("RabbitMQConsumer", () => {
     const afterReconnect = rawChannel("tag-2");
     await setup!(afterReconnect);
 
-    expect(topologyMock.assertTopology).toHaveBeenLastCalledWith(
-      afterReconnect,
-    );
+    // Stopping, it closes the channel rather than declaring anything on it (ADR-0102).
+    expect(afterReconnect.close).toHaveBeenCalledTimes(1);
     expect(afterReconnect.consume).not.toHaveBeenCalled();
   });
 
@@ -123,6 +126,41 @@ describe("RabbitMQConsumer", () => {
 
     expect(second.cancel).toHaveBeenCalledWith("tag-2");
     expect(first.cancel).not.toHaveBeenCalled();
+  });
+
+  // #312 (audit 2026-11-14 Y61): the broker closed the channel, and its consumer with it.
+  it("forgets the consumer of a channel the broker closed", async () => {
+    const consumer = await build();
+    const raw = rawChannel("tag-1");
+    await setup!(raw);
+
+    raw.fireClose();
+    await consumer.cancel();
+
+    expect(raw.cancel).not.toHaveBeenCalled();
+  });
+
+  // Review M2 on #312: a deleted queue cancels its consumer and leaves the channel open,
+  // so nothing would reopen it.
+  it("closes its channel when the broker cancels the consumer, so it is reopened", async () => {
+    const consumer = await build();
+    const raw = rawChannel("tag-1");
+    let onMessage: ((msg: unknown) => void) | undefined;
+    raw.consume.mockImplementationOnce((async (
+      queue: string,
+      callback: (msg: unknown) => void,
+    ) => {
+      void queue;
+      onMessage = callback;
+      return { consumerTag: "tag-1" };
+    }) as never);
+    await setup!(raw);
+
+    onMessage!(null);
+    expect(raw.close).toHaveBeenCalledTimes(1);
+
+    await consumer.cancel();
+    expect(raw.cancel).not.toHaveBeenCalled();
   });
 
   it("cancels a consumer whose registration finishes after cancel", async () => {
@@ -318,6 +356,59 @@ describe("RabbitMQConsumer job slots", () => {
     expect(started).toEqual(["m-1", "m-2"]);
     expect(publish).toHaveBeenCalledTimes(1); // m-1 went to its retry queue
     expect(raw.ack).toHaveBeenCalledTimes(2); // m-1 after the republish, m-2 done
+  });
+
+  // #313 (audit 2026-11-14 Y62): a parked job reached stdout only.
+  describe("parking (ADR-0103)", () => {
+    const parkOnce = async (id: string, error: Error, publishFails = false) => {
+      const { raw, publish, deliver } = await start(
+        new JobSlots(1),
+        async () => {
+          throw error;
+        },
+      );
+      if (publishFails) publish.mockRejectedValueOnce(new Error("broker gone"));
+      deliver(id);
+      await flush();
+      await flush();
+      return raw;
+    };
+
+    it.each(["terminal", "retry-publish-failed", "no-message-id"] as const)(
+      "nacks to parking, and reports it once, when the reason is %s",
+      async (reason) => {
+        errorReportMock.reportError.mockClear();
+        const { TerminalMessageError } =
+          await import("@/shared/application/errors/TerminalMessageError.js");
+        const error =
+          reason === "terminal"
+            ? new TerminalMessageError("bad body")
+            : new Error("smtp down");
+        const id = reason === "no-message-id" ? "" : "m-1";
+        const raw = await parkOnce(
+          id,
+          error,
+          reason === "retry-publish-failed",
+        );
+
+        expect(raw.nack).toHaveBeenCalledWith(expect.anything(), false, false);
+        expect(raw.ack).not.toHaveBeenCalled();
+        expect(errorReportMock.reportError).toHaveBeenCalledTimes(1);
+        // A failed retry publish is reported as itself, the handler's error kept apart.
+        const expected =
+          reason === "retry-publish-failed"
+            ? expect.objectContaining({
+                message: "Retry publish failed",
+                cause: expect.objectContaining({ message: "broker gone" }),
+              })
+            : error;
+        expect(errorReportMock.reportError).toHaveBeenCalledWith(expected, {
+          queue: "test.queue",
+          messageId: id === "" ? undefined : id,
+          reason,
+        });
+      },
+    );
   });
 
   it("on cancel, returns a job still waiting for a slot to the queue unstarted", async () => {

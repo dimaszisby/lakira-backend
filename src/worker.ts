@@ -14,8 +14,14 @@ import { buildWiredMetricLogFeature } from "./composition/metric-log.js";
 import { buildWiredAuthFeature } from "./composition/auth.js";
 import { createShutdown } from "./utils/shutdown.js";
 import { disconnectRedis } from "./utils/redis-client.js";
-import { buildWorkerShutdownSteps } from "./worker-shutdown.js";
+import {
+  ERROR_REPORT_FLUSH_MS,
+  buildWorkerFlush,
+  buildWorkerShutdownSteps,
+} from "./worker-shutdown.js";
 import { currentAppNameMismatch } from "./config/app-name.js";
+import { initSentry } from "./utils/sentry-init.js";
+import { flushErrorReports, reportError } from "./utils/error-report.js";
 
 if (!env.RABBITMQ_ENABLED) {
   logger.error(
@@ -25,6 +31,11 @@ if (!env.RABBITMQ_ENABLED) {
   await flushLogs();
   process.exit(1);
 }
+
+// The API's settings and scrub hooks (ADR-0103): a parked job, a channel the broker
+// refuses and a crash reached stdout only (audit 2026-11-14 Y62). Without Dedupe: a parked
+// job is one event each, and a channel reports once per outage already.
+initSentry({ processName: "worker", dedupe: false });
 
 const workers: RabbitMQConsumer[] = [];
 // Consumers republish failed messages for retry; closed only after they drain.
@@ -131,6 +142,8 @@ const shutdown = createShutdown({
     disconnectRedis,
     closeDatabase: () => sequelize.close(),
   })),
+  // Sentry with the logs, after the steps even when one throws (ADR-0103).
+  flush: buildWorkerFlush({ flushLogs, flushErrorReports }),
 });
 
 // Nothing awaits shutdown: it handles its own failure and ends the process.
@@ -152,6 +165,9 @@ process.on("unhandledRejection", (reason) => {
 
 startWorker().catch(async (error) => {
   logger.error("[WORKER] Failed to start:", error);
+  // Handled here, so no integration captures it; a worker that cannot boot is reported.
+  reportError(error, { phase: "startup" });
+  await flushErrorReports(ERROR_REPORT_FLUSH_MS);
   await flushLogs();
   process.exit(1);
 });

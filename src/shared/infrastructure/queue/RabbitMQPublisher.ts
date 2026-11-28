@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import type { ConfirmChannel } from "amqplib";
-import type { ChannelWrapper } from "amqp-connection-manager";
-import { absorbChannelErrors, connectRabbitMQ } from "./RabbitMQConnection.js";
+import { connectRabbitMQ } from "./RabbitMQConnection.js";
+import { ReopeningChannel } from "./ReopeningChannel.js";
 import { assertTopology } from "./topology.js";
 import { env } from "@/config/envManager.js";
 import logger from "@/utils/logger.js";
@@ -38,20 +38,19 @@ export class UnroutableMessageError extends Error {
 }
 
 export class RabbitMQPublisher implements MessageQueuePort {
-  private channel: ChannelWrapper;
-  // False from a channel error until the channel connects again (ADR-0080, D-01).
+  private channel: ReopeningChannel<ConfirmChannel>;
+  // False from a channel error or close until the channel connects again (ADR-0080
+  // D-01, ADR-0102): a publish meanwhile would only wait out its timeout.
   private available = true;
   // Ids the broker returned, until the publish that sent each one reads it (D-02).
   private returned = new Set<string>();
 
   constructor() {
-    const connection = connectRabbitMQ();
-    this.channel = connection.createChannel({
+    this.channel = new ReopeningChannel<ConfirmChannel>(connectRabbitMQ(), {
       name: "publisher",
       confirm: true,
       publishTimeout: PUBLISH_TIMEOUT_MS,
-      setup: async (ch: ConfirmChannel) => {
-        absorbChannelErrors(ch, "publisher");
+      setup: async (ch) => {
         // RabbitMQ sends basic.return before the confirm, so the publish sees it.
         ch.on("return", (msg) => {
           const { messageId } = msg.properties;
@@ -65,23 +64,26 @@ export class RabbitMQPublisher implements MessageQueuePort {
         });
         await assertTopology(ch);
       },
-    });
-
-    // A failed setup (a queue declared on the broker with other arguments) is emitted here.
-    // With no listener it became an unhandled rejection and stopped the API (audit
-    // 2026-10-20 X63). The callers already send in process when the queue is off.
-    this.channel.on("error", (error: unknown) => {
-      this.available = false;
-      logger.error(
-        "[RABBITMQ] Publisher channel failed; sending in process until it reconnects.",
-        { channel: "publisher", error },
-      );
-    });
-    this.channel.on("connect", () => {
-      if (!this.available) {
-        logger.info("[RABBITMQ] Publisher channel connected again.");
-      }
-      this.available = true;
+      // A failed setup (a queue declared on the broker with other arguments) is emitted here.
+      // With no listener it became an unhandled rejection and stopped the API (audit
+      // 2026-10-20 X63). The callers already send in process when the queue is off.
+      onError: (error) => {
+        this.available = false;
+        logger.error(
+          "[RABBITMQ] Publisher channel failed; sending in process until it reopens.",
+          { channel: "publisher", error },
+        );
+      },
+      // The broker closed the channel, or the connection dropped (audit 2026-11-14 Y61).
+      onLost: () => {
+        this.available = false;
+      },
+      onConnect: () => {
+        if (!this.available) {
+          logger.info("[RABBITMQ] Publisher channel connected again.");
+        }
+        this.available = true;
+      },
     });
   }
 
@@ -104,13 +106,18 @@ export class RabbitMQPublisher implements MessageQueuePort {
       : options.headers;
 
     try {
-      await this.channel.publish(exchange, options.routingKey, content, {
-        persistent: true,
-        mandatory: true,
-        contentType: "application/json",
-        messageId,
-        headers,
-      });
+      await this.channel.current.publish(
+        exchange,
+        options.routingKey,
+        content,
+        {
+          persistent: true,
+          mandatory: true,
+          contentType: "application/json",
+          messageId,
+          headers,
+        },
+      );
     } catch (error) {
       // A message returned and then timed out is not read below; drop its id here.
       this.returned.delete(messageId);

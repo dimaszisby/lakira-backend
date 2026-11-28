@@ -1,6 +1,10 @@
 import { describe, it, expect, jest } from "@jest/globals";
-import { buildWorkerShutdownSteps } from "@/worker-shutdown.js";
-import { WORKER_DRAIN_TIMEOUT_MS } from "@/utils/shutdown.js";
+import {
+  ERROR_REPORT_FLUSH_MS,
+  buildWorkerFlush,
+  buildWorkerShutdownSteps,
+} from "@/worker-shutdown.js";
+import { WORKER_DRAIN_TIMEOUT_MS, createShutdown } from "@/utils/shutdown.js";
 
 /**
  * Kit queue-failure-paths (audit 2026-10-20): the worker drained for 20 s after a crash, which
@@ -61,5 +65,45 @@ describe("the worker's shutdown steps", () => {
     expect(consumer.close).toHaveBeenCalledWith(0);
     expect(deps.disconnectRedis).toHaveBeenCalledTimes(1);
     expect(deps.closeDatabase).toHaveBeenCalledTimes(1);
+  });
+
+  // #313 (audit 2026-11-14 Y62), review M1: the flush is createShutdown's, so it runs
+  // after a step that throws, and when the deadline passes.
+  it("sends Sentry's reports with the logs, even when a close step throws", async () => {
+    const order: string[] = [];
+    const flushErrorReports = jest.fn(async (timeoutMs: number) => {
+      void timeoutMs;
+      order.push("sentry");
+    });
+    const flushLogs = jest.fn(async () => {
+      order.push("logs");
+    });
+    const exit = jest.fn();
+    const { deps } = build();
+    deps.closeDatabase.mockRejectedValueOnce(new Error("database gone"));
+
+    const shutdown = createShutdown({
+      label: "WORKER",
+      steps: buildWorkerShutdownSteps(() => deps),
+      flush: buildWorkerFlush({ flushLogs, flushErrorReports }),
+      exit,
+    });
+    await shutdown("uncaughtException", 1);
+
+    expect(flushErrorReports).toHaveBeenCalledWith(ERROR_REPORT_FLUSH_MS);
+    expect(order).toEqual(expect.arrayContaining(["sentry", "logs"]));
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it("flushes the logs when Sentry's flush fails", async () => {
+    const flushLogs = jest.fn(async () => undefined);
+    const flush = buildWorkerFlush({
+      flushLogs,
+      flushErrorReports: async () => {
+        throw new Error("transport down");
+      },
+    });
+    await expect(flush()).resolves.toBeUndefined();
+    expect(flushLogs).toHaveBeenCalledTimes(1);
   });
 });
