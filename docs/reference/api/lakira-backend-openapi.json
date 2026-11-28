@@ -959,7 +959,8 @@
           },
           "goalType": {
             "type": "string",
-            "example": "Not Set"
+            "example": "cumulative",
+            "description": "The goal type the metric's settings hold, `cumulative` or `incremental`; \"Not Set\" when it has no settings or they hold none."
           },
           "logCount": {
             "type": "number",

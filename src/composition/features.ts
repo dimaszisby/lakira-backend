@@ -1,5 +1,8 @@
 import type { MessageQueuePort } from "@/shared/application/ports/MessageQueuePort.js";
-import { MetricAccessSequelize } from "@/features/metric/public.js";
+import {
+  MetricAccessSequelize,
+  MetricCacheRedis,
+} from "@/features/metric/public.js";
 import {
   buildAnalyticsFeature,
   type AnalyticsFeature,
@@ -55,6 +58,10 @@ export const buildWiredFeatures = ({
     metric: buildMetricFeature(),
     metricCategory: buildMetricCategoryFeature(),
     metricLog: buildWiredMetricLogFeature({ messageQueue, metricAccess }),
-    metricSettings: buildMetricSettingsFeature({ metricAccess }),
+    // A settings write clears the metric caches too: the list carries the goal type (#314).
+    metricSettings: buildMetricSettingsFeature({
+      metricAccess,
+      metricCache: new MetricCacheRedis(),
+    }),
   };
 };

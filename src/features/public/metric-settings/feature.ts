@@ -9,10 +9,13 @@ import { UpdateDisplayOptions } from "./application/use-cases/UpdateDisplayOptio
 import { ListMetricSettingsViaCursor } from "./application/queries/ListMetricSettingsViaCursor.js";
 import type { MetricAccessPort } from "./application/ports/MetricAccessPort.js";
 import type { CacheInvalidationPort } from "./application/ports/CacheInvalidationPort.js";
+import type { MetricCacheInvalidationPort } from "./application/ports/MetricCacheInvalidationPort.js";
 
 /** What src/composition/ supplies: another feature's adapter (metric-access-wiring D-01, D-03). */
 export type MetricSettingsFeatureDeps = {
   metricAccess: MetricAccessPort;
+  /** The metric feature's caches, which hold the settings' goal type (#314). */
+  metricCache: MetricCacheInvalidationPort;
 };
 
 export type MetricSettingsFeatureOverrides = {
@@ -20,12 +23,13 @@ export type MetricSettingsFeatureOverrides = {
 };
 
 export const buildMetricSettingsFeature = (
-  { metricAccess }: MetricSettingsFeatureDeps,
+  { metricAccess, metricCache }: MetricSettingsFeatureDeps,
   overrides: MetricSettingsFeatureOverrides = {},
 ) => {
   const repo = new MetricSettingsRepositorySequelize();
   const cache =
-    overrides.cacheInvalidation ?? new MetricSettingsCacheInvalidator();
+    overrides.cacheInvalidation ??
+    new MetricSettingsCacheInvalidator(metricCache);
 
   return {
     createSettings: new CreateMetricSettings(repo, cache, metricAccess),

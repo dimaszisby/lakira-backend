@@ -10,6 +10,11 @@ const setRedisOpen = (value: boolean) => {
   });
 };
 
+/** The metric feature's caches, through the port composition hands in (#314). */
+const metricCache = () => ({
+  invalidateMetrics: jest.fn(async (..._args: unknown[]) => undefined),
+});
+
 describe("MetricSettingsCacheInvalidator", () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -18,17 +23,20 @@ describe("MetricSettingsCacheInvalidator", () => {
 
   it("returns early when redis is not open", async () => {
     setRedisOpen(false);
-    const sut = new MetricSettingsCacheInvalidator();
+    const metric = metricCache();
+    const sut = new MetricSettingsCacheInvalidator(metric);
     const invalidateSpy = jest
       .spyOn(redis, "invalidateCache")
       .mockResolvedValue();
 
     await sut.invalidate("user-1", "org-1", "metric-1", "settings-1");
     expect(invalidateSpy).not.toHaveBeenCalled();
+    expect(metric.invalidateMetrics).not.toHaveBeenCalled();
   });
 
   it("invalidates all relevant keys and logs result", async () => {
-    const sut = new MetricSettingsCacheInvalidator();
+    const metric = metricCache();
+    const sut = new MetricSettingsCacheInvalidator(metric);
     const keySpy = jest.spyOn(redis, "invalidateCache").mockResolvedValue();
     const patternSpy = jest
       .spyOn(redis, "invalidateCacheByPattern")
@@ -60,5 +68,11 @@ describe("MetricSettingsCacheInvalidator", () => {
       settingsId: "settings-1",
     });
     expect(logErrorSpy).not.toHaveBeenCalled();
+    // #314: the metric list carries the goal type, and a detail can include the settings.
+    expect(metric.invalidateMetrics).toHaveBeenCalledWith(
+      "user-1",
+      "org-1",
+      "metric-1",
+    );
   });
 });

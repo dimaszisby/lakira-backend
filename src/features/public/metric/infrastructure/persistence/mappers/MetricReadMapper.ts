@@ -92,7 +92,9 @@ export const toDomainMetricLibrary = (
     defaultUnit: metric.defaultUnit,
     isPublic: metric.isPublic,
     category: categoryDomain,
-    goalType: metric?.MetricSettings?.goalType ?? "Not Set",
+    // `settings` is the association's alias, the only key the list query fills; reading the
+    // model's name instead is what hid #314. "Not Set" when there are none.
+    goalType: metric.settings?.goalType ?? "Not Set",
     createdAt: metric.createdAt!,
     updatedAt: metric.updatedAt!,
     logCount,

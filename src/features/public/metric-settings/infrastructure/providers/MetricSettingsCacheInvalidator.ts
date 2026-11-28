@@ -4,6 +4,7 @@ import {
   redisClient,
 } from "@/utils/redis-client.js";
 import { CacheInvalidationPort } from "../../application/ports/CacheInvalidationPort.js";
+import type { MetricCacheInvalidationPort } from "../../application/ports/MetricCacheInvalidationPort.js";
 import { cursorCacheNamespace } from "@/shared/cache/keys.js";
 import {
   METRIC_SETTINGS_CURSOR_FEATURE,
@@ -20,14 +21,25 @@ const METRIC_SETTINGS_CURSOR_NAMESPACE_ALL = cursorCacheNamespace(
 );
 
 export class MetricSettingsCacheInvalidator implements CacheInvalidationPort {
+  constructor(private readonly metricCache: MetricCacheInvalidationPort) {}
+
   async invalidate(
     userId: string,
     organizationId: string,
-    metricId?: string,
+    metricId: string,
     settingsId?: string,
   ): Promise<void> {
     if (!redisClient.isOpen) return;
     try {
+      // The metric list carries the goal type, and a metric's detail can include its
+      // settings: both are the metric feature's, cleared through its port (#314). First,
+      // and it never throws, so a failure below cannot leave them stale.
+      await this.metricCache.invalidateMetrics(
+        userId,
+        organizationId,
+        metricId,
+      );
+
       // The list cache (kit list-cache-key-filters, D-05). This used to clear
       // `metricSettings:<org>:<user>:*`, a key format nothing writes, so the
       // list served pre-write pages for up to its 300 s TTL.
@@ -44,14 +56,14 @@ export class MetricSettingsCacheInvalidator implements CacheInvalidationPort {
       logCacheInvalidation("metric-settings-cache", {
         userId,
         organizationId,
-        metricId: metricId ?? "-",
+        metricId,
         settingsId: settingsId ?? "-",
       });
     } catch (error) {
       logCacheInvalidationError("metric-settings-cache", error, {
         userId,
         organizationId,
-        metricId: metricId ?? "-",
+        metricId,
         settingsId: settingsId ?? "-",
       });
       throw error;
