@@ -17,7 +17,9 @@ describe("MetricReadRepoSequelize", () => {
       defaultUnit: "steps",
       isPublic: true,
       deletedAt: null,
-      MetricSettings: { goalType: "cumulative" },
+      // The association's alias, as the list's include returns it (#314). This held
+      // `MetricSettings`, a key the query never filled, which is how the bug hid.
+      settings: { goalType: "cumulative" },
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -59,6 +61,18 @@ describe("MetricReadRepoSequelize", () => {
       paranoid: false,
     });
     expect(result.items).toHaveLength(2);
+    expect(result.items[0]!.goalType).toBe("cumulative");
+    const include = (findAll.mock.calls[0]![0] as { include: unknown[] })
+      .include;
+    expect(include).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          as: "settings",
+          attributes: ["id", "goalType"],
+          required: false,
+        }),
+      ]),
+    );
     expect(result.limit).toBe(2);
     expect(result.nextCursor).toBeDefined();
     expect(result.totalCount).toBe(42);
@@ -76,16 +90,17 @@ describe("MetricReadRepoSequelize", () => {
       isPublic: true,
       createdAt: new Date(),
       updatedAt: new Date(),
-      MetricCategory: {
+      // The include aliases, the keys the detail query fills (#314 review).
+      category: {
         id: "cat-1",
         name: "Fitness",
         icon: "🔥",
         color: "#fff",
       },
-      MetricSettings: {
+      settings: {
         goalType: "cumulative",
       },
-      MetricLogs: [],
+      logs: [],
     };
     const findOne = jest
       .spyOn(models.Metric, "findOne")
@@ -109,6 +124,8 @@ describe("MetricReadRepoSequelize", () => {
         expect.objectContaining({ as: "logs", limit: 5 }),
       ]),
     });
+    expect(result?.category?.id).toBe("cat-1");
+    expect(result?.settings?.goalType).toBe("cumulative");
     expect(result?.id).toBe("metric-1");
     expect(result?.userId).toBe("user-1");
   });

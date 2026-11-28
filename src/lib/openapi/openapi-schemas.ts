@@ -735,7 +735,11 @@ export const MetricPreviewSchema = registerSchema(
       .openapi({ example: "Hours slept per day" }),
     defaultUnit: z.string().openapi({ example: "hours" }),
     isPublic: z.boolean().openapi({ example: false }),
-    goalType: z.string().openapi({ example: "Not Set" }),
+    goalType: z.string().openapi({
+      example: "cumulative",
+      description:
+        'The goal type the metric\'s settings hold, `cumulative` or `incremental`; "Not Set" when it has no settings or they hold none.',
+    }),
     logCount: z.number().openapi({ example: 42 }),
     category: MetricPreviewCategorySchema.nullable(),
   }),

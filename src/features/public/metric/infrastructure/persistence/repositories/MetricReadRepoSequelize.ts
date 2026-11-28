@@ -62,6 +62,16 @@ export class MetricReadRepoSequelize implements MetricReadRepository {
           attributes: ["id", "userId", "name", "color", "icon"],
           required: false,
         },
+        // The list's goalType (#314). It was read from an association the query never
+        // loaded, so every metric listed "Not Set". The unique index on metric_id makes this
+        // hasOne match one row at most, so it adds no rows to the page; settings are
+        // hard-deleted, so a deleted one simply is not there.
+        {
+          model: models.MetricSettings,
+          as: "settings",
+          attributes: ["id", "goalType"],
+          required: false,
+        },
       ],
     };
 
